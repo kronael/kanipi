@@ -1,24 +1,25 @@
 {
-  "name": "kanipi",
+  "name": "arizuka",
   "version": "0.1.0",
-  "description": "NanoClaw with telegram. Multitenant Claude agents.",
+  "description": "Anthill agent orchestrator. NanoClaw fork with routing, middleware, and multi-channel support.",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "better-sqlite3": "^11.8.1",
     "cron-parser": "^5.5.0",
-    "grammy": "^1.35.0",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
-    "smol-toml": "^1.3.1",
     "yaml": "^2.8.2",
     "zod": "^4.3.6"
   },
@@ -27,7 +28,8 @@
     "@types/node": "^22.10.0",
     "@types/qrcode-terminal": "^0.12.2",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=20"

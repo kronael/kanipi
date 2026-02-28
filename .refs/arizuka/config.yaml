@@ -1,0 +1,57 @@
+assistant:
+  name: "Arizuka"
+  trigger: "@Arizuka"
+  defaultAgent: "main"
+
+container:
+  image: "arizuka-agent:latest"
+  timeout: 1800000
+  maxConcurrent: 5
+  idleTimeout: 1800000
+
+channels:
+  whatsapp:
+    enabled: false
+    hasOwnNumber: false
+  telegram:
+    enabled: false
+    token: "${TELEGRAM_BOT_TOKEN}"
+    pollingTimeout: 30
+
+# Auto-register unknown Telegram/WhatsApp chats with the default agent.
+# Set false to require manual registration in bindings.
+autoRegister: true
+
+# Per-agent configuration. Each agent gets its own memory, container, personality.
+# If an agent isn't listed here, it inherits all defaults from container section.
+agents:
+  main:
+    personality: "You are a helpful assistant."
+    # network: true        # default — agent can reach Anthropic API
+    # image: "custom:latest" # override container image
+    # timeout: 3600000     # 1hr override
+    # mounts:              # extra host dirs to mount
+    #   - hostPath: "~/datasets"
+    #     containerPath: "datasets"
+    #     readonly: true
+
+bindings: []
+# Example:
+#   - match: { channel: "telegram", peer: "tg:-1001234567" }
+#     agent: "research"
+#   - match: { channel: "telegram" }
+#     agent: "main"
+
+routes: []
+# Example:
+#   - match: { tool: "web_search" }
+#     middleware:
+#       - type: "inject-header"
+#         header: "Authorization"
+#         credential: "serpapi-key"
+
+credentials: {}
+# Example:
+#   serpapi-key:
+#     source: "env"
+#     envVar: "SERPAPI_API_KEY"
