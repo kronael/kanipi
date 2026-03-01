@@ -20,20 +20,13 @@ if [ "${1:-}" = "create" ]; then
            "$DATA/web" \
            "/srv/run/kanipi_${NAME}"
 
-  # seed .env
-  cat > "$DATA/.env" <<ENV
-ASSISTANT_NAME=${NAME}
-TELEGRAM_BOT_TOKEN=
-DISCORD_BOT_TOKEN=
-CONTAINER_IMAGE=kanipi-agent:latest
-CLAUDE_CODE_OAUTH_TOKEN=
-VITE_PORT=5173
-WEB_HOST=
-ENV
+  # seed .env from template
+  SEED="/srv/app/template"
+  cp "$SEED/env.example" "$DATA/.env"
+  sed -i "s/^ASSISTANT_NAME=.*/ASSISTANT_NAME=${NAME}/" "$DATA/.env"
   echo "created: $DATA/.env"
 
   # seed workspace skills
-  SEED="/srv/app/template"
   if [ -d "$SEED/workspace/skills" ]; then
     mkdir -p "$DATA/.claude"
     cp -r "$SEED/workspace/skills" "$DATA/.claude/"
