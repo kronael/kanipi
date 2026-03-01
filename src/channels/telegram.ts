@@ -4,6 +4,36 @@ import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts } from '../types.js';
 
+function mdToHtml(text: string): string {
+  // Extract fenced code blocks before any other processing
+  const blocks: string[] = [];
+  const withPlaceholders = text.replace(/```[\s\S]*?```/g, (match) => {
+    const content = match.slice(3, -3).replace(/^[^\n]*\n?/, ''); // strip lang tag
+    const escaped = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    blocks.push(`<pre>${escaped}</pre>`);
+    return `\x00BLOCK${blocks.length - 1}\x00`;
+  });
+
+  // Escape HTML in remaining text, then apply inline markdown
+  const escaped = withPlaceholders
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const inline = escaped
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.+?)\*/g, '<i>$1</i>')
+    .replace(/_(.+?)_/g, '<i>$1</i>')
+    .replace(/^#{1,6} (.+)$/gm, '<b>$1</b>');
+
+  // Reinsert code blocks
+  return inline.replace(/\x00BLOCK(\d+)\x00/g, (_, i) => blocks[parseInt(i)]);
+}
+
 export class TelegramChannel implements Channel {
   name = 'telegram';
 
@@ -200,14 +230,18 @@ export class TelegramChannel implements Channel {
       const numericId = jid.replace(/^tg:/, '');
 
       // Telegram has a 4096 character limit per message — split if needed
+      const html = mdToHtml(text);
       const MAX_LENGTH = 4096;
-      if (text.length <= MAX_LENGTH) {
-        await this.bot.api.sendMessage(numericId, text);
+      if (html.length <= MAX_LENGTH) {
+        await this.bot.api.sendMessage(numericId, html, { parse_mode: 'HTML' });
       } else {
-        for (let i = 0; i < text.length; i += MAX_LENGTH) {
+        for (let i = 0; i < html.length; i += MAX_LENGTH) {
           await this.bot.api.sendMessage(
             numericId,
-            text.slice(i, i + MAX_LENGTH),
+            html.slice(i, i + MAX_LENGTH),
+            {
+              parse_mode: 'HTML',
+            },
           );
         }
       }
