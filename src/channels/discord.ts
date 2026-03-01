@@ -20,6 +20,10 @@ export interface DiscordChannelOpts {
   registeredGroups: () => Record<string, RegisteredGroup>;
 }
 
+function channelId(jid: string): string {
+  return jid.replace(/^discord:/, '');
+}
+
 export class DiscordChannel implements Channel {
   name = 'discord';
 
@@ -71,26 +75,22 @@ export class DiscordChannel implements Channel {
     const senderName =
       msg.member?.displayName || msg.author.displayName;
     const sender = msg.author.id;
+    const isGroup = msg.guild !== null;
+    const chatName = isGroup
+      ? `#${(msg.channel as TextChannel).name}`
+      : senderName;
 
-    // !chatid command
     if (msg.content === '!chatid') {
-      const name = msg.guild
-        ? `#${(msg.channel as TextChannel).name}`
-        : 'DM';
-      msg.reply(`Chat ID: \`${chatJid}\`\nName: ${name}`);
+      msg.reply(
+        `Chat ID: \`${chatJid}\`\nName: ${chatName}`,
+      );
       return;
     }
 
-    // Chat metadata
-    const isGroup = msg.guild !== null;
-    const chatName = msg.guild
-      ? `#${(msg.channel as TextChannel).name}`
-      : senderName;
     this.opts.onChatMetadata(
       chatJid, timestamp, chatName, 'discord', isGroup,
     );
 
-    // Only deliver for registered groups
     const group = this.opts.registeredGroups()[chatJid];
     if (!group) {
       logger.debug(
@@ -100,7 +100,6 @@ export class DiscordChannel implements Channel {
       return;
     }
 
-    // Translate @bot mentions to trigger pattern
     let content = msg.content;
     const botId = this.client?.user?.id;
     if (botId && content.includes(`<@${botId}>`)) {
@@ -133,22 +132,18 @@ export class DiscordChannel implements Channel {
     }
 
     try {
-      const channelId = jid.replace(/^discord:/, '');
-      const channel = await this.client.channels.fetch(channelId);
+      const id = channelId(jid);
+      const channel = await this.client.channels.fetch(id);
       if (!channel?.isTextBased()) {
         logger.warn({ jid }, 'Discord channel not text-based');
         return;
       }
 
       const MAX = 2000;
-      if (text.length <= MAX) {
-        await (channel as TextChannel).send(text);
-      } else {
-        for (let i = 0; i < text.length; i += MAX) {
-          await (channel as TextChannel).send(
-            text.slice(i, i + MAX),
-          );
-        }
+      for (let i = 0; i < text.length; i += MAX) {
+        await (channel as TextChannel).send(
+          text.slice(i, i + MAX),
+        );
       }
       logger.info({ jid, length: text.length }, 'Discord message sent');
     } catch (err) {
@@ -175,8 +170,8 @@ export class DiscordChannel implements Channel {
   async setTyping(jid: string, isTyping: boolean): Promise<void> {
     if (!this.client || !isTyping) return;
     try {
-      const channelId = jid.replace(/^discord:/, '');
-      const channel = await this.client.channels.fetch(channelId);
+      const id = channelId(jid);
+      const channel = await this.client.channels.fetch(id);
       if (channel?.isTextBased()) {
         await (channel as TextChannel).sendTyping();
       }

@@ -15,7 +15,7 @@ if [ "${1:-}" = "create" ]; then
   fi
 
   mkdir -p "$DATA/groups/main/logs" \
-           "$DATA/store" \
+           "$DATA/state" \
            "$DATA/data" \
            "/srv/run/kanipi_${NAME}"
 
@@ -23,7 +23,7 @@ if [ "${1:-}" = "create" ]; then
   cat > "$DATA/.env" <<ENV
 ASSISTANT_NAME=${NAME}
 TELEGRAM_BOT_TOKEN=
-TELEGRAM_ONLY=true
+DISCORD_BOT_TOKEN=
 CONTAINER_IMAGE=kanipi-agent:latest
 ENV
   echo "created: $DATA/.env"
@@ -88,6 +88,5 @@ if [ ! -f "$HOME_DIR/.env" ]; then
   exit 1
 fi
 
-export TELEGRAM_ONLY=true
 cd "$HOME_DIR"
 exec node /srv/app/dist/index.js

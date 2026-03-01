@@ -32,7 +32,7 @@ export const MOUNT_ALLOWLIST_PATH = path.join(
   'nanoclaw',
   'mount-allowlist.json',
 );
-export const STORE_DIR = path.resolve(PROJECT_ROOT, 'store');
+export const STORE_DIR = path.resolve(PROJECT_ROOT, 'state');
 export const GROUPS_DIR = path.resolve(PROJECT_ROOT, 'groups');
 export const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
 export const MAIN_GROUP_FOLDER = 'main';
@@ -71,16 +71,12 @@ export const TRIGGER_PATTERN = new RegExp(
 export const TIMEZONE =
   process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-// Channel tokens — presence enables the channel
 export const TELEGRAM_BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
 export const DISCORD_BOT_TOKEN =
   process.env.DISCORD_BOT_TOKEN || envConfig.DISCORD_BOT_TOKEN || '';
 
-// WhatsApp: enabled when auth state exists (paired via QR)
-export const WHATSAPP_AUTH_DIR = path.join(
-  path.resolve(PROJECT_ROOT, 'store'), 'auth',
-);
+export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
 export function whatsappEnabled(): boolean {
   return fs.existsSync(
     path.join(WHATSAPP_AUTH_DIR, 'creds.json'),

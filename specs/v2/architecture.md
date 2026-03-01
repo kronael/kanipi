@@ -1,4 +1,4 @@
-# kanipi v1 architecture
+# kanipi v2 architecture
 
 Nanoclaw fork. Telegram-first gateway, systemd-managed,
 MCP sidecar extensibility.
@@ -54,8 +54,9 @@ interface Channel {
 
 | File | LOC | JID prefix |
 |------|-----|------------|
-| src/telegram.ts | 150 | `tg:` |
-| src/whatsapp.ts | 150 | `wa:` |
+| src/channels/telegram.ts | 245 | `tg:` |
+| src/channels/whatsapp.ts | 379 | `wa:` |
+| src/channels/discord.ts | 190 | `discord:` |
 
 Channels are compiled in, toggled at runtime by .env.
 See [channels.md](channels.md) for strategy.
@@ -69,7 +70,7 @@ Per-instance directory: `/srv/data/kanipi_<name>/`
 groups/
   <group_id>/
     logs/         conversation logs
-store/            persistent state (SQLite)
+state/            persistent state (SQLite, WA auth)
 data/
   ipc/            container ↔ host unix sockets
 ```
@@ -120,7 +121,8 @@ Key variables:
 |----------|---------|
 | ASSISTANT_NAME | instance display name |
 | TELEGRAM_BOT_TOKEN | enables telegram channel |
-| TELEGRAM_ONLY | legacy flag (see channels.md) |
+| DISCORD_BOT_TOKEN | enables discord channel |
+| TELEGRAM_ONLY | legacy, removed in v2 |
 | CONTAINER_IMAGE | agent Docker image |
 | CONTAINER_TIMEOUT | max container runtime |
 | ANTHROPIC_API_KEY | Claude API key |
@@ -136,3 +138,10 @@ Skills are shell scripts in the agent container at
 | info | instance status | yes |
 | ship | uvx ship CLI | if needed |
 | agent-browser | playwright in container | yes |
+
+## v2 changes from v1
+
+- `store/` → `state/` (SQLite + auth state)
+- `TELEGRAM_ONLY` removed, channels toggled by token presence
+- Discord channel added
+- Planned: postgres as alternative to SQLite
