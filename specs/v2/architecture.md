@@ -10,30 +10,31 @@ MCP sidecar extensibility.
 Routes messages between channels and agent containers.
 Manages state, scheduling, security.
 
-| File | LOC | Role |
-|------|-----|------|
-| src/index.ts | 510 | main entry, lifecycle |
-| src/db.ts | 670 | SQLite message store, polling |
-| src/container-runner.ts | 300 | Docker container lifecycle |
-| src/group-queue.ts | 250 | per-group serial queue |
-| src/ipc.ts | 200 | container ↔ host communication |
-| src/task-scheduler.ts | 200 | scheduled tasks |
-| src/mount-security.ts | 420 | mount allowlist enforcement |
-| src/config.ts | 78 | .env reader |
-| src/router.ts | 46 | message routing |
-| src/types.ts | 105 | shared types |
+| File                    | LOC | Role                           |
+| ----------------------- | --- | ------------------------------ |
+| src/index.ts            | 510 | main entry, lifecycle          |
+| src/db.ts               | 670 | SQLite message store, polling  |
+| src/container-runner.ts | 300 | Docker container lifecycle     |
+| src/group-queue.ts      | 250 | per-group serial queue         |
+| src/ipc.ts              | 200 | container ↔ host communication |
+| src/task-scheduler.ts   | 200 | scheduled tasks                |
+| src/mount-security.ts   | 420 | mount allowlist enforcement    |
+| src/config.ts           | 78  | .env reader                    |
+| src/router.ts           | 46  | message routing                |
+| src/types.ts            | 105 | shared types                   |
 
 ### Agent container
 
 Runs Claude SDK inside Docker. Entrypoint is
 `container/agent-runner/`.
 
-| File | LOC | Role |
-|------|-----|------|
-| src/index.ts | 588 | Claude SDK client, tool dispatch |
-| src/ipc-mcp-stdio.ts | 285 | MCP over stdio for IPC |
+| File                 | LOC | Role                             |
+| -------------------- | --- | -------------------------------- |
+| src/index.ts         | 588 | Claude SDK client, tool dispatch |
+| src/ipc-mcp-stdio.ts | 285 | MCP over stdio for IPC           |
 
 MCP tools exposed to agent:
+
 - `send_message` — reply to channel
 - `schedule_task` — create scheduled task
 - `register_group` — join/create group
@@ -45,17 +46,17 @@ All channels accept a shared `ChannelOpts` for construction:
 
 ```typescript
 interface ChannelOpts {
-  onMessage: OnInboundMessage
-  onChatMetadata: OnChatMetadata
-  registeredGroups: () => Record<string, RegisteredGroup>
+  onMessage: OnInboundMessage;
+  onChatMetadata: OnChatMetadata;
+  registeredGroups: () => Record<string, RegisteredGroup>;
 }
 ```
 
-| File | LOC | JID prefix |
-|------|-----|------------|
-| src/channels/telegram.ts | 245 | `tg:` |
-| src/channels/whatsapp.ts | 379 | `wa:` |
-| src/channels/discord.ts | 190 | `discord:` |
+| File                     | LOC | JID prefix |
+| ------------------------ | --- | ---------- |
+| src/channels/telegram.ts | 245 | `tg:`      |
+| src/channels/whatsapp.ts | 379 | `wa:`      |
+| src/channels/discord.ts  | 190 | `discord:` |
 
 Channels are compiled in, toggled at runtime by .env.
 See [channels.md](channels.md) for strategy.
@@ -116,27 +117,27 @@ reads `process.env` directly.
 
 Key variables:
 
-| Variable | Purpose |
-|----------|---------|
-| ASSISTANT_NAME | instance display name |
+| Variable           | Purpose                  |
+| ------------------ | ------------------------ |
+| ASSISTANT_NAME     | instance display name    |
 | TELEGRAM_BOT_TOKEN | enables telegram channel |
-| DISCORD_BOT_TOKEN | enables discord channel |
-| TELEGRAM_ONLY | legacy, removed in v2 |
-| CONTAINER_IMAGE | agent Docker image |
-| CONTAINER_TIMEOUT | max container runtime |
-| ANTHROPIC_API_KEY | Claude API key |
+| DISCORD_BOT_TOKEN  | enables discord channel  |
+| TELEGRAM_ONLY      | legacy, removed in v2    |
+| CONTAINER_IMAGE    | agent Docker image       |
+| CONTAINER_TIMEOUT  | max container runtime    |
+| ANTHROPIC_API_KEY  | Claude API key           |
 
 ## Skills
 
 Skills are shell scripts in the agent container at
 `.claude/skills/`.
 
-| Skill | Purpose | Keep? |
-|-------|---------|-------|
-| reload | kill -TERM 1 to restart, config reload | yes |
-| info | instance status | yes |
-| ship | uvx ship CLI | if needed |
-| agent-browser | playwright in container | yes |
+| Skill         | Purpose                                | Keep?     |
+| ------------- | -------------------------------------- | --------- |
+| reload        | kill -TERM 1 to restart, config reload | yes       |
+| info          | instance status                        | yes       |
+| ship          | uvx ship CLI                           | if needed |
+| agent-browser | playwright in container                | yes       |
 
 ## v2 changes from v1
 

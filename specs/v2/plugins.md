@@ -20,12 +20,14 @@ enabled = ["telegram", "voice-transcription", "web-search"]
 ## Plugin types
 
 ### Channels
+
 - telegram (current, always-on)
 - whatsapp (nanoclaw upstream, dormant)
 - slack (nanoclaw /add-slack skill)
 - gmail (nanoclaw /add-gmail skill)
 
 ### Features
+
 - voice-transcription (whisper API for voice notes)
 - agent-swarm (multi-bot telegram, /add-telegram-swarm)
 - web-search (tool available to agent)
@@ -34,6 +36,7 @@ enabled = ["telegram", "voice-transcription", "web-search"]
 ## Implementation approach
 
 Each plugin = directory under `plugins/` with:
+
 - `index.ts` exporting `register(app: KanipiApp): void`
 - Plugin receives app context (channels array, config, etc.)
 - Channels implement the existing `Channel` interface

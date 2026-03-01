@@ -60,16 +60,16 @@ type Channel interface {
 
 ## Libraries
 
-| Concern | Library | Notes |
-|---------|---------|-------|
-| sqlite | modernc.org/sqlite | pure Go, no CGO |
-| telegram | gotgbot/v2 | long-polling |
-| whatsapp | go.mau.fi/whatsmeow | signal protocol |
-| discord | bwmarrin/discordgo | websocket gateway |
-| file watch | fsnotify | replaces 500ms polling |
-| cron | robfig/cron/v3 | task scheduling |
-| env | joho/godotenv | .env parsing |
-| logging | log/slog | stdlib structured logging |
+| Concern    | Library             | Notes                     |
+| ---------- | ------------------- | ------------------------- |
+| sqlite     | modernc.org/sqlite  | pure Go, no CGO           |
+| telegram   | gotgbot/v2          | long-polling              |
+| whatsapp   | go.mau.fi/whatsmeow | signal protocol           |
+| discord    | bwmarrin/discordgo  | websocket gateway         |
+| file watch | fsnotify            | replaces 500ms polling    |
+| cron       | robfig/cron/v3      | task scheduling           |
+| env        | joho/godotenv       | .env parsing              |
+| logging    | log/slog            | stdlib structured logging |
 
 ## Container protocol
 
@@ -90,6 +90,7 @@ cmd.Stdout = parser    // marker-delimited output
 ```
 
 Stdin JSON (same as v2):
+
 ```json
 {
   "prompt": "...",
@@ -97,7 +98,7 @@ Stdin JSON (same as v2):
   "groupFolder": "main",
   "chatJid": "tg:123",
   "isMain": true,
-  "secrets": {"ANTHROPIC_API_KEY": "..."}
+  "secrets": { "ANTHROPIC_API_KEY": "..." }
 }
 ```
 
@@ -162,6 +163,7 @@ image:
 ```
 
 Dockerfile:
+
 ```dockerfile
 FROM golang:1.23 AS build
 WORKDIR /src

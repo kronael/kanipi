@@ -42,7 +42,10 @@ process.on('SIGUSR1', () => {
 function waitForIpcMessage(): Promise<string | null> {
   return new Promise((resolve) => {
     const check = () => {
-      if (shouldClose()) { resolve(null); return; }
+      if (shouldClose()) {
+        resolve(null);
+        return;
+      }
       const msgs = drainIpcInput();
       if (msgs.length > 0) {
         resolve(msgs.join('\n'));

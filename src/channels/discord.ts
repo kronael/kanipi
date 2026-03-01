@@ -1,9 +1,4 @@
-import {
-  Client,
-  GatewayIntentBits,
-  Message,
-  TextChannel,
-} from 'discord.js';
+import { Client, GatewayIntentBits, Message, TextChannel } from 'discord.js';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import { logger } from '../logger.js';
@@ -38,15 +33,11 @@ export class DiscordChannel implements Channel {
           'Discord bot connected',
         );
         console.log(`\n  Discord bot: ${c.user.tag}`);
-        console.log(
-          `  Send !chatid in a channel to get registration ID\n`,
-        );
+        console.log(`  Send !chatid in a channel to get registration ID\n`);
         resolve();
       });
 
-      this.client!.on('messageCreate', (msg) =>
-        this.handleMessage(msg),
-      );
+      this.client!.on('messageCreate', (msg) => this.handleMessage(msg));
 
       this.client!.login(this.botToken).catch(reject);
     });
@@ -57,8 +48,7 @@ export class DiscordChannel implements Channel {
 
     const chatJid = `discord:${msg.channelId}`;
     const timestamp = msg.createdAt.toISOString();
-    const senderName =
-      msg.member?.displayName || msg.author.displayName;
+    const senderName = msg.member?.displayName || msg.author.displayName;
     const sender = msg.author.id;
     const isGroup = msg.guild !== null;
     const chatName = isGroup
@@ -66,15 +56,11 @@ export class DiscordChannel implements Channel {
       : senderName;
 
     if (msg.content === '!chatid') {
-      msg.reply(
-        `Chat ID: \`${chatJid}\`\nName: ${chatName}`,
-      );
+      msg.reply(`Chat ID: \`${chatJid}\`\nName: ${chatName}`);
       return;
     }
 
-    this.opts.onChatMetadata(
-      chatJid, timestamp, chatName, 'discord', isGroup,
-    );
+    this.opts.onChatMetadata(chatJid, timestamp, chatName, 'discord', isGroup);
 
     const group = this.opts.registeredGroups()[chatJid];
     if (!group) {
@@ -117,9 +103,7 @@ export class DiscordChannel implements Channel {
     }
 
     try {
-      const ch = await this.client.channels.fetch(
-        jid.replace(/^discord:/, ''),
-      );
+      const ch = await this.client.channels.fetch(jid.replace(/^discord:/, ''));
       if (!ch?.isTextBased()) {
         logger.warn({ jid }, 'Discord channel not text-based');
         return;
@@ -128,9 +112,7 @@ export class DiscordChannel implements Channel {
       for (let i = 0; i < text.length; i += MAX) {
         await (ch as TextChannel).send(text.slice(i, i + MAX));
       }
-      logger.info(
-        { jid, length: text.length }, 'Discord message sent',
-      );
+      logger.info({ jid, length: text.length }, 'Discord message sent');
     } catch (err) {
       logger.error({ jid, err }, 'Failed to send Discord message');
     }
@@ -155,17 +137,12 @@ export class DiscordChannel implements Channel {
   async setTyping(jid: string, isTyping: boolean): Promise<void> {
     if (!this.client || !isTyping) return;
     try {
-      const ch = await this.client.channels.fetch(
-        jid.replace(/^discord:/, ''),
-      );
+      const ch = await this.client.channels.fetch(jid.replace(/^discord:/, ''));
       if (ch?.isTextBased()) {
         await (ch as TextChannel).sendTyping();
       }
     } catch (err) {
-      logger.debug(
-        { jid, err },
-        'Failed to send Discord typing indicator',
-      );
+      logger.debug({ jid, err }, 'Failed to send Discord typing indicator');
     }
   }
 }
