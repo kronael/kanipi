@@ -190,11 +190,19 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   };
 
   await channel.setTyping?.(chatJid, true);
-  const typingInterval = channel.setTyping
+  let typingInterval: ReturnType<typeof setInterval> | null = channel.setTyping
     ? setInterval(() => channel.setTyping!(chatJid, true), 4000)
     : null;
   let hadError = false;
   let outputSentToUser = false;
+
+  const stopTyping = () => {
+    if (typingInterval) {
+      clearInterval(typingInterval);
+      typingInterval = null;
+    }
+    channel.setTyping?.(chatJid, false);
+  };
 
   const output = await runAgent(group, prompt, chatJid, async (result) => {
     // Streaming output callback — called for each agent result
@@ -215,6 +223,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     }
 
     if (result.status === 'success') {
+      // Agent finished responding — stop typing indicator.
+      // Container stays alive (idle) but should not show as "working".
+      stopTyping();
       queue.notifyIdle(chatJid);
     }
 
@@ -223,8 +234,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     }
   });
 
-  if (typingInterval) clearInterval(typingInterval);
-  await channel.setTyping?.(chatJid, false);
+  stopTyping();
   if (idleTimer) clearTimeout(idleTimer);
 
   if (output === 'error' || hadError) {
