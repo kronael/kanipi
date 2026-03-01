@@ -12,6 +12,8 @@ const envConfig = readEnvFile([
   'ASSISTANT_HAS_OWN_NUMBER',
   'TELEGRAM_BOT_TOKEN',
   'DISCORD_BOT_TOKEN',
+  'VITE_PORT',
+  'WEB_HOST',
 ]);
 
 export const ASSISTANT_NAME =
@@ -74,6 +76,10 @@ export const TELEGRAM_BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
 export const DISCORD_BOT_TOKEN =
   process.env.DISCORD_BOT_TOKEN || envConfig.DISCORD_BOT_TOKEN || '';
+
+export const VITE_PORT = process.env.VITE_PORT || envConfig.VITE_PORT || '';
+export const WEB_HOST = process.env.WEB_HOST || envConfig.WEB_HOST || '';
+export const WEB_DIR = path.resolve(PROJECT_ROOT, 'web');
 
 export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
 export function whatsappEnabled(): boolean {

@@ -14,6 +14,7 @@ import {
   GROUPS_DIR,
   IDLE_TIMEOUT,
   TIMEZONE,
+  WEB_DIR,
 } from './config.js';
 import { readEnvFile } from './env.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
@@ -194,6 +195,15 @@ function buildVolumeMounts(
       isMain,
     );
     mounts.push(...validatedMounts);
+  }
+
+  // Web directory for vite-served apps (shared writable volume)
+  if (fs.existsSync(WEB_DIR)) {
+    mounts.push({
+      hostPath: WEB_DIR,
+      containerPath: '/web',
+      readonly: false,
+    });
   }
 
   return mounts;

@@ -27,6 +27,7 @@ export interface IpcDeps {
     availableGroups: AvailableGroup[],
     registeredJids: Set<string>,
   ) => void;
+  restartVite?: () => void;
 }
 
 let ipcWatcherRunning = false;
@@ -377,6 +378,18 @@ export async function processTaskIpc(
         logger.warn(
           { data },
           'Invalid register_group request - missing required fields',
+        );
+      }
+      break;
+
+    case 'restart_vite':
+      if (isMain) {
+        deps.restartVite?.();
+        logger.info({ sourceGroup }, 'Vite restart requested via IPC');
+      } else {
+        logger.warn(
+          { sourceGroup },
+          'Unauthorized restart_vite attempt blocked',
         );
       }
       break;
