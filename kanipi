@@ -140,7 +140,8 @@ if [ "${1:-}" = "create" ]; then
            "/srv/run/kanipi_${NAME}"
 
   # seed .env from template
-  SEED="/srv/app/template"
+  SEED="${APP_DIR:-/srv/app}/template"
+  [ ! -d "$SEED" ] && SEED="$(cd "$(dirname "$0")" && pwd)/template"
   cp "$SEED/env.example" "$DATA/.env"
   sed -i "s/^ASSISTANT_NAME=.*/ASSISTANT_NAME=${NAME}/" "$DATA/.env"
   echo "created: $DATA/.env"
