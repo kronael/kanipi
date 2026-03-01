@@ -158,8 +158,13 @@ function buildVolumeMounts(
     );
   }
 
+  const appDir = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    '..',
+  );
+
   // Seed skills once per group — agent can modify, persists across spawns
-  const skillsSrc = path.join(process.cwd(), 'container', 'skills');
+  const skillsSrc = path.join(appDir, 'container', 'skills');
   const skillsDst = path.join(groupSessionsDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
     for (const skillDir of fs.readdirSync(skillsSrc)) {
@@ -194,10 +199,6 @@ function buildVolumeMounts(
   // Copy agent-runner source into a per-group writable location so agents
   // can customize it (add tools, change behavior) without affecting other
   // groups. Recompiled on container startup via entrypoint.sh.
-  const appDir = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    '..',
-  );
   const agentRunnerSrc = path.join(appDir, 'container', 'agent-runner', 'src');
   const groupAgentRunnerDir = path.join(
     DATA_DIR,
