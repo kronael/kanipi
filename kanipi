@@ -170,7 +170,7 @@ ExecStartPre=-/usr/bin/docker rm -f %n
 ExecStop=/usr/bin/docker rm -f %n
 ExecStart=/usr/bin/docker run -i --rm --name %n \
     --network=host \
-    -v /srv/data/kanipi_${NAME}:/srv/app/kanipi \
+    -v /srv/data/kanipi_${NAME}:/srv/app/instance \
     -v /srv/run/kanipi_${NAME}:/srv/run/kanipi_${NAME} \
     -v /var/run/docker.sock:/var/run/docker.sock \
     kanipi \
@@ -198,7 +198,7 @@ if [ -z "${1:-}" ]; then
 fi
 
 INSTANCE="$1"
-HOME_DIR="/srv/app/kanipi"
+HOME_DIR="/srv/app/instance"
 
 if [ ! -f "$HOME_DIR/.env" ]; then
   echo "no .env in $HOME_DIR"
