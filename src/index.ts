@@ -3,6 +3,7 @@ import path from 'path';
 
 import {
   ASSISTANT_NAME,
+  CONTAINER_IMAGE,
   DISCORD_BOT_TOKEN,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
@@ -449,7 +450,7 @@ function recoverPendingMessages(): void {
 
 async function main(): Promise<void> {
   ensureContainerRuntimeRunning();
-  cleanupOrphans();
+  cleanupOrphans(CONTAINER_IMAGE);
   initDatabase();
   logger.info('Database initialized');
   loadState();
