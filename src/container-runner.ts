@@ -69,6 +69,11 @@ function chownRecursive(dir: string, uid: number, gid: number): void {
   }
 }
 
+const APP_DIR = path.resolve(
+  path.dirname(new URL(import.meta.url).pathname),
+  '..',
+);
+
 // Translate container-local path to host-side path for docker mounts.
 function hostPath(localPath: string): string {
   const projectRoot = process.cwd();
@@ -86,34 +91,22 @@ function buildVolumeMounts(
   const projectRoot = process.cwd();
   const groupDir = resolveGroupFolderPath(group.folder);
 
+  // All groups get their own folder as working directory
+  mounts.push({
+    hostPath: hostPath(groupDir),
+    containerPath: '/workspace/group',
+    readonly: false,
+  });
+
   if (isMain) {
-    // Main gets the project root read-only. Writable paths the agent needs
-    // (group folder, IPC, .claude/) are mounted separately below.
-    // Read-only prevents the agent from modifying host application code
-    // (src/, dist/, package.json, etc.) which would bypass the sandbox
-    // entirely on next restart.
+    // Main gets the project root read-only to prevent agent from modifying host code
     mounts.push({
       hostPath: hostPath(projectRoot),
       containerPath: '/workspace/project',
       readonly: true,
     });
-
-    // Main also gets its group folder as the working directory
-    mounts.push({
-      hostPath: hostPath(groupDir),
-      containerPath: '/workspace/group',
-      readonly: false,
-    });
   } else {
-    // Other groups only get their own folder
-    mounts.push({
-      hostPath: hostPath(groupDir),
-      containerPath: '/workspace/group',
-      readonly: false,
-    });
-
-    // Global memory directory (read-only for non-main)
-    // Only directory mounts are supported, not file mounts
+    // Non-main gets global memory directory read-only
     const globalDir = path.join(GROUPS_DIR, 'global');
     if (fs.existsSync(globalDir)) {
       mounts.push({
@@ -124,8 +117,6 @@ function buildVolumeMounts(
     }
   }
 
-  // Per-group Claude sessions directory (isolated from other groups)
-  // Each group gets their own .claude/ to prevent cross-group session access
   const groupSessionsDir = path.join(
     DATA_DIR,
     'sessions',
@@ -158,13 +149,8 @@ function buildVolumeMounts(
     );
   }
 
-  const appDir = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    '..',
-  );
-
   // Seed skills once per group — agent can modify, persists across spawns
-  const skillsSrc = path.join(appDir, 'container', 'skills');
+  const skillsSrc = path.join(APP_DIR, 'container', 'skills');
   const skillsDst = path.join(groupSessionsDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
     for (const skillDir of fs.readdirSync(skillsSrc)) {
@@ -183,8 +169,6 @@ function buildVolumeMounts(
     readonly: false,
   });
 
-  // Per-group IPC namespace: each group gets its own IPC directory
-  // This prevents cross-group privilege escalation via IPC
   const groupIpcDir = resolveGroupIpcPath(group.folder);
   fs.mkdirSync(path.join(groupIpcDir, 'messages'), { recursive: true });
   fs.mkdirSync(path.join(groupIpcDir, 'tasks'), { recursive: true });
@@ -196,10 +180,7 @@ function buildVolumeMounts(
     readonly: false,
   });
 
-  // Copy agent-runner source into a per-group writable location so agents
-  // can customize it (add tools, change behavior) without affecting other
-  // groups. Recompiled on container startup via entrypoint.sh.
-  const agentRunnerSrc = path.join(appDir, 'container', 'agent-runner', 'src');
+  const agentRunnerSrc = path.join(APP_DIR, 'container', 'agent-runner', 'src');
   const groupAgentRunnerDir = path.join(
     DATA_DIR,
     'sessions',
@@ -216,7 +197,6 @@ function buildVolumeMounts(
     readonly: false,
   });
 
-  // Additional mounts validated against external allowlist (tamper-proof from containers)
   if (group.containerConfig?.additionalMounts) {
     const validatedMounts = validateAdditionalMounts(
       group.containerConfig.additionalMounts,
@@ -226,7 +206,6 @@ function buildVolumeMounts(
     mounts.push(...validatedMounts);
   }
 
-  // Web directory for vite-served apps (shared writable volume)
   if (fs.existsSync(WEB_DIR)) {
     mounts.push({
       hostPath: hostPath(WEB_DIR),
@@ -238,10 +217,6 @@ function buildVolumeMounts(
   return mounts;
 }
 
-/**
- * Read allowed secrets from .env for passing to the container via stdin.
- * Secrets are never written to disk or mounted as files.
- */
 function readSecrets(): Record<string, string> {
   return readEnvFile(['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY']);
 }
