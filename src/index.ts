@@ -44,6 +44,7 @@ import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
 import { logger } from './logger.js';
 
+// Re-export for backwards compatibility during refactor
 export { escapeXml, formatMessages } from './router.js';
 
 let lastTimestamp = '';
@@ -447,23 +448,23 @@ async function main(): Promise<void> {
     registeredGroups: () => registeredGroups,
   };
 
-  // Create and connect channels — token presence enables each
+  // Create and connect channels
   if (TELEGRAM_BOT_TOKEN) {
-    const tg = new TelegramChannel(TELEGRAM_BOT_TOKEN, channelOpts);
-    channels.push(tg);
-    await tg.connect();
+    const telegram = new TelegramChannel(TELEGRAM_BOT_TOKEN, channelOpts);
+    channels.push(telegram);
+    await telegram.connect();
   }
 
   if (whatsappEnabled()) {
-    const wa = new WhatsAppChannel(channelOpts);
-    channels.push(wa);
-    await wa.connect();
+    const whatsapp = new WhatsAppChannel(channelOpts);
+    channels.push(whatsapp);
+    await whatsapp.connect();
   }
 
   if (DISCORD_BOT_TOKEN) {
-    const dc = new DiscordChannel(DISCORD_BOT_TOKEN, channelOpts);
-    channels.push(dc);
-    await dc.connect();
+    const discord = new DiscordChannel(DISCORD_BOT_TOKEN, channelOpts);
+    channels.push(discord);
+    await discord.connect();
   }
 
   // Start subsystems (independently of connection handler)

@@ -69,7 +69,7 @@ Per-instance directory: `/srv/data/kanipi_<name>/`
 groups/
   <group_id>/
     logs/         conversation logs
-state/            persistent state (SQLite, WA auth)
+store/            persistent state (SQLite, WA auth)
 data/
   ipc/            container ↔ host unix sockets
 ```
@@ -140,7 +140,7 @@ Skills are shell scripts in the agent container at
 
 ## v2 changes from v1
 
-- `store/` → `state/` (SQLite + auth state)
+- `store/` for SQLite + WA auth state
 - `TELEGRAM_ONLY` removed, channels toggled by token presence
 - Discord channel added
 - Planned: postgres as alternative to SQLite

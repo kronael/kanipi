@@ -2,16 +2,27 @@ import { Bot } from 'grammy';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts } from '../types.js';
+import {
+  Channel,
+  OnChatMetadata,
+  OnInboundMessage,
+  RegisteredGroup,
+} from '../types.js';
+
+export interface TelegramChannelOpts {
+  onMessage: OnInboundMessage;
+  onChatMetadata: OnChatMetadata;
+  registeredGroups: () => Record<string, RegisteredGroup>;
+}
 
 export class TelegramChannel implements Channel {
   name = 'telegram';
 
   private bot: Bot | null = null;
-  private opts: ChannelOpts;
+  private opts: TelegramChannelOpts;
   private botToken: string;
 
-  constructor(botToken: string, opts: ChannelOpts) {
+  constructor(botToken: string, opts: TelegramChannelOpts) {
     this.botToken = botToken;
     this.opts = opts;
   }
@@ -185,12 +196,19 @@ export class TelegramChannel implements Channel {
     }
 
     try {
-      const id = jid.replace(/^tg:/, '');
-      const MAX = 4096;
-      for (let i = 0; i < text.length; i += MAX) {
-        await this.bot.api.sendMessage(
-          id, text.slice(i, i + MAX),
-        );
+      const numericId = jid.replace(/^tg:/, '');
+
+      // Telegram has a 4096 character limit per message — split if needed
+      const MAX_LENGTH = 4096;
+      if (text.length <= MAX_LENGTH) {
+        await this.bot.api.sendMessage(numericId, text);
+      } else {
+        for (let i = 0; i < text.length; i += MAX_LENGTH) {
+          await this.bot.api.sendMessage(
+            numericId,
+            text.slice(i, i + MAX_LENGTH),
+          );
+        }
       }
       logger.info({ jid, length: text.length }, 'Telegram message sent');
     } catch (err) {

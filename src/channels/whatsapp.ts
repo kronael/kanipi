@@ -18,11 +18,20 @@ import {
 } from '../config.js';
 import { getLastGroupSync, setLastGroupSync, updateChatName } from '../db.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts } from '../types.js';
+import {
+  Channel,
+  OnInboundMessage,
+  OnChatMetadata,
+  RegisteredGroup,
+} from '../types.js';
 
-const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-export type WhatsAppChannelOpts = ChannelOpts;
+export interface WhatsAppChannelOpts {
+  onMessage: OnInboundMessage;
+  onChatMetadata: OnChatMetadata;
+  registeredGroups: () => Record<string, RegisteredGroup>;
+}
 
 export class WhatsAppChannel implements Channel {
   name = 'whatsapp';
@@ -34,9 +43,9 @@ export class WhatsAppChannel implements Channel {
   private flushing = false;
   private groupSyncTimerStarted = false;
 
-  private opts: ChannelOpts;
+  private opts: WhatsAppChannelOpts;
 
-  constructor(opts: ChannelOpts) {
+  constructor(opts: WhatsAppChannelOpts) {
     this.opts = opts;
   }
 

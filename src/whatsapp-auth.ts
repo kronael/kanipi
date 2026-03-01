@@ -20,9 +20,9 @@ import makeWASocket, {
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
 
-const AUTH_DIR = './state/auth';
-const QR_FILE = './state/qr-data.txt';
-const STATUS_FILE = './state/auth-status.txt';
+const AUTH_DIR = './store/auth';
+const QR_FILE = './store/qr-data.txt';
+const STATUS_FILE = './store/auth-status.txt';
 
 const logger = pino({
   level: 'warn', // Quiet logging - only show errors
