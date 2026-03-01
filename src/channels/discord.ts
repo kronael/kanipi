@@ -7,31 +7,16 @@ import {
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import { logger } from '../logger.js';
-import {
-  Channel,
-  OnChatMetadata,
-  OnInboundMessage,
-  RegisteredGroup,
-} from '../types.js';
-
-export interface DiscordChannelOpts {
-  onMessage: OnInboundMessage;
-  onChatMetadata: OnChatMetadata;
-  registeredGroups: () => Record<string, RegisteredGroup>;
-}
-
-function channelId(jid: string): string {
-  return jid.replace(/^discord:/, '');
-}
+import { Channel, ChannelOpts } from '../types.js';
 
 export class DiscordChannel implements Channel {
   name = 'discord';
 
   private client: Client | null = null;
-  private opts: DiscordChannelOpts;
+  private opts: ChannelOpts;
   private botToken: string;
 
-  constructor(botToken: string, opts: DiscordChannelOpts) {
+  constructor(botToken: string, opts: ChannelOpts) {
     this.botToken = botToken;
     this.opts = opts;
   }
@@ -132,20 +117,20 @@ export class DiscordChannel implements Channel {
     }
 
     try {
-      const id = channelId(jid);
-      const channel = await this.client.channels.fetch(id);
-      if (!channel?.isTextBased()) {
+      const ch = await this.client.channels.fetch(
+        jid.replace(/^discord:/, ''),
+      );
+      if (!ch?.isTextBased()) {
         logger.warn({ jid }, 'Discord channel not text-based');
         return;
       }
-
       const MAX = 2000;
       for (let i = 0; i < text.length; i += MAX) {
-        await (channel as TextChannel).send(
-          text.slice(i, i + MAX),
-        );
+        await (ch as TextChannel).send(text.slice(i, i + MAX));
       }
-      logger.info({ jid, length: text.length }, 'Discord message sent');
+      logger.info(
+        { jid, length: text.length }, 'Discord message sent',
+      );
     } catch (err) {
       logger.error({ jid, err }, 'Failed to send Discord message');
     }
@@ -170,10 +155,11 @@ export class DiscordChannel implements Channel {
   async setTyping(jid: string, isTyping: boolean): Promise<void> {
     if (!this.client || !isTyping) return;
     try {
-      const id = channelId(jid);
-      const channel = await this.client.channels.fetch(id);
-      if (channel?.isTextBased()) {
-        await (channel as TextChannel).sendTyping();
+      const ch = await this.client.channels.fetch(
+        jid.replace(/^discord:/, ''),
+      );
+      if (ch?.isTextBased()) {
+        await (ch as TextChannel).sendTyping();
       }
     } catch (err) {
       logger.debug(

@@ -44,7 +44,6 @@ import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
 import { logger } from './logger.js';
 
-// Re-export for backwards compatibility during refactor
 export { escapeXml, formatMessages } from './router.js';
 
 let lastTimestamp = '';
@@ -496,7 +495,7 @@ async function main(): Promise<void> {
       return wa?.syncGroupMetadata(force) ?? Promise.resolve();
     },
     getAvailableGroups,
-    writeGroupsSnapshot: (gf, im, ag, rj) => writeGroupsSnapshot(gf, im, ag, rj),
+    writeGroupsSnapshot,
   });
   queue.setProcessMessagesFn(processGroupMessages);
   recoverPendingMessages();
