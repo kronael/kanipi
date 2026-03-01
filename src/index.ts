@@ -44,7 +44,6 @@ import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
 import { findChannel, formatMessages, formatOutbound } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
-import { restartVite } from './web-server.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
 import { logger } from './logger.js';
 
@@ -533,7 +532,6 @@ async function main(): Promise<void> {
     },
     getAvailableGroups,
     writeGroupsSnapshot,
-    restartVite,
   });
   queue.setProcessMessagesFn(processGroupMessages);
   recoverPendingMessages();
