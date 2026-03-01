@@ -232,18 +232,12 @@ export class TelegramChannel implements Channel {
       // Telegram has a 4096 character limit per message — split if needed
       const html = mdToHtml(text);
       const MAX_LENGTH = 4096;
-      if (html.length <= MAX_LENGTH) {
-        await this.bot.api.sendMessage(numericId, html, { parse_mode: 'HTML' });
-      } else {
-        for (let i = 0; i < html.length; i += MAX_LENGTH) {
-          await this.bot.api.sendMessage(
-            numericId,
-            html.slice(i, i + MAX_LENGTH),
-            {
-              parse_mode: 'HTML',
-            },
-          );
-        }
+      for (let i = 0; i < html.length; i += MAX_LENGTH) {
+        await this.bot.api.sendMessage(
+          numericId,
+          html.slice(i, i + MAX_LENGTH),
+          { parse_mode: 'HTML' },
+        );
       }
       logger.info({ jid, length: text.length }, 'Telegram message sent');
     } catch (err) {
