@@ -12,10 +12,7 @@ import {
   CONTAINER_TIMEOUT,
   DATA_DIR,
   GROUPS_DIR,
-  HOST_DATA_DIR,
-  HOST_GROUPS_DIR,
   HOST_PROJECT_ROOT_PATH,
-  HOST_WEB_DIR,
   IDLE_TIMEOUT,
   TIMEZONE,
   WEB_DIR,
@@ -67,7 +64,9 @@ function chownRecursive(dir: string, uid: number, gid: number): void {
       if (entry.isDirectory()) chownRecursive(p, uid, gid);
     }
     fs.chownSync(dir, uid, gid);
-  } catch {}
+  } catch (err) {
+    logger.debug({ dir, err }, 'chown skipped');
+  }
 }
 
 // Translate container-local path to host-side path for docker mounts.
