@@ -3,13 +3,15 @@ import path from 'path';
 
 import {
   ASSISTANT_NAME,
+  DISCORD_BOT_TOKEN,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
   POLL_INTERVAL,
   TELEGRAM_BOT_TOKEN,
-  TELEGRAM_ONLY,
   TRIGGER_PATTERN,
+  whatsappEnabled,
 } from './config.js';
+import { DiscordChannel } from './channels/discord.js';
 import { TelegramChannel } from './channels/telegram.js';
 import { WhatsAppChannel } from './channels/whatsapp.js';
 import {
@@ -51,7 +53,6 @@ let registeredGroups: Record<string, RegisteredGroup> = {};
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 
-let whatsapp: WhatsAppChannel;
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 
@@ -447,17 +448,23 @@ async function main(): Promise<void> {
     registeredGroups: () => registeredGroups,
   };
 
-  // Create and connect channels
+  // Create and connect channels — token presence enables each
   if (TELEGRAM_BOT_TOKEN) {
-    const telegram = new TelegramChannel(TELEGRAM_BOT_TOKEN, channelOpts);
-    channels.push(telegram);
-    await telegram.connect();
+    const tg = new TelegramChannel(TELEGRAM_BOT_TOKEN, channelOpts);
+    channels.push(tg);
+    await tg.connect();
   }
 
-  if (!TELEGRAM_ONLY) {
-    whatsapp = new WhatsAppChannel(channelOpts);
-    channels.push(whatsapp);
-    await whatsapp.connect();
+  if (whatsappEnabled()) {
+    const wa = new WhatsAppChannel(channelOpts);
+    channels.push(wa);
+    await wa.connect();
+  }
+
+  if (DISCORD_BOT_TOKEN) {
+    const dc = new DiscordChannel(DISCORD_BOT_TOKEN, channelOpts);
+    channels.push(dc);
+    await dc.connect();
   }
 
   // Start subsystems (independently of connection handler)
@@ -484,7 +491,10 @@ async function main(): Promise<void> {
     },
     registeredGroups: () => registeredGroups,
     registerGroup,
-    syncGroupMetadata: (force) => whatsapp?.syncGroupMetadata(force) ?? Promise.resolve(),
+    syncGroupMetadata: (force) => {
+      const wa = channels.find((c) => c.name === 'whatsapp') as WhatsAppChannel | undefined;
+      return wa?.syncGroupMetadata(force) ?? Promise.resolve();
+    },
     getAvailableGroups,
     writeGroupsSnapshot: (gf, im, ag, rj) => writeGroupsSnapshot(gf, im, ag, rj),
   });

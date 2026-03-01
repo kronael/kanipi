@@ -1,3 +1,4 @@
+import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
@@ -10,7 +11,7 @@ const envConfig = readEnvFile([
   'ASSISTANT_NAME',
   'ASSISTANT_HAS_OWN_NUMBER',
   'TELEGRAM_BOT_TOKEN',
-  'TELEGRAM_ONLY',
+  'DISCORD_BOT_TOKEN',
 ]);
 
 export const ASSISTANT_NAME =
@@ -70,8 +71,18 @@ export const TRIGGER_PATTERN = new RegExp(
 export const TIMEZONE =
   process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-// Telegram configuration
+// Channel tokens — presence enables the channel
 export const TELEGRAM_BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
-export const TELEGRAM_ONLY =
-  (process.env.TELEGRAM_ONLY || envConfig.TELEGRAM_ONLY) === 'true';
+export const DISCORD_BOT_TOKEN =
+  process.env.DISCORD_BOT_TOKEN || envConfig.DISCORD_BOT_TOKEN || '';
+
+// WhatsApp: enabled when auth state exists (paired via QR)
+export const WHATSAPP_AUTH_DIR = path.join(
+  path.resolve(PROJECT_ROOT, 'store'), 'auth',
+);
+export function whatsappEnabled(): boolean {
+  return fs.existsSync(
+    path.join(WHATSAPP_AUTH_DIR, 'creds.json'),
+  );
+}
