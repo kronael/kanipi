@@ -139,9 +139,35 @@ Skills are shell scripts in the agent container at
 | ship          | uvx ship CLI                           | if needed |
 | agent-browser | playwright in container                | yes       |
 
+## IPC
+
+v1 uses file-based IPC with polling (500ms agent, 1000ms gateway).
+v2 options:
+
+- **Unix sockets** — bidirectional, no polling, no temp files.
+  Gateway opens a socket per container, agent connects on start.
+  Eliminates file I/O and directory scanning entirely.
+- **Signal + file** — gateway writes file, sends SIGUSR1 to
+  container. Agent wakes immediately. Gateway uses fs.watch()
+  (inotify) for agent→gateway. Simpler migration from v1.
+- **SQLite** — shared SQLite DB as IPC queue. Both sides poll
+  or use WAL notifications. Leverages existing SQLite infra.
+
+Current v2: signal + file (see specs/v1/ipc-signal.md).
+v2 target: unix sockets for new containers, signal fallback
+for backwards compat.
+
+## Web serving
+
+Vite dev server runs alongside the gateway in the bash
+entrypoint. Agents mount /web and write apps directly.
+v2 planned: dedicated vite container for isolation.
+
 ## v2 changes from v1
 
 - `store/` for SQLite + WA auth state
 - `TELEGRAM_ONLY` removed, channels toggled by token presence
 - Discord channel added
-- Planned: postgres as alternative to SQLite
+- Web serving via vite (ported from takopipi)
+- IPC: signal-triggered reads replacing pure polling
+- Planned: unix socket IPC, dedicated vite container
