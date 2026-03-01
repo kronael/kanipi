@@ -147,6 +147,14 @@ export class GroupQueue {
     }
   }
 
+  private signalContainer(containerName: string): void {
+    try {
+      execSync(`docker kill --signal=SIGUSR1 ${containerName}`, {
+        stdio: 'pipe',
+      });
+    } catch {}
+  }
+
   /**
    * Send a follow-up message to the active container via IPC file.
    * Returns true if the message was written, false if no active container.
@@ -165,13 +173,7 @@ export class GroupQueue {
       const tempPath = `${filepath}.tmp`;
       fs.writeFileSync(tempPath, JSON.stringify({ type: 'message', text }));
       fs.renameSync(tempPath, filepath);
-      if (state.containerName) {
-        try {
-          execSync(`docker kill --signal=SIGUSR1 ${state.containerName}`, {
-            stdio: 'pipe',
-          });
-        } catch {}
-      }
+      if (state.containerName) this.signalContainer(state.containerName);
       return true;
     } catch {
       return false;
@@ -189,13 +191,7 @@ export class GroupQueue {
     try {
       fs.mkdirSync(inputDir, { recursive: true });
       fs.writeFileSync(path.join(inputDir, '_close'), '');
-      if (state.containerName) {
-        try {
-          execSync(`docker kill --signal=SIGUSR1 ${state.containerName}`, {
-            stdio: 'pipe',
-          });
-        } catch {}
-      }
+      if (state.containerName) this.signalContainer(state.containerName);
     } catch {
       // ignore
     }

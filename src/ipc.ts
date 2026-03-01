@@ -154,18 +154,22 @@ export function startIpcWatcher(deps: IpcDeps): void {
   const ipcBaseDir = path.join(DATA_DIR, 'ipc');
   fs.mkdirSync(ipcBaseDir, { recursive: true });
 
+  const scanGroupFolders = (): string[] =>
+    fs.readdirSync(ipcBaseDir).filter((f) => {
+      try {
+        return (
+          fs.statSync(path.join(ipcBaseDir, f)).isDirectory() && f !== 'errors'
+        );
+      } catch {
+        return false;
+      }
+    });
+
   // Startup drain sweep — pick up any files written before watchers were ready
   const startupDrain = async () => {
     let groupFolders: string[];
     try {
-      groupFolders = fs.readdirSync(ipcBaseDir).filter((f) => {
-        try {
-          const stat = fs.statSync(path.join(ipcBaseDir, f));
-          return stat.isDirectory() && f !== 'errors';
-        } catch {
-          return false;
-        }
-      });
+      groupFolders = scanGroupFolders();
     } catch (err) {
       logger.error({ err }, 'Error reading IPC base directory on startup');
       return;
@@ -192,14 +196,7 @@ export function startIpcWatcher(deps: IpcDeps): void {
   const pollForNewGroups = () => {
     let groupFolders: string[];
     try {
-      groupFolders = fs.readdirSync(ipcBaseDir).filter((f) => {
-        try {
-          const stat = fs.statSync(path.join(ipcBaseDir, f));
-          return stat.isDirectory() && f !== 'errors';
-        } catch {
-          return false;
-        }
-      });
+      groupFolders = scanGroupFolders();
     } catch {
       return;
     }
