@@ -145,12 +145,6 @@ if [ "${1:-}" = "create" ]; then
   sed -i "s/^ASSISTANT_NAME=.*/ASSISTANT_NAME=${NAME}/" "$DATA/.env"
   echo "created: $DATA/.env"
 
-  # seed workspace skills
-  if [ -d "$SEED/workspace/skills" ]; then
-    mkdir -p "$DATA/.claude"
-    cp -r "$SEED/workspace/skills" "$DATA/.claude/"
-  fi
-
   # seed web template
   if [ -d "$SEED/web" ]; then
     cp -rn "$SEED/web/." "$DATA/web/"
