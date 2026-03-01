@@ -197,10 +197,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   let outputSentToUser = false;
 
   const stopTyping = () => {
-    if (typingInterval) {
-      clearInterval(typingInterval);
-      typingInterval = null;
-    }
+    if (!typingInterval) return;
+    clearInterval(typingInterval);
+    typingInterval = null;
     channel.setTyping?.(chatJid, false);
   };
 
@@ -218,7 +217,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
         await channel.sendMessage(chatJid, text);
         outputSentToUser = true;
       }
-      // Only reset idle timer on actual results, not session-update markers (result: null)
       resetIdleTimer();
     }
 
@@ -235,7 +233,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   });
 
   stopTyping();
-  if (idleTimer) clearTimeout(idleTimer);
+  clearTimeout(idleTimer ?? undefined);
 
   if (output === 'error' || hadError) {
     // If we already sent output to the user, don't roll back the cursor —
