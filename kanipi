@@ -17,6 +17,7 @@ if [ "${1:-}" = "create" ]; then
   mkdir -p "$DATA/groups/main/logs" \
            "$DATA/store" \
            "$DATA/data" \
+           "$DATA/web" \
            "/srv/run/kanipi_${NAME}"
 
   # seed .env
@@ -25,6 +26,8 @@ ASSISTANT_NAME=${NAME}
 TELEGRAM_BOT_TOKEN=
 DISCORD_BOT_TOKEN=
 CONTAINER_IMAGE=kanipi-agent:latest
+VITE_PORT=5173
+WEB_HOST=
 ENV
   echo "created: $DATA/.env"
 
@@ -33,6 +36,12 @@ ENV
   if [ -d "$SEED/workspace/skills" ]; then
     mkdir -p "$DATA/.claude"
     cp -r "$SEED/workspace/skills" "$DATA/.claude/"
+  fi
+
+  # seed web template
+  if [ -d "$SEED/web" ]; then
+    cp -rn "$SEED/web/." "$DATA/web/"
+    cd "$DATA/web" && npm install --silent 2>/dev/null || true
   fi
 
   SERVICE="$DATA/kanipi_${NAME}.service"
@@ -89,4 +98,37 @@ if [ ! -f "$HOME_DIR/.env" ]; then
 fi
 
 cd "$HOME_DIR"
-exec node /srv/app/dist/index.js
+
+# read web config from .env
+VITE_PORT=$(grep -s '^VITE_PORT=' .env | cut -d= -f2- || true)
+WEB_HOST=$(grep -s '^WEB_HOST=' .env | cut -d= -f2- || true)
+[ -n "$WEB_HOST" ] && export WEB_HOST
+
+# install web deps if missing
+if [ -n "$VITE_PORT" ] && [ -d web ] && [ ! -d web/node_modules ]; then
+  cd web && npm install --silent 2>/dev/null && cd "$HOME_DIR"
+fi
+
+# start gateway
+node /srv/app/dist/index.js &
+GATEWAY=$!
+
+# start vite if configured
+if [ -n "$VITE_PORT" ] && [ -d web ]; then
+  mkdir -p /srv/app/tmp
+  (while true
+  do
+    cd "$HOME_DIR/web" && npx vite --host 0.0.0.0 --port "$VITE_PORT" &
+    echo $! > /srv/app/tmp/vite.pid
+    wait $!
+    sleep 1
+  done) &
+  VITE=$!
+  trap 'kill $GATEWAY $VITE 2>/dev/null; wait' INT TERM
+else
+  trap 'kill $GATEWAY 2>/dev/null; wait' INT TERM
+fi
+
+wait $GATEWAY
+[ -n "${VITE:-}" ] && kill $VITE 2>/dev/null
+wait
