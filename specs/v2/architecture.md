@@ -171,3 +171,18 @@ v2 planned: dedicated vite container for isolation.
 - Web serving via vite (ported from takopipi)
 - IPC: signal-triggered reads replacing pure polling
 - Planned: unix socket IPC, dedicated vite container
+- Planned: welcome message on first contact
+
+## Welcome message (planned)
+
+When a new user or group first contacts the bot, send a
+greeting with a link to the howto page. Implementation:
+
+- Gateway tracks `seen_jids` in SQLite (or check if group
+  has any prior messages in DB)
+- On first message from unknown JID: send welcome before
+  processing the message through the agent
+- Welcome text: "Hi! I'm {ASSISTANT_NAME}. Send me a
+  message and I'll help. {WEB_HOST}/howto/ for setup guide."
+- Config: `WELCOME_MESSAGE` in .env (optional override)
+- Only fires once per JID, never repeats
