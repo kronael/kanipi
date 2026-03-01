@@ -2,27 +2,16 @@ import { Bot } from 'grammy';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import { logger } from '../logger.js';
-import {
-  Channel,
-  OnChatMetadata,
-  OnInboundMessage,
-  RegisteredGroup,
-} from '../types.js';
-
-export interface TelegramChannelOpts {
-  onMessage: OnInboundMessage;
-  onChatMetadata: OnChatMetadata;
-  registeredGroups: () => Record<string, RegisteredGroup>;
-}
+import { Channel, ChannelOpts } from '../types.js';
 
 export class TelegramChannel implements Channel {
   name = 'telegram';
 
   private bot: Bot | null = null;
-  private opts: TelegramChannelOpts;
+  private opts: ChannelOpts;
   private botToken: string;
 
-  constructor(botToken: string, opts: TelegramChannelOpts) {
+  constructor(botToken: string, opts: ChannelOpts) {
     this.botToken = botToken;
     this.opts = opts;
   }
