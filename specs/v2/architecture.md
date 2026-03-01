@@ -40,15 +40,14 @@ MCP tools exposed to agent:
 
 ### Channels
 
-Each channel implements the Channel interface from types.ts:
+Each channel implements the Channel interface from types.ts.
+All channels accept a shared `ChannelOpts` for construction:
 
 ```typescript
-interface Channel {
-  connect(): Promise<void>
-  sendMessage(jid: string, msg: string): Promise<void>
-  ownsJid(jid: string): boolean
-  disconnect(): Promise<void>
-  setTyping?(jid: string, on: boolean): Promise<void>
+interface ChannelOpts {
+  onMessage: OnInboundMessage
+  onChatMetadata: OnChatMetadata
+  registeredGroups: () => Record<string, RegisteredGroup>
 }
 ```
 
