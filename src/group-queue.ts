@@ -1,4 +1,4 @@
-import { ChildProcess } from 'child_process';
+import { ChildProcess, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -165,6 +165,13 @@ export class GroupQueue {
       const tempPath = `${filepath}.tmp`;
       fs.writeFileSync(tempPath, JSON.stringify({ type: 'message', text }));
       fs.renameSync(tempPath, filepath);
+      if (state.containerName) {
+        try {
+          execSync(`docker kill --signal=SIGUSR1 ${state.containerName}`, {
+            stdio: 'pipe',
+          });
+        } catch {}
+      }
       return true;
     } catch {
       return false;
@@ -182,6 +189,13 @@ export class GroupQueue {
     try {
       fs.mkdirSync(inputDir, { recursive: true });
       fs.writeFileSync(path.join(inputDir, '_close'), '');
+      if (state.containerName) {
+        try {
+          execSync(`docker kill --signal=SIGUSR1 ${state.containerName}`, {
+            stdio: 'pipe',
+          });
+        } catch {}
+      }
     } catch {
       // ignore
     }
