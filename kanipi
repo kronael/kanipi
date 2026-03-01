@@ -16,8 +16,32 @@ if [ "${1:-}" = "group" ]; then
   DB="$DATA/store/db.sqlite"
 
   if [ ! -f "$DB" ]; then
-    echo "no db: $DB"
-    exit 1
+    if [ "$ACTION" = "add" ]; then
+      mkdir -p "$(dirname "$DB")"
+      node -e "
+        const Database = require('better-sqlite3');
+        const db = new Database('$DB');
+        db.exec(\`
+          CREATE TABLE IF NOT EXISTS chats (
+            jid TEXT PRIMARY KEY, name TEXT,
+            last_message_time TEXT, channel TEXT,
+            is_group INTEGER DEFAULT 0
+          );
+          CREATE TABLE IF NOT EXISTS registered_groups (
+            jid TEXT PRIMARY KEY, name TEXT NOT NULL,
+            folder TEXT NOT NULL UNIQUE,
+            trigger_pattern TEXT NOT NULL,
+            added_at TEXT NOT NULL,
+            container_config TEXT,
+            requires_trigger INTEGER DEFAULT 1
+          );
+        \`);
+        db.close();
+      "
+    else
+      echo "no db: $DB"
+      exit 1
+    fi
   fi
 
   case "$ACTION" in
@@ -52,7 +76,7 @@ if [ "${1:-}" = "group" ]; then
         exit 1
       fi
       ASSISTANT=$(grep -s '^ASSISTANT_NAME=' "$DATA/.env" | cut -d= -f2- || echo "$INST")
-      node -e "
+      F=$(node -e "
         const Database = require('better-sqlite3');
         const db = new Database('$DB');
         const count = db.prepare('SELECT COUNT(*) as n FROM registered_groups').get().n;
@@ -64,16 +88,10 @@ if [ "${1:-}" = "group" ]; then
         db.prepare(
           'INSERT OR REPLACE INTO registered_groups (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger) VALUES (?, ?, ?, ?, ?, ?, ?)'
         ).run('$JID', folder, folder, trigger, now, null, rt);
-        console.log('added: $JID → ' + folder + (rt ? ' (trigger: @$ASSISTANT)' : ' (direct)'));
-        db.close();
-      "
-      F=$(node -e "
-        const Database = require('better-sqlite3');
-        const db = new Database('$DB', { readonly: true });
-        const r = db.prepare('SELECT folder FROM registered_groups WHERE jid = ?').get('$JID');
-        if (r) console.log(r.folder);
+        console.log(folder);
         db.close();
       ")
+      echo "added: $JID → $F"
       mkdir -p "$DATA/groups/$F/logs"
       ;;
     rm)
