@@ -12,6 +12,10 @@ import {
   CONTAINER_TIMEOUT,
   DATA_DIR,
   GROUPS_DIR,
+  HOST_DATA_DIR,
+  HOST_GROUPS_DIR,
+  HOST_PROJECT_ROOT_PATH,
+  HOST_WEB_DIR,
   IDLE_TIMEOUT,
   TIMEZONE,
   WEB_DIR,
@@ -55,6 +59,26 @@ interface VolumeMount {
   readonly: boolean;
 }
 
+function chownRecursive(dir: string, uid: number, gid: number): void {
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      fs.chownSync(p, uid, gid);
+      if (entry.isDirectory()) chownRecursive(p, uid, gid);
+    }
+    fs.chownSync(dir, uid, gid);
+  } catch {}
+}
+
+// Translate container-local path to host-side path for docker mounts.
+function hostPath(localPath: string): string {
+  const projectRoot = process.cwd();
+  if (localPath.startsWith(projectRoot)) {
+    return HOST_PROJECT_ROOT_PATH + localPath.slice(projectRoot.length);
+  }
+  return localPath;
+}
+
 function buildVolumeMounts(
   group: RegisteredGroup,
   isMain: boolean,
@@ -70,21 +94,21 @@ function buildVolumeMounts(
     // (src/, dist/, package.json, etc.) which would bypass the sandbox
     // entirely on next restart.
     mounts.push({
-      hostPath: projectRoot,
+      hostPath: hostPath(projectRoot),
       containerPath: '/workspace/project',
       readonly: true,
     });
 
     // Main also gets its group folder as the working directory
     mounts.push({
-      hostPath: groupDir,
+      hostPath: hostPath(groupDir),
       containerPath: '/workspace/group',
       readonly: false,
     });
   } else {
     // Other groups only get their own folder
     mounts.push({
-      hostPath: groupDir,
+      hostPath: hostPath(groupDir),
       containerPath: '/workspace/group',
       readonly: false,
     });
@@ -94,7 +118,7 @@ function buildVolumeMounts(
     const globalDir = path.join(GROUPS_DIR, 'global');
     if (fs.existsSync(globalDir)) {
       mounts.push({
-        hostPath: globalDir,
+        hostPath: hostPath(globalDir),
         containerPath: '/workspace/global',
         readonly: true,
       });
@@ -110,6 +134,7 @@ function buildVolumeMounts(
     '.claude',
   );
   fs.mkdirSync(groupSessionsDir, { recursive: true });
+  chownRecursive(groupSessionsDir, 1000, 1000);
   const settingsFile = path.join(groupSessionsDir, 'settings.json');
   if (!fs.existsSync(settingsFile)) {
     fs.writeFileSync(
@@ -146,7 +171,7 @@ function buildVolumeMounts(
     }
   }
   mounts.push({
-    hostPath: groupSessionsDir,
+    hostPath: hostPath(groupSessionsDir),
     containerPath: '/home/node/.claude',
     readonly: false,
   });
@@ -157,8 +182,9 @@ function buildVolumeMounts(
   fs.mkdirSync(path.join(groupIpcDir, 'messages'), { recursive: true });
   fs.mkdirSync(path.join(groupIpcDir, 'tasks'), { recursive: true });
   fs.mkdirSync(path.join(groupIpcDir, 'input'), { recursive: true });
+  chownRecursive(groupIpcDir, 1000, 1000);
   mounts.push({
-    hostPath: groupIpcDir,
+    hostPath: hostPath(groupIpcDir),
     containerPath: '/workspace/ipc',
     readonly: false,
   });
@@ -166,12 +192,11 @@ function buildVolumeMounts(
   // Copy agent-runner source into a per-group writable location so agents
   // can customize it (add tools, change behavior) without affecting other
   // groups. Recompiled on container startup via entrypoint.sh.
-  const agentRunnerSrc = path.join(
-    projectRoot,
-    'container',
-    'agent-runner',
-    'src',
+  const appDir = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    '..',
   );
+  const agentRunnerSrc = path.join(appDir, 'container', 'agent-runner', 'src');
   const groupAgentRunnerDir = path.join(
     DATA_DIR,
     'sessions',
@@ -180,9 +205,10 @@ function buildVolumeMounts(
   );
   if (!fs.existsSync(groupAgentRunnerDir) && fs.existsSync(agentRunnerSrc)) {
     fs.cpSync(agentRunnerSrc, groupAgentRunnerDir, { recursive: true });
+    chownRecursive(groupAgentRunnerDir, 1000, 1000);
   }
   mounts.push({
-    hostPath: groupAgentRunnerDir,
+    hostPath: hostPath(groupAgentRunnerDir),
     containerPath: '/app/src',
     readonly: false,
   });
@@ -200,7 +226,7 @@ function buildVolumeMounts(
   // Web directory for vite-served apps (shared writable volume)
   if (fs.existsSync(WEB_DIR)) {
     mounts.push({
-      hostPath: WEB_DIR,
+      hostPath: hostPath(WEB_DIR),
       containerPath: '/web',
       readonly: false,
     });

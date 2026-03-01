@@ -13,7 +13,7 @@ if [ "${1:-}" = "group" ]; then
   fi
 
   DATA="/srv/data/kanipi_${INST}"
-  DB="$DATA/store/db.sqlite"
+  DB="$DATA/store/messages.db"
 
   if [ ! -f "$DB" ]; then
     if [ "$ACTION" = "add" ]; then
