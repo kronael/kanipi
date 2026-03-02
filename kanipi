@@ -1,19 +1,10 @@
 #!/bin/bash
 set -e
 
-if [ "${1:-}" = "group" ]; then
-  ACTION="${2:-}"
-  INST="${3:-}"
-
-  if [ -z "$ACTION" ] || [ -z "$INST" ]; then
-    echo "usage: kanipi group list <instance>"
-    echo "       kanipi group add <instance> <jid> [folder]"
-    echo "       kanipi group rm <instance> <jid>"
-    exit 1
-  fi
-
-  DATA="/srv/data/kanipi_${INST}"
-  DB="$DATA/store/messages.db"
+group_cmd() {
+  local INST="$1" ACTION="$2" JID="$3" FOLDER="$4"
+  local DATA="/srv/data/kanipi_${INST}"
+  local DB="$DATA/store/messages.db"
 
   if [ ! -f "$DB" ]; then
     if [ "$ACTION" = "add" ]; then
@@ -69,12 +60,11 @@ if [ "${1:-}" = "group" ]; then
       "
       ;;
     add)
-      JID="${4:-}"
-      FOLDER="${5:-}"
       if [ -z "$JID" ]; then
-        echo "usage: kanipi group add <instance> <jid> [folder]"
+        echo "usage: kanipi <instance> group add <jid> [folder]"
         exit 1
       fi
+      local ASSISTANT
       ASSISTANT=$(grep -s '^ASSISTANT_NAME=' "$DATA/.env" | cut -d= -f2- || echo "$INST")
       F=$(node -e "
         const Database = require('better-sqlite3');
@@ -95,9 +85,8 @@ if [ "${1:-}" = "group" ]; then
       mkdir -p "$DATA/groups/$F/logs"
       ;;
     rm)
-      JID="${4:-}"
       if [ -z "$JID" ]; then
-        echo "usage: kanipi group rm <instance> <jid>"
+        echo "usage: kanipi <instance> group rm <jid>"
         exit 1
       fi
       node -e "
@@ -113,10 +102,19 @@ if [ "${1:-}" = "group" ]; then
       ;;
     *)
       echo "unknown action: $ACTION"
-      echo "usage: kanipi group {list|add|rm} <instance> ..."
+      echo "usage: kanipi <instance> group {list|add|rm} ..."
       exit 1
       ;;
   esac
+}
+
+if [ "${1:-}" = "config" ]; then
+  INST="${2:-}"
+  if [ -z "$INST" ] || [ "${3:-}" != "group" ]; then
+    echo "usage: kanipi config <instance> group {list|add|rm} ..."
+    exit 1
+  fi
+  group_cmd "$INST" "${4:-}" "${5:-}" "${6:-}"
   exit 0
 fi
 
@@ -194,8 +192,13 @@ fi
 if [ -z "${1:-}" ]; then
   echo "usage: kanipi <instance>"
   echo "       kanipi create <name>"
-  echo "       kanipi group {list|add|rm} <instance> ..."
+  echo "       kanipi <instance> group {list|add|rm} ..."
   exit 1
+fi
+
+if [ "${2:-}" = "group" ]; then
+  group_cmd "$1" "${3:-}" "${4:-}" "${5:-}"
+  exit 0
 fi
 
 INSTANCE="$1"
