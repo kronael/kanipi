@@ -41,7 +41,7 @@ const server = new McpServer({
 
 server.tool(
   'send_message',
-  "Send a message to the user immediately while you're still running. IMPORTANT: your final response (what you write at the end) is ALSO sent to the user automatically — do NOT repeat it here or the user will receive it twice. Use this tool only for intermediate status updates or progress reports during long-running tasks (e.g. 'searching...', 'found X results, continuing...'). Exception: when running as a scheduled task, your final output is NOT sent automatically — use this tool to deliver results.",
+  "Send an intermediate status update to the user while still running. WARNING: your final response is sent automatically — do not repeat it here or the user receives it twice. Exception: scheduled tasks do not auto-send output, so use this to deliver results.",
   {
     text: z.string().describe('The message text to send'),
     sender: z.string().optional().describe('Your role/identity name (e.g. "Researcher"). When set, messages appear from a dedicated bot in Telegram.'),
