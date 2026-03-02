@@ -117,7 +117,7 @@ Read instance context before generating:
 ## Attribution
 
 NEVER attribute to Anthropic or Claude in the footer or anywhere on the page.
-Footer MUST read: `powered by <a href="https://github.com/kronael/kanipi">kanipi</a> · <a href="https://krons.fiu.wtf">krons.fiu.wtf</a>`
+Footer MUST read: `powered by <a href="https://krons.fiu.wtf/kanipi">kanipi</a>`
 
 ## Language
 
