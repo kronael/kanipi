@@ -226,6 +226,29 @@ Local auth is always enabled if `AUTH_SECRET` is set.
 
 ---
 
+## Slink sender identity
+
+When a slink POST carries a valid JWT, the sender fields on the dispatched
+message are derived from the JWT payload — not hardcoded to `'web'`:
+
+```typescript
+sender = jwt.sub; // e.g. "tg:123456" or "local:abc-uuid"
+sender_name = jwt.name; // e.g. "Alice"
+```
+
+Unauthenticated slink posts (no JWT) use:
+
+```typescript
+sender = `anon:${anonCookieId}`; // stable per-browser cookie
+sender_name = 'guest';
+```
+
+This means the agent sees the same `sender` value whether the user messages
+via Telegram or via a slink link (if they logged in with Telegram OAuth).
+Cross-channel identity linking in v2 — see `specs/v2/identities.md`.
+
+---
+
 ## Success Criteria
 
 E2e tests must assert:
