@@ -58,8 +58,57 @@ function verifyJwt(token: string, secret: string): JwtClaims | null {
   }
 }
 
-// Stub sloth.js body — full implementation TBD
-const PUB_SLOTH_JS = `/* sloth public client — stub */`;
+// Public sloth client — same as internal; served unauthenticated at /pub/sloth.js
+// Token is read from data-token on the script tag; posts to /pub/s/<token> with JWT from localStorage
+const PUB_SLOTH_JS = `(function(){
+  var token = document.currentScript && document.currentScript.dataset.token || '';
+  var group = document.currentScript && document.currentScript.dataset.group || 'main';
+
+  function jwt() {
+    try { return localStorage.getItem('sloth_jwt') || ''; } catch(e) { return ''; }
+  }
+
+  function post(msg, ctx, url) {
+    var headers = {'Content-Type': 'application/json'};
+    var t = jwt();
+    if (t) headers['Authorization'] = 'Bearer ' + t;
+    var endpoint = token ? '/pub/s/' + token : '/_sloth/message';
+    var body = token
+      ? JSON.stringify({text: msg})
+      : JSON.stringify({group: group, msg: msg, context: ctx, url: url});
+    return fetch(endpoint, {method: 'POST', headers: headers, body: body});
+  }
+
+  function container() {
+    var el = document.getElementById('sloth-responses');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'sloth-responses';
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function attach(el) {
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      var tmpl = el.dataset.sloth;
+      var sel = window.getSelection ? window.getSelection().toString() : '';
+      var msg = tmpl
+        .replace('{{text}}', el.textContent || '')
+        .replace('{{selection}}', sel);
+      var status = document.createElement('span');
+      status.textContent = ' \u2026';
+      el.appendChild(status);
+      post(msg, el.dataset.slothContext || '', window.location.href)
+        .then(function(r){ status.textContent = r.ok ? ' \u2713' : ' \u2717'; })
+        .catch(function(){ status.textContent = ' \u2717'; })
+        .finally(function(){ setTimeout(function(){ status.remove(); }, 2000); });
+    });
+  }
+
+  document.querySelectorAll('[data-sloth]').forEach(attach);
+})()`;
 
 // Minimal sloth client — injected into every HTML page served by the proxy
 const SLOTH_JS = `(function(){
