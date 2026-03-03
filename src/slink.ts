@@ -127,7 +127,7 @@ export function handleSlinkPost(req: SlinkRequest): SlinkResponse {
     id: `slink-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     chat_jid: jid,
     sender,
-    sender_name: senderName ?? sender,
+    ...(senderName !== undefined && { sender_name: senderName }),
     content: text,
     timestamp: new Date().toISOString(),
   });

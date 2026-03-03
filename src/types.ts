@@ -46,7 +46,7 @@ export interface NewMessage {
   id: string;
   chat_jid: string;
   sender: string;
-  sender_name: string;
+  sender_name?: string;
   content: string;
   timestamp: string;
   is_from_me?: boolean;

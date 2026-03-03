@@ -244,6 +244,7 @@ describe('sender identity', () => {
       onMessage,
     });
     expect(messages[0].sender).toMatch(/^anon_[a-f0-9]{8}$/);
+    expect('sender_name' in messages[0]).toBe(false);
   });
 
   it('same IP produces same anon hash', () => {
