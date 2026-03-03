@@ -13,6 +13,9 @@ const envConfig = readEnvFile([
   'TELEGRAM_BOT_TOKEN',
   'DISCORD_BOT_TOKEN',
   'CONTAINER_IMAGE',
+  'WEB_PORT',
+  'VITE_PORT',
+  'SLOTH_USERS',
 ]);
 
 export const ASSISTANT_NAME =
@@ -95,6 +98,27 @@ export const DISCORD_BOT_TOKEN =
   process.env.DISCORD_BOT_TOKEN || envConfig.DISCORD_BOT_TOKEN || '';
 
 export const WEB_DIR = path.resolve(PROJECT_ROOT, 'web');
+
+// Web proxy (sloth): WEB_PORT is the single external port.
+// Falls back to VITE_PORT for backward compat with existing instances.
+// VITE_PORT_INTERNAL: bash entrypoint exports the actual internal Vite port;
+// falls back to WEB_PORT+1 if not set.
+const _webPort =
+  process.env.WEB_PORT ||
+  envConfig.WEB_PORT ||
+  process.env.VITE_PORT ||
+  envConfig.VITE_PORT ||
+  '';
+export const WEB_PORT = _webPort ? parseInt(_webPort, 10) : 0;
+const _viteInternal = process.env.VITE_PORT_INTERNAL || '';
+export const VITE_PORT_INTERNAL = _viteInternal
+  ? parseInt(_viteInternal, 10)
+  : WEB_PORT
+    ? WEB_PORT + 1
+    : 5174;
+// SLOTH_USERS format: "alice:pass,bob:pass2"
+export const SLOTH_USERS =
+  process.env.SLOTH_USERS || envConfig.SLOTH_USERS || '';
 
 export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
 export function whatsappEnabled(): boolean {

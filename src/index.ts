@@ -8,13 +8,19 @@ import {
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
   POLL_INTERVAL,
+  SLOTH_USERS,
   TELEGRAM_BOT_TOKEN,
   TRIGGER_PATTERN,
+  VITE_PORT_INTERNAL,
+  WEB_DIR,
+  WEB_PORT,
   whatsappEnabled,
 } from './config.js';
 import { DiscordChannel } from './channels/discord.js';
 import { TelegramChannel } from './channels/telegram.js';
+import { WebChannel } from './channels/web.js';
 import { WhatsAppChannel } from './channels/whatsapp.js';
+import { startWebProxy } from './web-proxy.js';
 import {
   ContainerOutput,
   runContainerAgent,
@@ -503,6 +509,19 @@ async function main(): Promise<void> {
     const discord = new DiscordChannel(DISCORD_BOT_TOKEN, channelOpts);
     channels.push(discord);
     await discord.connect();
+  }
+
+  if (WEB_PORT) {
+    const web = new WebChannel();
+    channels.push(web);
+    await web.connect();
+    startWebProxy({
+      webPort: WEB_PORT,
+      vitePort: VITE_PORT_INTERNAL,
+      slothUsers: SLOTH_USERS,
+      webDir: WEB_DIR,
+      onMessage: channelOpts.onMessage,
+    });
   }
 
   // Start subsystems (independently of connection handler)

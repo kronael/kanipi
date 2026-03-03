@@ -142,6 +142,8 @@ if [ "${1:-}" = "create" ]; then
   [ ! -d "$SEED" ] && SEED="$(cd "$(dirname "$0")" && pwd)/template"
   cp "$SEED/env.example" "$DATA/.env"
   sed -i "s/^ASSISTANT_NAME=.*/ASSISTANT_NAME=${NAME}/" "$DATA/.env"
+  SLOTH_PASS=$(openssl rand -hex 8 2>/dev/null || tr -dc a-z0-9 < /dev/urandom | head -c 16)
+  sed -i "s/^SLOTH_USERS=.*/SLOTH_USERS=admin:${SLOTH_PASS}/" "$DATA/.env"
   echo "created: $DATA/.env"
 
   # seed web template
@@ -212,12 +214,23 @@ fi
 cd "$HOME_DIR"
 
 # read web config from .env
-VITE_PORT=$(grep -s '^VITE_PORT=' .env | cut -d= -f2- || true)
+# WEB_PORT is the external port (proxy). Vite runs on WEB_PORT+1 (localhost only).
+# Falls back to VITE_PORT for backward compat with old instances.
+WEB_PORT=$(grep -s '^WEB_PORT=' .env | cut -d= -f2- || true)
+[ -z "$WEB_PORT" ] && WEB_PORT=$(grep -s '^VITE_PORT=' .env | cut -d= -f2- || true)
 WEB_HOST=$(grep -s '^WEB_HOST=' .env | cut -d= -f2- || true)
 [ -n "$WEB_HOST" ] && export WEB_HOST
 
+if [ -n "$WEB_PORT" ]; then
+  # pick a free port for internal Vite (start at WEB_PORT+1, skip taken ones)
+  _p=$((WEB_PORT + 1))
+  while ss -tlnH "sport = :$_p" 2>/dev/null | grep -q .; do _p=$((_p + 1)); done
+  VITE_PORT_INTERNAL=$_p
+  export VITE_PORT_INTERNAL
+fi
+
 # install web deps if missing
-if [ -n "$VITE_PORT" ] && [ -d web ] && [ ! -d web/node_modules ]; then
+if [ -n "$WEB_PORT" ] && [ -d web ] && [ ! -d web/node_modules ]; then
   cd web && npm install --silent 2>/dev/null && cd "$HOME_DIR"
 fi
 
@@ -225,12 +238,12 @@ fi
 node /srv/app/dist/index.js &
 GATEWAY=$!
 
-# start vite if configured
-if [ -n "$VITE_PORT" ] && [ -d web ]; then
+# start vite on internal port if configured (proxy in gateway handles external port)
+if [ -n "$WEB_PORT" ] && [ -d web ]; then
   mkdir -p /srv/app/tmp
   (while true
   do
-    cd "$HOME_DIR/web" && npx vite --host 0.0.0.0 --port "$VITE_PORT" &
+    cd "$HOME_DIR/web" && npx vite --host 127.0.0.1 --port "$VITE_PORT_INTERNAL" &
     echo $! > /srv/app/tmp/vite.pid
     wait $!
     sleep 1
