@@ -20,18 +20,26 @@ if (EMAIL_IMAP_HOST) {
 `src/channels/email.ts` — `EmailChannel implements Channel`:
 
 - `name = 'email'`
-- `connect()` — open IMAP connection, start IDLE loop
+- `connect()` — open IMAP, start IDLE loop. Retries with exponential
+  backoff (1s, 2s, 4s… cap 60s) on initial connect failure.
 - `disconnect()` — close IMAP + SMTP connections
-- `sendMessage(jid, text)` — SMTP reply in thread
+- `sendMessage(jid, text)` — look up outbound info from DB by
+  `thread_id`, send SMTP reply
+
+## Group routing
+
+All email messages route to the first registered group with
+`requires_trigger=0` (i.e. the `main` group). Same behaviour as the
+web channel.
 
 ## Source and sink
 
 `EMAIL_ACCOUNT` is the bot's inbox — the channel identity admitted into
 the gateway. Anyone emailing that address becomes a sender.
 
-- **Inbound**: IMAP IDLE on `EMAIL_ACCOUNT`'s inbox. Server notifies
+- **Inbound**: IMAP IDLE on `EMAIL_ACCOUNT`'s INBOX. Server notifies
   on new mail; client issues `FETCH` immediately. Falls back to 60s
-  polling if IDLE unsupported (rare).
+  poll if IDLE unsupported (rare).
 - **Outbound**: SMTP reply from `EMAIL_ACCOUNT` via `In-Reply-To` +
   `References` headers.
 - Single account per instance.
@@ -39,7 +47,7 @@ the gateway. Anyone emailing that address becomes a sender.
 ## IMAP IDLE
 
 `imapflow` exposes `.idle()` which sends the IDLE command and resolves
-when the server sends `EXISTS` or `EXPUNGE`. Loop:
+when the server pushes `EXISTS` or `EXPUNGE`. Loop:
 
 ```typescript
 while (connected) {
@@ -48,8 +56,13 @@ while (connected) {
 }
 ```
 
-On `idle()` error (network drop, timeout), reconnect with exponential
-backoff (1s, 2s, 4s… cap 60s).
+`fetchUnseen()`: search INBOX for messages without the `\Seen` flag
+that are absent from `email_threads` (double guard against re-fetch
+on restart). Mark each fetched message `\Seen` immediately after
+storing to `email_threads`.
+
+On any error (connect or `idle()`), close connection and reconnect
+with exponential backoff (1s, 2s, 4s… cap 60s).
 
 ## JID format
 
@@ -71,8 +84,7 @@ sender_name = "Alice"                    // display name from From header,
                                          // or from-address if absent
 ```
 
-Cross-channel linking (e.g. same person on Telegram + email) handled
-in v2 — see `specs/v2/identities.md`.
+Cross-channel linking in v2 — see `specs/v2/identities.md`.
 
 ## Message metadata
 
@@ -86,15 +98,32 @@ To: bot@example.com
 CC: bob@example.com
 ```
 
-Appended to `content` so the agent sees it alongside the body.
+Prepended to `content` so the agent sees it alongside the body.
 Attachments passed through the mime pipeline (`processAttachments`)
-same as Telegram/WhatsApp — voice transcribed, video extracted, images
-described.
+same as Telegram/WhatsApp.
 
 ## Threading
 
-Store `message_id → thread_id` in SQLite on every inbound message.
-Outbound reply sets `In-Reply-To` + `References` to maintain thread.
+`email_threads` stores both directions:
+
+```sql
+CREATE TABLE IF NOT EXISTS email_threads (
+  message_id   TEXT PRIMARY KEY,  -- every seen Message-ID
+  thread_id    TEXT NOT NULL,     -- derived from root Message-ID
+  from_address TEXT NOT NULL,     -- sender email (for outbound reply)
+  root_msg_id  TEXT NOT NULL,     -- original Message-ID (for References)
+  seen_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_email_thread ON email_threads(thread_id);
+```
+
+Outbound `sendMessage(jid, text)`:
+
+1. Extract `thread_id` from jid (`email:<thread_id>`).
+2. Query `email_threads WHERE thread_id = ? LIMIT 1` → get
+   `from_address` (reply-to) and `root_msg_id` (References header).
+3. Send via SMTP with `In-Reply-To: <root_msg_id>` +
+   `References: <root_msg_id>`.
 
 ## Libraries
 
@@ -133,15 +162,8 @@ Also add `'EMAIL_IMAP_HOST', 'EMAIL_SMTP_HOST', 'EMAIL_ACCOUNT',
 
 ## DB schema
 
-```sql
-CREATE TABLE IF NOT EXISTS email_threads (
-  message_id TEXT PRIMARY KEY,
-  thread_id  TEXT NOT NULL,
-  seen_at    TEXT NOT NULL
-);
-```
-
-Added via `database.exec()` in `createSchema()` in `db.ts`.
+Added via `database.exec()` in `createSchema()` in `db.ts` (see
+Threading section above for full DDL).
 
 ## V1 scope
 
@@ -154,5 +176,4 @@ Added via `database.exec()` in `createSchema()` in `db.ts`.
 ## V2 additions
 
 - Gmail API + Pub/Sub for Gmail-specific push (faster reconnect)
-- Attachment support
 - Multi-account
