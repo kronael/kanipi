@@ -175,5 +175,4 @@ Threading section above for full DDL).
 
 ## V2 additions
 
-- Gmail API + Pub/Sub for Gmail-specific push (faster reconnect)
 - Multi-account
