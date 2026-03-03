@@ -263,3 +263,52 @@ These two cases confirm voice and video handlers don't overlap.
 - Add two listeners to the same group (`res1`, `res2`)
 - `sendMessage` once
 - Assert both received exactly one write with identical payload
+
+---
+
+## 7. Testability gaps — known issues
+
+The codebase uses module-level singletons that make tests fragile without
+`vi.mock`. No DI framework is needed, but explicit seams are missing.
+
+### db.ts — module-level singleton
+
+`db` is initialised once at module load. `_initTestDatabase()` exists as
+a workaround but tests that import multiple modules sharing `db` can
+collide.
+
+**Fix**: export a `setDatabase(d: Database)` helper (one line). Tests call
+it in `beforeEach` with a fresh `:memory:` instance. No DI needed.
+
+### config.ts — constants read at import time
+
+`WHISPER_BASE_URL`, `SLINK_ANON_RPM`, etc. are frozen at module load.
+Changing them between tests requires `vi.mock()` per file and can't vary
+per test case.
+
+**Fix**: export a `_overrideConfig(patch: Partial<Config>)` helper gated
+behind `process.env.NODE_ENV === 'test'`. Tests call it in `beforeEach`
+and reset in `afterEach`. Keeps production path zero-cost.
+
+### container-runner.ts — docker calls not injectable
+
+`execSync('docker ...')` is called directly. No seam exists for tests.
+
+**Fix**: extract a `runDocker(args: string[]): string` function, export
+it, and mock it in tests via `vi.mock('./container-runner.js', ...)`.
+
+### channels — SDK clients constructed in constructor
+
+`TelegramChannel`, `DiscordChannel` etc. instantiate grammy/discord.js in
+the constructor. Impossible to test message dispatch without real tokens.
+
+**Fix**: accept an optional `client` parameter in the constructor
+(defaults to real SDK). Tests pass a fake. One extra parameter, no
+framework.
+
+### Priority order
+
+1. `db.ts` `setDatabase()` — blocks most unit tests
+2. `config.ts` `_overrideConfig()` — needed for rate limit / feature flag tests
+3. `container-runner.ts` extraction — needed for e2e without docker
+4. Channel constructors — lowest priority, integration tests cover these
