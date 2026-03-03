@@ -26,10 +26,14 @@ if (EMAIL_IMAP_HOST) {
 
 ## Source and sink
 
-- **Inbound**: IMAP IDLE (push). Server notifies on new mail; client
-  issues `FETCH` immediately. Falls back to 60s polling if IDLE
-  unsupported (rare).
-- **Outbound**: SMTP reply via `In-Reply-To` + `References` headers.
+`EMAIL_ACCOUNT` is the bot's inbox — the channel identity admitted into
+the gateway. Anyone emailing that address becomes a sender.
+
+- **Inbound**: IMAP IDLE on `EMAIL_ACCOUNT`'s inbox. Server notifies
+  on new mail; client issues `FETCH` immediately. Falls back to 60s
+  polling if IDLE unsupported (rare).
+- **Outbound**: SMTP reply from `EMAIL_ACCOUNT` via `In-Reply-To` +
+  `References` headers.
 - Single account per instance.
 
 ## IMAP IDLE
