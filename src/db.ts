@@ -84,6 +84,24 @@ function createSchema(database: Database.Database): void {
     );
   `);
 
+  // Auth tables (added later — safe to CREATE IF NOT EXISTS)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS auth_users (
+      id         INTEGER PRIMARY KEY,
+      sub        TEXT UNIQUE NOT NULL,
+      username   TEXT UNIQUE NOT NULL,
+      hash       TEXT NOT NULL,
+      name       TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      token_hash TEXT PRIMARY KEY,
+      user_sub   TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+
   // Add slink_token column if it doesn't exist (migration for existing DBs)
   try {
     database.exec(`ALTER TABLE registered_groups ADD COLUMN slink_token TEXT`);
