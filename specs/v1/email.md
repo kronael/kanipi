@@ -1,64 +1,129 @@
 # Email channel (v1)
 
 IMAP inbound + SMTP outbound. Generic mail provider support.
-Gmail Pub/Sub push as optional fast path (v2).
+
+## Enabling
+
+Enabled by presence of `EMAIL_IMAP_HOST` + `EMAIL_ACCOUNT` + `EMAIL_PASSWORD`
+in `.env`. Registered in `index.ts` same as other channels:
+
+```typescript
+if (EMAIL_IMAP_HOST) {
+  const email = new EmailChannel(channelOpts);
+  channels.push(email);
+  await email.connect();
+}
+```
+
+## Channel class
+
+`src/channels/email.ts` — `EmailChannel implements Channel`:
+
+- `name = 'email'`
+- `connect()` — open IMAP connection, start IDLE loop
+- `disconnect()` — close IMAP + SMTP connections
+- `sendMessage(jid, text)` — SMTP reply in thread
 
 ## Source and sink
 
-- **Inbound**: poll IMAP INBOX, process unseen messages, mark read
-- **Outbound**: SMTP reply in same thread via `In-Reply-To` / `References` headers
-- Enabled by: `EMAIL_IMAP_HOST` + `EMAIL_ACCOUNT` + `EMAIL_PASSWORD` in .env
+- **Inbound**: IMAP IDLE (push). Server notifies on new mail; client
+  issues `FETCH` immediately. Falls back to 60s polling if IDLE
+  unsupported (rare).
+- **Outbound**: SMTP reply via `In-Reply-To` + `References` headers.
+- Single account per instance.
+
+## IMAP IDLE
+
+`imapflow` exposes `.idle()` which sends the IDLE command and resolves
+when the server sends `EXISTS` or `EXPUNGE`. Loop:
+
+```typescript
+while (connected) {
+  await client.idle(); // blocks until server pushes
+  await fetchUnseen();
+}
+```
+
+On `idle()` error (network drop, timeout), reconnect with exponential
+backoff (1s, 2s, 4s… cap 60s).
 
 ## JID format
 
-`email:{thread_id}` where `thread_id` = hash of root `Message-ID` header.
+`email:<thread_id>` where `thread_id` = first 12 hex chars of
+`sha256(root_message_id)`.
 
-New thread (no `In-Reply-To` match) → generate thread_id from root Message-ID.
-Existing thread → look up thread_id in DB via `In-Reply-To` → use as chat_jid.
+New thread (no `In-Reply-To` match) → hash the inbound `Message-ID`
+as thread root.
+Existing thread → look up `message_id → thread_id` in DB via
+`In-Reply-To` header → reuse thread_id.
+
+## Sender
+
+`sender` = from-address (`user@example.com`).
+`sender_name` = display name from `From` header, or from-address if absent.
 
 ## Threading
 
 Store `message_id → thread_id` in SQLite on every inbound message.
-Outbound reply sets `In-Reply-To` + `References` headers to maintain thread.
-Subject line used as sender context in message metadata.
+Outbound reply sets `In-Reply-To` + `References` to maintain thread.
 
 ## Libraries
 
-- `imapflow` — IMAP polling (modern, Promise-based, well-maintained)
+- `imapflow` — IMAP + IDLE (Promise-based)
 - `nodemailer` — SMTP sending
+- `mailparser` — parse raw RFC 2822 messages (addresses, text body)
 
 ## Config
 
 ```env
 EMAIL_IMAP_HOST=imap.gmail.com
-EMAIL_IMAP_PORT=993
 EMAIL_SMTP_HOST=smtp.gmail.com
-EMAIL_SMTP_PORT=587
 EMAIL_ACCOUNT=bot@example.com
 EMAIL_PASSWORD=app-password
-EMAIL_POLL_INTERVAL_MS=30000
 ```
 
-## DB schema additions
+Ports hardcoded: IMAP 993 (TLS), SMTP 587 (STARTTLS).
+
+Exported from `config.ts`:
+
+```typescript
+export const EMAIL_IMAP_HOST =
+  process.env.EMAIL_IMAP_HOST || envConfig.EMAIL_IMAP_HOST || '';
+export const EMAIL_SMTP_HOST =
+  process.env.EMAIL_SMTP_HOST ||
+  envConfig.EMAIL_SMTP_HOST ||
+  EMAIL_IMAP_HOST.replace('imap.', 'smtp.');
+export const EMAIL_ACCOUNT =
+  process.env.EMAIL_ACCOUNT || envConfig.EMAIL_ACCOUNT || '';
+export const EMAIL_PASSWORD =
+  process.env.EMAIL_PASSWORD || envConfig.EMAIL_PASSWORD || '';
+```
+
+Also add `'EMAIL_IMAP_HOST', 'EMAIL_SMTP_HOST', 'EMAIL_ACCOUNT',
+'EMAIL_PASSWORD'` to the `readEnvFile()` call.
+
+## DB schema
 
 ```sql
-CREATE TABLE email_threads (
+CREATE TABLE IF NOT EXISTS email_threads (
   message_id TEXT PRIMARY KEY,
   thread_id  TEXT NOT NULL,
   seen_at    TEXT NOT NULL
 );
 ```
 
+Added via `database.exec()` in `createSchema()` in `db.ts`.
+
 ## V1 scope
 
-- IMAP polling only (no Pub/Sub)
-- Plain text + HTML emails (content extracted as plain text)
+- IMAP IDLE with 60s poll fallback
+- Plain text + HTML body (extract as plain text via mailparser)
 - Threading via `In-Reply-To` / `References`
 - No attachment handling
 - Single account per instance
 
 ## V2 additions
 
-- Gmail API + Google Cloud Pub/Sub for push delivery (~0ms latency)
-- Attachment support (images, PDFs passed to agent)
-- Multi-account support
+- Gmail API + Pub/Sub for Gmail-specific push (faster reconnect)
+- Attachment support
+- Multi-account
