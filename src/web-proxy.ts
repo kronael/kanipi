@@ -150,7 +150,7 @@ export function startWebProxy(opts: {
   slothUsers: string;
   onMessage: OnInboundMessage;
   authSecret?: string;
-}): void {
+}): http.Server {
   const { webPort, vitePort, slothUsers, onMessage, authSecret } = opts;
   const users = parseUsers(slothUsers);
 
@@ -296,4 +296,5 @@ export function startWebProxy(opts: {
   server.listen(webPort, () => {
     logger.info({ webPort, vitePort }, 'Web proxy started');
   });
+  return server;
 }

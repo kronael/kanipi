@@ -82,4 +82,31 @@ describe('sendMessage', () => {
     removeSseListener('err-group', good);
     expect((good as ReturnType<typeof fakeRes>).written.length).toBe(2);
   });
+
+  it('isolates writes between different groups', async () => {
+    const ch = new WebChannel();
+    const resA = fakeRes();
+    const resB = fakeRes();
+    addSseListener('iso-group-a', resA);
+    addSseListener('iso-group-b', resB);
+    await ch.sendMessage('web:iso-group-a', 'only-a');
+    removeSseListener('iso-group-a', resA);
+    removeSseListener('iso-group-b', resB);
+    expect(resA.written.length).toBe(1);
+    expect(resB.written.length).toBe(0);
+  });
+
+  it('delivers to all listeners on same group', async () => {
+    const ch = new WebChannel();
+    const res1 = fakeRes();
+    const res2 = fakeRes();
+    addSseListener('multi-group', res1);
+    addSseListener('multi-group', res2);
+    await ch.sendMessage('web:multi-group', 'broadcast');
+    removeSseListener('multi-group', res1);
+    removeSseListener('multi-group', res2);
+    expect(res1.written.length).toBe(1);
+    expect(res2.written.length).toBe(1);
+    expect(res1.written[0]).toBe(res2.written[0]);
+  });
 });

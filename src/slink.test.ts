@@ -357,6 +357,135 @@ describe('JWT signature verification', () => {
   });
 });
 
+// --- media_url attachment ---
+
+describe('media_url attachment', () => {
+  function captureAll(): {
+    calls: Parameters<OnInboundMessage>[];
+    onMessage: OnInboundMessage;
+  } {
+    const calls: Parameters<OnInboundMessage>[] = [];
+    return { calls, onMessage: (...args) => calls.push(args) };
+  }
+
+  it('video url produces type video with source.url containing clip.mp4', () => {
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-media',
+      body: '{"text":"look","media_url":"https://cdn.example.com/clip.mp4"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:m', 'tok-media'),
+      onMessage,
+    });
+    expect(calls).toHaveLength(1);
+    const [, , attachments, download] = calls[0];
+    expect(attachments).toHaveLength(1);
+    expect(attachments![0].type).toBe('video');
+    expect((attachments![0].source as { url: string }).url).toContain(
+      'clip.mp4',
+    );
+    expect(typeof download).toBe('function');
+  });
+
+  it('mp3 url → type audio', () => {
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-audio',
+      body: '{"text":"listen","media_url":"https://cdn.example.com/song.mp3"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:a', 'tok-audio'),
+      onMessage,
+    });
+    expect(calls[0][2]![0].type).toBe('audio');
+  });
+
+  it('jpg url → type image', () => {
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-img',
+      body: '{"text":"see","media_url":"https://cdn.example.com/photo.jpg"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:i', 'tok-img'),
+      onMessage,
+    });
+    expect(calls[0][2]![0].type).toBe('image');
+  });
+
+  it('pdf url → type document', () => {
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-doc',
+      body: '{"text":"read","media_url":"https://cdn.example.com/file.pdf"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:d', 'tok-doc'),
+      onMessage,
+    });
+    expect(calls[0][2]![0].type).toBe('document');
+  });
+
+  it('download fn fetches arrayBuffer and returns Buffer', async () => {
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-dl',
+      body: '{"text":"get","media_url":"https://cdn.example.com/clip.mp4"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:dl', 'tok-dl'),
+      onMessage,
+    });
+    const [, , attachments, download] = calls[0];
+    const bytes = Buffer.from('bytes');
+    global.fetch = async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: { get: () => String(bytes.length) },
+        arrayBuffer: async () =>
+          bytes.buffer.slice(
+            bytes.byteOffset,
+            bytes.byteOffset + bytes.byteLength,
+          ),
+      }) as unknown as Response;
+    const result = await download!(attachments![0], 1_000_000);
+    expect(result).toEqual(bytes);
+  });
+
+  it('download fn rejects with HTTP 403 on non-ok response', async () => {
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-403',
+      body: '{"text":"x","media_url":"https://cdn.example.com/clip.mp4"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:e', 'tok-403'),
+      onMessage,
+    });
+    const [, , attachments, download] = calls[0];
+    global.fetch = async () =>
+      ({ ok: false, status: 403 }) as unknown as Response;
+    await expect(download!(attachments![0], 1_000_000)).rejects.toThrow(
+      'HTTP 403',
+    );
+  });
+
+  it('download fn rejects with too large when content-length exceeds maxBytes', async () => {
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-big',
+      body: '{"text":"x","media_url":"https://cdn.example.com/clip.mp4"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:f', 'tok-big'),
+      onMessage,
+    });
+    const [, , attachments, download] = calls[0];
+    global.fetch = async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: { get: () => '999999' },
+      }) as unknown as Response;
+    await expect(download!(attachments![0], 100)).rejects.toThrow('too large');
+  });
+});
+
 // --- DB: kanipi group add web:test inserts non-null slink_token ---
 
 describe('DB: web group registration', () => {

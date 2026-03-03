@@ -55,6 +55,16 @@ describe('voiceHandler.match', () => {
       voiceHandler.match({ mediaType: 'image', mimeType: 'image/jpeg' }),
     ).toBe(false);
   });
+
+  it('does not match document with video mimeType', () => {
+    expect(
+      voiceHandler.match({ mediaType: 'document', mimeType: 'video/mp4' }),
+    ).toBe(false);
+  });
+
+  it('does not match video mediaType', () => {
+    expect(voiceHandler.match({ mediaType: 'video' })).toBe(false);
+  });
 });
 
 // --- handle ---

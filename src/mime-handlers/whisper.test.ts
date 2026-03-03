@@ -51,4 +51,21 @@ describe('whisperTranscribe', () => {
       'whisper HTTP 500',
     );
   });
+
+  it('aborts fetch after 30s', async () => {
+    vi.useFakeTimers();
+    let aborted = false;
+    global.fetch = vi
+      .fn()
+      .mockImplementation((_url: string, opts: RequestInit) => {
+        (opts.signal as AbortSignal).addEventListener('abort', () => {
+          aborted = true;
+        });
+        return new Promise(() => {}); // never resolves
+      });
+    whisperTranscribe('/path/audio.ogg');
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(aborted).toBe(true);
+    vi.useRealTimers();
+  });
 });

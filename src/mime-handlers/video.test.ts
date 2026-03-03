@@ -111,4 +111,23 @@ describe('videoHandler.handle', () => {
     );
     expect(lines).toEqual([]);
   });
+
+  it('kills ffmpeg and returns [] after 60s timeout', async () => {
+    vi.useFakeTimers();
+    const proc = new EventEmitter() as EventEmitter & {
+      stderr: EventEmitter;
+      kill: ReturnType<typeof vi.fn>;
+    };
+    proc.stderr = new EventEmitter();
+    proc.kill = vi.fn();
+    mockSpawn.mockReturnValue(proc);
+    mockWhisper.mockResolvedValue('irrelevant');
+
+    const p = videoHandler.handle({ mediaType: 'video' }, '/path/0.mp4');
+    await vi.advanceTimersByTimeAsync(60_000);
+    const lines = await p;
+    expect(proc.kill).toHaveBeenCalled();
+    expect(lines).toEqual([]);
+    vi.useRealTimers();
+  });
 });
