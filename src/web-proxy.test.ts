@@ -191,19 +191,129 @@ describe('POST /pub/s/:token', () => {
   });
 
   it('invalid JWT when authSecret set returns 401', async () => {
-    const { port } = await startProxy({ authSecret: 'secret' });
-    const group = makeGroup('tok-badsig');
-    mockGetGroup.mockReturnValue(group);
-    mockHandleSlink.mockReturnValue({
-      status: 401,
-      body: '{"error":"unauthorized"}',
-    });
-    const res = await post(port, '/pub/s/tok-badsig', '{"text":"x"}', {
-      Authorization: 'Bearer bad.jwt.sig',
-    });
-    expect(res.status).toBe(401);
-    expect(mockHandleSlink).toHaveBeenCalledWith(
-      expect.objectContaining({ authSecret: 'secret' }),
-    );
+    const { port, close } = await startProxy({ authSecret: 'secret' });
+    try {
+      const group = makeGroup('tok-badsig');
+      mockGetGroup.mockReturnValue(group);
+      mockHandleSlink.mockReturnValue({
+        status: 401,
+        body: '{"error":"unauthorized"}',
+      });
+      const res = await post(port, '/pub/s/tok-badsig', '{"text":"x"}', {
+        Authorization: 'Bearer bad.jwt.sig',
+      });
+      expect(res.status).toBe(401);
+      expect(mockHandleSlink).toHaveBeenCalledWith(
+        expect.objectContaining({ authSecret: 'secret' }),
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  it('x-forwarded-for first IP passed to handleSlinkPost', async () => {
+    const { port, close } = await startProxy();
+    try {
+      mockGetGroup.mockReturnValue(makeGroup('tok-xff'));
+      mockHandleSlink.mockReturnValue({ status: 200, body: '{"ok":true}' });
+      await post(port, '/pub/s/tok-xff', '{"text":"x"}', {
+        'X-Forwarded-For': '203.0.113.5, 10.0.0.1',
+      });
+      expect(mockHandleSlink).toHaveBeenCalledWith(
+        expect.objectContaining({ ip: '203.0.113.5' }),
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  it('body with media_url is passed through to handleSlinkPost', async () => {
+    const { port, close } = await startProxy();
+    try {
+      mockGetGroup.mockReturnValue(makeGroup('tok-media'));
+      mockHandleSlink.mockReturnValue({ status: 200, body: '{"ok":true}' });
+      const body = '{"text":"look","media_url":"https://example.com/clip.mp4"}';
+      await post(port, '/pub/s/tok-media', body);
+      expect(mockHandleSlink).toHaveBeenCalledWith(
+        expect.objectContaining({ body }),
+      );
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe('GET /_sloth/stream', () => {
+  it('returns 200 text/event-stream and registers SSE listener', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const result = await new Promise<{ status: number; ct: string }>(
+        (resolve, reject) => {
+          const req = http.get(
+            {
+              host: 'localhost',
+              port,
+              path: '/_sloth/stream?group=mygroup',
+            },
+            (res) => {
+              resolve({
+                status: res.statusCode ?? 0,
+                ct: res.headers['content-type'] ?? '',
+              });
+              req.destroy();
+            },
+          );
+          req.on('error', () => {});
+        },
+      );
+      expect(result.status).toBe(200);
+      expect(result.ct).toContain('text/event-stream');
+      await new Promise((r) => setTimeout(r, 10));
+      expect(mockAddSse).toHaveBeenCalledWith('mygroup', expect.anything());
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe('POST /_sloth/message', () => {
+  it('dispatches to onMessage with web jid', async () => {
+    const { port, onMessage, close } = await startProxy();
+    try {
+      const res = await post(
+        port,
+        '/_sloth/message',
+        '{"group":"main","msg":"hello"}',
+      );
+      expect(res.status).toBe(200);
+      expect(onMessage).toHaveBeenCalledOnce();
+      const [jid, msg] = onMessage.mock.calls[0];
+      expect(jid).toBe('web:main');
+      expect((msg as { content: string }).content).toContain('hello');
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe('basic auth', () => {
+  it('blocks / without credentials', async () => {
+    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+    try {
+      const res = await get(port, '/');
+      expect(res.status).toBe(401);
+    } finally {
+      await close();
+    }
+  });
+
+  it('passes /pub/sloth.js without credentials', async () => {
+    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+    try {
+      const res = await get(port, '/pub/sloth.js');
+      expect(res.status).toBe(200);
+    } finally {
+      await close();
+    }
   });
 });
