@@ -1,6 +1,4 @@
-import fs from 'fs';
 import http from 'http';
-import path from 'path';
 
 import { logger } from './logger.js';
 import { addSseListener, removeSseListener } from './channels/web.js';
@@ -73,17 +71,15 @@ function parseUsers(s: string): Map<string, string> {
   return m;
 }
 
+const PUBLIC_PREFIXES = ['/pub/', '/_sloth/'];
+
 function checkAuth(
   req: http.IncomingMessage,
   users: Map<string, string>,
-  publicPaths: Set<string>,
 ): boolean {
   if (users.size === 0) return true;
-  // Check public path prefixes
   const url = req.url || '/';
-  for (const prefix of publicPaths) {
-    if (url.startsWith(prefix)) return true;
-  }
+  if (PUBLIC_PREFIXES.some((p) => url.startsWith(p))) return true;
   const header = req.headers['authorization'] || '';
   if (!header.startsWith('Basic ')) return false;
   const decoded = Buffer.from(header.slice(6), 'base64').toString('utf-8');
@@ -94,42 +90,20 @@ function checkAuth(
   return users.get(user) === pass;
 }
 
-function loadPublicPaths(webDir: string): Set<string> {
-  const file = path.join(webDir, '_sloth_public.txt');
-  const result = new Set<string>();
-  try {
-    for (const line of fs.readFileSync(file, 'utf-8').split('\n')) {
-      const p = line.trim();
-      if (p) result.add(p);
-    }
-  } catch {}
-  return result;
-}
-
 export function startWebProxy(opts: {
   webPort: number;
   vitePort: number;
   slothUsers: string;
-  webDir: string;
   onMessage: OnInboundMessage;
 }): void {
-  const { webPort, vitePort, slothUsers, webDir, onMessage } = opts;
+  const { webPort, vitePort, slothUsers, onMessage } = opts;
   const users = parseUsers(slothUsers);
-  let publicPaths = loadPublicPaths(webDir);
-
-  // Reload public paths on change
-  try {
-    fs.watch(webDir, (_, filename) => {
-      if (filename === '_sloth_public.txt')
-        publicPaths = loadPublicPaths(webDir);
-    });
-  } catch {}
 
   const server = http.createServer((req, res) => {
     const url = req.url || '/';
 
     // Auth check
-    if (!checkAuth(req, users, publicPaths)) {
+    if (!checkAuth(req, users)) {
       res.writeHead(401, {
         'WWW-Authenticate': 'Basic realm="sloth"',
         'Content-Type': 'text/plain',

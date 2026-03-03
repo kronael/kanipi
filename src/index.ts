@@ -519,7 +519,6 @@ async function main(): Promise<void> {
       webPort: WEB_PORT,
       vitePort: VITE_PORT_INTERNAL,
       slothUsers: SLOTH_USERS,
-      webDir: WEB_DIR,
       onMessage: channelOpts.onMessage,
     });
   }
