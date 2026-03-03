@@ -264,11 +264,25 @@ if [ -n "$WEB_PORT" ] && [ -d web ]; then
     sleep 1
   done) &
   VITE=$!
-  trap 'kill $GATEWAY $VITE 2>/dev/null; wait' INT TERM
-else
-  trap 'kill $GATEWAY 2>/dev/null; wait' INT TERM
 fi
+
+# start whisper sidecar if WHISPER_PORT is set
+WHISPER_PID=
+if [ -n "$WHISPER_PORT" ]; then
+  (while true
+  do
+    cd /srv/app/sidecar/whisper && uvx --with-requirements requirements.txt \
+      uvicorn main:app --host 127.0.0.1 --port "$WHISPER_PORT" &
+    WHISPER_PID=$!
+    wait $WHISPER_PID
+    sleep 1
+  done) &
+  WHISPER=$!
+fi
+
+trap 'kill $GATEWAY ${VITE:-} ${WHISPER:-} 2>/dev/null; wait' INT TERM
 
 wait $GATEWAY
 [ -n "${VITE:-}" ] && kill $VITE 2>/dev/null
+[ -n "${WHISPER:-}" ] && kill $WHISPER 2>/dev/null
 wait
