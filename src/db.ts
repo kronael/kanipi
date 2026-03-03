@@ -13,6 +13,9 @@ import {
 } from './types.js';
 
 let db: Database.Database;
+export function setDatabase(d: Database.Database): void {
+  db = d;
+}
 
 function createSchema(database: Database.Database): void {
   database.exec(`

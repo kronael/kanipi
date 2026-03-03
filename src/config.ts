@@ -139,6 +139,14 @@ export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 
+export function _overrideConfig(patch: Partial<Record<string, unknown>>): void {
+  if (process.env.NODE_ENV !== 'test') return;
+  Object.assign(
+    process.env,
+    Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, String(v)])),
+  );
+}
+
 export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
 export function whatsappEnabled(): boolean {
   return fs.existsSync(path.join(WHATSAPP_AUTH_DIR, 'creds.json'));
