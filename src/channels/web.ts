@@ -1,5 +1,6 @@
 import type { ServerResponse } from 'http';
 
+import { logger } from '../logger.js';
 import type { Channel } from '../types.js';
 
 // SSE listeners keyed by group folder
@@ -36,7 +37,8 @@ export class WebChannel implements Channel {
     for (const res of set) {
       try {
         res.write(payload);
-      } catch {
+      } catch (err) {
+        logger.warn({ err, jid }, 'web: sse write failed, removing listener');
         set.delete(res);
       }
     }

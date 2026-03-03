@@ -1,5 +1,10 @@
 import crypto from 'crypto';
 
+import type {
+  AttachmentDownloader,
+  AttachmentType,
+  RawAttachment,
+} from './mime.js';
 import type { OnInboundMessage, RegisteredGroup } from './types.js';
 
 type Bucket = [count: number, resetAt: number];
@@ -115,24 +120,63 @@ export function handleSlinkPost(req: SlinkRequest): SlinkResponse {
   }
 
   let text: string;
+  let mediaUrl: string | undefined;
   try {
     const parsed = JSON.parse(body);
     text = String(parsed.text ?? '');
+    if (parsed.media_url && typeof parsed.media_url === 'string') {
+      mediaUrl = parsed.media_url;
+    }
   } catch {
     return { status: 400, body: '{"error":"bad request"}' };
   }
 
   const jid = group.jid;
-  onMessage(jid, {
-    id: `slink-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    chat_jid: jid,
-    sender,
-    ...(senderName !== undefined && { sender_name: senderName }),
-    content: text,
-    timestamp: new Date().toISOString(),
-  });
+  const msgId = `slink-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  let attachments: RawAttachment[] | undefined;
+  let download: AttachmentDownloader | undefined;
+  if (mediaUrl) {
+    const url = mediaUrl;
+    const type: AttachmentType = guessType(url);
+    attachments = [{ type, source: { kind: 'discord', url } }];
+    download = async (a, maxBytes) => {
+      if (a.source.kind !== 'discord') throw new Error('wrong source kind');
+      const res = await fetch(a.source.url);
+      if (!res.ok) throw new Error(`slink media fetch HTTP ${res.status}`);
+      const contentLength = parseInt(
+        res.headers.get('content-length') || '0',
+        10,
+      );
+      if (contentLength > maxBytes)
+        throw new Error(`file too large: ${contentLength} > ${maxBytes}`);
+      return Buffer.from(await res.arrayBuffer());
+    };
+  }
+
+  onMessage(
+    jid,
+    {
+      id: msgId,
+      chat_jid: jid,
+      sender,
+      ...(senderName !== undefined && { sender_name: senderName }),
+      content: text,
+      timestamp: new Date().toISOString(),
+    },
+    attachments,
+    download,
+  );
 
   return { status: 200, body: '{"ok":true}' };
+}
+
+function guessType(url: string): AttachmentType {
+  const lower = url.split('?')[0].toLowerCase();
+  if (/\.(mp4|mov|webm|mkv|avi)$/.test(lower)) return 'video';
+  if (/\.(mp3|ogg|wav|flac|m4a)$/.test(lower)) return 'audio';
+  if (/\.(jpg|jpeg|png|gif|webp|avif|bmp)$/.test(lower)) return 'image';
+  return 'document';
 }
 
 export function generateSlinkToken(): string {

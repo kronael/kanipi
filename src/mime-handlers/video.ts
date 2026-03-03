@@ -22,11 +22,19 @@ function extractAudio(videoPath: string, audioPath: string): Promise<void> {
     proc.stderr.on('data', (d) => {
       errOut += d.toString();
     });
+    const timer = setTimeout(() => {
+      proc.kill();
+      reject(new Error('ffmpeg timeout after 60s'));
+    }, 60_000);
     proc.on('close', (code) => {
+      clearTimeout(timer);
       if (code === 0) resolve();
       else reject(new Error(`ffmpeg exited ${code}: ${errOut.slice(-200)}`));
     });
-    proc.on('error', reject);
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
   });
 }
 
