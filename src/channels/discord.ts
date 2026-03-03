@@ -1,6 +1,11 @@
 import { Client, GatewayIntentBits, Message, TextChannel } from 'discord.js';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
+import {
+  AttachmentDownloader,
+  AttachmentType,
+  RawAttachment,
+} from '../enricher-pipeline.js';
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts } from '../types.js';
 
@@ -80,15 +85,50 @@ export class DiscordChannel implements Channel {
       }
     }
 
-    this.opts.onMessage(chatJid, {
-      id: msg.id,
-      chat_jid: chatJid,
-      sender,
-      sender_name: senderName,
-      content,
-      timestamp,
-      is_from_me: false,
-    });
+    // Build raw attachment list from discord message attachments
+    const attachments: RawAttachment[] = [];
+    for (const att of msg.attachments.values()) {
+      let type: AttachmentType = 'document';
+      if (att.contentType?.startsWith('image/')) type = 'image';
+      else if (att.contentType?.startsWith('video/')) type = 'video';
+      else if (att.contentType?.startsWith('audio/')) type = 'audio';
+      attachments.push({
+        type,
+        mimeType: att.contentType || undefined,
+        filename: att.name || undefined,
+        sizeBytes: att.size,
+        source: { kind: 'discord', url: att.url },
+      });
+    }
+
+    const discordDownload: AttachmentDownloader = async (a, maxBytes) => {
+      if (a.source.kind !== 'discord') throw new Error('wrong source kind');
+      const res = await fetch(a.source.url);
+      if (!res.ok) throw new Error(`discord fetch HTTP ${res.status}`);
+      const contentLength = parseInt(
+        res.headers.get('content-length') || '0',
+        10,
+      );
+      if (contentLength > maxBytes) {
+        throw new Error(`file too large: ${contentLength} > ${maxBytes}`);
+      }
+      return Buffer.from(await res.arrayBuffer());
+    };
+
+    this.opts.onMessage(
+      chatJid,
+      {
+        id: msg.id,
+        chat_jid: chatJid,
+        sender,
+        sender_name: senderName,
+        content,
+        timestamp,
+        is_from_me: false,
+      },
+      attachments.length > 0 ? attachments : undefined,
+      attachments.length > 0 ? discordDownload : undefined,
+    );
 
     logger.info(
       { chatJid, chatName, sender: senderName },

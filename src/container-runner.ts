@@ -41,6 +41,9 @@ export interface ContainerInput {
   isScheduledTask?: boolean;
   assistantName?: string;
   secrets?: Record<string, string>;
+  // Enricher annotations prepended to prompt before container sees it.
+  // Populated by runEnrichers() in index.ts — not sent as a separate field.
+  _annotations?: string[];
 }
 
 export interface ContainerOutput {
@@ -95,6 +98,15 @@ function buildVolumeMounts(
   mounts.push({
     hostPath: hostPath(groupDir),
     containerPath: '/workspace/group',
+    readonly: false,
+  });
+
+  // Media dir — enriched attachments, mounted rw so agent can write sidecars
+  const mediaDir = path.join(groupDir, 'media');
+  fs.mkdirSync(mediaDir, { recursive: true });
+  mounts.push({
+    hostPath: hostPath(mediaDir),
+    containerPath: '/workspace/media',
     readonly: false,
   });
 
@@ -309,6 +321,12 @@ export async function runContainerAgent(
     let stderr = '';
     let stdoutTruncated = false;
     let stderrTruncated = false;
+
+    // Prepend enricher annotations to prompt
+    if (input._annotations && input._annotations.length > 0) {
+      input.prompt = `${input._annotations.join('\n')}\n\n${input.prompt}`;
+    }
+    delete input._annotations;
 
     // Pass secrets via stdin (never written to disk or mounted as files)
     input.secrets = readSecrets();

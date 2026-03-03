@@ -7,6 +7,7 @@ import {
   DISCORD_BOT_TOKEN,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
+  MEDIA_ENABLED,
   POLL_INTERVAL,
   SLOTH_USERS,
   TELEGRAM_BOT_TOKEN,
@@ -46,6 +47,17 @@ import {
   storeChatMetadata,
   storeMessage,
 } from './db.js';
+import {
+  AttachmentDownloader,
+  InboundMessage,
+  RawAttachment,
+  buildPrompt,
+  resolveMediaDirs,
+  runEnrichers,
+} from './enricher-pipeline.js';
+import { buildGenericEnricher } from './enrichers/generic.js';
+import { buildVideoEnricher } from './enrichers/video.js';
+import { buildVoiceEnricher } from './enrichers/voice.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
@@ -59,6 +71,17 @@ let sessions: Record<string, string> = {};
 let registeredGroups: Record<string, RegisteredGroup> = {};
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
+
+// In-memory store: msgId → {attachments, download}
+// Populated by channel callbacks; consumed by enricher pipeline at dispatch.
+// TTL cleanup happens at dispatch (one-shot read).
+const pendingAttachments = new Map<
+  string,
+  {
+    attachments: RawAttachment[];
+    download: AttachmentDownloader;
+  }
+>();
 
 const channels: Channel[] = [];
 const queue = new GroupQueue();
@@ -167,6 +190,58 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     if (!hasTrigger) return true;
   }
 
+  // Run enricher pipeline on messages that have pending attachments
+  let enrichedAnnotations: string[] = [];
+  if (MEDIA_ENABLED && pendingAttachments.size > 0) {
+    const { groupDir, mediaDir } = resolveMediaDirs(group.folder);
+    const enrichCtx = { groupDir, mediaDir };
+    const channel_name = (
+      missedMessages[0]?.chat_jid?.startsWith('tg:')
+        ? 'telegram'
+        : missedMessages[0]?.chat_jid?.startsWith('discord:')
+          ? 'discord'
+          : 'whatsapp'
+    ) as 'telegram' | 'whatsapp' | 'discord';
+
+    for (const dbMsg of missedMessages) {
+      const pending = pendingAttachments.get(dbMsg.id);
+      if (!pending) continue;
+      pendingAttachments.delete(dbMsg.id);
+
+      const inbound: InboundMessage = {
+        id: dbMsg.id,
+        chatJid: dbMsg.chat_jid,
+        sender: dbMsg.sender,
+        senderName: dbMsg.sender_name,
+        text: dbMsg.content,
+        timestamp: dbMsg.timestamp,
+        channel: channel_name,
+        groupFolder: group.folder,
+        isMain: group.folder === MAIN_GROUP_FOLDER,
+        attachments: pending.attachments,
+      };
+
+      const enrichers = [
+        buildVoiceEnricher(pending.download),
+        buildVideoEnricher(pending.download),
+        buildGenericEnricher(pending.download),
+      ];
+
+      try {
+        const enriched = await runEnrichers(inbound, enrichers, enrichCtx);
+        const annotationBlock = buildPrompt(enriched);
+        if (
+          enriched.enrichedAttachments &&
+          enriched.enrichedAttachments.length > 0
+        ) {
+          enrichedAnnotations.push(annotationBlock);
+        }
+      } catch (err) {
+        logger.warn({ err, msgId: dbMsg.id }, 'enricher pipeline failed');
+      }
+    }
+  }
+
   const prompt = formatMessages(missedMessages);
 
   // Advance cursor so the piping path in startMessageLoop won't re-fetch
@@ -209,34 +284,43 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     channel.setTyping?.(chatJid, false);
   };
 
-  const output = await runAgent(group, prompt, chatJid, async (result) => {
-    // Streaming output callback — called for each agent result
-    if (result.result) {
-      const raw =
-        typeof result.result === 'string'
-          ? result.result
-          : JSON.stringify(result.result);
-      // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-      const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
-      logger.info({ group: group.name }, `Agent output: ${raw.slice(0, 200)}`);
-      if (text) {
-        await channel.sendMessage(chatJid, text);
-        outputSentToUser = true;
+  const output = await runAgent(
+    group,
+    prompt,
+    chatJid,
+    async (result) => {
+      // Streaming output callback — called for each agent result
+      if (result.result) {
+        const raw =
+          typeof result.result === 'string'
+            ? result.result
+            : JSON.stringify(result.result);
+        // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
+        const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
+        logger.info(
+          { group: group.name },
+          `Agent output: ${raw.slice(0, 200)}`,
+        );
+        if (text) {
+          await channel.sendMessage(chatJid, text);
+          outputSentToUser = true;
+        }
+        resetIdleTimer();
       }
-      resetIdleTimer();
-    }
 
-    if (result.status === 'success') {
-      // Agent finished responding — stop typing indicator.
-      // Container stays alive (idle) but should not show as "working".
-      stopTyping();
-      queue.notifyIdle(chatJid);
-    }
+      if (result.status === 'success') {
+        // Agent finished responding — stop typing indicator.
+        // Container stays alive (idle) but should not show as "working".
+        stopTyping();
+        queue.notifyIdle(chatJid);
+      }
 
-    if (result.status === 'error') {
-      hadError = true;
-    }
-  });
+      if (result.status === 'error') {
+        hadError = true;
+      }
+    },
+    enrichedAnnotations,
+  );
 
   stopTyping();
   clearTimeout(idleTimer ?? undefined);
@@ -269,6 +353,7 @@ async function runAgent(
   prompt: string,
   chatJid: string,
   onOutput?: (output: ContainerOutput) => Promise<void>,
+  annotations?: string[],
 ): Promise<'success' | 'error'> {
   const isMain = group.folder === MAIN_GROUP_FOLDER;
   const sessionId = sessions[group.folder];
@@ -319,6 +404,8 @@ async function runAgent(
         chatJid,
         isMain,
         assistantName: ASSISTANT_NAME,
+        _annotations:
+          annotations && annotations.length > 0 ? annotations : undefined,
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
@@ -481,7 +568,17 @@ async function main(): Promise<void> {
 
   // Channel callbacks (shared by all channels)
   const channelOpts = {
-    onMessage: (_chatJid: string, msg: NewMessage) => storeMessage(msg),
+    onMessage: (
+      _chatJid: string,
+      msg: NewMessage,
+      attachments?: RawAttachment[],
+      download?: AttachmentDownloader,
+    ) => {
+      storeMessage(msg);
+      if (attachments && download && MEDIA_ENABLED) {
+        pendingAttachments.set(msg.id, { attachments, download });
+      }
+    },
     onChatMetadata: (
       chatJid: string,
       timestamp: string,

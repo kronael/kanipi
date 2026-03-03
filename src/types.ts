@@ -89,8 +89,14 @@ export interface Channel {
   setTyping?(jid: string, isTyping: boolean): Promise<void>;
 }
 
-// Callback type that channels use to deliver inbound messages
-export type OnInboundMessage = (chatJid: string, message: NewMessage) => void;
+// Callback type that channels use to deliver inbound messages.
+// attachments is optional raw attachment list for the enricher pipeline.
+export type OnInboundMessage = (
+  chatJid: string,
+  message: NewMessage,
+  attachments?: import('./enricher-pipeline.js').RawAttachment[],
+  download?: import('./enricher-pipeline.js').AttachmentDownloader,
+) => void;
 
 // Callback for chat metadata discovery.
 // name is optional — channels that deliver names inline (Telegram) pass it here;

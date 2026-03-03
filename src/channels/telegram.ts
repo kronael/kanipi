@@ -1,6 +1,15 @@
 import { Bot } from 'grammy';
 
-import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
+import {
+  ASSISTANT_NAME,
+  TELEGRAM_BOT_TOKEN,
+  TRIGGER_PATTERN,
+} from '../config.js';
+import {
+  AttachmentDownloader,
+  AttachmentType,
+  RawAttachment,
+} from '../enricher-pipeline.js';
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts } from '../types.js';
 
@@ -148,8 +157,34 @@ export class TelegramChannel implements Channel {
       );
     });
 
-    // Handle non-text messages with placeholders so the agent knows something was sent
-    const storeNonText = (ctx: any, placeholder: string) => {
+    // Build downloader closure for telegram file downloads.
+    const token = this.botToken;
+    const bot = this.bot!;
+    const tgDownload: AttachmentDownloader = async (a, maxBytes) => {
+      if (a.source.kind !== 'telegram') {
+        throw new Error('wrong source kind');
+      }
+      const file = await bot.api.getFile(a.source.fileId);
+      if (!file.file_path) throw new Error('no file_path from telegram');
+      const url = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`tg fetch HTTP ${res.status}`);
+      const contentLength = parseInt(
+        res.headers.get('content-length') || '0',
+        10,
+      );
+      if (contentLength > maxBytes) {
+        throw new Error(`file too large: ${contentLength} > ${maxBytes}`);
+      }
+      return Buffer.from(await res.arrayBuffer());
+    };
+
+    // Dispatch a non-text message with attachment metadata.
+    const storeMedia = (
+      ctx: any,
+      placeholder: string,
+      attachments: RawAttachment[],
+    ) => {
       const chatJid = `tg:${ctx.chat.id}`;
       const group = this.opts.registeredGroups()[chatJid];
       if (!group) return;
@@ -171,31 +206,125 @@ export class TelegramChannel implements Channel {
         'telegram',
         isGroup,
       );
-      this.opts.onMessage(chatJid, {
-        id: ctx.message.message_id.toString(),
-        chat_jid: chatJid,
-        sender: ctx.from?.id?.toString() || '',
-        sender_name: senderName,
-        content: `${placeholder}${caption}`,
-        timestamp,
-        is_from_me: false,
-      });
+      this.opts.onMessage(
+        chatJid,
+        {
+          id: ctx.message.message_id.toString(),
+          chat_jid: chatJid,
+          sender: ctx.from?.id?.toString() || '',
+          sender_name: senderName,
+          content: `${placeholder}${caption}`,
+          timestamp,
+          is_from_me: false,
+        },
+        attachments.length > 0 ? attachments : undefined,
+        attachments.length > 0 ? tgDownload : undefined,
+      );
     };
 
-    this.bot.on('message:photo', (ctx) => storeNonText(ctx, '[Photo]'));
-    this.bot.on('message:video', (ctx) => storeNonText(ctx, '[Video]'));
-    this.bot.on('message:voice', (ctx) => storeNonText(ctx, '[Voice message]'));
-    this.bot.on('message:audio', (ctx) => storeNonText(ctx, '[Audio]'));
+    this.bot.on('message:photo', (ctx) => {
+      const photos = ctx.message.photo || [];
+      const best = photos[photos.length - 1];
+      const atts: RawAttachment[] = best
+        ? [
+            {
+              type: 'image' as AttachmentType,
+              mimeType: 'image/jpeg',
+              sizeBytes: best.file_size,
+              source: { kind: 'telegram', fileId: best.file_id },
+            },
+          ]
+        : [];
+      storeMedia(ctx, '[Photo]', atts);
+    });
+
+    this.bot.on('message:video', (ctx) => {
+      const v = ctx.message.video;
+      const atts: RawAttachment[] = v
+        ? [
+            {
+              type: 'video' as AttachmentType,
+              mimeType: v.mime_type || 'video/mp4',
+              filename: v.file_name,
+              sizeBytes: v.file_size,
+              durationSeconds: v.duration,
+              source: { kind: 'telegram', fileId: v.file_id },
+            },
+          ]
+        : [];
+      storeMedia(ctx, '[Video]', atts);
+    });
+
+    this.bot.on('message:voice', (ctx) => {
+      const v = ctx.message.voice;
+      const atts: RawAttachment[] = v
+        ? [
+            {
+              type: 'voice' as AttachmentType,
+              mimeType: v.mime_type || 'audio/ogg',
+              sizeBytes: v.file_size,
+              durationSeconds: v.duration,
+              source: { kind: 'telegram', fileId: v.file_id },
+            },
+          ]
+        : [];
+      storeMedia(ctx, '[Voice message]', atts);
+    });
+
+    this.bot.on('message:audio', (ctx) => {
+      const a = ctx.message.audio;
+      const atts: RawAttachment[] = a
+        ? [
+            {
+              type: 'audio' as AttachmentType,
+              mimeType: a.mime_type || 'audio/mpeg',
+              filename: a.file_name,
+              sizeBytes: a.file_size,
+              durationSeconds: a.duration,
+              source: { kind: 'telegram', fileId: a.file_id },
+            },
+          ]
+        : [];
+      storeMedia(ctx, '[Audio]', atts);
+    });
+
     this.bot.on('message:document', (ctx) => {
-      const name = ctx.message.document?.file_name || 'file';
-      storeNonText(ctx, `[Document: ${name}]`);
+      const d = ctx.message.document;
+      const name = d?.file_name || 'file';
+      const atts: RawAttachment[] = d
+        ? [
+            {
+              type: 'document' as AttachmentType,
+              mimeType: d.mime_type,
+              filename: d.file_name,
+              sizeBytes: d.file_size,
+              source: { kind: 'telegram', fileId: d.file_id },
+            },
+          ]
+        : [];
+      storeMedia(ctx, `[Document: ${name}]`, atts);
     });
+
     this.bot.on('message:sticker', (ctx) => {
-      const emoji = ctx.message.sticker?.emoji || '';
-      storeNonText(ctx, `[Sticker ${emoji}]`);
+      const s = ctx.message.sticker;
+      const emoji = s?.emoji || '';
+      const atts: RawAttachment[] = s
+        ? [
+            {
+              type: 'sticker' as AttachmentType,
+              mimeType: s.is_animated
+                ? 'application/x-tgsticker'
+                : 'image/webp',
+              sizeBytes: s.file_size,
+              source: { kind: 'telegram', fileId: s.file_id },
+            },
+          ]
+        : [];
+      storeMedia(ctx, `[Sticker ${emoji}]`, atts);
     });
-    this.bot.on('message:location', (ctx) => storeNonText(ctx, '[Location]'));
-    this.bot.on('message:contact', (ctx) => storeNonText(ctx, '[Contact]'));
+
+    this.bot.on('message:location', (ctx) => storeMedia(ctx, '[Location]', []));
+    this.bot.on('message:contact', (ctx) => storeMedia(ctx, '[Contact]', []));
 
     // Handle errors gracefully
     this.bot.catch((err) => {

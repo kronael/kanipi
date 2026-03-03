@@ -5,7 +5,9 @@ import path from 'path';
 import makeWASocket, {
   Browsers,
   DisconnectReason,
+  WAMessage,
   WASocket,
+  downloadMediaMessage,
   fetchLatestWaWebVersion,
   makeCacheableSignalKeyStore,
   useMultiFileAuthState,
@@ -16,6 +18,12 @@ import {
   ASSISTANT_NAME,
   STORE_DIR,
 } from '../config.js';
+import {
+  AttachmentDownloader,
+  AttachmentType,
+  RawAttachment,
+  WhatsAppSource,
+} from '../enricher-pipeline.js';
 import { getLastGroupSync, setLastGroupSync, updateChatName } from '../db.js';
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts } from '../types.js';
@@ -184,15 +192,72 @@ export class WhatsAppChannel implements Channel {
         // Only deliver full message for registered groups
         const groups = this.opts.registeredGroups();
         if (groups[chatJid]) {
+          const m = msg.message;
           const content =
-            msg.message?.conversation ||
-            msg.message?.extendedTextMessage?.text ||
-            msg.message?.imageMessage?.caption ||
-            msg.message?.videoMessage?.caption ||
+            m?.conversation ||
+            m?.extendedTextMessage?.text ||
+            m?.imageMessage?.caption ||
+            m?.videoMessage?.caption ||
             '';
 
-          // Skip protocol messages with no text content (encryption keys, read receipts, etc.)
-          if (!content) continue;
+          // Build raw attachment list from media message types
+          const attachments: RawAttachment[] = [];
+          const source: WhatsAppSource = {
+            kind: 'whatsapp',
+            message: msg as unknown as Record<string, unknown>,
+          };
+          if (m?.imageMessage) {
+            attachments.push({
+              type: 'image' as AttachmentType,
+              mimeType: m.imageMessage.mimetype || 'image/jpeg',
+              sizeBytes: m.imageMessage.fileLength
+                ? Number(m.imageMessage.fileLength)
+                : undefined,
+              source,
+            });
+          } else if (m?.videoMessage) {
+            attachments.push({
+              type: 'video' as AttachmentType,
+              mimeType: m.videoMessage.mimetype || 'video/mp4',
+              sizeBytes: m.videoMessage.fileLength
+                ? Number(m.videoMessage.fileLength)
+                : undefined,
+              durationSeconds: m.videoMessage.seconds ?? undefined,
+              source,
+            });
+          } else if (m?.audioMessage) {
+            const isPtt = m.audioMessage.ptt;
+            attachments.push({
+              type: isPtt
+                ? ('voice' as AttachmentType)
+                : ('audio' as AttachmentType),
+              mimeType: m.audioMessage.mimetype || 'audio/ogg',
+              sizeBytes: m.audioMessage.fileLength
+                ? Number(m.audioMessage.fileLength)
+                : undefined,
+              durationSeconds: m.audioMessage.seconds ?? undefined,
+              source,
+            });
+          } else if (m?.documentMessage) {
+            attachments.push({
+              type: 'document' as AttachmentType,
+              mimeType: m.documentMessage.mimetype ?? undefined,
+              filename: m.documentMessage.fileName ?? undefined,
+              sizeBytes: m.documentMessage.fileLength
+                ? Number(m.documentMessage.fileLength)
+                : undefined,
+              source,
+            });
+          } else if (m?.stickerMessage) {
+            attachments.push({
+              type: 'sticker' as AttachmentType,
+              mimeType: m.stickerMessage.mimetype || 'image/webp',
+              source,
+            });
+          }
+
+          // Skip protocol messages with no text and no media
+          if (!content && attachments.length === 0) continue;
 
           const sender = msg.key.participant || msg.key.remoteJid || '';
           const senderName = msg.pushName || sender.split('@')[0];
@@ -206,16 +271,35 @@ export class WhatsAppChannel implements Channel {
             ? fromMe
             : content.startsWith(`${ASSISTANT_NAME}:`);
 
-          this.opts.onMessage(chatJid, {
-            id: msg.key.id || '',
-            chat_jid: chatJid,
-            sender,
-            sender_name: senderName,
-            content,
-            timestamp,
-            is_from_me: fromMe,
-            is_bot_message: isBotMessage,
-          });
+          // Build a downloader that uses baileys downloadMediaMessage.
+          const waDownload: AttachmentDownloader = async (a, maxBytes) => {
+            if (a.source.kind !== 'whatsapp') {
+              throw new Error('wrong source kind');
+            }
+            const waMsg = a.source.message as unknown as WAMessage;
+            const stream = await downloadMediaMessage(waMsg, 'buffer', {});
+            const buf = stream as Buffer;
+            if (buf.length > maxBytes) {
+              throw new Error(`file too large: ${buf.length} > ${maxBytes}`);
+            }
+            return buf;
+          };
+
+          this.opts.onMessage(
+            chatJid,
+            {
+              id: msg.key.id || '',
+              chat_jid: chatJid,
+              sender,
+              sender_name: senderName,
+              content: content || `[${attachments[0]?.type || 'media'}]`,
+              timestamp,
+              is_from_me: fromMe,
+              is_bot_message: isBotMessage,
+            },
+            attachments.length > 0 ? attachments : undefined,
+            attachments.length > 0 ? waDownload : undefined,
+          );
         }
       }
     });

@@ -124,3 +124,17 @@ export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
 export function whatsappEnabled(): boolean {
   return fs.existsSync(path.join(WHATSAPP_AUTH_DIR, 'creds.json'));
 }
+
+// Media / enricher pipeline config
+export const MEDIA_ENABLED = (process.env.MEDIA_ENABLED || 'false') === 'true';
+export const MEDIA_MAX_FILE_BYTES = parseInt(
+  process.env.MEDIA_MAX_FILE_BYTES || '20971520',
+  10,
+);
+export const VOICE_TRANSCRIPTION_ENABLED =
+  (process.env.VOICE_TRANSCRIPTION_ENABLED || 'false') === 'true';
+export const WHISPER_BASE_URL =
+  process.env.WHISPER_BASE_URL || 'http://localhost:8080';
+export const WHISPER_MODEL = process.env.WHISPER_MODEL || 'turbo';
+export const VIDEO_TRANSCRIPTION_ENABLED =
+  (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
