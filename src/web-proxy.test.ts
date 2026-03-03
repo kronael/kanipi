@@ -109,10 +109,11 @@ function post(
 function get(
   port: number,
   path: string,
+  headers?: Record<string, string>,
 ): Promise<{ status: number; body: string; ct: string }> {
   return new Promise((resolve, reject) => {
     http
-      .get({ host: 'localhost', port, path }, (res) => {
+      .get({ host: 'localhost', port, path, headers }, (res) => {
         let data = '';
         res.on('data', (c) => (data += c));
         res.on('end', () =>
