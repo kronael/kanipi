@@ -330,4 +330,16 @@ describe('basic auth', () => {
       await close();
     }
   });
+
+  it('passes POST /pub/s/:token without credentials', async () => {
+    mockGetGroupBySlink.mockReturnValue({ jid: 'web:tok', folder: 'main' });
+    mockHandleSlinkPost.mockReturnValue({ status: 200, body: '{"ok":true}' });
+    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+    try {
+      const res = await post(port, '/pub/s/tok', '{"text":"hi"}');
+      expect(res.status).toBe(200);
+    } finally {
+      await close();
+    }
+  });
 });
