@@ -125,7 +125,7 @@ describe('cleanupOrphans', () => {
 
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.any(Error) }),
-      'Failed to clean up orphaned containers',
+      'Failed to list containers for cleanup',
     );
   });
 

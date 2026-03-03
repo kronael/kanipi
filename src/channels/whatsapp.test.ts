@@ -369,6 +369,8 @@ describe('WhatsAppChannel', () => {
           sender_name: 'Alice',
           is_from_me: false,
         }),
+        undefined,
+        undefined,
       );
     });
 
@@ -470,6 +472,8 @@ describe('WhatsAppChannel', () => {
       expect(opts.onMessage).toHaveBeenCalledWith(
         'registered@g.us',
         expect.objectContaining({ content: 'A reply message' }),
+        undefined,
+        undefined,
       );
     });
 
@@ -501,6 +505,8 @@ describe('WhatsAppChannel', () => {
       expect(opts.onMessage).toHaveBeenCalledWith(
         'registered@g.us',
         expect.objectContaining({ content: 'Check this photo' }),
+        expect.arrayContaining([expect.objectContaining({ type: 'image' })]),
+        expect.any(Function),
       );
     });
 
@@ -529,6 +535,8 @@ describe('WhatsAppChannel', () => {
       expect(opts.onMessage).toHaveBeenCalledWith(
         'registered@g.us',
         expect.objectContaining({ content: 'Watch this' }),
+        expect.arrayContaining([expect.objectContaining({ type: 'video' })]),
+        expect.any(Function),
       );
     });
 
@@ -554,8 +562,13 @@ describe('WhatsAppChannel', () => {
         },
       ]);
 
-      // Skipped — no text content to process
-      expect(opts.onMessage).not.toHaveBeenCalled();
+      // Voice note with no caption — content falls back to '[voice]', attachments passed
+      expect(opts.onMessage).toHaveBeenCalledWith(
+        'registered@g.us',
+        expect.objectContaining({ content: '[voice]' }),
+        expect.arrayContaining([expect.objectContaining({ type: 'voice' })]),
+        expect.any(Function),
+      );
     });
 
     it('uses sender JID when pushName is absent', async () => {
@@ -581,6 +594,8 @@ describe('WhatsAppChannel', () => {
       expect(opts.onMessage).toHaveBeenCalledWith(
         'registered@g.us',
         expect.objectContaining({ sender_name: '5551234' }),
+        undefined,
+        undefined,
       );
     });
   });
