@@ -342,4 +342,23 @@ describe('basic auth', () => {
       await close();
     }
   });
+
+  // /_sloth/ is in PUBLIC_PREFIXES — intentionally unauthenticated so
+  // the embedded sloth.js widget can post without user credentials.
+  it('passes POST /_sloth/message without credentials (public widget endpoint)', async () => {
+    const { port, onMessage, close } = await startProxy({
+      slothUsers: 'alice:secret',
+    });
+    try {
+      const res = await post(
+        port,
+        '/_sloth/message',
+        '{"group":"main","msg":"hello"}',
+      );
+      expect(res.status).toBe(200);
+      expect(onMessage).toHaveBeenCalled();
+    } finally {
+      await close();
+    }
+  });
 });
