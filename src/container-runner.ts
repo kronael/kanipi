@@ -16,6 +16,7 @@ import {
   IDLE_TIMEOUT,
   TIMEZONE,
   WEB_DIR,
+  WEB_HOST,
 } from './config.js';
 import { readEnvFile } from './env.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
@@ -156,6 +157,15 @@ function buildVolumeMounts(
         2,
       ) + '\n',
     );
+  }
+  // Inject slink env vars for web: groups (updates on every spawn so token
+  // is always current; no-op for non-web groups).
+  if (group.slinkToken) {
+    const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+    settings.env = settings.env ?? {};
+    settings.env.SLINK_TOKEN = group.slinkToken;
+    settings.env.WEB_HOST = WEB_HOST;
+    fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
   }
 
   // Seed skills once per group — agent can modify, persists across spawns

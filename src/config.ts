@@ -120,6 +120,13 @@ export const VITE_PORT_INTERNAL = _viteInternal
 export const SLOTH_USERS =
   process.env.SLOTH_USERS || envConfig.SLOTH_USERS || '';
 
+// Slink rate limits (requests per minute)
+export const SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
+export const SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
+
+// Public host for constructing slink URLs injected into agent containers
+export const WEB_HOST = process.env.WEB_HOST || '';
+
 export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
 export function whatsappEnabled(): boolean {
   return fs.existsSync(path.join(WHATSAPP_AUTH_DIR, 'creds.json'));

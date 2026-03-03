@@ -84,6 +84,13 @@ function createSchema(database: Database.Database): void {
     );
   `);
 
+  // Add slink_token column if it doesn't exist (migration for existing DBs)
+  try {
+    database.exec(`ALTER TABLE registered_groups ADD COLUMN slink_token TEXT`);
+  } catch {
+    /* column already exists */
+  }
+
   // Add context_mode column if it doesn't exist (migration for existing DBs)
   try {
     database.exec(
@@ -530,6 +537,7 @@ export function getRegisteredGroup(
         added_at: string;
         container_config: string | null;
         requires_trigger: number | null;
+        slink_token: string | null;
       }
     | undefined;
   if (!row) return undefined;
@@ -551,6 +559,40 @@ export function getRegisteredGroup(
       : undefined,
     requiresTrigger:
       row.requires_trigger === null ? undefined : row.requires_trigger === 1,
+    slinkToken: row.slink_token ?? undefined,
+  };
+}
+
+export function getGroupBySlink(
+  token: string,
+): (RegisteredGroup & { jid: string }) | undefined {
+  const row = db
+    .prepare('SELECT * FROM registered_groups WHERE slink_token = ?')
+    .get(token) as
+    | {
+        jid: string;
+        name: string;
+        folder: string;
+        trigger_pattern: string;
+        added_at: string;
+        container_config: string | null;
+        requires_trigger: number | null;
+        slink_token: string | null;
+      }
+    | undefined;
+  if (!row) return undefined;
+  return {
+    jid: row.jid,
+    name: row.name,
+    folder: row.folder,
+    trigger: row.trigger_pattern,
+    added_at: row.added_at,
+    containerConfig: row.container_config
+      ? JSON.parse(row.container_config)
+      : undefined,
+    requiresTrigger:
+      row.requires_trigger === null ? undefined : row.requires_trigger === 1,
+    slinkToken: row.slink_token ?? undefined,
   };
 }
 
@@ -581,6 +623,7 @@ export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
     added_at: string;
     container_config: string | null;
     requires_trigger: number | null;
+    slink_token: string | null;
   }>;
   const result: Record<string, RegisteredGroup> = {};
   for (const row of rows) {
@@ -601,6 +644,7 @@ export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
         : undefined,
       requiresTrigger:
         row.requires_trigger === null ? undefined : row.requires_trigger === 1,
+      slinkToken: row.slink_token ?? undefined,
     };
   }
   return result;

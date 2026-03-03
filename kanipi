@@ -68,21 +68,36 @@ group_cmd() {
       ASSISTANT=$(grep -s '^ASSISTANT_NAME=' "$DATA/.env" | cut -d= -f2- || echo "$INST")
       F=$(node -e "
         const Database = require('better-sqlite3');
+        const crypto = require('crypto');
         const db = new Database('$DB');
+        // ensure slink_token column exists (in case DB was created before migration)
+        try { db.exec('ALTER TABLE registered_groups ADD COLUMN slink_token TEXT'); } catch {}
         const count = db.prepare('SELECT COUNT(*) as n FROM registered_groups').get().n;
         const folder = '$FOLDER' || (count === 0 ? 'main' : '');
         if (!folder) { console.error('folder required (not first group)'); process.exit(1); }
         const rt = count === 0 ? 0 : 1;
         const trigger = rt ? '@$ASSISTANT' : '';
         const now = new Date().toISOString();
+        const isWeb = '$JID'.startsWith('web:');
+        const slinkToken = isWeb ? crypto.randomBytes(12).toString('base64url') : null;
         db.prepare(
-          'INSERT OR REPLACE INTO registered_groups (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger) VALUES (?, ?, ?, ?, ?, ?, ?)'
-        ).run('$JID', folder, folder, trigger, now, null, rt);
-        console.log(folder);
+          'INSERT OR REPLACE INTO registered_groups (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger, slink_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        ).run('$JID', folder, folder, trigger, now, null, rt, slinkToken);
+        if (isWeb && slinkToken) {
+          process.stdout.write(folder + '\t' + slinkToken + '\n');
+        } else {
+          process.stdout.write(folder + '\n');
+        }
         db.close();
       ")
-      echo "added: $JID → $F"
-      mkdir -p "$DATA/groups/$F/logs"
+      FOLDER_NAME=$(echo "$F" | cut -f1)
+      SLINK_TOKEN=$(echo "$F" | cut -f2 -s)
+      echo "added: $JID → $FOLDER_NAME"
+      if [ -n "$SLINK_TOKEN" ]; then
+        WEB_HOST_VAL=$(grep -s '^WEB_HOST=' "$DATA/.env" | cut -d= -f2- || true)
+        echo "slink token: $SLINK_TOKEN  url: https://${WEB_HOST_VAL:-<WEB_HOST>}/pub/s/$SLINK_TOKEN"
+      fi
+      mkdir -p "$DATA/groups/$FOLDER_NAME/logs"
       ;;
     rm)
       if [ -z "$JID" ]; then

@@ -1,8 +1,65 @@
+import crypto from 'crypto';
 import http from 'http';
 
+import { SLINK_ANON_RPM, SLINK_AUTH_RPM } from './config.js';
+import { getGroupBySlink } from './db.js';
 import { logger } from './logger.js';
 import { addSseListener, removeSseListener } from './channels/web.js';
 import type { OnInboundMessage } from './types.js';
+
+// --- Slink rate limiter (sliding window, in-memory) ---
+
+interface RateBucket {
+  timestamps: number[];
+}
+
+const rateBuckets = new Map<string, RateBucket>();
+
+function isRateLimited(key: string, rpm: number): boolean {
+  const now = Date.now();
+  const window = 60_000;
+  let bucket = rateBuckets.get(key);
+  if (!bucket) {
+    bucket = { timestamps: [] };
+    rateBuckets.set(key, bucket);
+  }
+  // Prune old entries
+  bucket.timestamps = bucket.timestamps.filter((t) => now - t < window);
+  if (bucket.timestamps.length >= rpm) return true;
+  bucket.timestamps.push(now);
+  return false;
+}
+
+// --- JWT verification (HS256 only, no external deps) ---
+
+interface JwtClaims {
+  sub?: string;
+  name?: string;
+  exp?: number;
+}
+
+function verifyJwt(token: string, secret: string): JwtClaims | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [header, payload, sig] = parts;
+    const expected = crypto
+      .createHmac('sha256', secret)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+    if (expected !== sig) return null;
+    const claims = JSON.parse(
+      Buffer.from(payload, 'base64url').toString('utf-8'),
+    ) as JwtClaims;
+    if (claims.exp && claims.exp * 1000 < Date.now()) return null;
+    return claims;
+  } catch {
+    return null;
+  }
+}
+
+// Stub sloth.js body — full implementation TBD
+const PUB_SLOTH_JS = `/* sloth public client — stub */`;
 
 // Minimal sloth client — injected into every HTML page served by the proxy
 const SLOTH_JS = `(function(){
@@ -95,8 +152,9 @@ export function startWebProxy(opts: {
   vitePort: number;
   slothUsers: string;
   onMessage: OnInboundMessage;
+  authSecret?: string;
 }): void {
-  const { webPort, vitePort, slothUsers, onMessage } = opts;
+  const { webPort, vitePort, slothUsers, onMessage, authSecret } = opts;
   const users = parseUsers(slothUsers);
 
   const server = http.createServer((req, res) => {
@@ -109,6 +167,87 @@ export function startWebProxy(opts: {
         'Content-Type': 'text/plain',
       });
       res.end('Unauthorized');
+      return;
+    }
+
+    // Public slink endpoints
+    if (url === '/pub/sloth.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript' });
+      res.end(PUB_SLOTH_JS);
+      return;
+    }
+
+    const slinkMatch = url.match(/^\/pub\/s\/([A-Za-z0-9_-]{1,64})$/);
+    if (slinkMatch && req.method === 'POST') {
+      const token = slinkMatch[1];
+      const group = getGroupBySlink(token);
+      if (!group) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end('{"error":"not found"}');
+        return;
+      }
+
+      // Parse optional JWT
+      let sub: string | undefined;
+      let senderName: string | undefined;
+      const authHeader = req.headers['authorization'] || '';
+      if (authHeader.startsWith('Bearer ') && authSecret) {
+        const claims = verifyJwt(authHeader.slice(7), authSecret);
+        if (claims?.sub) {
+          sub = claims.sub;
+          senderName = claims.name;
+        }
+      }
+
+      // Rate limiting
+      let rlKey: string;
+      let rlLimit: number;
+      if (sub) {
+        rlKey = `auth:${sub}`;
+        rlLimit = SLINK_AUTH_RPM;
+      } else {
+        rlKey = `anon:${token}`;
+        rlLimit = SLINK_ANON_RPM;
+      }
+      if (isRateLimited(rlKey, rlLimit)) {
+        res.writeHead(429, { 'Content-Type': 'application/json' });
+        res.end('{"error":"rate limited"}');
+        return;
+      }
+
+      // Derive sender
+      const ip =
+        (req.headers['x-forwarded-for'] as string | undefined)
+          ?.split(',')[0]
+          .trim() ||
+        req.socket.remoteAddress ||
+        '';
+      const sender =
+        sub ??
+        `anon_${crypto.createHash('sha256').update(ip).digest('hex').slice(0, 8)}`;
+
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        try {
+          const { text } = JSON.parse(body) as { text?: string };
+          if (!text) throw new Error('missing text');
+          const jid = group.jid;
+          onMessage(jid, {
+            id: `slink-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            chat_jid: jid,
+            sender,
+            sender_name: senderName ?? sender,
+            content: text,
+            timestamp: new Date().toISOString(),
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"ok":true}');
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end('{"error":"bad request"}');
+        }
+      });
       return;
     }
 

@@ -600,6 +600,7 @@ async function main(): Promise<void> {
       vitePort: VITE_PORT_INTERNAL,
       slothUsers: SLOTH_USERS,
       onMessage: channelOpts.onMessage,
+      authSecret: process.env.AUTH_SECRET,
     });
   }
 
