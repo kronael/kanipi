@@ -98,15 +98,15 @@ function buildVolumeMounts(
     readonly: false,
   });
 
-  if (isMain) {
-    // Main gets the project root read-only to prevent agent from modifying host code
-    mounts.push({
-      hostPath: hostPath(projectRoot),
-      containerPath: '/workspace/project',
-      readonly: true,
-    });
-  } else {
-    // Non-main gets global memory directory read-only
+  // All groups get project root read-only as /workspace/self
+  mounts.push({
+    hostPath: hostPath(projectRoot),
+    containerPath: '/workspace/self',
+    readonly: true,
+  });
+
+  if (!isMain) {
+    // Non-main groups additionally get global memory directory read-only
     const globalDir = path.join(GROUPS_DIR, 'global');
     if (fs.existsSync(globalDir)) {
       mounts.push({
@@ -160,6 +160,11 @@ function buildVolumeMounts(
     }
     chownRecursive(skillsDst, 1000, 1000);
   }
+  const claudeMdSrc = path.join(APP_DIR, 'container', 'CLAUDE.md');
+  const claudeMdDst = path.join(groupSessionsDir, 'CLAUDE.md');
+  if (fs.existsSync(claudeMdSrc) && !fs.existsSync(claudeMdDst)) {
+    fs.copyFileSync(claudeMdSrc, claudeMdDst);
+  }
   mounts.push({
     hostPath: hostPath(groupSessionsDir),
     containerPath: '/home/node/.claude',
@@ -207,7 +212,7 @@ function buildVolumeMounts(
     chownRecursive(WEB_DIR, 1000, 1000);
     mounts.push({
       hostPath: hostPath(WEB_DIR),
-      containerPath: '/web',
+      containerPath: '/workspace/web',
       readonly: false,
     });
   }
