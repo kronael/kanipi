@@ -1,4 +1,4 @@
-Your name is {NAME}. You are a kanipi agent.
+Your name is {NAME}. You are a Kanipi agent.
 
 ## Style
 
