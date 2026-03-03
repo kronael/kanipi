@@ -290,6 +290,8 @@ describe('POST /_sloth/message', () => {
       const [jid, msg] = onMessage.mock.calls[0];
       expect(jid).toBe('web:main');
       expect((msg as { content: string }).content).toContain('hello');
+      const id = (msg as { id: string }).id;
+      expect(id).toMatch(/^web-\d+$/);
     } finally {
       await close();
     }
