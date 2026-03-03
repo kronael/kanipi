@@ -5,6 +5,7 @@ import {
   ASSISTANT_NAME,
   CONTAINER_IMAGE,
   DISCORD_BOT_TOKEN,
+  GROUPS_DIR,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
   MEDIA_ENABLED,
@@ -49,15 +50,13 @@ import {
 } from './db.js';
 import {
   AttachmentDownloader,
-  InboundMessage,
   RawAttachment,
-  buildPrompt,
-  resolveMediaDirs,
-  runEnrichers,
-} from './enricher-pipeline.js';
-import { buildGenericEnricher } from './enrichers/generic.js';
-import { buildVideoEnricher } from './enrichers/video.js';
-import { buildVoiceEnricher } from './enrichers/voice.js';
+  makeDownloader,
+  processAttachments,
+  toAttachment,
+} from './mime.js';
+import { videoHandler } from './mime-handlers/video.js';
+import { voiceHandler } from './mime-handlers/voice.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
@@ -193,51 +192,35 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   // Run enricher pipeline on messages that have pending attachments
   let enrichedAnnotations: string[] = [];
   if (MEDIA_ENABLED && pendingAttachments.size > 0) {
-    const { groupDir, mediaDir } = resolveMediaDirs(group.folder);
-    const enrichCtx = { groupDir, mediaDir };
-    const channel_name = (
-      missedMessages[0]?.chat_jid?.startsWith('tg:')
-        ? 'telegram'
-        : missedMessages[0]?.chat_jid?.startsWith('discord:')
-          ? 'discord'
-          : 'whatsapp'
-    ) as 'telegram' | 'whatsapp' | 'discord';
+    const groupDir = path.join(GROUPS_DIR, group.folder);
+    const bucket = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
     for (const dbMsg of missedMessages) {
       const pending = pendingAttachments.get(dbMsg.id);
       if (!pending) continue;
       pendingAttachments.delete(dbMsg.id);
 
-      const inbound: InboundMessage = {
-        id: dbMsg.id,
-        chatJid: dbMsg.chat_jid,
-        sender: dbMsg.sender,
-        senderName: dbMsg.sender_name,
-        text: dbMsg.content,
-        timestamp: dbMsg.timestamp,
-        channel: channel_name,
-        groupFolder: group.folder,
-        isMain: group.folder === MAIN_GROUP_FOLDER,
-        attachments: pending.attachments,
-      };
-
-      const enrichers = [
-        buildVoiceEnricher(pending.download),
-        buildVideoEnricher(pending.download),
-        buildGenericEnricher(pending.download),
-      ];
+      const msgDir = path.join(groupDir, 'media', bucket, dbMsg.id);
+      const attachments = pending.attachments.map(toAttachment);
+      const download = makeDownloader(
+        pending.attachments,
+        pending.download,
+        attachments,
+      );
 
       try {
-        const enriched = await runEnrichers(inbound, enrichers, enrichCtx);
-        const annotationBlock = buildPrompt(enriched);
-        if (
-          enriched.enrichedAttachments &&
-          enriched.enrichedAttachments.length > 0
-        ) {
-          enrichedAnnotations.push(annotationBlock);
+        const lines = await processAttachments(
+          dbMsg.id,
+          msgDir,
+          attachments,
+          download,
+          [voiceHandler, videoHandler],
+        );
+        if (lines.length > 0) {
+          enrichedAnnotations.push(lines.join('\n'));
         }
       } catch (err) {
-        logger.warn({ err, msgId: dbMsg.id }, 'enricher pipeline failed');
+        logger.warn({ err, msgId: dbMsg.id }, 'mime pipeline failed');
       }
     }
   }

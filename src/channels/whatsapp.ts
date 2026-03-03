@@ -23,7 +23,7 @@ import {
   AttachmentType,
   RawAttachment,
   WhatsAppSource,
-} from '../enricher-pipeline.js';
+} from '../mime.js';
 import { getLastGroupSync, setLastGroupSync, updateChatName } from '../db.js';
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts } from '../types.js';

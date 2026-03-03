@@ -94,8 +94,8 @@ export interface Channel {
 export type OnInboundMessage = (
   chatJid: string,
   message: NewMessage,
-  attachments?: import('./enricher-pipeline.js').RawAttachment[],
-  download?: import('./enricher-pipeline.js').AttachmentDownloader,
+  attachments?: import('./mime.js').RawAttachment[],
+  download?: import('./mime.js').AttachmentDownloader,
 ) => void;
 
 // Callback for chat metadata discovery.

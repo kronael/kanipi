@@ -9,7 +9,7 @@ import {
   AttachmentDownloader,
   AttachmentType,
   RawAttachment,
-} from '../enricher-pipeline.js';
+} from '../mime.js';
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts } from '../types.js';
 
