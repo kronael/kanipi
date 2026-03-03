@@ -730,3 +730,89 @@ function migrateJsonState(): void {
     }
   }
 }
+
+// --- Auth ---
+
+export interface AuthUser {
+  id: number;
+  sub: string;
+  username: string;
+  hash: string;
+  name: string;
+  created_at: string;
+}
+
+export interface AuthSession {
+  token_hash: string;
+  user_sub: string;
+  expires_at: string;
+  created_at: string;
+}
+
+export function createAuthUser(
+  sub: string,
+  username: string,
+  hash: string,
+  name: string,
+): AuthUser {
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO auth_users (sub, username, hash, name, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(sub, username, hash, name, now);
+  return db
+    .prepare<[string], AuthUser>(`SELECT * FROM auth_users WHERE sub = ?`)
+    .get(sub)!;
+}
+
+export function getAuthUserBySub(sub: string): AuthUser | undefined {
+  return (
+    db
+      .prepare<[string], AuthUser>(`SELECT * FROM auth_users WHERE sub = ?`)
+      .get(sub) ?? undefined
+  );
+}
+
+export function getAuthUserByUsername(username: string): AuthUser | undefined {
+  return (
+    db
+      .prepare<
+        [string],
+        AuthUser
+      >(`SELECT * FROM auth_users WHERE username = ?`)
+      .get(username) ?? undefined
+  );
+}
+
+export function createAuthSession(
+  tokenHash: string,
+  userSub: string,
+  expiresAt: string,
+): void {
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO auth_sessions (token_hash, user_sub, expires_at, created_at)
+     VALUES (?, ?, ?, ?)`,
+  ).run(tokenHash, userSub, expiresAt, now);
+}
+
+export function getAuthSession(tokenHash: string): AuthSession | undefined {
+  return (
+    db
+      .prepare<
+        [string],
+        AuthSession
+      >(`SELECT * FROM auth_sessions WHERE token_hash = ?`)
+      .get(tokenHash) ?? undefined
+  );
+}
+
+export function deleteAuthSession(tokenHash: string): void {
+  db.prepare(`DELETE FROM auth_sessions WHERE token_hash = ?`).run(tokenHash);
+}
+
+export function pruneExpiredSessions(): void {
+  db.prepare(`DELETE FROM auth_sessions WHERE expires_at < ?`).run(
+    new Date().toISOString(),
+  );
+}
