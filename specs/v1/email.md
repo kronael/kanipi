@@ -74,6 +74,21 @@ sender_name = "Alice"                    // display name from From header,
 Cross-channel linking (e.g. same person on Telegram + email) handled
 in v2 — see `specs/v2/identities.md`.
 
+## Message metadata
+
+Email carries rich metadata injected as context before the body:
+
+```
+From: Alice <alice@example.com>
+Subject: Re: quarterly report
+Date: Mon, 3 Mar 2026 14:22:10 +0000
+To: bot@example.com
+CC: bob@example.com
+```
+
+Appended to `content` so the agent sees it alongside the body.
+Attachments excluded in v1.
+
 ## Threading
 
 Store `message_id → thread_id` in SQLite on every inbound message.
