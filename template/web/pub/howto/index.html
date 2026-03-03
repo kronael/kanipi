@@ -286,9 +286,25 @@
           </div>
           <div class="space-y-2.5 ml-11 mb-6">
             <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">Mention the bot or send it a direct message &mdash; it responds as Claude</span></div>
-            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">It can build and deploy web apps to <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/web/</code>, served by Vite</span></div>
+            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">It can build and deploy web apps to <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/workspace/web/</code>, served by Vite</span></div>
             <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">Each conversation spawns its own Docker container with full shell access</span></div>
             <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">Containers idle-timeout automatically when inactive</span></div>
+          </div>
+          <div class="ml-11 mb-6">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Web file layout</p>
+            <p class="text-sm text-leather-500 dark:text-leather-400 mb-3">Web files live under <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">/workspace/web/</code> inside the container. The <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">/pub/</code> URL prefix is the auth boundary:</p>
+            <div class="space-y-2">
+              <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-copper-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">web/pub/</code> &mdash; publicly accessible, no authentication required</span></div>
+              <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-copper-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">web/priv/</code> &mdash; auth-gated, not accessible without login</span></div>
+            </div>
+          </div>
+          <div class="ml-11 mb-6">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Agent identity (character.json)</p>
+            <p class="text-sm text-leather-500 dark:text-leather-400">Agent personality is defined in <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">container/character.json</code> (ElizaOS-style: bio, topics, adjectives, style, messageExamples). Fields are randomized per query. Per-instance overrides go in <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">/workspace/global/character.json</code> and are merged at runtime.</p>
+          </div>
+          <div class="ml-11 mb-6">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Upgrading existing instances (migration system)</p>
+            <p class="text-sm text-leather-500 dark:text-leather-400 mb-2">Skills and CLAUDE.md are seeded per group on first spawn. To sync all groups after a kanipi update, use the <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">/migrate</code> skill. It checks <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">container/skills/self/MIGRATION_VERSION</code> against each group's applied version and runs any pending numbered migration files from <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">container/skills/self/migrations/</code>.</p>
           </div>
           <div class="ml-11">
             <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Registering groups</p>
