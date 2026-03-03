@@ -294,6 +294,18 @@ describe('POST /_sloth/message', () => {
       await close();
     }
   });
+
+  it('returns 400 for malformed JSON', async () => {
+    const { port, onMessage, close } = await startProxy();
+    try {
+      const res = await post(port, '/_sloth/message', '{not valid json}');
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ ok: false });
+      expect(onMessage).not.toHaveBeenCalled();
+    } finally {
+      await close();
+    }
+  });
 });
 
 describe('basic auth', () => {
