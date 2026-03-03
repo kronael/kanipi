@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import http from 'http';
+import { addSseListener } from './channels/web.js';
 
 // --- Mocks ---
 
@@ -27,6 +28,7 @@ import type { OnInboundMessage, RegisteredGroup } from './types.js';
 
 const mockGetGroup = vi.mocked(getGroupBySlink);
 const mockHandleSlink = vi.mocked(handleSlinkPost);
+const mockAddSse = vi.mocked(addSseListener);
 
 function makeGroup(token: string): RegisteredGroup & { jid: string } {
   return {
@@ -40,37 +42,32 @@ function makeGroup(token: string): RegisteredGroup & { jid: string } {
   };
 }
 
-function noop(): OnInboundMessage {
-  return vi.fn();
-}
-
-// Helper: start proxy on a random port, return { port, close }
+// Helper: start proxy on a random port, return { port, onMessage, close }
 function startProxy(opts?: {
   authSecret?: string;
   slothUsers?: string;
-}): Promise<{ port: number; close: () => Promise<void> }> {
-  return new Promise((resolve) => {
-    const onMessage = noop();
-    // startWebProxy doesn't return the server, so we need to capture the port
-    // by listening ourselves. Instead, create a temp server to find a free port.
-    const tmp = http.createServer();
-    tmp.listen(0, () => {
-      const port = (tmp.address() as { port: number }).port;
-      tmp.close(() => {
-        startWebProxy({
-          webPort: port,
-          vitePort: 9999,
-          slothUsers: opts?.slothUsers ?? '',
-          onMessage,
-          authSecret: opts?.authSecret,
-        });
-        // Give it a tick to bind
-        setTimeout(() => {
-          resolve({
-            port,
-            close: () => Promise.resolve(),
-          });
-        }, 50);
+}): Promise<{
+  port: number;
+  onMessage: ReturnType<typeof vi.fn>;
+  close: () => Promise<void>;
+}> {
+  return new Promise((resolve, reject) => {
+    const onMessage = vi.fn() as unknown as OnInboundMessage;
+    const server = startWebProxy({
+      webPort: 0,
+      vitePort: 9999,
+      slothUsers: opts?.slothUsers ?? '',
+      onMessage,
+      authSecret: opts?.authSecret,
+    });
+    server.once('error', reject);
+    server.once('listening', () => {
+      const port = (server.address() as { port: number }).port;
+      resolve({
+        port,
+        onMessage: onMessage as ReturnType<typeof vi.fn>,
+        close: () =>
+          new Promise((res, rej) => server.close((e) => (e ? rej(e) : res()))),
       });
     });
   });
