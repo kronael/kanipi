@@ -87,7 +87,9 @@ CC: bob@example.com
 ```
 
 Appended to `content` so the agent sees it alongside the body.
-Attachments excluded in v1.
+Attachments passed through the mime pipeline (`processAttachments`)
+same as Telegram/WhatsApp — voice transcribed, video extracted, images
+described.
 
 ## Threading
 
@@ -146,7 +148,7 @@ Added via `database.exec()` in `createSchema()` in `db.ts`.
 - IMAP IDLE with 60s poll fallback
 - Plain text + HTML body (extract as plain text via mailparser)
 - Threading via `In-Reply-To` / `References`
-- No attachment handling
+- Attachments via mime pipeline
 - Single account per instance
 
 ## V2 additions
