@@ -57,10 +57,18 @@ as thread root.
 Existing thread → look up `message_id → thread_id` in DB via
 `In-Reply-To` header → reuse thread_id.
 
-## Sender
+## Sender identity
 
-`sender` = from-address (`user@example.com`).
-`sender_name` = display name from `From` header, or from-address if absent.
+Follows the same sub-prefix pattern as auth providers:
+
+```
+sender      = "email:user@example.com"   // from-address
+sender_name = "Alice"                    // display name from From header,
+                                         // or from-address if absent
+```
+
+Cross-channel linking (e.g. same person on Telegram + email) handled
+in v2 — see `specs/v2/identities.md`.
 
 ## Threading
 
