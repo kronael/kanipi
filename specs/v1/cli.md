@@ -1,6 +1,6 @@
 # CLI spec (v1)
 
-Replace bash entrypoint with nest-commander TypeScript CLI.
+Replace bash entrypoint with a TypeScript CLI using `commander`.
 Bun shebang, runnable via `bunx github:user/kanipi`.
 
 ## Commands
@@ -15,7 +15,7 @@ kanipi group rm <instance> <jid>
 
 ## Design
 
-- nest-commander with flat subcommands (no deep nesting)
+- `commander` for argument parsing (zero-dep, no framework)
 - `kanipi <command> <action>` is the deepest level
 - bun shebang: `#!/usr/bin/env bun`
 - single `cli.ts` entrypoint, commands in `cli/` directory
