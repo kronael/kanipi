@@ -151,6 +151,8 @@ if [ "${1:-}" = "create" ]; then
            "$DATA/data" \
            "$DATA/web" \
            "/srv/run/kanipi_${NAME}"
+  # Gateway and agent containers run as uid/gid 1000 (node)
+  chown -R 1000:1000 "$DATA/groups" "$DATA/data"
 
   # seed .env from template
   SEED="${APP_DIR:-/srv/app}/template"
