@@ -27,16 +27,6 @@ const PUB_SLOTH_JS = `(function(){
     return fetch(endpoint, {method: 'POST', headers: headers, body: body});
   }
 
-  function container() {
-    var el = document.getElementById('sloth-responses');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'sloth-responses';
-      document.body.appendChild(el);
-    }
-    return el;
-  }
-
   function attach(el) {
     el.addEventListener('click', function(e) {
       e.preventDefault();

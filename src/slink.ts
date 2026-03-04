@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 
+import { SLINK_ANON_RPM, SLINK_AUTH_RPM } from './config.js';
 import type {
   AttachmentDownloader,
   AttachmentType,
@@ -88,10 +89,8 @@ export interface SlinkResponse {
 
 export function handleSlinkPost(req: SlinkRequest): SlinkResponse {
   const { token, group, ip, authHeader, authSecret, body, onMessage } = req;
-  const anonRpm =
-    req.anonRpm ?? (parseInt(process.env.SLINK_ANON_RPM ?? '') || 10);
-  const authRpm =
-    req.authRpm ?? (parseInt(process.env.SLINK_AUTH_RPM ?? '') || 60);
+  const anonRpm = req.anonRpm ?? SLINK_ANON_RPM;
+  const authRpm = req.authRpm ?? SLINK_AUTH_RPM;
 
   if (!group) return { status: 404, body: '{"error":"not found"}' };
 
@@ -137,12 +136,10 @@ export function handleSlinkPost(req: SlinkRequest): SlinkResponse {
   let attachments: RawAttachment[] | undefined;
   let download: AttachmentDownloader | undefined;
   if (mediaUrl) {
-    const url = mediaUrl;
-    const type: AttachmentType = guessType(url);
-    attachments = [{ type, source: { kind: 'discord', url } }];
-    download = async (a, maxBytes) => {
-      if (a.source.kind !== 'discord') throw new Error('wrong source kind');
-      const res = await fetch(a.source.url);
+    const type: AttachmentType = guessType(mediaUrl);
+    attachments = [{ type, source: { kind: 'discord', url: mediaUrl } }];
+    download = async (_a, maxBytes) => {
+      const res = await fetch(mediaUrl as string);
       if (!res.ok) throw new Error(`slink media fetch HTTP ${res.status}`);
       const contentLength = parseInt(
         res.headers.get('content-length') || '0',

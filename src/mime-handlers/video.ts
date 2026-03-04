@@ -1,6 +1,5 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
-import path from 'path';
 
 import { VIDEO_TRANSCRIPTION_ENABLED } from '../config.js';
 import { AttachmentHandler } from '../mime.js';

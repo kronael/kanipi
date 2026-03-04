@@ -128,16 +128,9 @@ export const SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
 // Public host for constructing slink URLs injected into agent containers
 export const WEB_HOST = process.env.WEB_HOST || '';
 
-// Auth
+// Auth — JWT signing secret for slink and future auth routes
 export const AUTH_SECRET =
   process.env.AUTH_SECRET || envConfig.AUTH_SECRET || '';
-export const AUTH_BASE_URL = process.env.AUTH_BASE_URL || WEB_HOST;
-export const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
-export const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
-export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
-export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
-export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 
 export function _overrideConfig(patch: Partial<Record<string, unknown>>): void {
   if (process.env.NODE_ENV !== 'test') return;
