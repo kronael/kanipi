@@ -120,8 +120,14 @@ export const SLOTH_USERS =
   process.env.SLOTH_USERS || envConfig.SLOTH_USERS || '';
 
 // Slink rate limits (requests per minute)
-export let SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
-export let SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
+function _defaultSlinkAnon() {
+  return parseInt(process.env.SLINK_ANON_RPM || '10', 10);
+}
+function _defaultSlinkAuth() {
+  return parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
+}
+export let SLINK_ANON_RPM = _defaultSlinkAnon();
+export let SLINK_AUTH_RPM = _defaultSlinkAuth();
 
 // Public host for constructing slink URLs injected into agent containers
 export const WEB_HOST = process.env.WEB_HOST || '';
@@ -155,27 +161,13 @@ export function _overrideConfig(patch: {
 
 export function _resetConfig(): void {
   if (process.env.NODE_ENV !== 'test') return;
-  SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
-  SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
-  WHISPER_BASE_URL =
-    process.env.WHISPER_BASE_URL ||
-    envConfig.WHISPER_BASE_URL ||
-    'http://localhost:8080';
-  VOICE_TRANSCRIPTION_ENABLED =
-    (process.env.VOICE_TRANSCRIPTION_ENABLED ||
-      envConfig.VOICE_TRANSCRIPTION_ENABLED ||
-      'false') === 'true';
-  VIDEO_TRANSCRIPTION_ENABLED =
-    (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
-  MEDIA_ENABLED =
-    (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') ===
-    'true';
-  MEDIA_MAX_FILE_BYTES = parseInt(
-    process.env.MEDIA_MAX_FILE_BYTES ||
-      envConfig.MEDIA_MAX_FILE_BYTES ||
-      '20971520',
-    10,
-  );
+  SLINK_ANON_RPM = _defaultSlinkAnon();
+  SLINK_AUTH_RPM = _defaultSlinkAuth();
+  WHISPER_BASE_URL = _defaultWhisperUrl();
+  VOICE_TRANSCRIPTION_ENABLED = _defaultVoiceEnabled();
+  VIDEO_TRANSCRIPTION_ENABLED = _defaultVideoEnabled();
+  MEDIA_ENABLED = _defaultMediaEnabled();
+  MEDIA_MAX_FILE_BYTES = _defaultMediaMaxBytes();
 }
 
 export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
@@ -184,25 +176,42 @@ export function whatsappEnabled(): boolean {
 }
 
 // Media / enricher pipeline config
-export let MEDIA_ENABLED =
-  (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true';
-export let MEDIA_MAX_FILE_BYTES = parseInt(
-  process.env.MEDIA_MAX_FILE_BYTES ||
-    envConfig.MEDIA_MAX_FILE_BYTES ||
-    '20971520',
-  10,
-);
-export let VOICE_TRANSCRIPTION_ENABLED =
-  (process.env.VOICE_TRANSCRIPTION_ENABLED ||
-    envConfig.VOICE_TRANSCRIPTION_ENABLED ||
-    'false') === 'true';
-export let WHISPER_BASE_URL =
-  process.env.WHISPER_BASE_URL ||
-  envConfig.WHISPER_BASE_URL ||
-  'http://localhost:8080';
+function _defaultMediaEnabled() {
+  return (
+    (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true'
+  );
+}
+function _defaultMediaMaxBytes() {
+  return parseInt(
+    process.env.MEDIA_MAX_FILE_BYTES ||
+      envConfig.MEDIA_MAX_FILE_BYTES ||
+      '20971520',
+    10,
+  );
+}
+function _defaultVoiceEnabled() {
+  return (
+    (process.env.VOICE_TRANSCRIPTION_ENABLED ||
+      envConfig.VOICE_TRANSCRIPTION_ENABLED ||
+      'false') === 'true'
+  );
+}
+function _defaultWhisperUrl() {
+  return (
+    process.env.WHISPER_BASE_URL ||
+    envConfig.WHISPER_BASE_URL ||
+    'http://localhost:8080'
+  );
+}
+function _defaultVideoEnabled() {
+  return (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
+}
+export let MEDIA_ENABLED = _defaultMediaEnabled();
+export let MEDIA_MAX_FILE_BYTES = _defaultMediaMaxBytes();
+export let VOICE_TRANSCRIPTION_ENABLED = _defaultVoiceEnabled();
+export let WHISPER_BASE_URL = _defaultWhisperUrl();
 export const WHISPER_MODEL = process.env.WHISPER_MODEL || 'turbo';
-export let VIDEO_TRANSCRIPTION_ENABLED =
-  (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
+export let VIDEO_TRANSCRIPTION_ENABLED = _defaultVideoEnabled();
 
 export const EMAIL_IMAP_HOST =
   process.env.EMAIL_IMAP_HOST || envConfig.EMAIL_IMAP_HOST || '';
