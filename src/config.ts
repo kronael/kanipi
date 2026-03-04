@@ -21,6 +21,10 @@ const envConfig = readEnvFile([
   'MEDIA_MAX_FILE_BYTES',
   'VOICE_TRANSCRIPTION_ENABLED',
   'WHISPER_BASE_URL',
+  'EMAIL_IMAP_HOST',
+  'EMAIL_SMTP_HOST',
+  'EMAIL_ACCOUNT',
+  'EMAIL_PASSWORD',
 ]);
 
 export const ASSISTANT_NAME =
@@ -169,3 +173,14 @@ export const WHISPER_BASE_URL =
 export const WHISPER_MODEL = process.env.WHISPER_MODEL || 'turbo';
 export const VIDEO_TRANSCRIPTION_ENABLED =
   (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
+
+export const EMAIL_IMAP_HOST =
+  process.env.EMAIL_IMAP_HOST || envConfig.EMAIL_IMAP_HOST || '';
+export const EMAIL_SMTP_HOST =
+  process.env.EMAIL_SMTP_HOST ||
+  envConfig.EMAIL_SMTP_HOST ||
+  EMAIL_IMAP_HOST.replace('imap.', 'smtp.');
+export const EMAIL_ACCOUNT =
+  process.env.EMAIL_ACCOUNT || envConfig.EMAIL_ACCOUNT || '';
+export const EMAIL_PASSWORD =
+  process.env.EMAIL_PASSWORD || envConfig.EMAIL_PASSWORD || '';

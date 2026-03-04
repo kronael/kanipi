@@ -5,6 +5,7 @@ import {
   ASSISTANT_NAME,
   CONTAINER_IMAGE,
   DISCORD_BOT_TOKEN,
+  EMAIL_IMAP_HOST,
   GROUPS_DIR,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
@@ -19,6 +20,7 @@ import {
   whatsappEnabled,
 } from './config.js';
 import { DiscordChannel } from './channels/discord.js';
+import { EmailChannel } from './channels/email.js';
 import { TelegramChannel } from './channels/telegram.js';
 import { WebChannel } from './channels/web.js';
 import { WhatsAppChannel } from './channels/whatsapp.js';
@@ -609,6 +611,12 @@ async function main(): Promise<void> {
     const discord = new DiscordChannel(DISCORD_BOT_TOKEN, channelOpts);
     channels.push(discord);
     await discord.connect();
+  }
+
+  if (EMAIL_IMAP_HOST) {
+    const email = new EmailChannel(channelOpts);
+    channels.push(email);
+    await email.connect();
   }
 
   if (WEB_PORT) {

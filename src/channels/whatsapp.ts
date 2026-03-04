@@ -23,6 +23,7 @@ import {
   AttachmentType,
   RawAttachment,
   WhatsAppSource,
+  mimeFromFile,
 } from '../mime.js';
 import { getLastGroupSync, setLastGroupSync, updateChatName } from '../db.js';
 import { logger } from '../logger.js';
@@ -346,20 +347,7 @@ export class WhatsAppChannel implements Channel {
     }
     try {
       const name = filename ?? path.basename(filePath);
-      const ext = path.extname(filePath).slice(1).toLowerCase();
-      const mimeMap: Record<string, string> = {
-        pdf: 'application/pdf',
-        png: 'image/png',
-        jpg: 'image/jpeg',
-        jpeg: 'image/jpeg',
-        gif: 'image/gif',
-        mp4: 'video/mp4',
-        mp3: 'audio/mpeg',
-        csv: 'text/csv',
-        txt: 'text/plain',
-        zip: 'application/zip',
-      };
-      const mimetype = mimeMap[ext] ?? 'application/octet-stream';
+      const mimetype = await mimeFromFile(filePath);
       await this.sock.sendMessage(jid, {
         document: fs.readFileSync(filePath),
         fileName: name,

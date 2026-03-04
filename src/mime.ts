@@ -4,8 +4,22 @@
 import fs from 'fs';
 import path from 'path';
 
+import { fileTypeFromBuffer } from 'file-type';
+
 import { MEDIA_MAX_FILE_BYTES } from './config.js';
 import { logger } from './logger.js';
+
+// --- Shared mime detection ---
+
+export async function mimeFromFile(filePath: string): Promise<string> {
+  const buf = fs.readFileSync(filePath);
+  const result = await fileTypeFromBuffer(buf);
+  if (result) return result.mime;
+  // fallback: text/plain for .txt/.csv, else octet-stream
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  if (ext === 'txt' || ext === 'csv' || ext === 'md') return 'text/plain';
+  return 'application/octet-stream';
+}
 
 // --- Channel-facing types (used by telegram.ts, whatsapp.ts, discord.ts) ---
 

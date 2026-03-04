@@ -87,6 +87,17 @@ function createSchema(database: Database.Database): void {
     );
   `);
 
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS email_threads (
+      message_id   TEXT PRIMARY KEY,
+      thread_id    TEXT NOT NULL,
+      from_address TEXT NOT NULL,
+      root_msg_id  TEXT NOT NULL,
+      seen_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_email_thread ON email_threads(thread_id);
+  `);
+
   // Auth tables (added later — safe to CREATE IF NOT EXISTS)
   database.exec(`
     CREATE TABLE IF NOT EXISTS auth_users (
@@ -794,4 +805,41 @@ export function pruneExpiredSessions(): void {
   db.prepare(`DELETE FROM auth_sessions WHERE expires_at < ?`).run(
     new Date().toISOString(),
   );
+}
+
+// --- Email thread accessors ---
+
+export interface EmailThread {
+  message_id: string;
+  thread_id: string;
+  from_address: string;
+  root_msg_id: string;
+  seen_at: string;
+}
+
+export function getEmailThread(threadId: string): EmailThread | undefined {
+  return db
+    .prepare('SELECT * FROM email_threads WHERE thread_id = ? LIMIT 1')
+    .get(threadId) as EmailThread | undefined;
+}
+
+export function getEmailThreadByMsgId(
+  messageId: string,
+): EmailThread | undefined {
+  return db
+    .prepare('SELECT * FROM email_threads WHERE message_id = ?')
+    .get(messageId) as EmailThread | undefined;
+}
+
+export function storeEmailThread(
+  messageId: string,
+  threadId: string,
+  fromAddress: string,
+  rootMsgId: string,
+): void {
+  db.prepare(
+    `INSERT OR IGNORE INTO email_threads
+       (message_id, thread_id, from_address, root_msg_id, seen_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(messageId, threadId, fromAddress, rootMsgId, new Date().toISOString());
 }
