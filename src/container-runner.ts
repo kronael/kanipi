@@ -74,10 +74,7 @@ function chownRecursive(dir: string, uid: number, gid: number): void {
   }
 }
 
-const APP_DIR = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  '..',
-);
+const APP_DIR = process.cwd();
 
 const _mvFile = path.join(
   APP_DIR,

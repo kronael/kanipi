@@ -230,6 +230,10 @@ fi
 
 cd "$HOME_DIR"
 
+# sync source into home dir so agent containers can mount it as /workspace/self
+rsync -a --delete /srv/app/container/ ./container/
+rsync -a --delete /srv/app/template/ ./template/
+
 # read web config from .env
 # WEB_PORT is the external port (proxy). Vite runs on WEB_PORT+1 (localhost only).
 # Falls back to VITE_PORT for backward compat with old instances.
