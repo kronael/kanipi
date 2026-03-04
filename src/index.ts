@@ -34,6 +34,7 @@ import {
   ensureContainerRuntimeRunning,
 } from './container-runtime.js';
 import {
+  deleteSession,
   getAllChats,
   getAllRegisteredGroups,
   getAllSessions,
@@ -405,6 +406,15 @@ async function runAgent(
         { group: group.name, error: output.error },
         'Container agent error',
       );
+      // Evict session pointer so retries start a fresh session (JSONL kept for history)
+      if (sessionId) {
+        delete sessions[group.folder];
+        deleteSession(group.folder);
+        logger.warn(
+          { group: group.name, sessionId },
+          'Evicted errored session — next run starts fresh',
+        );
+      }
       return 'error';
     }
 
