@@ -120,26 +120,11 @@ export class EmailChannel implements Channel {
           /^<|>$/g,
           '',
         );
-        let tid: string;
-        let rootMsgId: string;
+        const parent = inReplyTo ? getEmailThreadByMsgId(inReplyTo) : null;
+        const rootMsgId = parent?.root_msg_id ?? rawMsgId;
+        const tid = parent?.thread_id ?? threadId(rootMsgId);
 
-        if (inReplyTo) {
-          const parent = getEmailThreadByMsgId(inReplyTo);
-          if (parent) {
-            tid = parent.thread_id;
-            rootMsgId = parent.root_msg_id;
-          } else {
-            rootMsgId = rawMsgId;
-            tid = threadId(rootMsgId);
-          }
-        } else {
-          rootMsgId = rawMsgId;
-          tid = threadId(rootMsgId);
-        }
-
-        const fromObj = Array.isArray(parsed.from?.value)
-          ? parsed.from!.value[0]
-          : parsed.from?.value;
+        const fromObj = parsed.from?.value?.[0];
         const fromAddress = fromObj?.address || '';
         const fromName = fromObj?.name || fromAddress;
 
@@ -162,8 +147,10 @@ export class EmailChannel implements Channel {
 
         this.opts.onChatMetadata(chatJid, timestamp, fromName, 'email', false);
 
-        const group = this.findMainGroup();
-        if (!group) {
+        const hasMainGroup = Object.values(this.opts.registeredGroups()).some(
+          (g) => g.requiresTrigger === false,
+        );
+        if (!hasMainGroup) {
           logger.warn('email: no main group registered, dropping message');
           await this.imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], {
             uid: true,
@@ -193,14 +180,6 @@ export class EmailChannel implements Channel {
         logger.error({ err }, 'email: failed to process message');
       }
     }
-  }
-
-  private findMainGroup(): string | null {
-    const groups = this.opts.registeredGroups();
-    for (const [jid, g] of Object.entries(groups)) {
-      if (g.requiresTrigger === false) return jid;
-    }
-    return null;
   }
 
   async sendMessage(jid: string, text: string): Promise<void> {

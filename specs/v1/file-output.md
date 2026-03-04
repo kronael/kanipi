@@ -38,8 +38,9 @@ don't implement it log a warning and skip silently.
 ### Channel support
 
 - **Telegram**: `sendDocument` via `InputFile` — implemented
-- **Discord**: not yet implemented
-- **WhatsApp**: not yet implemented
+- **Discord**: `sendDocument` via `AttachmentBuilder` — implemented
+- **WhatsApp**: `sendDocument` via baileys document message — implemented
+- **Email**: not applicable (email channel is inbound-only)
 
 ## Why not result-based (original spec)
 
