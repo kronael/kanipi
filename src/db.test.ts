@@ -5,12 +5,16 @@ import {
   createTask,
   deleteTask,
   getAllChats,
+  getDueTasks,
   getMessagesSince,
   getNewMessages,
   getTaskById,
+  pruneExpiredSessions,
+  setRegisteredGroup,
   storeChatMetadata,
   storeMessage,
   updateTask,
+  updateTaskAfterRun,
 } from './db.js';
 
 beforeEach(() => {
@@ -370,6 +374,28 @@ describe('task CRUD', () => {
     expect(getTaskById('task-2')!.status).toBe('paused');
   });
 
+  it('updateTask no-op leaves fields unchanged', () => {
+    createTask({
+      id: 'task-noop',
+      group_folder: 'main',
+      chat_jid: 'group@g.us',
+      prompt: 'unchanged',
+      schedule_type: 'once',
+      schedule_value: '2024-06-01T00:00:00.000Z',
+      context_mode: 'isolated',
+      next_run: '2024-06-01T00:00:00.000Z',
+      status: 'active',
+      created_at: '2024-01-01T00:00:00.000Z',
+    });
+
+    updateTask('task-noop', {});
+
+    const task = getTaskById('task-noop');
+    expect(task!.prompt).toBe('unchanged');
+    expect(task!.status).toBe('active');
+    expect(task!.next_run).toBe('2024-06-01T00:00:00.000Z');
+  });
+
   it('deletes a task and its run logs', () => {
     createTask({
       id: 'task-3',
@@ -386,5 +412,82 @@ describe('task CRUD', () => {
 
     deleteTask('task-3');
     expect(getTaskById('task-3')).toBeUndefined();
+  });
+});
+
+// --- getDueTasks ---
+
+describe('getDueTasks', () => {
+  it('excludes tasks with null next_run', () => {
+    createTask({
+      id: 'task-paused',
+      group_folder: 'main',
+      chat_jid: 'group@g.us',
+      prompt: 'paused task',
+      schedule_type: 'cron',
+      schedule_value: '0 * * * *',
+      context_mode: 'isolated',
+      next_run: null,
+      status: 'paused',
+      created_at: '2024-01-01T00:00:00.000Z',
+    });
+
+    const due = getDueTasks();
+    expect(due.find((t) => t.id === 'task-paused')).toBeUndefined();
+  });
+});
+
+// --- updateTaskAfterRun ---
+
+describe('updateTaskAfterRun', () => {
+  it('marks task completed when nextRun is null', () => {
+    createTask({
+      id: 'task-once',
+      group_folder: 'main',
+      chat_jid: 'group@g.us',
+      prompt: 'run once',
+      schedule_type: 'once',
+      schedule_value: '2020-01-01T00:00:00Z',
+      context_mode: 'isolated',
+      next_run: '2020-01-01T00:00:00Z',
+      status: 'active',
+      created_at: '2020-01-01T00:00:00Z',
+    });
+
+    updateTaskAfterRun('task-once', null, 'done');
+    expect(getTaskById('task-once')!.status).toBe('completed');
+  });
+});
+
+// --- getNewMessages edge cases ---
+
+describe('getNewMessages edge cases', () => {
+  it('returns empty array for empty jids without error', () => {
+    const result = getNewMessages([], '0', 'Bot');
+    expect(result).toEqual({ messages: [], newTimestamp: '0' });
+  });
+});
+
+// --- setRegisteredGroup ---
+
+describe('setRegisteredGroup', () => {
+  it('throws on invalid folder path', () => {
+    expect(() =>
+      setRegisteredGroup('tg:1', {
+        name: 'escape',
+        folder: '../escape',
+        trigger: '',
+        added_at: '2024-01-01T00:00:00.000Z',
+        requiresTrigger: false,
+      }),
+    ).toThrow();
+  });
+});
+
+// --- pruneExpiredSessions ---
+
+describe('pruneExpiredSessions', () => {
+  it('runs without error on empty db', () => {
+    expect(() => pruneExpiredSessions()).not.toThrow();
   });
 });

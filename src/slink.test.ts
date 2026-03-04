@@ -486,6 +486,130 @@ describe('media_url attachment', () => {
   });
 });
 
+// --- JWT expiry ---
+
+describe('JWT expiry', () => {
+  const SECRET = 'test-secret-key';
+
+  it('returns 401 for JWT with exp in the past', () => {
+    const { onMessage } = collect();
+    const expiredJwt = makeSignedJwt(
+      { sub: 'dave', exp: Math.floor(Date.now() / 1000) - 60 },
+      SECRET,
+    );
+    const r = handleSlinkPost({
+      token: 'tok-expired',
+      body: '{"text":"expired"}',
+      ip: '1.2.3.4',
+      authHeader: `Bearer ${expiredJwt}`,
+      authSecret: SECRET,
+      group: makeGroup('web:expired', 'tok-expired'),
+      onMessage,
+    });
+    expect(r.status).toBe(401);
+    expect(JSON.parse(r.body)).toMatchObject({ error: 'unauthorized' });
+  });
+});
+
+// --- malformed base64 in JWT payload ---
+
+describe('malformed JWT payload', () => {
+  const SECRET = 'test-secret-key';
+
+  it('treats malformed JWT as anon (no crash) when authSecret is set', () => {
+    const { onMessage } = collect();
+    const r = handleSlinkPost({
+      token: 'tok-malformed',
+      body: '{"text":"hi"}',
+      ip: '1.2.3.4',
+      authHeader: 'Bearer notajwt.!!!.sig',
+      authSecret: SECRET,
+      group: makeGroup('web:malformed', 'tok-malformed'),
+      onMessage,
+    });
+    // malformed JWT falls through gracefully — not 500
+    expect(r.status).not.toBe(500);
+  });
+});
+
+// --- bucket reset after 60s window ---
+
+describe('rate limit bucket reset', () => {
+  it('resets anon bucket after 60s window', async () => {
+    const { vi } = await import('vitest');
+    vi.useFakeTimers();
+    try {
+      const { onMessage } = collect();
+      const group = makeGroup('web:reset', 'tok-reset');
+      const rpm = 10;
+
+      // Exhaust the anon bucket
+      const results = Array.from({ length: rpm }, () =>
+        handleSlinkPost({
+          token: 'tok-reset',
+          body: '{"text":"ping"}',
+          ip: '1.2.3.4',
+          group,
+          onMessage,
+          anonRpm: rpm,
+        }),
+      );
+      expect(results.every((r) => r.status === 200)).toBe(true);
+
+      const blocked = handleSlinkPost({
+        token: 'tok-reset',
+        body: '{"text":"ping"}',
+        ip: '1.2.3.4',
+        group,
+        onMessage,
+        anonRpm: rpm,
+      });
+      expect(blocked.status).toBe(429);
+
+      // Advance time by 61 seconds to trigger bucket reset
+      vi.advanceTimersByTime(61_000);
+
+      const after = handleSlinkPost({
+        token: 'tok-reset',
+        body: '{"text":"ping"}',
+        ip: '1.2.3.4',
+        group,
+        onMessage,
+        anonRpm: rpm,
+      });
+      expect(after.status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// --- guessType with query string ---
+
+describe('guessType with query string', () => {
+  function captureAll(): {
+    calls: Parameters<OnInboundMessage>[];
+    onMessage: OnInboundMessage;
+  } {
+    const calls: Parameters<OnInboundMessage>[] = [];
+    return { calls, onMessage: (...args) => calls.push(args) };
+  }
+
+  it('video url with query string produces type video', () => {
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-qs',
+      body: '{"text":"look","media_url":"https://cdn.example.com/clip.mp4?x=1&token=abc"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:qs', 'tok-qs'),
+      onMessage,
+    });
+    expect(calls).toHaveLength(1);
+    const [, , attachments] = calls[0];
+    expect(attachments![0].type).toBe('video');
+  });
+});
+
 // --- DB: kanipi group add web:test inserts non-null slink_token ---
 
 describe('DB: web group registration', () => {

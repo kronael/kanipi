@@ -100,7 +100,7 @@ export function handleSlinkPost(req: SlinkRequest): SlinkResponse {
     const raw = authHeader.slice(7);
     if (authSecret) {
       const result = verifyJwt(raw, authSecret);
-      if (result === 'invalid')
+      if (result === 'invalid' || result === null)
         return { status: 401, body: '{"error":"unauthorized"}' };
       jwt = result;
     } else {
