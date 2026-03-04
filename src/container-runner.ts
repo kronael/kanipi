@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 import {
+  ASSISTANT_NAME,
   CONTAINER_IMAGE,
   CONTAINER_MAX_OUTPUT_SIZE,
   CONTAINER_TIMEOUT,
@@ -157,13 +158,13 @@ function buildVolumeMounts(
       ) + '\n',
     );
   }
-  // Inject slink env vars for web: groups (updates on every spawn so token
-  // is always current; no-op for non-web groups).
-  if (group.slinkToken) {
+  // Always inject env vars that change per spawn (host, identity, slink token).
+  {
     const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
     settings.env = settings.env ?? {};
-    settings.env.SLINK_TOKEN = group.slinkToken;
     settings.env.WEB_HOST = WEB_HOST;
+    settings.env.NANOCLAW_ASSISTANT_NAME = ASSISTANT_NAME;
+    if (group.slinkToken) settings.env.SLINK_TOKEN = group.slinkToken;
     fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
   }
 
