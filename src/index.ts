@@ -385,26 +385,29 @@ async function runAgent(
       onOutput,
     );
 
-    if (output.newSessionId) {
-      sessions[group.folder] = output.newSessionId;
-      setSession(group.folder, output.newSessionId);
-    }
-
     if (output.status === 'error') {
       logger.error(
         { group: group.name, sessionId, error: output.error },
         'Container agent error',
       );
-      if (!output.newSessionId) {
-        // No new session created — prior session is corrupted; evict so next run starts fresh
+      // Evict if no progress was made (newSessionId same as input or absent)
+      if (!output.newSessionId || output.newSessionId === sessionId) {
         delete sessions[group.folder];
         deleteSession(group.folder);
         logger.warn(
           { group: group.name, sessionId },
           'Evicted corrupted session',
         );
+      } else {
+        sessions[group.folder] = output.newSessionId;
+        setSession(group.folder, output.newSessionId);
       }
       return 'error';
+    }
+
+    if (output.newSessionId) {
+      sessions[group.folder] = output.newSessionId;
+      setSession(group.folder, output.newSessionId);
     }
 
     return 'success';
