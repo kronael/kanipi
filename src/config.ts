@@ -17,6 +17,10 @@ const envConfig = readEnvFile([
   'VITE_PORT',
   'SLOTH_USERS',
   'AUTH_SECRET',
+  'MEDIA_ENABLED',
+  'MEDIA_MAX_FILE_BYTES',
+  'VOICE_TRANSCRIPTION_ENABLED',
+  'WHISPER_BASE_URL',
 ]);
 
 export const ASSISTANT_NAME =
@@ -146,15 +150,22 @@ export function whatsappEnabled(): boolean {
 }
 
 // Media / enricher pipeline config
-export const MEDIA_ENABLED = (process.env.MEDIA_ENABLED || 'false') === 'true';
+export const MEDIA_ENABLED =
+  (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true';
 export const MEDIA_MAX_FILE_BYTES = parseInt(
-  process.env.MEDIA_MAX_FILE_BYTES || '20971520',
+  process.env.MEDIA_MAX_FILE_BYTES ||
+    envConfig.MEDIA_MAX_FILE_BYTES ||
+    '20971520',
   10,
 );
 export const VOICE_TRANSCRIPTION_ENABLED =
-  (process.env.VOICE_TRANSCRIPTION_ENABLED || 'false') === 'true';
+  (process.env.VOICE_TRANSCRIPTION_ENABLED ||
+    envConfig.VOICE_TRANSCRIPTION_ENABLED ||
+    'false') === 'true';
 export const WHISPER_BASE_URL =
-  process.env.WHISPER_BASE_URL || 'http://localhost:8080';
+  process.env.WHISPER_BASE_URL ||
+  envConfig.WHISPER_BASE_URL ||
+  'http://localhost:8080';
 export const WHISPER_MODEL = process.env.WHISPER_MODEL || 'turbo';
 export const VIDEO_TRANSCRIPTION_ENABLED =
   (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
