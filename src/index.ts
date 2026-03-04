@@ -367,17 +367,6 @@ async function runAgent(
     new Set(Object.keys(registeredGroups)),
   );
 
-  // Wrap onOutput to track session ID from streamed results
-  const wrappedOnOutput = onOutput
-    ? async (output: ContainerOutput) => {
-        if (output.newSessionId && output.status !== 'error') {
-          sessions[group.folder] = output.newSessionId;
-          setSession(group.folder, output.newSessionId);
-        }
-        await onOutput(output);
-      }
-    : undefined;
-
   try {
     const output = await runContainerAgent(
       group,
@@ -393,26 +382,26 @@ async function runAgent(
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
-      wrappedOnOutput,
+      onOutput,
     );
 
-    if (output.newSessionId && output.status !== 'error') {
+    if (output.newSessionId) {
       sessions[group.folder] = output.newSessionId;
       setSession(group.folder, output.newSessionId);
     }
 
     if (output.status === 'error') {
       logger.error(
-        { group: group.name, error: output.error },
+        { group: group.name, sessionId, error: output.error },
         'Container agent error',
       );
-      // Evict session pointer so retries start a fresh session (JSONL kept for history)
-      if (sessionId) {
+      if (!output.newSessionId) {
+        // No new session created — prior session is corrupted; evict so next run starts fresh
         delete sessions[group.folder];
         deleteSession(group.folder);
         logger.warn(
           { group: group.name, sessionId },
-          'Evicted errored session — next run starts fresh',
+          'Evicted corrupted session',
         );
       }
       return 'error';
