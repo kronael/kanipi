@@ -92,7 +92,6 @@ function buildVolumeMounts(
   isMain: boolean,
 ): VolumeMount[] {
   const mounts: VolumeMount[] = [];
-  const projectRoot = process.cwd();
   const groupDir = resolveGroupFolderPath(group.folder);
 
   // All groups get their own folder as working directory
@@ -111,9 +110,9 @@ function buildVolumeMounts(
     readonly: false,
   });
 
-  // All groups get project root read-only as /workspace/self
+  // All groups get kanipi source read-only as /workspace/self
   mounts.push({
-    hostPath: hostPath(projectRoot),
+    hostPath: hostPath(APP_DIR),
     containerPath: '/workspace/self',
     readonly: true,
   });
