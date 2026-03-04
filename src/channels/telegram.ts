@@ -1,4 +1,7 @@
-import { Bot } from 'grammy';
+import fs from 'fs';
+import path from 'path';
+
+import { Bot, InputFile } from 'grammy';
 
 import {
   ASSISTANT_NAME,
@@ -387,6 +390,28 @@ export class TelegramChannel implements Channel {
       this.bot.stop();
       this.bot = null;
       logger.info('Telegram bot stopped');
+    }
+  }
+
+  async sendDocument(
+    jid: string,
+    filePath: string,
+    filename?: string,
+  ): Promise<void> {
+    if (!this.bot) {
+      logger.warn('Telegram bot not initialized');
+      return;
+    }
+    try {
+      const numericId = jid.replace(/^tg:/, '');
+      const name = filename ?? path.basename(filePath);
+      await this.bot.api.sendDocument(
+        numericId,
+        new InputFile(fs.createReadStream(filePath), name),
+      );
+      logger.info({ jid, filePath, name }, 'Telegram document sent');
+    } catch (err) {
+      logger.error({ jid, filePath, err }, 'Failed to send Telegram document');
     }
   }
 

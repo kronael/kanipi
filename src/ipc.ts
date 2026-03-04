@@ -5,6 +5,7 @@ import { CronExpressionParser } from 'cron-parser';
 
 import {
   DATA_DIR,
+  GROUPS_DIR,
   IPC_POLL_INTERVAL,
   MAIN_GROUP_FOLDER,
   TIMEZONE,
@@ -17,6 +18,11 @@ import { RegisteredGroup } from './types.js';
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
+  sendDocument: (
+    jid: string,
+    filePath: string,
+    filename?: string,
+  ) => Promise<void>;
   registeredGroups: () => Record<string, RegisteredGroup>;
   registerGroup: (jid: string, group: RegisteredGroup) => void;
   syncGroupMetadata: (force: boolean) => Promise<void>;
@@ -68,6 +74,37 @@ async function drainGroupMessages(
               logger.warn(
                 { chatJid: data.chatJid, sourceGroup },
                 'Unauthorized IPC message attempt blocked',
+              );
+            }
+          } else if (data.type === 'file' && data.chatJid && data.filepath) {
+            const targetGroup = registeredGroups[data.chatJid];
+            if (isMain || (targetGroup && targetGroup.folder === sourceGroup)) {
+              // /workspace/group/main/foo → GROUPS_DIR/main/foo
+              const rel = (data.filepath as string).replace(
+                /^\/workspace\/group\//,
+                '',
+              );
+              const hostPath = path.join(GROUPS_DIR, rel);
+              if (!hostPath.startsWith(GROUPS_DIR + '/')) {
+                logger.warn(
+                  { filepath: data.filepath, sourceGroup },
+                  'IPC file path outside GROUPS_DIR, blocked',
+                );
+              } else {
+                await deps.sendDocument(
+                  data.chatJid,
+                  hostPath,
+                  data.filename as string | undefined,
+                );
+                logger.info(
+                  { chatJid: data.chatJid, hostPath, sourceGroup },
+                  'IPC file sent',
+                );
+              }
+            } else {
+              logger.warn(
+                { chatJid: data.chatJid, sourceGroup },
+                'Unauthorized IPC file attempt blocked',
               );
             }
           }

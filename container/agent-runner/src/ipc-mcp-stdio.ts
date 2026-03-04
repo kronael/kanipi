@@ -63,6 +63,28 @@ server.tool(
 );
 
 server.tool(
+  'send_file',
+  'Send a file from the workspace to the user in chat. ' +
+  'Store files you want to keep under /workspace/group/{folder}/media/YYYYMMDD/. ' +
+  'All file types are supported.',
+  {
+    filepath: z.string().describe('Absolute path to file, e.g. /workspace/group/main/media/20260304/report.csv'),
+    filename: z.string().optional().describe('Display name for the file'),
+  },
+  async (args) => {
+    writeIpcFile(MESSAGES_DIR, {
+      type: 'file',
+      chatJid,
+      filepath: args.filepath,
+      filename: args.filename,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    });
+    return { content: [{ type: 'text' as const, text: 'File queued for sending.' }] };
+  },
+);
+
+server.tool(
   'schedule_task',
   `Schedule a recurring or one-time task. The task will run as a full agent with access to all tools.
 
