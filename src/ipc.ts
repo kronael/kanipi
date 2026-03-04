@@ -5,6 +5,7 @@ import { CronExpressionParser } from 'cron-parser';
 
 import {
   DATA_DIR,
+  GROUPS_DIR,
   HOST_GROUPS_DIR,
   IPC_POLL_INTERVAL,
   MAIN_GROUP_FOLDER,
@@ -61,6 +62,7 @@ async function drainGroupMessages(
       for (const file of messageFiles) {
         const filePath = path.join(messagesDir, file);
         try {
+          if (!fs.existsSync(filePath)) continue;
           const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
           const targetGroup = registeredGroups[data.chatJid];
           const authorized =
@@ -86,11 +88,13 @@ async function drainGroupMessages(
                 'Unauthorized IPC file attempt blocked',
               );
             } else {
-              // /workspace/group/foo → HOST_GROUPS_DIR/<sourceGroup>/foo
+              // /workspace/group/foo → GROUPS_DIR/<sourceGroup>/foo (gateway-internal)
+              // Safety check uses HOST_GROUPS_DIR to prevent path escape
               const rel = (data.filepath as string).replace(
                 /^\/workspace\/group\/?/,
                 '',
               );
+              const localPath = path.join(GROUPS_DIR, sourceGroup, rel);
               const hostPath = path.join(HOST_GROUPS_DIR, sourceGroup, rel);
               if (
                 !hostPath.startsWith(
@@ -104,7 +108,7 @@ async function drainGroupMessages(
               } else {
                 await deps.sendDocument(
                   data.chatJid,
-                  hostPath,
+                  localPath,
                   data.filename as string | undefined,
                 );
                 logger.info(
