@@ -147,7 +147,7 @@ user_cmd() {
         echo "usage: kanipi config <instance> user add <username> <password>"
         exit 1
       fi
-      node -e "
+      _U="$USERNAME" _P="$PASSWORD" node -e "
         const db = require('better-sqlite3')('$DB');
         const { hashSync } = require('@node-rs/argon2');
         const { randomUUID } = require('crypto');
@@ -159,11 +159,12 @@ user_cmd() {
           name TEXT NOT NULL,
           created_at TEXT NOT NULL
         )\`);
+        const u = process.env._U;
         const sub = 'local:' + randomUUID();
-        const hash = hashSync('$PASSWORD');
+        const hash = hashSync(process.env._P);
         db.prepare('INSERT INTO auth_users (sub, username, hash, name, created_at) VALUES (?,?,?,?,?)')
-          .run(sub, '$USERNAME', hash, '$USERNAME', new Date().toISOString());
-        console.log('added: $USERNAME (' + sub + ')');
+          .run(sub, u, hash, u, new Date().toISOString());
+        console.log('added: ' + u + ' (' + sub + ')');
       "
       ;;
     rm)
@@ -171,10 +172,11 @@ user_cmd() {
         echo "usage: kanipi config <instance> user rm <username>"
         exit 1
       fi
-      node -e "
+      _U="$USERNAME" node -e "
         const db = require('better-sqlite3')('$DB');
-        const r = db.prepare('DELETE FROM auth_users WHERE username = ?').run('$USERNAME');
-        console.log(r.changes ? 'removed: $USERNAME' : 'not found: $USERNAME');
+        const u = process.env._U;
+        const r = db.prepare('DELETE FROM auth_users WHERE username = ?').run(u);
+        console.log(r.changes ? 'removed: ' + u : 'not found: ' + u);
       "
       ;;
     passwd)
@@ -182,12 +184,13 @@ user_cmd() {
         echo "usage: kanipi config <instance> user passwd <username> <password>"
         exit 1
       fi
-      node -e "
+      _U="$USERNAME" _P="$PASSWORD" node -e "
         const db = require('better-sqlite3')('$DB');
         const { hashSync } = require('@node-rs/argon2');
-        const hash = hashSync('$PASSWORD');
-        const r = db.prepare('UPDATE auth_users SET hash = ? WHERE username = ?').run(hash, '$USERNAME');
-        console.log(r.changes ? 'updated: $USERNAME' : 'not found: $USERNAME');
+        const u = process.env._U;
+        const hash = hashSync(process.env._P);
+        const r = db.prepare('UPDATE auth_users SET hash = ? WHERE username = ?').run(hash, u);
+        console.log(r.changes ? 'updated: ' + u : 'not found: ' + u);
       "
       ;;
     *)

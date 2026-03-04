@@ -6,6 +6,7 @@ import {
   createAuthSession,
   deleteAuthSession,
   getAuthSession,
+  getAuthUserBySub,
   getAuthUserByUsername,
 } from './db.js';
 
@@ -141,7 +142,8 @@ export function handleRefresh(
   const newToken = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
   createAuthSession(sha256(newToken), session.user_sub, expiresAt);
-  const jwt = mintJwt(session.user_sub, session.user_sub, secret);
+  const user = getAuthUserBySub(session.user_sub);
+  const jwt = mintJwt(session.user_sub, user?.name ?? session.user_sub, secret);
   return {
     status: 200,
     headers: {
