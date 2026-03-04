@@ -43,11 +43,13 @@ vi.mock('../../src/config.js', () => ({
   CONTAINER_TIMEOUT: 30000,
   DATA_DIR: '/tmp/kanipi-e2e-cr',
   GROUPS_DIR: '/tmp/kanipi-e2e-cr-groups',
+  HOST_APP_DIR: '/tmp/kanipi-e2e-cr-app',
   HOST_PROJECT_ROOT_PATH: '/tmp/kanipi-e2e-cr',
   IDLE_TIMEOUT: 30000,
   MAIN_GROUP_FOLDER: 'main',
   TIMEZONE: 'UTC',
   WEB_DIR: '/tmp/kanipi-e2e-cr-web',
+  WEB_HOST: '',
 }));
 
 vi.mock('../../src/logger.js', () => ({

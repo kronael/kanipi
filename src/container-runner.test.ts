@@ -8,15 +8,18 @@ const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
 
 // Mock config
 vi.mock('./config.js', () => ({
+  ASSISTANT_NAME: 'Andy',
   CONTAINER_IMAGE: 'nanoclaw-agent:latest',
   CONTAINER_MAX_OUTPUT_SIZE: 10485760,
-  CONTAINER_TIMEOUT: 1800000, // 30min
+  CONTAINER_TIMEOUT: 1800000,
   DATA_DIR: '/tmp/nanoclaw-test-data',
   GROUPS_DIR: '/tmp/nanoclaw-test-groups',
+  HOST_APP_DIR: '/tmp/nanoclaw-test-app',
   HOST_PROJECT_ROOT_PATH: '/tmp/nanoclaw-test-root',
-  IDLE_TIMEOUT: 1800000, // 30min
+  IDLE_TIMEOUT: 1800000,
   TIMEZONE: 'America/Los_Angeles',
   WEB_DIR: '/tmp/nanoclaw-test-web',
+  WEB_HOST: '',
   MAIN_GROUP_FOLDER: 'main',
 }));
 
@@ -40,7 +43,7 @@ vi.mock('fs', async () => {
       existsSync: vi.fn(() => false),
       mkdirSync: vi.fn(),
       writeFileSync: vi.fn(),
-      readFileSync: vi.fn(() => ''),
+      readFileSync: vi.fn(() => '{}'),
       readdirSync: vi.fn(() => []),
       statSync: vi.fn(() => ({ isDirectory: () => false })),
       copyFileSync: vi.fn(),
