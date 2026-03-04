@@ -237,10 +237,9 @@ WEB_HOST=$(grep -s '^WEB_HOST=' .env | cut -d= -f2- || true)
 [ -n "$WEB_HOST" ] && export WEB_HOST
 
 if [ -n "$WEB_PORT" ]; then
-  # pick a free port for internal Vite (start at WEB_PORT+1, skip taken ones)
-  _p=$((WEB_PORT + 1))
-  while ss -tlnH "sport = :$_p" 2>/dev/null | grep -q .; do _p=$((_p + 1)); done
-  VITE_PORT_INTERNAL=$_p
+  # internal vite port: same suffix as WEB_PORT but in 48xxx range
+  _suffix=$(( WEB_PORT % 1000 ))
+  VITE_PORT_INTERNAL=$(( 48000 + _suffix ))
   export VITE_PORT_INTERNAL
 fi
 
