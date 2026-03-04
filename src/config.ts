@@ -120,14 +120,8 @@ export const SLOTH_USERS =
   process.env.SLOTH_USERS || envConfig.SLOTH_USERS || '';
 
 // Slink rate limits (requests per minute)
-function _defaultSlinkAnon() {
-  return parseInt(process.env.SLINK_ANON_RPM || '10', 10);
-}
-function _defaultSlinkAuth() {
-  return parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
-}
-export let SLINK_ANON_RPM = _defaultSlinkAnon();
-export let SLINK_AUTH_RPM = _defaultSlinkAuth();
+export let SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
+export let SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
 
 // Public host for constructing slink URLs injected into agent containers
 export const WEB_HOST = process.env.WEB_HOST || '';
@@ -159,59 +153,55 @@ export function _overrideConfig(patch: {
     MEDIA_MAX_FILE_BYTES = patch.MEDIA_MAX_FILE_BYTES;
 }
 
-export function _resetConfig(): void {
-  if (process.env.NODE_ENV !== 'test') return;
-  SLINK_ANON_RPM = _defaultSlinkAnon();
-  SLINK_AUTH_RPM = _defaultSlinkAuth();
-  WHISPER_BASE_URL = _defaultWhisperUrl();
-  VOICE_TRANSCRIPTION_ENABLED = _defaultVoiceEnabled();
-  VIDEO_TRANSCRIPTION_ENABLED = _defaultVideoEnabled();
-  MEDIA_ENABLED = _defaultMediaEnabled();
-  MEDIA_MAX_FILE_BYTES = _defaultMediaMaxBytes();
-}
-
 export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
 export function whatsappEnabled(): boolean {
   return fs.existsSync(path.join(WHATSAPP_AUTH_DIR, 'creds.json'));
 }
 
 // Media / enricher pipeline config
-function _defaultMediaEnabled() {
-  return (
-    (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true'
-  );
-}
-function _defaultMediaMaxBytes() {
-  return parseInt(
-    process.env.MEDIA_MAX_FILE_BYTES ||
-      envConfig.MEDIA_MAX_FILE_BYTES ||
-      '20971520',
-    10,
-  );
-}
-function _defaultVoiceEnabled() {
-  return (
-    (process.env.VOICE_TRANSCRIPTION_ENABLED ||
-      envConfig.VOICE_TRANSCRIPTION_ENABLED ||
-      'false') === 'true'
-  );
-}
-function _defaultWhisperUrl() {
-  return (
-    process.env.WHISPER_BASE_URL ||
-    envConfig.WHISPER_BASE_URL ||
-    'http://localhost:8080'
-  );
-}
-function _defaultVideoEnabled() {
-  return (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
-}
-export let MEDIA_ENABLED = _defaultMediaEnabled();
-export let MEDIA_MAX_FILE_BYTES = _defaultMediaMaxBytes();
-export let VOICE_TRANSCRIPTION_ENABLED = _defaultVoiceEnabled();
-export let WHISPER_BASE_URL = _defaultWhisperUrl();
+export let MEDIA_ENABLED =
+  (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true';
+export let MEDIA_MAX_FILE_BYTES = parseInt(
+  process.env.MEDIA_MAX_FILE_BYTES ||
+    envConfig.MEDIA_MAX_FILE_BYTES ||
+    '20971520',
+  10,
+);
+export let VOICE_TRANSCRIPTION_ENABLED =
+  (process.env.VOICE_TRANSCRIPTION_ENABLED ||
+    envConfig.VOICE_TRANSCRIPTION_ENABLED ||
+    'false') === 'true';
+export let WHISPER_BASE_URL =
+  process.env.WHISPER_BASE_URL ||
+  envConfig.WHISPER_BASE_URL ||
+  'http://localhost:8080';
 export const WHISPER_MODEL = process.env.WHISPER_MODEL || 'turbo';
-export let VIDEO_TRANSCRIPTION_ENABLED = _defaultVideoEnabled();
+export let VIDEO_TRANSCRIPTION_ENABLED =
+  (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
+
+// Snapshot of initial mutable config values for _resetConfig
+const _configDefaults = {
+  SLINK_ANON_RPM,
+  SLINK_AUTH_RPM,
+  MEDIA_ENABLED,
+  MEDIA_MAX_FILE_BYTES,
+  VOICE_TRANSCRIPTION_ENABLED,
+  WHISPER_BASE_URL,
+  VIDEO_TRANSCRIPTION_ENABLED,
+};
+
+export function _resetConfig(): void {
+  if (process.env.NODE_ENV !== 'test') return;
+  ({
+    SLINK_ANON_RPM,
+    SLINK_AUTH_RPM,
+    MEDIA_ENABLED,
+    MEDIA_MAX_FILE_BYTES,
+    VOICE_TRANSCRIPTION_ENABLED,
+    WHISPER_BASE_URL,
+    VIDEO_TRANSCRIPTION_ENABLED,
+  } = _configDefaults);
+}
 
 export const EMAIL_IMAP_HOST =
   process.env.EMAIL_IMAP_HOST || envConfig.EMAIL_IMAP_HOST || '';

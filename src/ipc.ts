@@ -86,13 +86,17 @@ async function drainGroupMessages(
                 'Unauthorized IPC file attempt blocked',
               );
             } else {
-              // /workspace/group/main/foo → HOST_GROUPS_DIR/main/foo
+              // /workspace/group/foo → HOST_GROUPS_DIR/<sourceGroup>/foo
               const rel = (data.filepath as string).replace(
-                /^\/workspace\/group\//,
+                /^\/workspace\/group\/?/,
                 '',
               );
-              const hostPath = path.join(HOST_GROUPS_DIR, rel);
-              if (!hostPath.startsWith(HOST_GROUPS_DIR + '/')) {
+              const hostPath = path.join(HOST_GROUPS_DIR, sourceGroup, rel);
+              if (
+                !hostPath.startsWith(
+                  path.join(HOST_GROUPS_DIR, sourceGroup) + '/',
+                )
+              ) {
                 logger.warn(
                   { filepath: data.filepath, sourceGroup },
                   'IPC file path outside GROUPS_DIR, blocked',
