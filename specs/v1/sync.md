@@ -1,4 +1,4 @@
-# Sync spec (v1) — open problem
+# Sync spec (v1) — solved
 
 ## Problem
 
@@ -10,58 +10,38 @@ Skills, agent code, and persona config need to flow from upstream
 - Versioned (upstream changes don't silently stomp local edits)
 - Update path (agent or operator can pull upstream changes selectively)
 
-Currently unsolved. What exists:
+## Solution
 
-- `container/skills/` → always overwritten by gateway on every spawn
-  (agent edits don't persist, no versioning)
-- `data/sessions/<group>/agent-runner-src/` → seeded once, agent owns it
-  (persists but no upstream update path)
-- `template/workspace/skills/` → seeded by `kanipi create`, never updated
-  (stale after first deploy)
+The `/migrate` skill + `MIGRATION_VERSION` system addresses all four
+requirements:
 
-## The tension
+- **Per-group isolation**: skills are seeded once into each group's session
+  dir (`data/sessions/<group>/skills/`); groups diverge independently.
+- **Agent-modifiable**: seeded files are agent-owned; gateway never
+  overwrites after initial seed.
+- **Versioned**: `container/skills/self/MIGRATION_VERSION` tracks gateway
+  version; each group's session dir has its own copy after seeding.
+- **Update path**: `/migrate` skill (main group) runs migration scripts from
+  `container/skills/self/migrations/` to bring all groups up to the latest
+  version. Gateway annotates agent prompts when a version gap is detected.
 
-**Always-sync** (gateway controls): consistent, updatable, but agent can't
-customize. Good for built-in tools (`agent-browser`).
+## Migration nudge
 
-**Seed-once** (agent controls): agent can customize, but upstream changes
-never reach it. Stale over time.
+When the gateway spawns an agent whose group is behind the latest
+`MIGRATION_VERSION`, it prepends an annotation to the prompt:
 
-**Neither handles**: "sync upstream changes, but preserve local edits" —
-i.e. a merge/diff model.
+```
+[pending migration] Skills version N < M. Run /migrate (main group) to sync all groups.
+```
 
-## Thinking
+This surfaces in every group's first spawn after a gateway upgrade. The main
+group agent can then run `/migrate` to apply all pending migrations.
 
-The agent itself could be the update mechanism — a `/reload` or `/sync`
-skill that:
+## Known issues
 
-1. Pulls latest skill versions from a known upstream path (image or repo)
-2. Diffs against local copies
-3. Applies non-conflicting updates
-4. Reports conflicts for human review
-
-This would make updates explicit and agent-driven rather than implicit
-gateway behavior. The gateway stays dumb (seed-once), the agent handles
-versioning.
-
-Open questions:
-
-- What is "upstream"? The baked image (`/app/container/skills/`)?
-  A git repo URL? An MCP server?
-- How to represent versions? File hash? Git commit? Semver in SKILL.md?
-- Who triggers sync? Operator via CLI? Agent on startup? Scheduled?
-- What scope? Per-skill? Per-group? Per-instance?
-
-## Known issues in current workspace skills
-
-- `template/workspace/skills/info/SKILL.md` — references stale nanoclaw
-  paths (`~/.openclaw/workspace/skills/`, `mcporter.json`). Needs updating
-  to `~/.claude/skills/` and actual kanipi paths.
-- `template/workspace/skills/reload/SKILL.md` — references `openclaw.mjs`
-  and `openclaw.json` (nanoclaw). The `kill -TERM 1` part is correct for
-  kanipi, the config reload section is stale.
-- Neither `info` nor `reload` skills are currently reachable by the agent
-  (skills not seeded into session — the unsolved problem above).
+- `template/workspace/skills/` — this directory is gone; those stale
+  nanoclaw skill files (`info/SKILL.md`, `reload/SKILL.md`) are no longer
+  present. Skills now seed from `container/skills/`.
 
 ## Related
 

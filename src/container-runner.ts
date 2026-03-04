@@ -79,6 +79,17 @@ const APP_DIR = path.resolve(
   '..',
 );
 
+const _mvFile = path.join(
+  APP_DIR,
+  'container',
+  'skills',
+  'self',
+  'MIGRATION_VERSION',
+);
+const LATEST_MIGRATION_VERSION = fs.existsSync(_mvFile)
+  ? parseInt(fs.readFileSync(_mvFile, 'utf-8').trim(), 10) || 0
+  : 0;
+
 // Translate container-local path to host-side path for docker mounts.
 function hostPath(localPath: string): string {
   const projectRoot = process.cwd();
@@ -302,6 +313,27 @@ export async function runContainerAgent(
   chownRecursive(groupDir, 1000, 1000);
 
   const mounts = buildVolumeMounts(group, input.isMain);
+
+  const agentVersionFile = path.join(
+    DATA_DIR,
+    'sessions',
+    group.folder,
+    '.claude',
+    'skills',
+    'self',
+    'MIGRATION_VERSION',
+  );
+  const agentVersion = fs.existsSync(agentVersionFile)
+    ? parseInt(fs.readFileSync(agentVersionFile, 'utf-8').trim(), 10) || 0
+    : 0;
+  if (agentVersion < LATEST_MIGRATION_VERSION) {
+    input._annotations = input._annotations ?? [];
+    input._annotations.push(
+      `[pending migration] Skills version ${agentVersion} < ${LATEST_MIGRATION_VERSION}. ` +
+        `Run /migrate (main group) to sync all groups.`,
+    );
+  }
+
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   const containerArgs = buildContainerArgs(mounts, containerName);
