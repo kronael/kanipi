@@ -1,4 +1,4 @@
-# Testing Spec — kanipi gateway gaps
+# Testing Spec — shipped (testability gaps deferred)
 
 Files to create or extend. Use vitest patterns from existing tests.
 

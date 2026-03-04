@@ -1,4 +1,8 @@
-# Plugin Specification
+# Plugin Specification — open
+
+**Status**: not implemented. The IPC `plugin-propose` command, pending
+dir, deploy hook, and audit log are all unbuilt. Skills and gateway
+patches currently require operator shell access to deploy.
 
 ## Overview
 

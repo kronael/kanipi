@@ -1,4 +1,4 @@
-# IPC signal notification
+# IPC signal notification — shipped
 
 Replace 500ms polling with signal-triggered reads.
 

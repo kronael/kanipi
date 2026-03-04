@@ -1,4 +1,4 @@
-# Auth (v1) — local accounts
+# Auth (v1) — local accounts — shipped
 
 HTTP auth for the web UI. Local accounts with argon2id passwords managed
 via CLI. Issues short-lived JWTs + long-lived HttpOnly refresh tokens.

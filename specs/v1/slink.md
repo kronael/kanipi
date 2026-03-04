@@ -1,4 +1,4 @@
-# Slink Specification
+# Slink Specification — shipped
 
 ## What it is
 

@@ -1,4 +1,8 @@
-# CLI spec (v1)
+# CLI spec (v1) — partial
+
+**Status**: bash entrypoint (`kanipi`) ships all commands and works
+correctly. TypeScript rewrite with `commander` not done — not urgent
+while bash is sufficient.
 
 Replace bash entrypoint with a TypeScript CLI using `commander`.
 Bun shebang, runnable via `bunx github:user/kanipi`.
