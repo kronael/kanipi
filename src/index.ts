@@ -196,10 +196,27 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     const groupDir = path.join(GROUPS_DIR, group.folder);
     const bucket = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
+    logger.info(
+      {
+        pendingCount: pendingAttachments.size,
+        msgIds: missedMessages.map((m) => m.id),
+      },
+      'mime: checking pending attachments',
+    );
     for (const dbMsg of missedMessages) {
       const pending = pendingAttachments.get(dbMsg.id);
-      if (!pending) continue;
+      if (!pending) {
+        logger.debug(
+          { msgId: dbMsg.id },
+          'mime: no pending attachment for message',
+        );
+        continue;
+      }
       pendingAttachments.delete(dbMsg.id);
+      logger.info(
+        { msgId: dbMsg.id, attachmentCount: pending.attachments.length },
+        'mime: processing attachments',
+      );
 
       const msgDir = path.join(groupDir, 'media', bucket, dbMsg.id);
       const attachments = pending.attachments.map(toAttachment);
@@ -217,6 +234,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
           download,
           [voiceHandler, videoHandler],
         );
+        logger.info({ msgId: dbMsg.id, lines }, 'mime: pipeline result');
         if (lines.length > 0) {
           enrichedAnnotations.push(lines.join('\n'));
         }
