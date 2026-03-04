@@ -238,6 +238,17 @@ function buildVolumeMounts(
     });
   }
 
+  // Main group gets data/sessions/ rw so migrate skill can sync across groups
+  if (isMain) {
+    const sessionsDir = path.join(DATA_DIR, 'sessions');
+    fs.mkdirSync(sessionsDir, { recursive: true });
+    mounts.push({
+      hostPath: hostPath(sessionsDir),
+      containerPath: '/workspace/data/sessions',
+      readonly: false,
+    });
+  }
+
   return mounts;
 }
 
