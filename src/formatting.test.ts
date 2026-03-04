@@ -182,6 +182,10 @@ describe('formatOutbound', () => {
       formatOutbound('<internal>thinking</internal>The answer is 42'),
     ).toBe('The answer is 42');
   });
+
+  it('returns empty string when only whitespace remains after tag strip', () => {
+    expect(formatOutbound('<internal>x</internal>   ')).toBe('');
+  });
 });
 
 // --- Trigger gating with requiresTrigger flag ---

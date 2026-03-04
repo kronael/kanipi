@@ -35,6 +35,12 @@ beforeEach(async () => {
 });
 
 describe('addSseListener / removeSseListener lifecycle', () => {
+  it('removeSseListener is a noop for unknown group', () => {
+    expect(() =>
+      removeSseListener('nonexistent-group', {} as any),
+    ).not.toThrow();
+  });
+
   it('adds and removes a listener', async () => {
     const ch = new WebChannel();
     const res = fakeRes();

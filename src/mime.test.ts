@@ -123,6 +123,36 @@ describe('processAttachments', () => {
     expect(lines).toHaveLength(0);
   });
 
+  it('successful handler lines included when other handler throws', async () => {
+    const download = vi.fn().mockResolvedValue(buf);
+    const a1 = makeAttachment({ mediaType: 'voice', mimeType: 'audio/ogg' });
+    const a2 = makeAttachment({ mediaType: 'image', mimeType: 'image/jpeg' });
+    const failingHandler: AttachmentHandler = {
+      name: 'fail',
+      match: (a) => a.mediaType === 'voice',
+      handle: async () => {
+        throw new Error('voice handler error');
+      },
+    };
+    const successHandler: AttachmentHandler = {
+      name: 'ok',
+      match: (a) => a.mediaType === 'image',
+      handle: async () => ['[image: processed]'],
+    };
+    const lines = await processAttachments(
+      'id-partial',
+      msgDir,
+      [a1, a2],
+      download,
+      [failingHandler, successHandler],
+    );
+    // Failed attachment block is skipped; successful one is present
+    expect(lines.some((l) => l.includes('[image: processed]'))).toBe(true);
+    expect(lines.some((l) => l.includes('[media attached:'))).toBe(true);
+    // No rejection propagated — result is a normal array
+    expect(Array.isArray(lines)).toBe(true);
+  });
+
   it('unmatched attachment only emits media line', async () => {
     const download = vi.fn().mockResolvedValue(buf);
     const a = makeAttachment({ mediaType: 'document' });

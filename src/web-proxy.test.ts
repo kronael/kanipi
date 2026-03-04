@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import http from 'http';
-import { addSseListener } from './channels/web.js';
+import { addSseListener, removeSseListener } from './channels/web.js';
 
 // --- Mocks ---
 
@@ -29,6 +29,7 @@ import type { OnInboundMessage, RegisteredGroup } from './types.js';
 const mockGetGroup = vi.mocked(getGroupBySlink);
 const mockHandleSlink = vi.mocked(handleSlinkPost);
 const mockAddSse = vi.mocked(addSseListener);
+const mockRemoveSse = vi.mocked(removeSseListener);
 
 function makeGroup(token: string): RegisteredGroup & { jid: string } {
   return {
@@ -270,6 +271,37 @@ describe('GET /_sloth/stream', () => {
       expect(result.ct).toContain('text/event-stream');
       await new Promise((r) => setTimeout(r, 10));
       expect(mockAddSse).toHaveBeenCalledWith('mygroup', expect.anything());
+    } finally {
+      await close();
+    }
+  });
+
+  it('calls removeSseListener when client closes the connection', async () => {
+    const { port, close } = await startProxy();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const req = http.get(
+          {
+            host: 'localhost',
+            port,
+            path: '/_sloth/stream?group=testgroup',
+          },
+          () => {
+            // Headers received — connection is open; now destroy to trigger close
+            req.destroy();
+            resolve();
+          },
+        );
+        req.on('error', () => {});
+        req.on('close', resolve);
+        req.on('timeout', () => reject(new Error('timeout')));
+      });
+      // Give the server's close handler time to fire
+      await new Promise((r) => setTimeout(r, 30));
+      expect(mockRemoveSse).toHaveBeenCalledWith(
+        'testgroup',
+        expect.anything(),
+      );
     } finally {
       await close();
     }
