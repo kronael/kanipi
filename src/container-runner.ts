@@ -2,7 +2,12 @@
  * Container Runner for NanoClaw
  * Spawns agent execution in containers and handles IPC
  */
-import { ChildProcess, exec, spawn } from 'child_process';
+import {
+  ChildProcess,
+  ChildProcessWithoutNullStreams,
+  exec,
+  spawn,
+} from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -30,6 +35,13 @@ import {
 } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup } from './types.js';
+
+// Seam for tests to inject a mock spawn
+export let _spawnProcess: (
+  cmd: string,
+  args: string[],
+  opts: { stdio: ['pipe', 'pipe', 'pipe'] },
+) => ChildProcessWithoutNullStreams = spawn;
 
 // Sentinel markers for robust output parsing (must match agent-runner)
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
@@ -89,8 +101,10 @@ const LATEST_MIGRATION_VERSION = fs.existsSync(_mvFile)
   : 0;
 
 // Translate container-local path to host-side path for docker mounts.
+// DATA_DIR parent = PROJECT_ROOT (/srv/app/home); HOST_PROJECT_ROOT_PATH = /srv/data/kanipi_<name>
+const GATEWAY_ROOT = path.dirname(DATA_DIR);
 function hostPath(localPath: string): string {
-  return localPath.replace(APP_DIR, HOST_PROJECT_ROOT_PATH);
+  return localPath.replace(GATEWAY_ROOT, HOST_PROJECT_ROOT_PATH);
 }
 
 function buildVolumeMounts(
@@ -367,7 +381,7 @@ export async function runContainerAgent(
   fs.mkdirSync(logsDir, { recursive: true });
 
   return new Promise((resolve) => {
-    const container = spawn(CONTAINER_RUNTIME_BIN, containerArgs, {
+    const container = _spawnProcess(CONTAINER_RUNTIME_BIN, containerArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

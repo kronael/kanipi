@@ -119,8 +119,8 @@ export const SLOTH_USERS =
   process.env.SLOTH_USERS || envConfig.SLOTH_USERS || '';
 
 // Slink rate limits (requests per minute)
-export const SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
-export const SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
+export let SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
+export let SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
 
 // Public host for constructing slink URLs injected into agent containers
 export const WEB_HOST = process.env.WEB_HOST || '';
@@ -129,11 +129,51 @@ export const WEB_HOST = process.env.WEB_HOST || '';
 export const AUTH_SECRET =
   process.env.AUTH_SECRET || envConfig.AUTH_SECRET || '';
 
-export function _overrideConfig(patch: Partial<Record<string, unknown>>): void {
+export function _overrideConfig(patch: {
+  SLINK_ANON_RPM?: number;
+  SLINK_AUTH_RPM?: number;
+  WHISPER_BASE_URL?: string;
+  VOICE_TRANSCRIPTION_ENABLED?: boolean;
+  VIDEO_TRANSCRIPTION_ENABLED?: boolean;
+  MEDIA_ENABLED?: boolean;
+  MEDIA_MAX_FILE_BYTES?: number;
+}): void {
   if (process.env.NODE_ENV !== 'test') return;
-  Object.assign(
-    process.env,
-    Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, String(v)])),
+  if (patch.SLINK_ANON_RPM !== undefined) SLINK_ANON_RPM = patch.SLINK_ANON_RPM;
+  if (patch.SLINK_AUTH_RPM !== undefined) SLINK_AUTH_RPM = patch.SLINK_AUTH_RPM;
+  if (patch.WHISPER_BASE_URL !== undefined)
+    WHISPER_BASE_URL = patch.WHISPER_BASE_URL;
+  if (patch.VOICE_TRANSCRIPTION_ENABLED !== undefined)
+    VOICE_TRANSCRIPTION_ENABLED = patch.VOICE_TRANSCRIPTION_ENABLED;
+  if (patch.VIDEO_TRANSCRIPTION_ENABLED !== undefined)
+    VIDEO_TRANSCRIPTION_ENABLED = patch.VIDEO_TRANSCRIPTION_ENABLED;
+  if (patch.MEDIA_ENABLED !== undefined) MEDIA_ENABLED = patch.MEDIA_ENABLED;
+  if (patch.MEDIA_MAX_FILE_BYTES !== undefined)
+    MEDIA_MAX_FILE_BYTES = patch.MEDIA_MAX_FILE_BYTES;
+}
+
+export function _resetConfig(): void {
+  if (process.env.NODE_ENV !== 'test') return;
+  SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
+  SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
+  WHISPER_BASE_URL =
+    process.env.WHISPER_BASE_URL ||
+    envConfig.WHISPER_BASE_URL ||
+    'http://localhost:8080';
+  VOICE_TRANSCRIPTION_ENABLED =
+    (process.env.VOICE_TRANSCRIPTION_ENABLED ||
+      envConfig.VOICE_TRANSCRIPTION_ENABLED ||
+      'false') === 'true';
+  VIDEO_TRANSCRIPTION_ENABLED =
+    (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
+  MEDIA_ENABLED =
+    (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') ===
+    'true';
+  MEDIA_MAX_FILE_BYTES = parseInt(
+    process.env.MEDIA_MAX_FILE_BYTES ||
+      envConfig.MEDIA_MAX_FILE_BYTES ||
+      '20971520',
+    10,
   );
 }
 
@@ -143,24 +183,24 @@ export function whatsappEnabled(): boolean {
 }
 
 // Media / enricher pipeline config
-export const MEDIA_ENABLED =
+export let MEDIA_ENABLED =
   (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true';
-export const MEDIA_MAX_FILE_BYTES = parseInt(
+export let MEDIA_MAX_FILE_BYTES = parseInt(
   process.env.MEDIA_MAX_FILE_BYTES ||
     envConfig.MEDIA_MAX_FILE_BYTES ||
     '20971520',
   10,
 );
-export const VOICE_TRANSCRIPTION_ENABLED =
+export let VOICE_TRANSCRIPTION_ENABLED =
   (process.env.VOICE_TRANSCRIPTION_ENABLED ||
     envConfig.VOICE_TRANSCRIPTION_ENABLED ||
     'false') === 'true';
-export const WHISPER_BASE_URL =
+export let WHISPER_BASE_URL =
   process.env.WHISPER_BASE_URL ||
   envConfig.WHISPER_BASE_URL ||
   'http://localhost:8080';
 export const WHISPER_MODEL = process.env.WHISPER_MODEL || 'turbo';
-export const VIDEO_TRANSCRIPTION_ENABLED =
+export let VIDEO_TRANSCRIPTION_ENABLED =
   (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
 
 export const EMAIL_IMAP_HOST =
