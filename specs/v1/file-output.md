@@ -2,69 +2,50 @@
 
 Agent sending files back to the channel.
 
-## Problem
-
-`sendMessage` accepts only text. Agents can produce files (charts, PDFs,
-exports, generated images) but have no way to send them.
-
 ## Design
+
+Uses the same IPC pattern as `send_message`. Agent calls the `send_file`
+MCP tool mid-run; gateway delivers the file immediately without waiting for
+the agent to finish.
 
 ### Agent side
 
-Agent writes output files to `/workspace/media/out/` and includes a
-`files` field in the JSON result alongside `result`:
+Call `send_file` with an absolute path inside the workspace:
 
-```json
-{
-  "result": "here's your chart",
-  "files": [
-    { "path": "out/chart.png", "caption": "monthly spend" },
-    { "path": "out/report.pdf" }
-  ]
-}
+```
+send_file(filepath="/workspace/group/main/media/20260304/report.csv")
+send_file(filepath="/workspace/group/main/media/20260304/chart.png", filename="Monthly Spend")
 ```
 
-Paths are relative to `/workspace/media/`. Gateway resolves them to
-`groups/<folder>/media/out/<file>` on the host.
+Store files you want to keep under `/workspace/group/{folder}/media/YYYYMMDD/`.
+All file types are supported. Files are not cleaned up by the gateway —
+agent manages its own workspace.
 
 ### Gateway side
 
-`ContainerOutput` gains an optional `files` field:
+IPC message type `file` in `src/ipc.ts`:
 
 ```ts
-files?: { path: string; caption?: string }[];
+{ type: 'file', chatJid, filepath, filename?, groupFolder, timestamp }
 ```
 
-`container-runner.ts` parses `files` from agent JSON output alongside
-`result`. Index passes files to the channel's `sendMessage`.
+Path safety: container path `/workspace/group/X/...` is resolved to host
+`GROUPS_DIR/X/...`. Paths that escape `GROUPS_DIR` are blocked.
 
-### Channel side
+`Channel` interface has an optional `sendDocument?` method. Channels that
+don't implement it log a warning and skip silently.
 
-`sendMessage` signature extends to accept optional files:
+### Channel support
 
-```ts
-sendMessage(
-  jid: string,
-  text: string,
-  files?: { path: string; caption?: string }[],
-): Promise<void>;
-```
+- **Telegram**: `sendDocument` via `InputFile` — implemented
+- **Discord**: not yet implemented
+- **WhatsApp**: not yet implemented
 
-Each channel sends files using its native API:
+## Why not result-based (original spec)
 
-- **Telegram**: `bot.api.sendDocument` / `sendPhoto` (detect by extension)
-- **Discord**: `message.reply({ files: [...] })`
-- **WhatsApp**: `sock.sendMessage` with `document` / `image` payload
+The original design appended `files[]` to the agent's final JSON result.
+Rejected because:
 
-Files are sent after the text message (or instead of, if `result` is empty).
-
-## Out dir cleanup
-
-Gateway deletes `groups/<folder>/media/out/` contents after sending,
-keeping media dir clean between runs.
-
-## Constraints
-
-- Max file size per channel: Telegram 50MB, Discord 25MB, WhatsApp 100MB
-- Agent must not write outside `/workspace/media/out/` for output files
-- `files` field is ignored if path traversal detected (`..` in path)
+- Files only sent post-run, inconsistent with `send_message` mid-run delivery
+- Pollutes `sendMessage` signature across all channels
+- Requires a dedicated `/workspace/media/out/` dir and gateway cleanup logic
