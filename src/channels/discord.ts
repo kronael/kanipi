@@ -1,4 +1,13 @@
-import { Client, GatewayIntentBits, Message, TextChannel } from 'discord.js';
+import fs from 'fs';
+import path from 'path';
+
+import {
+  AttachmentBuilder,
+  Client,
+  GatewayIntentBits,
+  Message,
+  TextChannel,
+} from 'discord.js';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import {
@@ -155,6 +164,32 @@ export class DiscordChannel implements Channel {
       logger.info({ jid, length: text.length }, 'Discord message sent');
     } catch (err) {
       logger.error({ jid, err }, 'Failed to send Discord message');
+    }
+  }
+
+  async sendDocument(
+    jid: string,
+    filePath: string,
+    filename?: string,
+  ): Promise<void> {
+    if (!this.client) {
+      logger.warn('Discord client not initialized');
+      return;
+    }
+    try {
+      const ch = await this.client.channels.fetch(jid.replace(/^discord:/, ''));
+      if (!ch?.isTextBased()) {
+        logger.warn({ jid }, 'Discord channel not text-based');
+        return;
+      }
+      const name = filename ?? path.basename(filePath);
+      const attachment = new AttachmentBuilder(fs.createReadStream(filePath), {
+        name,
+      });
+      await (ch as TextChannel).send({ files: [attachment] });
+      logger.info({ jid, filePath, name }, 'Discord document sent');
+    } catch (err) {
+      logger.error({ jid, filePath, err }, 'Failed to send Discord document');
     }
   }
 
