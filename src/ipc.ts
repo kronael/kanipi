@@ -62,23 +62,30 @@ async function drainGroupMessages(
         const filePath = path.join(messagesDir, file);
         try {
           const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-          if (data.type === 'message' && data.chatJid && data.text) {
-            const targetGroup = registeredGroups[data.chatJid];
-            if (isMain || (targetGroup && targetGroup.folder === sourceGroup)) {
+          const targetGroup = registeredGroups[data.chatJid];
+          const authorized =
+            data.chatJid &&
+            (isMain || (targetGroup && targetGroup.folder === sourceGroup));
+          if (data.type === 'message' && data.text) {
+            if (!authorized) {
+              logger.warn(
+                { chatJid: data.chatJid, sourceGroup },
+                'Unauthorized IPC message attempt blocked',
+              );
+            } else {
               await deps.sendMessage(data.chatJid, data.text);
               logger.info(
                 { chatJid: data.chatJid, sourceGroup },
                 'IPC message sent',
               );
-            } else {
+            }
+          } else if (data.type === 'file' && data.filepath) {
+            if (!authorized) {
               logger.warn(
                 { chatJid: data.chatJid, sourceGroup },
-                'Unauthorized IPC message attempt blocked',
+                'Unauthorized IPC file attempt blocked',
               );
-            }
-          } else if (data.type === 'file' && data.chatJid && data.filepath) {
-            const targetGroup = registeredGroups[data.chatJid];
-            if (isMain || (targetGroup && targetGroup.folder === sourceGroup)) {
+            } else {
               // /workspace/group/main/foo → GROUPS_DIR/main/foo
               const rel = (data.filepath as string).replace(
                 /^\/workspace\/group\//,
@@ -101,11 +108,6 @@ async function drainGroupMessages(
                   'IPC file sent',
                 );
               }
-            } else {
-              logger.warn(
-                { chatJid: data.chatJid, sourceGroup },
-                'Unauthorized IPC file attempt blocked',
-              );
             }
           }
           fs.unlinkSync(filePath);
