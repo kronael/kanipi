@@ -191,6 +191,9 @@ ExecStart=/usr/bin/docker run -i --rm --name %n \
     -v /srv/data/kanipi_${NAME}:/srv/app/home \
     -v /srv/run/kanipi_${NAME}:/srv/run/kanipi_${NAME} \
     -v /var/run/docker.sock:/var/run/docker.sock \
+    -e DATA_DIR=/srv/app/home \
+    -e HOST_DATA_DIR=/srv/data/kanipi_${NAME} \
+    -e HOST_APP_DIR=/srv/data/kanipi_${NAME}/self \
     kanipi \
     ./kanipi ${NAME}
 
@@ -221,25 +224,26 @@ if [ "${2:-}" = "group" ]; then
 fi
 
 INSTANCE="$1"
-HOME_DIR="/srv/app/home"
+DATA_DIR=/srv/app/home
+HOST_DATA_DIR="/srv/data/kanipi_${INSTANCE}"
 
-if [ ! -f "$HOME_DIR/.env" ]; then
-  echo "no .env in $HOME_DIR"
+if [ ! -f "$DATA_DIR/.env" ]; then
+  echo "no .env in $DATA_DIR"
   exit 1
 fi
 
-cd "$HOME_DIR"
-
-# sync source into home dir so agent containers can mount it as /workspace/self
-cp -r /srv/app/container/. ./container/
-cp -r /srv/app/template/. ./template/
+mkdir -p "$DATA_DIR/self"
+cp -r /srv/app/container/. "$DATA_DIR/self/container/"
+cp -r /srv/app/template/. "$DATA_DIR/self/template/"
+export DATA_DIR HOST_DATA_DIR
+export HOST_APP_DIR="$HOST_DATA_DIR/self"
 
 # read web config from .env
 # WEB_PORT is the external port (proxy). Vite runs on WEB_PORT+1 (localhost only).
 # Falls back to VITE_PORT for backward compat with old instances.
-WEB_PORT=$(grep -s '^WEB_PORT=' .env | cut -d= -f2- || true)
-[ -z "$WEB_PORT" ] && WEB_PORT=$(grep -s '^VITE_PORT=' .env | cut -d= -f2- || true)
-WEB_HOST=$(grep -s '^WEB_HOST=' .env | cut -d= -f2- || true)
+WEB_PORT=$(grep -s '^WEB_PORT=' "$DATA_DIR/.env" | cut -d= -f2- || true)
+[ -z "$WEB_PORT" ] && WEB_PORT=$(grep -s '^VITE_PORT=' "$DATA_DIR/.env" | cut -d= -f2- || true)
+WEB_HOST=$(grep -s '^WEB_HOST=' "$DATA_DIR/.env" | cut -d= -f2- || true)
 [ -n "$WEB_HOST" ] && export WEB_HOST
 
 if [ -n "$WEB_PORT" ]; then
@@ -250,8 +254,8 @@ if [ -n "$WEB_PORT" ]; then
 fi
 
 # install web deps if missing
-if [ -n "$WEB_PORT" ] && [ -d web ] && [ ! -d web/node_modules ]; then
-  cd web && npm install --silent 2>/dev/null && cd "$HOME_DIR"
+if [ -n "$WEB_PORT" ] && [ -d "$DATA_DIR/web" ] && [ ! -d "$DATA_DIR/web/node_modules" ]; then
+  cd "$DATA_DIR/web" && npm install --silent 2>/dev/null && cd /srv/app
 fi
 
 # start gateway
@@ -259,11 +263,11 @@ node /srv/app/dist/index.js &
 GATEWAY=$!
 
 # start vite on internal port if configured (proxy in gateway handles external port)
-if [ -n "$WEB_PORT" ] && [ -d web ]; then
+if [ -n "$WEB_PORT" ] && [ -d "$DATA_DIR/web" ]; then
   mkdir -p /srv/app/tmp
   (while true
   do
-    cd "$HOME_DIR/web" && npx vite --host 127.0.0.1 --port "$VITE_PORT_INTERNAL" &
+    cd "$DATA_DIR/web" && npx vite --host 127.0.0.1 --port "$VITE_PORT_INTERNAL" &
     echo $! > /srv/app/tmp/vite.pid
     wait $!
     sleep 1

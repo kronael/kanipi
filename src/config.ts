@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 import { readEnvFile } from './env.js';
 
@@ -36,23 +37,10 @@ export const POLL_INTERVAL = 2000;
 export const SCHEDULER_POLL_INTERVAL = 60000;
 
 // Absolute paths needed for container mounts
-const PROJECT_ROOT = process.cwd();
+const PROJECT_ROOT = process.env.DATA_DIR || process.cwd();
+const HOST_PROJECT_ROOT = process.env.HOST_DATA_DIR || PROJECT_ROOT;
 const HOME_DIR = process.env.HOME || os.homedir();
-
-// When running inside docker, container mount paths differ from host paths.
-// Detect host-side path of PROJECT_ROOT so child containers get correct mounts.
-function detectHostPath(containerPath: string): string | null {
-  try {
-    const mountinfo = fs.readFileSync('/proc/self/mountinfo', 'utf-8');
-    for (const line of mountinfo.split('\n')) {
-      const parts = line.split(' ');
-      if (parts[4] === containerPath) return parts[3];
-    }
-  } catch {}
-  return null;
-}
-
-const HOST_PROJECT_ROOT = detectHostPath(PROJECT_ROOT) || PROJECT_ROOT;
+const APP_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
 // Mount security: allowlist stored OUTSIDE project root, never mounted into containers
 export const MOUNT_ALLOWLIST_PATH = path.join(
@@ -65,6 +53,7 @@ export const STORE_DIR = path.resolve(PROJECT_ROOT, 'store');
 export const GROUPS_DIR = path.resolve(PROJECT_ROOT, 'groups');
 export const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
 export const HOST_PROJECT_ROOT_PATH = HOST_PROJECT_ROOT;
+export const HOST_APP_DIR = process.env.HOST_APP_DIR || APP_DIR;
 export const MAIN_GROUP_FOLDER = 'main';
 
 export const CONTAINER_IMAGE =

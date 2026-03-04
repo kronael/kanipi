@@ -13,6 +13,7 @@ import {
   CONTAINER_TIMEOUT,
   DATA_DIR,
   GROUPS_DIR,
+  HOST_APP_DIR,
   HOST_PROJECT_ROOT_PATH,
   IDLE_TIMEOUT,
   TIMEZONE,
@@ -89,11 +90,7 @@ const LATEST_MIGRATION_VERSION = fs.existsSync(_mvFile)
 
 // Translate container-local path to host-side path for docker mounts.
 function hostPath(localPath: string): string {
-  const projectRoot = process.cwd();
-  if (localPath.startsWith(projectRoot)) {
-    return HOST_PROJECT_ROOT_PATH + localPath.slice(projectRoot.length);
-  }
-  return localPath;
+  return localPath.replace(APP_DIR, HOST_PROJECT_ROOT_PATH);
 }
 
 function buildVolumeMounts(
@@ -121,7 +118,7 @@ function buildVolumeMounts(
 
   // All groups get kanipi source read-only as /workspace/self
   mounts.push({
-    hostPath: hostPath(APP_DIR),
+    hostPath: HOST_APP_DIR,
     containerPath: '/workspace/self',
     readonly: true,
   });
@@ -225,7 +222,7 @@ function buildVolumeMounts(
     chownRecursive(groupAgentRunnerDir, 1000, 1000);
   }
   mounts.push({
-    hostPath: hostPath(groupAgentRunnerDir),
+    hostPath: HOST_APP_DIR + '/container/agent-runner/src',
     containerPath: '/app/src',
     readonly: false,
   });
