@@ -188,8 +188,8 @@ export function startWebProxy(opts: {
       }
       let body = '';
       req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        const result = handleLoginPost(body, authSecret);
+      req.on('end', async () => {
+        const result = await handleLoginPost(body, authSecret);
         res.writeHead(
           result.status,
           result.headers || { 'Content-Type': 'application/json' },

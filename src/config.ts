@@ -18,7 +18,6 @@ const envConfig = readEnvFile([
   'VITE_PORT',
   'SLOTH_USERS',
   'AUTH_SECRET',
-  'AUTH_PASSWORD',
   'MEDIA_ENABLED',
   'MEDIA_MAX_FILE_BYTES',
   'VOICE_TRANSCRIPTION_ENABLED',
@@ -126,11 +125,9 @@ export const SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
 // Public host for constructing slink URLs injected into agent containers
 export const WEB_HOST = process.env.WEB_HOST || '';
 
-// Auth
+// Auth — JWT signing secret for slink and future auth routes
 export const AUTH_SECRET =
   process.env.AUTH_SECRET || envConfig.AUTH_SECRET || '';
-export const AUTH_PASSWORD =
-  process.env.AUTH_PASSWORD || envConfig.AUTH_PASSWORD || 'password';
 
 export function _overrideConfig(patch: Partial<Record<string, unknown>>): void {
   if (process.env.NODE_ENV !== 'test') return;

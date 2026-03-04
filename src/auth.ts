@@ -1,7 +1,13 @@
 import crypto from 'crypto';
 
-import { AUTH_PASSWORD, AUTH_SECRET } from './config.js';
-import { createAuthSession, deleteAuthSession, getAuthSession } from './db.js';
+import { verify } from '@node-rs/argon2';
+
+import {
+  createAuthSession,
+  deleteAuthSession,
+  getAuthSession,
+  getAuthUserByUsername,
+} from './db.js';
 
 function sha256(s: string): string {
   return crypto.createHash('sha256').update(s).digest('hex');
@@ -46,6 +52,7 @@ button{padding:.5rem;background:#333;color:#fff;border:none;border-radius:4px;fo
 <body>
 <form id="f">
   <h2 style="margin:0">Sign in</h2>
+  <input name="username" placeholder="Username" required autocomplete="username">
   <input name="password" type="password" placeholder="Password" required autocomplete="current-password">
   <button type="submit">Sign in</button>
   <div id="err"></div>
@@ -62,7 +69,7 @@ document.getElementById('f').addEventListener('submit', async function(e) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(data),
     });
-    if (!r.ok) { err.textContent = 'Wrong password'; err.style.display = ''; return; }
+    if (!r.ok) { err.textContent = 'Invalid username or password'; err.style.display = ''; return; }
     var j = await r.json();
     try { localStorage.setItem('sloth_jwt', j.token); } catch(_) {}
     location.href = '/';
@@ -75,26 +82,36 @@ document.getElementById('f').addEventListener('submit', async function(e) {
 </html>`;
 }
 
-export function handleLoginPost(
+export async function handleLoginPost(
   body: string,
   secret: string,
-): { status: number; headers?: Record<string, string>; body: string } {
+): Promise<{ status: number; headers?: Record<string, string>; body: string }> {
+  let username: string;
   let password: string;
   try {
-    password = String(JSON.parse(body).password ?? '');
+    const parsed = JSON.parse(body);
+    username = String(parsed.username ?? '');
+    password = String(parsed.password ?? '');
   } catch {
     return { status: 400, body: '{"error":"bad request"}' };
   }
 
-  if (password !== AUTH_PASSWORD) {
+  const user = getAuthUserByUsername(username);
+  if (!user) return { status: 401, body: '{"error":"unauthorized"}' };
+
+  let ok = false;
+  try {
+    ok = await verify(user.hash, password);
+  } catch {
     return { status: 401, body: '{"error":"unauthorized"}' };
   }
+  if (!ok) return { status: 401, body: '{"error":"unauthorized"}' };
 
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
-  createAuthSession(sha256(token), 'local:admin', expiresAt);
+  createAuthSession(sha256(token), user.sub, expiresAt);
 
-  const jwt = mintJwt('local:admin', 'admin', secret);
+  const jwt = mintJwt(user.sub, user.name, secret);
   return {
     status: 200,
     headers: {
@@ -117,6 +134,3 @@ export function checkSessionCookie(cookie: string): boolean {
   if (!session) return false;
   return new Date(session.expires_at) > new Date();
 }
-
-// Re-export for web-proxy.ts compat
-export { AUTH_SECRET };
