@@ -4,6 +4,7 @@ import {
   checkSessionCookie,
   handleLoginPost,
   handleLogout,
+  handleRefresh,
   loginPageHtml,
 } from './auth.js';
 import { getGroupBySlink } from './db.js';
@@ -196,6 +197,21 @@ export function startWebProxy(opts: {
         );
         res.end(result.body);
       });
+      return;
+    }
+
+    if (url === '/auth/refresh' && req.method === 'POST') {
+      if (!authSecret) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      const result = handleRefresh(req.headers.cookie || '', authSecret);
+      res.writeHead(
+        result.status,
+        result.headers || { 'Content-Type': 'application/json' },
+      );
+      res.end(result.body);
       return;
     }
 

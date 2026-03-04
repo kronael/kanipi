@@ -127,6 +127,31 @@ export function handleLogout(cookie: string): void {
   if (token) deleteAuthSession(sha256(token));
 }
 
+export function handleRefresh(
+  cookie: string,
+  secret: string,
+): { status: number; headers?: Record<string, string>; body: string } {
+  const oldToken = parseCookies(cookie || '')['refresh'];
+  if (!oldToken) return { status: 401, body: '{"error":"unauthorized"}' };
+  const session = getAuthSession(sha256(oldToken));
+  if (!session || new Date(session.expires_at) <= new Date()) {
+    return { status: 401, body: '{"error":"unauthorized"}' };
+  }
+  deleteAuthSession(sha256(oldToken));
+  const newToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+  createAuthSession(sha256(newToken), session.user_sub, expiresAt);
+  const jwt = mintJwt(session.user_sub, session.user_sub, secret);
+  return {
+    status: 200,
+    headers: {
+      'Set-Cookie': `refresh=${newToken}; HttpOnly; Path=/; Max-Age=2592000; SameSite=Strict`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token: jwt }),
+  };
+}
+
 export function checkSessionCookie(cookie: string): boolean {
   const token = parseCookies(cookie || '')['refresh'];
   if (!token) return false;

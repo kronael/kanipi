@@ -123,13 +123,94 @@ group_cmd() {
   esac
 }
 
-if [ "${1:-}" = "config" ]; then
-  INST="${2:-}"
-  if [ -z "$INST" ] || [ "${3:-}" != "group" ]; then
-    echo "usage: kanipi config <instance> group {list|add|rm} ..."
+user_cmd() {
+  local INST="$1" ACTION="$2" USERNAME="$3" PASSWORD="$4"
+  local DATA="/srv/data/kanipi_${INST}"
+  local DB="$DATA/store/messages.db"
+
+  if [ ! -f "$DB" ]; then
+    echo "error: db not found: $DB"
     exit 1
   fi
-  group_cmd "$INST" "${4:-}" "${5:-}" "${6:-}"
+
+  case "$ACTION" in
+    list)
+      node -e "
+        const db = require('better-sqlite3')('$DB');
+        const rows = db.prepare('SELECT sub, username, name, created_at FROM auth_users').all();
+        if (!rows.length) { console.log('(no users)'); process.exit(0); }
+        rows.forEach(r => console.log(r.sub + '  ' + r.username + '  ' + r.name + '  ' + r.created_at));
+      "
+      ;;
+    add)
+      if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+        echo "usage: kanipi config <instance> user add <username> <password>"
+        exit 1
+      fi
+      node -e "
+        const db = require('better-sqlite3')('$DB');
+        const { hashSync } = require('@node-rs/argon2');
+        const { randomUUID } = require('crypto');
+        db.exec(\`CREATE TABLE IF NOT EXISTS auth_users (
+          id INTEGER PRIMARY KEY,
+          sub TEXT UNIQUE NOT NULL,
+          username TEXT UNIQUE NOT NULL,
+          hash TEXT NOT NULL,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )\`);
+        const sub = 'local:' + randomUUID();
+        const hash = hashSync('$PASSWORD');
+        db.prepare('INSERT INTO auth_users (sub, username, hash, name, created_at) VALUES (?,?,?,?,?)')
+          .run(sub, '$USERNAME', hash, '$USERNAME', new Date().toISOString());
+        console.log('added: $USERNAME (' + sub + ')');
+      "
+      ;;
+    rm)
+      if [ -z "$USERNAME" ]; then
+        echo "usage: kanipi config <instance> user rm <username>"
+        exit 1
+      fi
+      node -e "
+        const db = require('better-sqlite3')('$DB');
+        const r = db.prepare('DELETE FROM auth_users WHERE username = ?').run('$USERNAME');
+        console.log(r.changes ? 'removed: $USERNAME' : 'not found: $USERNAME');
+      "
+      ;;
+    passwd)
+      if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+        echo "usage: kanipi config <instance> user passwd <username> <password>"
+        exit 1
+      fi
+      node -e "
+        const db = require('better-sqlite3')('$DB');
+        const { hashSync } = require('@node-rs/argon2');
+        const hash = hashSync('$PASSWORD');
+        const r = db.prepare('UPDATE auth_users SET hash = ? WHERE username = ?').run(hash, '$USERNAME');
+        console.log(r.changes ? 'updated: $USERNAME' : 'not found: $USERNAME');
+      "
+      ;;
+    *)
+      echo "usage: kanipi config <instance> user {list|add|rm|passwd} ..."
+      exit 1
+      ;;
+  esac
+}
+
+if [ "${1:-}" = "config" ]; then
+  INST="${2:-}"
+  if [ -z "$INST" ]; then
+    echo "usage: kanipi config <instance> {group|user} ..."
+    exit 1
+  fi
+  case "${3:-}" in
+    group) group_cmd "$INST" "${4:-}" "${5:-}" "${6:-}" ;;
+    user)  user_cmd  "$INST" "${4:-}" "${5:-}" "${6:-}" ;;
+    *)
+      echo "usage: kanipi config <instance> {group|user} ..."
+      exit 1
+      ;;
+  esac
   exit 0
 fi
 
@@ -214,7 +295,8 @@ fi
 if [ -z "${1:-}" ]; then
   echo "usage: kanipi <instance>"
   echo "       kanipi create <name>"
-  echo "       kanipi <instance> group {list|add|rm} ..."
+  echo "       kanipi config <instance> group {list|add|rm} ..."
+  echo "       kanipi config <instance> user {list|add|rm|passwd} ..."
   exit 1
 fi
 
