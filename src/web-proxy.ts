@@ -1,5 +1,11 @@
 import http from 'http';
 
+import {
+  checkSessionCookie,
+  handleLoginPost,
+  handleLogout,
+  loginPageHtml,
+} from './auth.js';
 import { getGroupBySlink } from './db.js';
 import { logger } from './logger.js';
 import { handleSlinkPost } from './slink.js';
@@ -120,10 +126,15 @@ const PUBLIC_PREFIXES = ['/pub/', '/_sloth/'];
 function checkAuth(
   req: http.IncomingMessage,
   users: Map<string, string>,
+  authSecret?: string,
 ): boolean {
-  if (users.size === 0) return true;
   const url = req.url || '/';
   if (PUBLIC_PREFIXES.some((p) => url.startsWith(p))) return true;
+  if (url.startsWith('/auth/')) return true;
+
+  if (authSecret) return checkSessionCookie(req.headers.cookie || '');
+
+  if (users.size === 0) return true;
   const header = req.headers['authorization'] || '';
   if (!header.startsWith('Basic ')) return false;
   const decoded = Buffer.from(header.slice(6), 'base64').toString('utf-8');
@@ -148,12 +159,53 @@ export function startWebProxy(opts: {
     const url = req.url || '/';
 
     // Auth check
-    if (!checkAuth(req, users)) {
-      res.writeHead(401, {
-        'WWW-Authenticate': 'Basic realm="sloth"',
-        'Content-Type': 'text/plain',
+    if (!checkAuth(req, users, authSecret)) {
+      if (authSecret) {
+        res.writeHead(302, { Location: '/auth/login' });
+        res.end();
+      } else {
+        res.writeHead(401, {
+          'WWW-Authenticate': 'Basic realm="sloth"',
+          'Content-Type': 'text/plain',
+        });
+        res.end('Unauthorized');
+      }
+      return;
+    }
+
+    // Session auth routes
+    if (url === '/auth/login' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(loginPageHtml());
+      return;
+    }
+
+    if (url === '/auth/login' && req.method === 'POST') {
+      if (!authSecret) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', async () => {
+        const result = await handleLoginPost(body, authSecret);
+        res.writeHead(
+          result.status,
+          result.headers || { 'Content-Type': 'application/json' },
+        );
+        res.end(result.body);
       });
-      res.end('Unauthorized');
+      return;
+    }
+
+    if (url === '/auth/logout' && req.method === 'POST') {
+      handleLogout(req.headers.cookie || '');
+      res.writeHead(302, {
+        'Set-Cookie': 'refresh=; HttpOnly; Path=/; Max-Age=0',
+        Location: '/auth/login',
+      });
+      res.end();
       return;
     }
 
