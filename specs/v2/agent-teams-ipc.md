@@ -1,4 +1,4 @@
-# Agent Teams IPC Analysis
+# Agent Teams IPC Analysis — shipped
 
 ## How Claude Code Agent Teams Communicate
 

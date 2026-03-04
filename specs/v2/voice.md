@@ -1,4 +1,4 @@
-# Voice Transcription
+# Voice Transcription — shipped
 
 Telegram voice messages transcribed via Whisper before entering the agent pipeline.
 

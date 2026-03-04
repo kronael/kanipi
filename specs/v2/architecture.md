@@ -1,4 +1,4 @@
-# kanipi v2 architecture
+# kanipi v2 architecture — partial
 
 Nanoclaw fork. Telegram-first gateway, systemd-managed,
 MCP sidecar extensibility.

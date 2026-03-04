@@ -1,4 +1,4 @@
-# Plugins (v2)
+# Plugins (v2) — open
 
 Enableable plugin system for kanipi instances, similar to Eliza's
 character-level plugin config.
