@@ -20,8 +20,8 @@ if (EMAIL_IMAP_HOST) {
 `src/channels/email.ts` — `EmailChannel implements Channel`:
 
 - `name = 'email'`
-- `connect()` — open IMAP, start IDLE loop. Retries with exponential
-  backoff (1s, 2s, 4s… cap 60s) on initial connect failure.
+- `connect()` — open IMAP, start IDLE loop. On any error, close and
+  reconnect with exponential backoff (1s, 2s, 4s… cap 60s).
 - `disconnect()` — close IMAP + SMTP connections
 - `sendMessage(jid, text)` — look up outbound info from DB by
   `thread_id`, send SMTP reply
@@ -29,25 +29,23 @@ if (EMAIL_IMAP_HOST) {
 ## Group routing
 
 All email messages route to the first registered group with
-`requires_trigger=0` (i.e. the `main` group). Same behaviour as the
-web channel.
+`requires_trigger=0` (the `main` group). Same behaviour as the web channel.
 
 ## Source and sink
 
-`EMAIL_ACCOUNT` is the bot's inbox — the channel identity admitted into
-the gateway. Anyone emailing that address becomes a sender.
+`EMAIL_ACCOUNT` is the bot's inbox and the channel identity. Anyone emailing
+that address becomes a sender. Single account per instance.
 
-- **Inbound**: IMAP IDLE on `EMAIL_ACCOUNT`'s INBOX. Server notifies
-  on new mail; client issues `FETCH` immediately. Falls back to 60s
-  poll if IDLE unsupported (rare).
+- **Inbound**: IMAP IDLE on `EMAIL_ACCOUNT`'s INBOX. Server notifies on new
+  mail; client issues `FETCH` immediately. Falls back to 60s poll if IDLE
+  unsupported.
 - **Outbound**: SMTP reply from `EMAIL_ACCOUNT` via `In-Reply-To` +
   `References` headers.
-- Single account per instance.
 
-## IMAP IDLE
+## IMAP IDLE loop
 
-`imapflow` exposes `.idle()` which sends the IDLE command and resolves
-when the server pushes `EXISTS` or `EXPUNGE`. Loop:
+`imapflow` exposes `.idle()` which sends the IDLE command and resolves when
+the server pushes `EXISTS` or `EXPUNGE`:
 
 ```typescript
 while (connected) {
@@ -56,27 +54,21 @@ while (connected) {
 }
 ```
 
-`fetchUnseen()`: search INBOX for messages without the `\Seen` flag
-that are absent from `email_threads` (double guard against re-fetch
-on restart). Mark each fetched message `\Seen` immediately after
-storing to `email_threads`.
-
-On any error (connect or `idle()`), close connection and reconnect
-with exponential backoff (1s, 2s, 4s… cap 60s).
+`fetchUnseen()`: search INBOX for messages without the `\Seen` flag that are
+absent from `email_threads` (double guard against re-fetch on restart). Mark
+each fetched message `\Seen` immediately after storing.
 
 ## JID format
 
 `email:<thread_id>` where `thread_id` = first 12 hex chars of
 `sha256(root_message_id)`.
 
-New thread (no `In-Reply-To` match) → hash the inbound `Message-ID`
-as thread root.
-Existing thread → look up `message_id → thread_id` in DB via
-`In-Reply-To` header → reuse thread_id.
+- New thread (no `In-Reply-To` match): hash the inbound `Message-ID` as
+  thread root.
+- Existing thread: look up `message_id → thread_id` in DB via `In-Reply-To`
+  header, reuse `thread_id`.
 
 ## Sender identity
-
-Follows the same sub-prefix pattern as auth providers:
 
 ```
 sender      = "email:user@example.com"   // from-address
@@ -88,7 +80,7 @@ Cross-channel linking in v2 — see `specs/v2/identities.md`.
 
 ## Message metadata
 
-Email carries rich metadata injected as context before the body:
+Injected as context before the body:
 
 ```
 From: Alice <alice@example.com>
@@ -98,13 +90,12 @@ To: bot@example.com
 CC: bob@example.com
 ```
 
-Prepended to `content` so the agent sees it alongside the body.
-Attachments passed through the mime pipeline (`processAttachments`)
-same as Telegram/WhatsApp.
+Attachments passed through the mime pipeline (`processAttachments`) same as
+Telegram/WhatsApp.
 
 ## Threading
 
-`email_threads` stores both directions:
+`email_threads` table:
 
 ```sql
 CREATE TABLE IF NOT EXISTS email_threads (
@@ -117,25 +108,21 @@ CREATE TABLE IF NOT EXISTS email_threads (
 CREATE INDEX IF NOT EXISTS idx_email_thread ON email_threads(thread_id);
 ```
 
+Added via `database.exec()` in `createSchema()` in `db.ts`.
+
 Outbound `sendMessage(jid, text)`:
 
 1. Extract `thread_id` from jid (`email:<thread_id>`).
-2. Query `email_threads WHERE thread_id = ? LIMIT 1` → get
-   `from_address` (reply-to) and `root_msg_id` (References header).
+2. Query `email_threads WHERE thread_id = ? LIMIT 1` → get `from_address`
+   (reply-to) and `root_msg_id` (References header).
 3. Send via SMTP with `In-Reply-To: <root_msg_id>` +
    `References: <root_msg_id>`.
-
-## Libraries
-
-- `imapflow` — IMAP + IDLE (Promise-based)
-- `nodemailer` — SMTP sending
-- `mailparser` — parse raw RFC 2822 messages (addresses, text body)
 
 ## Config
 
 ```env
 EMAIL_IMAP_HOST=imap.gmail.com
-EMAIL_SMTP_HOST=smtp.gmail.com
+EMAIL_SMTP_HOST=smtp.gmail.com   # defaults to imap host with imap. → smtp.
 EMAIL_ACCOUNT=bot@example.com
 EMAIL_PASSWORD=app-password
 ```
@@ -157,22 +144,17 @@ export const EMAIL_PASSWORD =
   process.env.EMAIL_PASSWORD || envConfig.EMAIL_PASSWORD || '';
 ```
 
-Also add `'EMAIL_IMAP_HOST', 'EMAIL_SMTP_HOST', 'EMAIL_ACCOUNT',
-'EMAIL_PASSWORD'` to the `readEnvFile()` call.
+Add `'EMAIL_IMAP_HOST', 'EMAIL_SMTP_HOST', 'EMAIL_ACCOUNT', 'EMAIL_PASSWORD'`
+to the `readEnvFile()` call.
 
-## DB schema
+## Libraries
 
-Added via `database.exec()` in `createSchema()` in `db.ts` (see
-Threading section above for full DDL).
+- `imapflow` — IMAP + IDLE (Promise-based)
+- `nodemailer` — SMTP sending
+- `mailparser` — parse raw RFC 2822 messages (addresses, text body)
 
-## V1 scope
-
-- IMAP IDLE with 60s poll fallback
-- Plain text + HTML body (extract as plain text via mailparser)
-- Threading via `In-Reply-To` / `References`
-- Attachments via mime pipeline
-- Single account per instance
-
-## V2 additions
+## Out of scope (v1)
 
 - Multi-account
+- Folder routing (all mail → main group)
+- Plain text body only (HTML stripped by mailparser)

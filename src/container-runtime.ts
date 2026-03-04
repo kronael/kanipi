@@ -22,14 +22,6 @@ export function stopContainer(name: string): string {
   return `${CONTAINER_RUNTIME_BIN} stop ${name}`;
 }
 
-/** Run a docker command with the given args; returns stdout. Exported for testing. */
-export function runDocker(args: string[]): string {
-  return execSync(`${CONTAINER_RUNTIME_BIN} ${args.join(' ')}`, {
-    stdio: ['pipe', 'pipe', 'pipe'],
-    encoding: 'utf-8',
-  });
-}
-
 /** Ensure the container runtime is running, starting it if needed. */
 export function ensureContainerRuntimeRunning(): void {
   try {
