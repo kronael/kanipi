@@ -175,6 +175,7 @@ function buildVolumeMounts(
     settings.env = settings.env ?? {};
     settings.env.WEB_HOST = WEB_HOST;
     settings.env.NANOCLAW_ASSISTANT_NAME = ASSISTANT_NAME;
+    settings.env.NANOCLAW_IS_MAIN = isMain ? '1' : '';
     if (group.slinkToken) settings.env.SLINK_TOKEN = group.slinkToken;
     fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
   }
