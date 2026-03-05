@@ -55,21 +55,23 @@ confusion or repeated introductions.
 
 When a new session starts (idle timeout, container restart), the agent
 loses SDK context but the prior conversation archive exists in
-`conversations/`. Two options:
+`conversations/`. Gateway injects a brief pointer into the first prompt:
 
-**Option A — inject archive into first prompt**: gateway reads the most
-recent `conversations/*.md` and prepends it to the first prompt of the
-new session. Agent immediately has prior context and can compact/summarise
-it in CLAUDE.md if it wants. Simple, no extra infrastructure.
+```
+[Last session: 2026-03-05 — "alice-deployment-help" — Alice asked about
+deploying to hel1v5, discussed Ansible playbook. Full transcript at
+/workspace/group/conversations/2026-03-05-alice-deployment-help.md]
+```
 
-**Option B — Haiku summarisation**: before starting the new session,
-gateway spawns a cheap Haiku call with the last archive as input, gets a
-2-3 sentence summary, injects that into the first prompt. Cheaper context
-window usage than the full archive. Requires Anthropic API access from the
-gateway process.
+~100 words maximum. The agent then decides:
 
-Option A is simpler and lets the agent decide what to retain. Option B
-is cheaper for long conversations.
+- Read the full archive if it needs more context
+- Summarise it into CLAUDE.md if it wants to retain key facts
+- Ignore it if the new conversation is unrelated
 
-Injection should only happen when a prior archive exists and the session
-is genuinely new (not a resume of an existing session ID).
+Gateway generates this pointer by reading the archive filename + first
+few lines (title + opening exchange). No separate summarisation call —
+the agent is the one with judgment about what matters.
+
+Injection only when a prior archive exists and the session is genuinely
+new (not a resume of an existing session ID).
