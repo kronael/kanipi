@@ -1,6 +1,8 @@
 # Memory: Diary — open
 
 Agent-written daily notes. Pre-compaction flush. Automatic, always on.
+The agent decides what goes in — content is subjective, freeform, chosen
+by the agent. Contrast with episodes (v2) which are mechanically produced.
 
 ## What it is
 
