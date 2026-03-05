@@ -44,7 +44,24 @@ const groupWatchers = new Map<
   { messages: fs.FSWatcher | null; tasks: fs.FSWatcher | null }
 >();
 
+// Per-group drain locks — prevents concurrent drains from sending duplicates
+const drainLocks = new Map<string, boolean>();
+
 async function drainGroupMessages(
+  ipcBaseDir: string,
+  sourceGroup: string,
+  deps: IpcDeps,
+): Promise<void> {
+  if (drainLocks.get(sourceGroup)) return;
+  drainLocks.set(sourceGroup, true);
+  try {
+    await drainGroupMessagesInner(ipcBaseDir, sourceGroup, deps);
+  } finally {
+    drainLocks.delete(sourceGroup);
+  }
+}
+
+async function drainGroupMessagesInner(
   ipcBaseDir: string,
   sourceGroup: string,
   deps: IpcDeps,
