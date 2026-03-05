@@ -103,7 +103,8 @@ Channel-native handles:
 
   `time` and `ago` on both elements — agent cannot infer elapsed time from
   ISO timestamps alone. `ago` computed at inject time from message timestamp.
-  The `in_reply_to` body is the quoted message text (truncated if long).
+  `in_reply_to` body is the quoted message text, truncated to 120 chars.
+  Always available — message is looked up from DB at inject time.
 
 - OpenClaw uses a `replyToMode` config (`off` / `first` / `all`) for
   outbound — controls whether only the first response chunk carries
@@ -174,8 +175,13 @@ stanza ID. Store the raw object as JSON in `messages.raw` (nullable column)
 on inbound — look it up by stanza ID at send time. Survives restarts, no
 in-memory cache needed. Without it, fall back to plain send (no quote bubble).
 
-**4. Discord** — thread channel ID already available as the channel JID.
-Reply-to within a channel: `interaction.message?.id`. Lower priority.
+**4. Discord** — two distinct concepts:
+
+- **Thread channel**: sub-channel spun off a message, has its own channel ID.
+  Already handled by JID routing (`discord:<thread-channel-id>`). No `replyTo`
+  needed — the agent is already in the right room.
+- **Message reply**: `message.reference?.messageId` on inbound. On outbound:
+  `channel.send({ content: text, reply: { messageReference: replyTo } })`.
 
 **5. `messages.raw` column** — add nullable `raw TEXT` to the `messages`
 table via migration (`ALTER TABLE messages ADD COLUMN raw TEXT`). WhatsApp
@@ -201,11 +207,12 @@ attributes to `<message>` itself. `ago` = human-readable elapsed ("2m", "1h",
 
 ## Optional interface coverage
 
-| Method         | telegram | whatsapp | discord | email |
-| -------------- | -------- | -------- | ------- | ----- |
-| `setTyping`    | ✓        | ✓        | ✗       | ✗     |
-| `sendDocument` | ✓        | ✓        | ✓       | ✗     |
-| threading      | ✗ open   | ✗ open   | ✗ open  | ✓     |
+| Method          | telegram | whatsapp | discord | email                                                       |
+| --------------- | -------- | -------- | ------- | ----------------------------------------------------------- |
+| `setTyping`     | ✓        | ✓        | ✗       | ✗                                                           |
+| `sendDocument`  | ✓        | ✓        | ✓       | ✗                                                           |
+| threading       | ✗ open   | ✗ open   | ✗ open  | ✓                                                           |
+| email `replyTo` | n/a      | n/a      | n/a     | = `Message-ID` of parent; `thread_id` is separate (routing) |
 
 ## v2: plugin loading
 
