@@ -175,10 +175,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   await waitForEnrichments(missedMessages.map((m) => m.id));
 
-  // Re-fetch after enrichment so voice/video transcriptions are included.
-  const enriched = getMessagesSince(chatJid, sinceTimestamp, ASSISTANT_NAME);
+  // Re-fetch to get enriched content (voice/video transcriptions written to DB).
   const prompt = formatMessages(
-    enriched.length > 0 ? enriched : missedMessages,
+    getMessagesSince(chatJid, sinceTimestamp, ASSISTANT_NAME),
   );
 
   // Advance cursor so the piping path in startMessageLoop won't re-fetch
@@ -429,11 +428,13 @@ async function startMessageLoop(): Promise<void> {
           const messagesToSend =
             allPending.length > 0 ? allPending : groupMessages;
           await waitForEnrichments(messagesToSend.map((m) => m.id));
-          // Re-fetch after enrichment so voice/video transcriptions are included.
-          const sinceTs = lastAgentTimestamp[chatJid] || '';
-          const refreshed = getMessagesSince(chatJid, sinceTs, ASSISTANT_NAME);
+          // Re-fetch to get enriched content (voice/video transcriptions).
           const formatted = formatMessages(
-            refreshed.length > 0 ? refreshed : messagesToSend,
+            getMessagesSince(
+              chatJid,
+              lastAgentTimestamp[chatJid] || '',
+              ASSISTANT_NAME,
+            ),
           );
 
           if (queue.sendMessage(chatJid, formatted)) {
