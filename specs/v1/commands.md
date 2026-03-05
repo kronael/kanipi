@@ -61,15 +61,20 @@ native registration is additive, not a replacement.
 
 ## Agent discoverability
 
-Gateway writes `commands.json` to the group IPC directory on startup
+Gateway writes `commands.xml` to the group IPC directory on startup
 (updated when registry changes):
 
-```json
-[
-  { "name": "new", "description": "Start a fresh session", "usage": "/new" },
-  { "name": "ping", "description": "Check bot status", "usage": "/ping" }
-]
+```xml
+<commands>
+  <command name="new" description="Start a fresh session" usage="/new" />
+  <command name="ping" description="Check bot status" usage="/ping" />
+</commands>
 ```
+
+XML chosen over JSON: agents parse inline XML better in prompt contexts
+(see `specs/xml-vs-json-llm.md` — XML wins for prompt inputs; JSON for
+inter-process protocols). `commands.xml` is read into agent context,
+not a protocol payload, so XML is appropriate.
 
 Agent reads this file to know what commands exist and how to describe
 them to users. Per-channel phrasing is the agent's responsibility —
