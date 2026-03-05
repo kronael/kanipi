@@ -45,35 +45,6 @@ the `.jl` file.
 
 `memory/` is at project level — shared across all sessions for the project.
 
-### sessions-index.json
-
-Written by Claude Code after compaction or summarization. Not always
-present. Format:
-
-```json
-{
-  "version": 1,
-  "entries": [
-    {
-      "sessionId": "b0a5a2cd-...",
-      "fullPath": "/home/node/.claude/projects/-workspace-group/b0a5a2cd.jl",
-      "fileMtime": 1770032833624,
-      "firstPrompt": "Implement the following plan...",
-      "summary": "Fact Verification System with Header Updates",
-      "messageCount": 31,
-      "created": "2026-02-01T15:00:32.274Z",
-      "modified": "2026-02-01T16:07:18.795Z",
-      "gitBranch": "develop",
-      "projectPath": "/workspace/group",
-      "isSidechain": false
-    }
-  ]
-}
-```
-
-The agent can read this file directly via file tools to discover past
-sessions and their summaries.
-
 ### JSONL entry types
 
 Observed in live transcripts: `progress`, `assistant`, `user`, `system`,
@@ -113,9 +84,10 @@ Context injection on reset is handled by the diary layer
 
 ## Pull (on demand)
 
-Agent reads `sessions-index.json` and individual `.jl` transcripts
-directly via file tools. `sessions-index.json` gives summaries without
-parsing raw JSONL; present only after compaction.
+Agent can read individual `.jl` transcripts directly via file tools.
+Raw JSONL is SDK-internal format — not easily parseable by the agent.
+No index file exists; on-demand pull is not practically useful without
+a purpose-built tool.
 
 ## Episode notes (rhias, Mar 2026)
 
