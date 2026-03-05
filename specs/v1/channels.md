@@ -89,12 +89,57 @@ Channel-native handles:
 ### Current state
 
 Email is the only channel with threading implemented, via `email_threads` in
-`db.ts` (`message_id → thread_id → root_msg_id`). All other channels start
-new conversations on every reply.
+`db.ts` (`message_id → thread_id → root_msg_id`). All other channels drop
+reply context — inbound replies in group chats arrive as plain messages with
+no `replyTo` set.
 
-`NewMessage.replyTo?: string` and `sendMessage` opts deferred until a second
-channel needs threading. `email_threads` to be generalised to
-`channel_threads (channel, thread_id, root_msg_id)` at that point.
+### To ship
+
+**1. `src/types.ts`** — add `replyTo` to `NewMessage`:
+
+```typescript
+export interface NewMessage {
+  // ...existing fields...
+  replyTo?: string; // channel-native reply handle; omit if not a reply
+}
+```
+
+**2. Telegram** (`src/channels/telegram.ts`) — grammy exposes
+`ctx.message.reply_to_message?.message_id`. Populate on inbound:
+
+```typescript
+replyTo: ctx.message.reply_to_message?.message_id?.toString(),
+```
+
+On outbound `sendMessage` with `opts?.replyTo`:
+
+```typescript
+await ctx.api.sendMessage(chatId, text, {
+  reply_parameters: { message_id: parseInt(opts.replyTo) },
+});
+```
+
+**3. WhatsApp** (`src/channels/whatsapp.ts`) — baileys exposes
+`msg.message?.extendedTextMessage?.contextInfo?.stanzaId` as the quoted
+message ID. Populate on inbound:
+
+```typescript
+replyTo: msg.message?.extendedTextMessage?.contextInfo?.stanzaId,
+```
+
+On outbound with `opts?.replyTo`, pass as `quoted` to baileys `sendMessage`.
+Requires fetching the original message object — may need to store recent
+messages in memory or skip quoted object and send plain reply.
+
+**4. Discord** — thread channel ID already available as the channel JID.
+Reply-to within a channel: `interaction.message?.id`. Lower priority.
+
+**5. `email_threads`** — generalise to `channel_threads` only when a second
+channel needs it. Email threading stays on `email_threads` for now.
+
+**6. `prompt-format.md`** — `reply_to` attribute on `<message>` is already
+specced; needs to be emitted by `formatMessages()` once `NewMessage.replyTo`
+is populated.
 
 ## Implementations
 
