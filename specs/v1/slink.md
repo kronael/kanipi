@@ -49,13 +49,19 @@ POST /pub/s/<token>
 Authorization: Bearer <jwt>   (optional)
 Content-Type: application/json
 
-{ "text": "..." }
+{ "text": "...", "media_url": "https://..." }
 ```
+
+`text` and `media_url` are both optional but at least one must be present.
+`media_url` — URL to an image or file; gateway fetches and attaches it
+as a media message alongside `text`. Content-Type is guessed from the
+URL extension; falls back to `application/octet-stream`.
 
 Responses:
 
 ```
 200  { "ok": true }
+401  { "error": "unauthorized" }   (malformed/invalid JWT supplied)
 404  { "error": "not found" }
 429  { "error": "rate limited" }
 ```
@@ -65,6 +71,9 @@ sender_name, content })` and returns. Caller does not wait for agent reply.
 
 `sender` — JWT `sub` if present, otherwise `anon_<ip-hash>`
 `sender_name` — JWT `name` claim if present, otherwise omitted
+
+A supplied JWT that fails verification returns 401. Omitting the
+`Authorization` header entirely is allowed (anonymous mode).
 
 ---
 

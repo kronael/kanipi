@@ -86,17 +86,15 @@ Channel-native handles:
 | whatsapp | quoted message key              | `quoted` field in Baileys    |
 | email    | root `Message-ID` header value  | `In-Reply-To` + `References` |
 
-`NewMessage.replyTo?: string` field not yet added — open.
-`sendMessage` opts not yet wired in implementations — open.
-
 ### Current state
 
 Email is the only channel with threading implemented, via `email_threads` in
 `db.ts` (`message_id → thread_id → root_msg_id`). All other channels start
 new conversations on every reply.
 
-`email_threads` should be generalised to a `channel_threads` table keyed by
-`(channel, thread_id)` once a second channel implements threading.
+`NewMessage.replyTo?: string` and `sendMessage` opts deferred until a second
+channel needs threading. `email_threads` to be generalised to
+`channel_threads (channel, thread_id, root_msg_id)` at that point.
 
 ## Implementations
 
