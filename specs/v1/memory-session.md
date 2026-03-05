@@ -1,207 +1,86 @@
 # Memory: Session — open
 
-Claude Code session continuity across container invocations.
+SDK session continuity across container invocations. Automatic, always on.
 
-## Storage layer
+## What it is
 
-Three things persist on the host across all spawns:
+A session is a Claude Code SDK conversation identified by a session ID.
+The SDK stores the full transcript as a `.jsonl` file. When the gateway
+spawns a container with `resume: sessionId`, the agent picks up exactly
+where it left off — full context, no re-introduction needed.
 
-### 1. JSONL transcripts
+## Push (auto-injected)
 
-Claude Code writes one `.jsonl` per session to
-`data/sessions/<folder>/.claude/projects/-workspace-group/`.
+On session reset (idle timeout, stale ID), the gateway injects a pointer
+to the most recent diary summary before the message XML. See
+`specs/v1/memory-diary.md`.
 
-**Compaction and session identity — unverified, sources conflict:**
+On normal resume, nothing is injected — SDK context is intact.
 
-- GitHub #29342: manual `/compact` creates a new session ID (B → C, new JSONL).
-  The `newSessionId` the agent runner returns would be the post-compaction ID.
-- Other sources: auto-compact keeps the same session ID and appends to the same
-  JSONL file; only the in-context representation is replaced with a summary.
+## Pull (on demand)
 
-Most likely split: **auto-compact** (what fires in our containers) keeps the
-same session/file; **manual `/compact`** creates a new one. Needs verification
-against actual SDK behaviour in our container setup before implementing.
+`sessions-index.json` at
+`/home/node/.claude/projects/-workspace-group/sessions-index.json` maps
+each session ID to a Claude Code-generated summary. Readable by the agent
+via file tools.
 
-```
-abc123.jsonl         ← session file(s), old turns preserved on disk
-sessions-index.json  ← Claude Code-written: sessionId → summary text
-```
+JSONL transcripts are not useful to the agent directly (SDK internal
+format). Exposing them via a `get_transcript` MCP tool is open.
 
-JSONL files are not directly useful to the agent (SDK internal format) but
-are the raw record of everything. Not exposed to the agent by default.
-
-### 2. Diary entries
-
-Agent-written notes at `groups/<folder>/diary/YYYYMMDD.md`.
-Created during the **pre-compaction silent flush** (see below).
-Appended if a file for today already exists. Permanent — never deleted.
-Format freeform markdown, decided by the agent.
-
-Alongside entries, the agent maintains `diary/summary.md` — a single file
-updated every time a diary entry is written, containing a ≤20-word summary
-of the current state. This is the only file the gateway reads for pointer
-injection. The agent decides what the summary says.
-
-```
-diary/
-  20260305.md     ← today's diary entry (may be appended multiple times)
-  20260304.md     ← yesterday
-  summary.md      ← "Deployed hel1v5. Alice working on auth. Two open bugs." (≤20w)
-```
-
-brainpro loads `memory/YYYY-MM-DD.md` for today + yesterday automatically
-into every session. We could adopt the same pattern (auto-mount last 2 diary
-files) rather than pointer-only injection — kept open.
-
-### 3. CLAUDE.md / MEMORY.md
-
-Behavioural instructions and auto-memory — always loaded, survive everything.
-See `specs/v2/memory-managed.md`.
-
----
-
-## Pre-compaction diary flush
-
-Replaces the current mechanical PreCompact transcript-archive hook.
-
-When the context window approaches its limit (~95% capacity), Claude Code
-fires `PreCompact`. The agent runner hook injects a **silent turn** before
-returning, prompting the agent to write a diary entry:
-
-```
-Before this session compacts: write key facts, decisions, and context
-worth preserving to /workspace/group/diary/YYYYMMDD.md (append if exists).
-Reply NO_REPLY if nothing to note.
-```
-
-The agent decides what matters. The turn is invisible to the user.
-`NO_REPLY` responses are suppressed by the hook before returning.
-
-This replaces `createPreCompactHook` in `container/agent-runner/src/index.ts`.
-The mechanical transcript → markdown archive approach is dropped.
-
-**Known SDK issue**: `transcript_path` in `PreCompactHookInput` is sometimes
-empty (GitHub #13668). The silent flush approach is unaffected — it doesn't
-need the transcript path.
-
----
-
-## Session lifecycle
+## Lifecycle
 
 ```
 container start
   → gateway passes sessionId via stdin
-  → SDK resumes transcript → agent continues
+  → SDK resumes transcript → agent continues in context
   → agent runner returns newSessionId
   → gateway stores newSessionId
   → next spawn receives it → continuous session
 ```
 
-Session ID is per-group-folder. One active session per group.
+Session ID is per-group-folder. One active session per group (sequential,
+no parallel agents). See `group-queue.ts`.
 
-Claude Code auto-compacts when context fills — this creates a **new session
-and a new JSONL file**. Session ID changes. The `newSessionId` returned by the
-agent runner is stored by the gateway; the next spawn resumes from it.
-Diary flush fires before each compaction.
+## Compaction
 
----
+When context fills (~95%), Claude Code auto-compacts: generates a summary,
+replaces the in-context representation, continues the session. The diary
+flush fires before each compaction (see `specs/v1/memory-diary.md`).
+
+**Unverified**: whether auto-compact creates a new session ID and new JSONL
+file (GitHub #29342 suggests yes for manual `/compact`; other sources say
+auto-compact keeps the same ID). Needs verification in our container setup.
 
 ## Session reset
 
 Gateway idle timeout (`IDLE_TIMEOUT`, default 30min) kills the container.
-On next message the gateway starts a **new** SDK session (stored ID discarded).
+On next message the gateway starts a new SDK session (stored ID discarded).
 
-The new session has no SDK context. But:
+The new session has no SDK context. CLAUDE.md, MEMORY.md, and diary entries
+persist — behavioural and factual memory survive.
 
-- `CLAUDE.md` + `MEMORY.md` persist → behavioural memory intact
-- `diary/` entries persist → factual notes accessible
-- DB messages since last agent run are piped in → recent messages visible
-
-### Pointer injection on reset
-
-Gateway prepends a pointer to the first prompt:
-
-```
-[Previous sessions — Deployed hel1v5. Alice working on auth. Two open bugs.
-Diary: /workspace/group/diary/ (20260305.md, 20260304.md)]
-
-<messages>...</messages>
-```
-
-Pointer construction (gateway-side, no API call):
-
-1. Read `groups/<folder>/diary/summary.md` — the agent-maintained ≤20-word summary
-2. List diary filenames, take most recent 1–3
-3. Inject as ≤1 line before the message XML
-
-The gateway reads only `summary.md` — no content parsing of diary entries.
-Agent decides autonomously:
-
-- Read a diary file if the conversation is a continuation
-- Ignore if unrelated
-
-### When to inject
-
-| Situation                            | Action                        |
-| ------------------------------------ | ----------------------------- |
-| First ever start, no diary           | No injection                  |
-| Idle timeout reset, diary exists     | Inject pointer                |
-| SDK resume succeeded                 | No injection (context intact) |
-| Explicit fresh start (user or agent) | Inject diary index only       |
-
----
+Gateway injects a diary pointer before the first prompt so the agent knows
+prior context exists and can choose to read it.
 
 ## Session switching
 
-### Gateway-initiated reset
+| Trigger               | Mechanism                            | Result                                                |
+| --------------------- | ------------------------------------ | ----------------------------------------------------- |
+| Idle timeout          | Gateway discards stored ID           | New session + diary pointer                           |
+| Stale/rejected ID     | SDK resume fails, gateway falls back | New session + diary pointer                           |
+| Agent request         | IPC `type:'reset_session'`           | Gateway clears ID, new session + pointer              |
+| User keyword (`/new`) | Gateway detects before routing       | Gateway clears ID, new session + pointer (index only) |
 
-Idle timeout fires → gateway discards stored session ID → next spawn is
-fresh → pointer injection applies.
-
-### Agent-initiated reset
-
-Agent sends IPC message `type: 'reset_session'`. Gateway clears the stored
-session ID for this group. Next spawn starts fresh with pointer injection.
-Use case: agent decides the conversation thread is too stale to continue.
-
-### User-initiated fresh start
-
-User sends a message matching a reset keyword (e.g. `/new`, `/reset`).
-Gateway detects this before routing to agent, clears session ID, next spawn
-is fresh. Agent receives pointer injection so it knows prior context exists.
-
-### Fresh start without compaction context
-
-On explicit fresh start the pointer injection lists diary filenames only
-(no content snippet). Agent can read what it wants via file tools — nothing
-is force-loaded. This is the "skip compaction, just get refs" mode.
-
----
-
-## What the agent can access
-
-| Resource            | Path                                               | Who writes           | Access                          |
-| ------------------- | -------------------------------------------------- | -------------------- | ------------------------------- |
-| Diary entries       | `/workspace/group/diary/YYYYMMDD.md`               | Agent (silent flush) | Agent file tools                |
-| JSONL transcripts   | `/home/node/.claude/projects/.../*.jsonl`          | Claude Code          | Not exposed to agent by default |
-| sessions-index.json | same dir                                           | Claude Code          | Agent file tools (read)         |
-| MEMORY.md           | `/home/node/.claude/projects/.../memory/MEMORY.md` | Agent                | Auto-loaded (200 lines)         |
-| DB messages         | stdin pipe                                         | Gateway              | Injected as XML                 |
-
-JSONL transcripts are not directly useful to the agent — they contain SDK
-internal format. Diary entries and MEMORY.md are the agent-readable
-persistent layer.
-
----
+On explicit user reset, the pointer lists diary filenames only — no
+content injected. Agent reads what it wants.
 
 ## Open
 
 - Collapse `sessions` table into `registered_groups.session_id`
   (see `specs/v1/db-bootstrap.md`)
-- Handle SDK resume failure (stale ID) — detect error, fall back to new
+- Handle SDK resume failure gracefully — detect error, fall back to new
   session + inject pointer
-- `reset_session` IPC message type — not yet defined in `specs/v1/ipc-signal.md`
-- User reset keywords — detection in gateway message loop, not yet specced
-- Whether to expose JSONL transcripts to agent via a `get_transcript` MCP tool
-  (pull-side, on demand) — kept open
-- Review brainpro and muaddib approaches when accessible
+- `reset_session` IPC message type — not yet in `specs/v1/ipc-signal.md`
+- User reset keyword detection in gateway message loop
+- `get_transcript` MCP tool — expose JSONL to agent on demand
+- Verify auto-compact session ID behaviour in our container setup
