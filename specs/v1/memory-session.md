@@ -11,18 +11,19 @@ Three things persist on the host across all spawns:
 Claude Code writes one `.jsonl` per session to
 `data/sessions/<folder>/.claude/projects/-workspace-group/`.
 
-**Compaction creates a new JSONL file.** When context fills (~95%), Claude Code
-generates an LLM summary, starts a new session (new ID, new `.jsonl`), and
-injects the summary as the opening context. The old file is preserved untouched.
-The `newSessionId` the agent runner already returns is the post-compaction ID —
-the gateway stores it and resumes from there on the next spawn.
+**Compaction and session identity — unverified, sources conflict:**
 
-Over time the directory accumulates one file per session:
+- GitHub #29342: manual `/compact` creates a new session ID (B → C, new JSONL).
+  The `newSessionId` the agent runner returns would be the post-compaction ID.
+- Other sources: auto-compact keeps the same session ID and appends to the same
+  JSONL file; only the in-context representation is replaced with a summary.
+
+Most likely split: **auto-compact** (what fires in our containers) keeps the
+same session/file; **manual `/compact`** creates a new one. Needs verification
+against actual SDK behaviour in our container setup before implementing.
 
 ```
-abc123.jsonl   ← session 1, raw turns up to first compaction
-def456.jsonl   ← session 2, starts with compaction summary + new turns
-ghi789.jsonl   ← session 3, etc.
+abc123.jsonl         ← session file(s), old turns preserved on disk
 sessions-index.json  ← Claude Code-written: sessionId → summary text
 ```
 
