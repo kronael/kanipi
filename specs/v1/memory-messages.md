@@ -52,18 +52,33 @@ Bot messages filtered out (`is_bot_message = 0`).
 
 ## Session interaction
 
-The agent has two sources of history:
+Two sources of history exist:
 
 - **Gateway pipe** — messages from DB, sliding window (this spec)
-- **SDK session** — full prior turns replayed from `.jl` transcript on
-  container restart (`resume: sessionId`)
+- **SDK session** — full prior turns replayed from `.jl` transcript
 
-These overlap on session resume. On new session after reset, SDK session is
-empty but DB still has messages — agent sees what was said but not how it
-responded. The `gateway.new-session` system message with `<previous_session>`
-records helps orient the agent in this case.
+**Rule**: `<messages>` is only injected on **new session**. On session resume
+the SDK transcript already has full context — injecting DB messages would
+duplicate and potentially contradict it. Pending system messages are always
+flushed regardless.
 
-No deduplication between sources — agent reconciles.
+Envelope on new session:
+
+```xml
+<system origin="gateway" event="new-session">...</system>
+<system origin="diary" date="2026-03-04">...</system>
+<messages>...</messages>
+```
+
+Envelope on resume:
+
+```xml
+<!-- system messages only if queued, otherwise empty -->
+hey what's up
+```
+
+Gateway determines new vs resume by whether a stored `session_id` exists for
+the group before the spawn.
 
 ## Open
 
@@ -71,5 +86,3 @@ No deduplication between sources — agent reconciles.
   `formatMessages()` (see `specs/v1/channels.md`)
 - **No compaction** — `messages` table grows forever; no TTL, no row cap
 - **`get_history` IPC** — agent cannot query further back on demand
-- **Contradictory context** — session/DB overlap unresolved; may need flag
-  to suppress DB history when SDK session is live and covers the same period
