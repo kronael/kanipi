@@ -73,14 +73,15 @@ Full transcript: /workspace/group/conversations/2026-03-05-alice-deployment-help
 
 ### Pointer construction
 
-Gateway reads:
+Gateway reads from `groups/<folder>/conversations/` (host path):
 
-1. Most recent entry in `sessions-index.json` (or most recent file in
-   `conversations/` by mtime if index missing)
-2. Archive filename → date + title
-3. First ~5 lines of the archive body → opening exchange snippet
+1. Most recent `.md` file by filename sort (YYYY-MM-DD prefix → lexical = chronological)
+2. Filename → date + title (strip date prefix and `.md`)
+3. Archive body — skip the markdown header (title, archived timestamp, `---`)
+   and grab the first exchange (~5 lines of actual dialogue)
 
-Total pointer: ≤100 words. No API call — pure file read.
+Total pointer: ≤100 words. No API call, no `sessions-index.json` dependency
+(that file is Claude Code internal and not reliably writable by the agent runner).
 
 ### Agent behaviour
 
@@ -118,10 +119,13 @@ function buildSessionPointer(groupDir: string): string | null {
   const latest = files[0];
   const title = latest.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '');
   const date = latest.slice(0, 10);
-  const body = fs
+  // Skip header lines (title, archived timestamp, ---)
+  const lines = fs
     .readFileSync(path.join(convsDir, latest), 'utf-8')
-    .split('\n')
-    .slice(0, 8)
+    .split('\n');
+  const bodyStart = lines.findIndex((l) => l.startsWith('**'));
+  const body = lines
+    .slice(bodyStart >= 0 ? bodyStart : 4, (bodyStart >= 0 ? bodyStart : 4) + 6)
     .join(' ')
     .replace(/\s+/g, ' ')
     .slice(0, 300);
