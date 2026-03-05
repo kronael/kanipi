@@ -91,17 +91,19 @@ Channel-native handles:
 **OpenClaw** (separate project, not our upstream — for reference only):
 
 - Inbound: extracts reply context and **annotates the message body inline**
-  so the agent sees it without a lookup. OpenClaw uses a bracket format
-  (`[Replying to Alice id:123]\nbody\n[/Replying]`); we should use XML
-  to stay consistent with our prompt format:
+  so the agent sees it without a lookup. We use XML consistent with prompt
+  format, as a child element of `<message>`:
 
   ```xml
-  <reply_to sender="Alice" id="12345">original message text here</reply_to>
+  <message sender="Alice" time="2026-03-05T10:34Z" ago="2m">
+    <in_reply_to sender="Bob" time="2026-03-05T10:32Z" ago="4m">sure, what do you need</in_reply_to>
+    hey follow up on that
+  </message>
   ```
 
-  This goes prepended to the message content before it reaches the agent.
-  The `id` is the channel-native message ID (Telegram `message_id`,
-  WhatsApp `stanzaId`).
+  `time` and `ago` on both elements — agent cannot infer elapsed time from
+  ISO timestamps alone. `ago` computed at inject time from message timestamp.
+  The `in_reply_to` body is the quoted message text (truncated if long).
 
 - OpenClaw uses a `replyToMode` config (`off` / `first` / `all`) for
   outbound — controls whether only the first response chunk carries
@@ -167,8 +169,9 @@ replyTo: msg.message?.extendedTextMessage?.contextInfo?.stanzaId,
 ```
 
 On outbound with `opts?.replyTo`, pass as `quoted` to baileys `sendMessage`.
-Requires fetching the original message object — may need to store recent
-messages in memory or skip quoted object and send plain reply.
+Baileys requires the full `WAMessage` object (raw protobuf), not just the
+stanza ID — keep a small in-memory LRU cache of recent messages keyed by
+stanza ID. Without it, fall back to plain send (no quote bubble).
 
 **4. Discord** — thread channel ID already available as the channel JID.
 Reply-to within a channel: `interaction.message?.id`. Lower priority.
@@ -176,9 +179,10 @@ Reply-to within a channel: `interaction.message?.id`. Lower priority.
 **5. `email_threads`** — generalise to `channel_threads` only when a second
 channel needs it. Email threading stays on `email_threads` for now.
 
-**6. `prompt-format.md`** — `reply_to` attribute on `<message>` is already
-specced; needs to be emitted by `formatMessages()` once `NewMessage.replyTo`
-is populated.
+**6. `formatMessages()`** — emit `<in_reply_to sender time ago>` as child
+element of `<message>` when `NewMessage.replyTo` is set. Add `time` and `ago`
+attributes to `<message>` itself. `ago` = human-readable elapsed ("2m", "1h",
+"3d") computed from message timestamp at format time.
 
 ## Implementations
 
