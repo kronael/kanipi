@@ -12,13 +12,26 @@ user message. The agent receives full context about what the gateway did or
 observed before that turn.
 
 ```xml
-<system origin="command:/new">user invoked /new — session reset intentionally</system>
-<system origin="diary">last session: 2026-03-04 — "discussed API design and auth flow"</system>
+<system origin="gateway" event="session-reset" prev="9123f10a fa649547 3c8a12bb">session reset</system>
+<system origin="command" event="new">user invoked /new</system>
+<system origin="diary" date="2026-03-04">deployed hel1v5, auth flow open</system>
 hey what's up
 ```
 
 The user message follows the system block as plain text, matching what the
 user actually typed.
+
+## Schema
+
+```xml
+<system origin="<subsystem>" [event="<event>"] [<attr>="<value>" ...]>body</system>
+```
+
+- `origin` — subsystem that produced the message (`gateway`, `command`,
+  `diary`, `episode`, `fact`)
+- `event` — optional, names the specific event within the subsystem
+- additional attributes are optional and per-origin (see Origins table)
+- body — free-form human-readable note for the agent; may be empty
 
 ## Queue
 
@@ -26,8 +39,10 @@ Gateway maintains a `pendingSystemMessages: SystemMessage[]` per group.
 
 ```ts
 interface SystemMessage {
-  origin: string; // who produced it — see Origins below
-  body: string; // free text; agent-readable annotation
+  origin: string; // subsystem
+  event?: string; // optional event name
+  attrs?: Record<string, string>; // optional extra attributes
+  body: string; // free text
 }
 ```
 
@@ -36,7 +51,7 @@ interface SystemMessage {
 **Flush**: on each inbound user message, gateway:
 
 1. Drains the queue for that group
-2. Serialises as `<system origin="…">…</system>` lines
+2. Serialises as `<system ...>…</system>` lines
 3. Prepends to stdin before the user message
 4. Clears queue
 
@@ -44,18 +59,15 @@ If the queue is empty, stdin is just the user message — no overhead.
 
 ## Origins
 
-| Origin                  | Producer               | When                                 |
-| ----------------------- | ---------------------- | ------------------------------------ |
-| `command:/new`          | `/new` command handler | User resets session                  |
-| `command:<name>`        | any command handler    | Command sets context                 |
-| `gateway:session-reset` | message loop           | Idle timeout session drop            |
-| `gateway:new-day`       | message loop           | First message of a new calendar day  |
-| `diary`                 | diary layer            | Session start — last session pointer |
-| `episode`               | episode layer (v2)     | Periodic summary injection           |
-| `fact`                  | facts layer (v2)       | Proactive fact retrieval result      |
-
-Origin format: `<subsystem>` or `<subsystem>:<detail>`. Free-form but
-consistent — the agent uses it to understand provenance.
+| Origin    | Event           | Extra attrs            | Producer               | When                                |
+| --------- | --------------- | ---------------------- | ---------------------- | ----------------------------------- |
+| `gateway` | `session-reset` | `prev` (space-sep IDs) | message loop           | Idle timeout or stale ID recovery   |
+| `gateway` | `new-day`       | —                      | message loop           | First message of a new calendar day |
+| `command` | `new`           | —                      | `/new` command handler | User resets session                 |
+| `command` | `<name>`        | —                      | any command handler    | Command sets context                |
+| `diary`   | —               | `date`                 | diary layer            | Session start — last diary pointer  |
+| `episode` | —               | —                      | episode layer (v2)     | Periodic summary injection          |
+| `fact`    | —               | —                      | facts layer (v2)       | Proactive fact retrieval            |
 
 ## Agent awareness
 
