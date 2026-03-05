@@ -1,10 +1,10 @@
 # Specs to finish (v1)
 
-- message-threading (in channels.md — replyTo, sendMessage opts, channel_threads generalisation)
+- message-threading (~5% — email outbound only; missing: NewMessage.replyTo, SendOpts, sendMessage opts param, channel_threads table, inbound replyTo, telegram/discord/whatsapp support)
 - commands.md (~5% implemented)
 - system-messages.md (0% implemented)
 - memory-diary.md (~25% implemented)
 - memory-session.md (~75% implemented)
-- prompt-format.md (open)
+- prompt-format.md — updated, open items remain (reply_to not emitted)
 - plugins.md (open)
 - cli.md (partial)
