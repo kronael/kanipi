@@ -1,4 +1,4 @@
-# DB bootstrap spec (v2) — open
+# DB bootstrap spec — open
 
 ## Problem
 
@@ -17,11 +17,24 @@ migrations are not recorded, failures are silently swallowed.
 2. `new Database(dbPath)` — creates file
 3. `createSchema(db)` — idempotent `CREATE TABLE IF NOT EXISTS`
 4. `ALTER TABLE` migrations (try/catch, no version tracking)
-5. `migrateJsonState()` — one-time JSON→SQLite migration
 
 DB path: `store/messages.db` (relative to cwd).
 
 ## Proposed
+
+### Migration files
+
+Each migration is a `.sql` file in `migrations/` at the project root:
+
+```
+migrations/
+  0001-slink-token.sql
+  0002-context-mode.sql
+  0003-is-bot-message.sql
+  0004-chat-channel.sql
+```
+
+Plain SQL — no conditionals, no procedures. The runner handles sequencing.
 
 ### Migrations table
 
@@ -32,72 +45,68 @@ CREATE TABLE IF NOT EXISTS migrations (
 );
 ```
 
-Matches the core/news connector model. `applied_at` is ISO-8601 UTC string
-(SQLite has no timestamp type).
+`applied_at` is ISO-8601 UTC (SQLite has no timestamp type).
 
-### Migration runner
+### `src/migrations.ts`
 
-SQLite has no stored procedures, so the condition logic lives in TypeScript:
+Single module shared by gateway and CLI. Reads `.sql` files from
+`./migrations/` (cwd-relative, matching project layout).
 
 ```typescript
-type Migration = { version: number; up: (db: Database.Database) => void };
+export function ensureDatabase(dbPath: string): Database.Database;
+```
 
-function runMigrations(db: Database.Database, migrations: Migration[]): void {
+Internally: mkdir → open → baseline `CREATE TABLE IF NOT EXISTS` →
+`runMigrations(db)`.
+
+Runner logic — applies each migration if it is exactly `max(version) + 1`:
+
+```typescript
+function runMigrations(db: Database.Database): void {
   db.exec(`CREATE TABLE IF NOT EXISTS migrations (
     version    INTEGER PRIMARY KEY,
     applied_at TEXT NOT NULL
   )`);
+  const files = fs
+    .readdirSync('./migrations')
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
   const maxVersion =
     (db.prepare('SELECT max(version) AS v FROM migrations').get() as any)?.v ??
     0;
-  for (const m of migrations) {
-    if (m.version === maxVersion + 1) {
+  for (const file of files) {
+    const version = parseInt(file, 10);
+    if (version === maxVersion + 1) {
+      const sql = fs.readFileSync(path.join('./migrations', file), 'utf-8');
       db.transaction(() => {
-        m.up(db);
+        db.exec(sql);
         db.prepare(
           'INSERT INTO migrations (version, applied_at) VALUES (?, ?)',
-        ).run(m.version, new Date().toISOString());
+        ).run(version, new Date().toISOString());
       })();
     }
   }
 }
 ```
 
-Each migration runs only if its version is exactly `max(version) + 1` —
-identical logic to the Python core pattern, no procedures needed. Runs on
-every gateway start; no-op when already at latest version.
+Runs on every gateway start; no-op when already at latest version.
+Existing databases start at version 0 (no rows in `migrations`).
 
-### `src/schema.ts`
+### Migration file format
 
-Single module shared by gateway and CLI:
+Plain SQL executed as-is. No conditionals — the runner guarantees each file
+runs exactly once. Backfills that need the current `ASSISTANT_NAME` value
+are handled by passing it in as a parameter if needed, or using a
+`UPDATE ... WHERE content LIKE 'Andy:%'` with a fixed default acceptable
+for the backfill case.
 
-```typescript
-export function ensureDatabase(dbPath: string): Database.Database;
-```
+### Replacing `initDatabase()`
 
-Internally: mkdir → open → `CREATE TABLE IF NOT EXISTS` baseline schema →
-`runMigrations(db, migrations)`. Replaces `initDatabase()` in `db.ts` and
-eliminates inline DDL from bash `group add`.
-
-### Migration list example
-
-```typescript
-const migrations: Migration[] = [
-  {
-    version: 1,
-    up(db) {
-      db.exec(`ALTER TABLE messages ADD COLUMN sender_channel TEXT`);
-    },
-  },
-  // next migration goes here as version: 2, gated on max = 1
-];
-```
-
-Existing databases start at version 0 (no row in `migrations`). First
-migration applies unconditionally (0 + 1 = 1).
+`ensureDatabase(dbPath)` replaces `initDatabase()` in `db.ts` and is
+importable by the CLI `group add` command — no more inline DDL in bash.
 
 ## Bash interim
 
-Until `src/schema.ts` ships, bash `group add` continues with inline DDL for
-`chats` and `registered_groups` only. Gateway `initDatabase` is idempotent
+Until `src/migrations.ts` ships, bash `group add` continues with inline DDL
+for `chats` and `registered_groups` only. Gateway `initDatabase` is idempotent
 and adds missing tables/columns on first start.
