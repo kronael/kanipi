@@ -30,19 +30,7 @@ IPC command).
 
 ---
 
-## Skill seeding — shipped
-
-Skills in `container/skills/` are seeded at runtime, not baked into the image.
-On first container spawn per group, gateway does:
-
-```typescript
-fs.cpSync('container/skills/', DATA_DIR/sessions/<group>/.claude/skills/, { recursive: true })
-```
-
-Only runs if destination doesn't exist. Agent can modify its own copy.
-Updates propagate via the `/migrate` skill (main group only) which compares
-`/workspace/self/container/skills/` against all groups' `~/.claude/skills/`
-and copies changed skills. `/workspace/self` = kanipi source, mounted read-only.
+See `specs/v1/skills.md` for how skills are seeded and updated.
 
 ## Plugin Types
 
