@@ -76,6 +76,15 @@ function createSchema(database: Database.Database): void {
       group_folder TEXT PRIMARY KEY,
       session_id TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS system_messages (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id TEXT NOT NULL,
+      origin   TEXT NOT NULL,
+      event    TEXT,
+      attrs    TEXT,
+      body     TEXT NOT NULL,
+      ts       TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS registered_groups (
       jid TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -534,6 +543,54 @@ export function getAllSessions(): Record<string, string> {
     result[row.group_folder] = row.session_id;
   }
   return result;
+}
+
+// --- System message accessors ---
+
+export interface SystemMessage {
+  origin: string;
+  event?: string;
+  attrs?: Record<string, string>;
+  body: string;
+}
+
+export function enqueueSystemMessage(
+  groupId: string,
+  msg: SystemMessage,
+): void {
+  db.prepare(
+    `INSERT INTO system_messages (group_id, origin, event, attrs, body, ts)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(
+    groupId,
+    msg.origin,
+    msg.event ?? null,
+    msg.attrs ? JSON.stringify(msg.attrs) : null,
+    msg.body,
+    new Date().toISOString(),
+  );
+}
+
+export function flushSystemMessages(groupId: string): SystemMessage[] {
+  const rows = db
+    .prepare(
+      `SELECT origin, event, attrs, body FROM system_messages
+       WHERE group_id = ? ORDER BY id`,
+    )
+    .all(groupId) as Array<{
+    origin: string;
+    event: string | null;
+    attrs: string | null;
+    body: string;
+  }>;
+  if (rows.length === 0) return [];
+  db.prepare('DELETE FROM system_messages WHERE group_id = ?').run(groupId);
+  return rows.map((r) => ({
+    origin: r.origin,
+    event: r.event ?? undefined,
+    attrs: r.attrs ? JSON.parse(r.attrs) : undefined,
+    body: r.body,
+  }));
 }
 
 // --- Registered group accessors ---
