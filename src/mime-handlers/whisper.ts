@@ -5,7 +5,7 @@ import { WHISPER_BASE_URL, WHISPER_MODEL } from '../config.js';
 
 export interface WhisperResult {
   text: string;
-  language: string; // detected or forced
+  language: string;
 }
 
 export async function whisperTranscribe(

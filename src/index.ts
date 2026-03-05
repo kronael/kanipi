@@ -175,7 +175,11 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   await waitForEnrichments(missedMessages.map((m) => m.id));
 
-  const prompt = formatMessages(missedMessages);
+  // Re-fetch after enrichment so voice/video transcriptions are included.
+  const enriched = getMessagesSince(chatJid, sinceTimestamp, ASSISTANT_NAME);
+  const prompt = formatMessages(
+    enriched.length > 0 ? enriched : missedMessages,
+  );
 
   // Advance cursor so the piping path in startMessageLoop won't re-fetch
   // these messages. Save the old cursor so we can roll back on error.
@@ -425,7 +429,12 @@ async function startMessageLoop(): Promise<void> {
           const messagesToSend =
             allPending.length > 0 ? allPending : groupMessages;
           await waitForEnrichments(messagesToSend.map((m) => m.id));
-          const formatted = formatMessages(messagesToSend);
+          // Re-fetch after enrichment so voice/video transcriptions are included.
+          const sinceTs = lastAgentTimestamp[chatJid] || '';
+          const refreshed = getMessagesSince(chatJid, sinceTs, ASSISTANT_NAME);
+          const formatted = formatMessages(
+            refreshed.length > 0 ? refreshed : messagesToSend,
+          );
 
           if (queue.sendMessage(chatJid, formatted)) {
             logger.debug(

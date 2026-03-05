@@ -1,10 +1,3 @@
-/**
- * Mime enricher — runs attachment pipeline at message receipt time,
- * writes results back to DB so both dispatch paths see enriched content.
- *
- * Called from onMessage in index.ts immediately after storeMessage.
- * Consumers call waitForEnrichments(msgIds) before formatting messages.
- */
 import path from 'path';
 
 import { GROUPS_DIR, MEDIA_ENABLED } from './config.js';
@@ -20,7 +13,6 @@ import {
 import { videoHandler } from './mime-handlers/video.js';
 import { voiceHandler } from './mime-handlers/voice.js';
 
-// msgId → in-flight enrichment promise
 const pending = new Map<string, Promise<void>>();
 
 export function enqueueEnrichment(

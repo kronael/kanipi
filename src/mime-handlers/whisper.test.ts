@@ -29,11 +29,11 @@ describe('whisperTranscribe', () => {
   it('posts to /inference and returns trimmed text', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ text: '  hello world  ' }),
+      json: async () => ({ text: '  hello world  ', language: 'en' }),
     } as Response);
 
     const result = await whisperTranscribe('/tmp/audio.ogg');
-    expect(result).toBe('hello world');
+    expect(result).toEqual({ text: 'hello world', language: 'en' });
     expect(global.fetch).toHaveBeenCalledWith(
       'http://localhost:8080/inference',
       expect.objectContaining({ method: 'POST' }),
@@ -52,7 +52,7 @@ describe('whisperTranscribe', () => {
     );
   });
 
-  it('aborts fetch after 30s', async () => {
+  it('aborts fetch after 60s', async () => {
     vi.useFakeTimers();
     let aborted = false;
     global.fetch = vi
@@ -64,7 +64,7 @@ describe('whisperTranscribe', () => {
         return new Promise(() => {}); // never resolves
       });
     whisperTranscribe('/path/audio.ogg');
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(aborted).toBe(true);
     vi.useRealTimers();
   });

@@ -81,7 +81,7 @@ describe('videoHandler.handle', () => {
   });
 
   it('spawns ffmpeg and returns [video audio: text]', async () => {
-    mockWhisper.mockResolvedValue('hello');
+    mockWhisper.mockResolvedValue({ text: 'hello', language: 'en' });
     const lines = await videoHandler.handle(
       { mediaType: 'video', mimeType: 'video/mp4' },
       '/path/0.mp4',

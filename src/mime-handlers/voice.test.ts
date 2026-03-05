@@ -80,17 +80,18 @@ describe('voiceHandler.handle', () => {
     expect(lines).toEqual([]);
   });
 
-  it('returns [voice: text] on happy path', async () => {
-    mockWhisper.mockResolvedValue('hello');
+  it('returns [voice/auto→en: text] on happy path (no language config)', async () => {
+    mockWhisper.mockResolvedValue({ text: 'hello', language: 'en' });
     const lines = await voiceHandler.handle(
       { mediaType: 'voice', mimeType: 'audio/ogg' },
       '/path/0.ogg',
     );
-    expect(mockWhisper).toHaveBeenCalledWith('/path/0.ogg');
-    expect(lines).toEqual(['[voice: hello]']);
+    // auto-detect pass only (no .whisper-language file in /path/)
+    expect(mockWhisper).toHaveBeenCalledWith('/path/0.ogg', undefined);
+    expect(lines).toEqual(['[voice/auto→en: hello]']);
   });
 
-  it('returns [] when whisper throws', async () => {
+  it('returns [] when all whisper passes throw', async () => {
     mockWhisper.mockRejectedValue(new Error('network error'));
     const lines = await voiceHandler.handle(
       { mediaType: 'voice' },

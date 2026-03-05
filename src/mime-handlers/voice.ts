@@ -6,14 +6,11 @@ import { AttachmentHandler } from '../mime.js';
 import { logger } from '../logger.js';
 import { whisperTranscribe } from './whisper.js';
 
-// localPath is GROUPS_DIR/<folder>/media/<date>/<msgId>/<file>
-// group dir is the part before /media/
 function groupDirFromLocalPath(localPath: string): string | null {
   const idx = localPath.indexOf(`${path.sep}media${path.sep}`);
   return idx !== -1 ? localPath.slice(0, idx) : null;
 }
 
-// Returns language codes from .whisper-language (one per line, empty = auto only).
 function readLanguages(groupDir: string): string[] {
   const p = path.join(groupDir, '.whisper-language');
   try {
@@ -41,7 +38,6 @@ export const voiceHandler: AttachmentHandler = {
     const groupDir = groupDirFromLocalPath(localPath);
     const languages = groupDir ? readLanguages(groupDir) : [];
 
-    // Always include auto-detect; add one forced pass per configured language.
     const passes: Array<string | undefined> = [undefined, ...languages];
 
     const results = await Promise.allSettled(
@@ -49,15 +45,15 @@ export const voiceHandler: AttachmentHandler = {
     );
 
     const lines: string[] = [];
-    for (const r of results) {
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
       if (r.status === 'rejected') {
         logger.warn({ err: r.reason, localPath }, 'voice: whisper pass failed');
         continue;
       }
       const { text, language: detected } = r.value;
       if (!text) continue;
-      // forced pass label: "voice/cs"; auto pass label: "voice/auto→cs"
-      const forced = passes[results.indexOf(r)];
+      const forced = passes[i];
       const label = forced ? `voice/${forced}` : `voice/auto→${detected}`;
       lines.push(`[${label}: ${text}]`);
     }
