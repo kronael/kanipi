@@ -85,11 +85,15 @@ infrastructure exists (v2 territory).
 
 ## v1 commands
 
-| Command   | Effect                                                            |
-| --------- | ----------------------------------------------------------------- |
-| `/new`    | Reset session; forward message with system annotation (see below) |
-| `/ping`   | Reply with bot name + online status                               |
-| `/chatid` | Reply with the channel JID for this chat                          |
+| Command   | Effect                                            |
+| --------- | ------------------------------------------------- |
+| `/new`    | Reset session; enqueue system message (see below) |
+| `/ping`   | Reply with bot name + online status               |
+| `/chatid` | Reply with the channel JID for this chat          |
+
+Commands that need to reach the agent do so via the system message queue
+(see `specs/v1/system-messages.md`) — never by triggering the agent
+directly. The system message piggybacks on the next real user message.
 
 ### `/new` — session reset with continuity
 
@@ -97,25 +101,15 @@ Gateway intercepts `/new` before routing:
 
 1. Send confirmation to user: _"Starting fresh session…"_
 2. Clear stored session ID for the group
-3. Extract args (everything after `/new`) as the forwarded message;
-   if no args, use an empty string
-4. Prepend a system annotation to the stdin prompt:
+3. Enqueue system message `origin="command:/new"`:
+   `user invoked /new — session reset intentionally`
+4. If args follow `/new`, treat them as a pending user message; they
+   flush together with the system message on the next turn
 
-```
-[system: user invoked /new — session reset intentionally]
-<forwarded message or empty>
-```
-
-5. Spawn fresh container with new session — normal context injection
-   applies (MEMORY.md auto-injected, diary pointer from diary layer)
-
-The annotation tells the agent this is a deliberate reset, not an idle
-timeout. It can respond appropriately ("Fresh start — what would you
-like to work on?") without acting confused about missing context.
-
-Context refs to prior sessions come in via the diary pointer and
-MEMORY.md as usual — `/new` does not suppress them. The agent has
-full behavioural memory even in a fresh session.
+Normal context injection (MEMORY.md, diary pointer) applies as usual on
+the next spawn. The agent sees the system message alongside other
+injected context and understands this was a deliberate reset, not an
+idle timeout.
 
 ## Current state (before this spec ships)
 
