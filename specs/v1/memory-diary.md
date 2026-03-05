@@ -133,8 +133,15 @@ on each container restart — no flush, no summary.
 
 **Open from this episode:**
 
-- Should diary flush also fire on container exit (not just PreCompact)?
-  Rhias suggests yes — idle timeout is a common session-end path.
+- Diary must flush on **session end** (idle timeout), not only pre-compaction.
+  Two options:
+  - **a) Periodic flush every N turns** (e.g. every 10 interactions, muaddib
+    pattern) — simplest, shippable now, no IPC change needed
+  - **b) Gateway SIGTERM → grace period → SIGKILL** — gateway signals container
+    before killing it; agent has a few seconds to flush diary; requires IPC
+    change (container must listen for SIGTERM and run flush before exit)
+  - Both are likely needed: periodic as baseline, SIGTERM as best-effort on
+    controlled shutdown. Idle timeout (hard kill) will always need periodic.
 
 ## Open
 
@@ -143,7 +150,6 @@ on each container restart — no flush, no summary.
   is the legacy path — migrate or rename)
 - Frontmatter YAML format needs to be in agent SKILL.md / CLAUDE.md so
   agent knows the convention
-- Whether to also flush on session end (not just compaction) — muaddib
-  triggers chronicle every ~10 interactions regardless of context size
+- Flush on session end: implement periodic (every N turns) + SIGTERM hook
 - Whether gateway should auto-mount last 2 diary files into every session
-  (brainpro pattern) instead of pointer-only injection
+  (brainpro pattern) instead of pointer-only injection via system-messages

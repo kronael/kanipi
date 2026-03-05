@@ -75,8 +75,27 @@ Gateway idle timeout (`IDLE_TIMEOUT`, default 30min) kills the container.
 On next message the gateway starts a new SDK session (stored ID discarded).
 
 CLAUDE.md and MEMORY.md persist across reset — behavioural memory intact.
-Context injection on reset is handled by the diary layer
-(`specs/v1/memory-diary.md`).
+
+## Context injection on reset
+
+On session reset, the gateway enqueues system messages (see
+`specs/v1/system-messages.md`) before the next user message:
+
+```xml
+<system origin="gateway:session-reset">session reset — previous session: 9123f10a, before that: fa649547, before that: 3c8a12bb</system>
+<system origin="diary">last session: 2026-03-04 — "discussed API design and auth flow"</system>
+```
+
+- **Session ID history**: last 3 session IDs are injected so the agent can
+  trace continuity if needed. Agent can read the `.jl` transcript via file
+  tools for deeper inspection. IDs stored in DB alongside stored session ID.
+- **Diary pointer**: last diary entry summary, produced by the diary layer
+  (`specs/v1/memory-diary.md`). If no diary exists, origin omitted.
+- **MEMORY.md**: always loaded automatically by the SDK project-memory
+  mechanism — no explicit injection needed.
+
+This is the full context bootstrap. The agent receives these before the first
+user message of the new session.
 
 ## Session switching
 
@@ -87,12 +106,28 @@ Context injection on reset is handled by the diary layer
 | Agent request         | IPC `type:'reset_session'`           | Gateway clears ID, new session |
 | User keyword (`/new`) | Gateway detects before routing       | Gateway clears ID, new session |
 
+## Agent skills
+
+The agent must know:
+
+- Session IDs injected on reset and what they mean
+- Where `.jl` transcripts live (`~/.claude/projects/<slug>/<uuid>.jl`)
+- That raw JSONL is SDK-internal and hard to parse directly
+- System message origins it will receive (`gateway:session-reset`, `diary`)
+- How to read diary files for continuity when needed
+
+This is documented in `container/skills/self/SKILL.md` (self-persona skill,
+agent-side) and a section in the global `container/agent-runner/CLAUDE.md`
+(loaded into every session by the SDK). The global CLAUDE.md covers the basic
+filesystem layout; SKILL.md covers behaviour (what to do on reset, how to
+read past sessions if the user asks).
+
 ## Pull (on demand)
 
 Agent can read individual `.jl` transcripts directly via file tools.
-Raw JSONL is SDK-internal format — not easily parseable by the agent.
-No index file exists; on-demand pull is not practically useful without
-a purpose-built tool.
+Raw JSONL is SDK-internal format — not easily parseable directly. The agent
+should use it only for specific continuity lookup (e.g. user asks "what did
+we discuss last week") — not routine. No index file exists.
 
 ## Episode notes (rhias, Mar 2026)
 
@@ -112,40 +147,33 @@ Observed on a live 4-day session (rhias instance, session 58f49dbe):
 **Implications for this spec:**
 
 - `resume: sessionId` works for the happy path but has no degradation story
-- Need the diary flush to fire on session end (not just compaction) so that
-  when idle timeout kills the container, something is preserved
-- SDK resume failure handling (open item 1) is more urgent than it appeared —
+- SDK resume failure handling is more urgent than it appeared —
   rhias would lose 4 days of context on first stale-ID incident
+- Diary flush on session end is in `specs/v1/memory-diary.md`
 
 ## Open
 
-1. **SDK resume failure handling** — **experimentally verified (ex-1)**:
-   - SDK attempts resume, gets `error_during_execution`, then starts a fresh
-     session with a new UUID
-   - Agent-runner emits `status: error` with exit code 1, and `newSessionId`
-     in the error output is the original bad ID (not the new session)
-   - Gateway must: on `status: error`, clear stored session ID and retry the
-     message without a sessionId — the SDK has already recovered internally
-     but the runner doesn't surface the new session ID on error path
-   - Fix needed in `container-runner.ts`: on error response, check if a
-     `newSessionId` is present and store it; or simply clear and let the next
-     message start fresh
+1. **Gateway error handling on `status: error`** — runner fix shipped
+   (`specs/res/ex-1.md`). Gateway still needs to: clear stored session ID
+   on error response and send user a message to retry. Implement in
+   `container-runner.ts` / call site in `group-queue.ts`.
 
 2. **Auto-compact session ID** — **verified (ex-2)**:
-   auto-compact keeps the same session ID and same `.jl` file. Observed
-   directly on the kanipi dev session (`9123f10a`) after auto-compaction.
-   Current code already handles this correctly. `sessions-index.json` does
-   not appear on auto-compact — may require manual `/compact`. No fix needed.
+   auto-compact keeps the same session ID and same `.jl` file. No fix needed.
 
-3. **`sessions` table collapse** — collapse into
+3. **Session ID history injection** — on reset, inject last 3 session IDs
+   via `gateway:session-reset` system message. Requires storing session ID
+   history (last 3) in DB alongside current session ID.
+
+4. **Agent skills** — document session layout and system messages in
+   `container/skills/self/SKILL.md` and agent `CLAUDE.md`.
+
+5. **`sessions` table collapse** — collapse into
    `registered_groups.session_id` column (see `specs/v1/db-bootstrap.md`).
    Cleanup, not blocking.
 
-4. **`reset_session` IPC message** — not yet defined in
+6. **`reset_session` IPC message** — not yet defined in
    `specs/v1/ipc-signal.md` or wired in `src/ipc.ts`.
 
-5. **User reset keyword** — `/new` detection in gateway message loop
-   before routing to agent. Specced in `specs/v1/commands.md` (`/new`
-   section): clear session ID, forward args with `[system: user invoked
-/new]` annotation, normal context injection (MEMORY.md, diary pointer)
-   still applies. Not yet implemented.
+7. **User reset keyword** — `/new` detection in gateway message loop.
+   Specced in `specs/v1/commands.md`. Not yet implemented.
