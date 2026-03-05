@@ -142,10 +142,17 @@ Observed on a live 4-day session (rhias instance, session 58f49dbe):
 
 ## Open
 
-1. **SDK resume failure handling** — detect when the SDK rejects a stale
-   session ID, clear stored ID, fall back to new session gracefully.
-   Currently unhandled: unknown whether the SDK throws, returns an error
-   field, or silently starts fresh.
+1. **SDK resume failure handling** — **experimentally verified (ex-1)**:
+   - SDK attempts resume, gets `error_during_execution`, then starts a fresh
+     session with a new UUID
+   - Agent-runner emits `status: error` with exit code 1, and `newSessionId`
+     in the error output is the original bad ID (not the new session)
+   - Gateway must: on `status: error`, clear stored session ID and retry the
+     message without a sessionId — the SDK has already recovered internally
+     but the runner doesn't surface the new session ID on error path
+   - Fix needed in `container-runner.ts`: on error response, check if a
+     `newSessionId` is present and store it; or simply clear and let the next
+     message start fresh
 
 2. **Auto-compact session ID** — verify in our container setup whether
    auto-compact changes the session ID. If it does, `newSessionId` must
