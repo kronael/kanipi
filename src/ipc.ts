@@ -118,7 +118,13 @@ async function drainGroupMessages(
               }
             }
           }
-          fs.unlinkSync(filePath);
+          try {
+            fs.unlinkSync(filePath);
+          } catch (unlinkErr: unknown) {
+            // Concurrent drain already deleted it — not an error
+            if ((unlinkErr as NodeJS.ErrnoException).code !== 'ENOENT')
+              throw unlinkErr;
+          }
         } catch (err) {
           logger.error(
             { file, sourceGroup, err },
