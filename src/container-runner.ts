@@ -273,6 +273,35 @@ function buildVolumeMounts(
   return mounts;
 }
 
+function buildSessionPointer(groupDir: string): string | null {
+  const convsDir = path.join(groupDir, 'conversations');
+  if (!fs.existsSync(convsDir)) return null;
+  const files = fs
+    .readdirSync(convsDir)
+    .filter((f) => f.endsWith('.md'))
+    .sort()
+    .reverse();
+  if (files.length === 0) return null;
+  const latest = files[0];
+  const title = latest.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '');
+  const date = latest.slice(0, 10);
+  const lines = fs
+    .readFileSync(path.join(convsDir, latest), 'utf-8')
+    .split('\n');
+  const bodyStart = lines.findIndex((l) => l.startsWith('**'));
+  const slice = bodyStart >= 0 ? bodyStart : 4;
+  const body = lines
+    .slice(slice, slice + 6)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 300);
+  return (
+    `[Previous session: ${date} — "${title}"\n` +
+    `${body}\n` +
+    `Full transcript: /workspace/group/conversations/${latest}]`
+  );
+}
+
 function readSecrets(): Record<string, string> {
   return readEnvFile(['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY']);
 }
@@ -391,6 +420,14 @@ export async function runContainerAgent(
     let stderr = '';
     let stdoutTruncated = false;
     let stderrTruncated = false;
+
+    // On new sessions, inject pointer to most recent conversation archive
+    if (!input.sessionId) {
+      const pointer = buildSessionPointer(groupDir);
+      if (pointer) {
+        input.prompt = `${pointer}\n\n${input.prompt}`;
+      }
+    }
 
     // Prepend enricher annotations to prompt
     if (input._annotations && input._annotations.length > 0) {
