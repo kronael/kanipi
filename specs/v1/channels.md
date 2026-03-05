@@ -86,6 +86,45 @@ Channel-native handles:
 | whatsapp | quoted message key              | `quoted` field in Baileys    |
 | email    | root `Message-ID` header value  | `In-Reply-To` + `References` |
 
+### Prior art
+
+**OpenClaw** (separate project, not our upstream — for reference only):
+
+- Inbound: extracts reply context and **annotates the message body inline**
+  so the agent sees it without a lookup. OpenClaw uses a bracket format
+  (`[Replying to Alice id:123]\nbody\n[/Replying]`); we should use XML
+  to stay consistent with our prompt format:
+
+  ```xml
+  <reply_to sender="Alice" id="12345">original message text here</reply_to>
+  ```
+
+  This goes prepended to the message content before it reaches the agent.
+  The `id` is the channel-native message ID (Telegram `message_id`,
+  WhatsApp `stanzaId`).
+
+- OpenClaw uses a `replyToMode` config (`off` / `first` / `all`) for
+  outbound — controls whether only the first response chunk carries
+  `reply_to_message_id` or all of them. Sensible default: `first`.
+
+- **Telegram forum topics**: `message_thread_id` must be handled separately
+  from `replyTo` — setting it on DMs causes a 400 error. Forum topic ID
+  partitions the room, not the reply chain.
+
+- **WhatsApp outbound**: Baileys `sock.sendMessage(jid, { text }, { quoted: originalMsg })`
+  requires the full `WAMessage` object, not just the stanza ID string. Need
+  an in-memory cache of recent messages (keyed by stanza ID) to reconstruct
+  the quoted object at send time.
+
+**ElizaOS**: uses an internal UUID (`content.inReplyTo`) hashed from the
+platform message ID. Same Telegram forum topic insight — thread ID → room
+partition, not `inReplyTo`. WhatsApp threading also not implemented there.
+
+**Prompt format note**: OpenClaw may use "moded XML" (XML with mode or type
+attributes on the wrapper element). Review `specs/v1/prompt-format.md` when
+implementing to decide how `<reply_to>` fits into the `<message>` element —
+likely as a child element or `reply_to` attribute with body as nested content.
+
 ### Current state
 
 Email is the only channel with threading implemented, via `email_threads` in
