@@ -84,12 +84,35 @@ Empty body is allowed (origin-only signal with no annotation text).
 - `/ping`, `/chatid` — command replies only, no agent involvement
 - Channel join/leave events — gateway-internal, not surfaced to agent
 
+## Persistence
+
+System messages are stored in the DB, not in-memory. Loss on gateway
+restart is not acceptable.
+
+```sql
+CREATE TABLE system_messages (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_id TEXT NOT NULL,
+  origin   TEXT NOT NULL,
+  body     TEXT NOT NULL,
+  ts       TEXT NOT NULL
+);
+```
+
+**Enqueue**: `INSERT INTO system_messages`.
+
+**Flush**: in `processGroupMessages`, before building the prompt:
+
+1. `SELECT * FROM system_messages WHERE group_id = ? ORDER BY id`
+2. Serialise as `<system origin="…">…</system>` lines, prepend to stdin
+3. `DELETE FROM system_messages WHERE group_id = ?`
+
+Steps 1–3 run in a transaction — atomic flush, no partial loss.
+
 ## Open
 
-- `enqueueSystemMessage` API location (`src/system-messages.ts` or inline
-  in each subsystem — decide at implementation)
-- Persistence: queue is in-memory; if gateway restarts between command and
-  next user message, queued messages are lost. Accept for v1.
+- `enqueueSystemMessage` / `flushSystemMessages` in `src/db.ts` alongside
+  other DB helpers
 - Max queue depth: no limit for v1; revisit if abuse seen
 - Agent self-persona update (add system message section to
   `container/skills/self/SKILL.md`)
