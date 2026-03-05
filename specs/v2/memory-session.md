@@ -50,5 +50,26 @@ confusion or repeated introductions.
 ## Open
 
 - Collapse `sessions` table into `registered_groups.session_id` column
-- On session reset, inject summary of previous session into first prompt
-- Surface `conversations/` to agent automatically on new session start
+
+### Session reset: last-session context injection
+
+When a new session starts (idle timeout, container restart), the agent
+loses SDK context but the prior conversation archive exists in
+`conversations/`. Two options:
+
+**Option A — inject archive into first prompt**: gateway reads the most
+recent `conversations/*.md` and prepends it to the first prompt of the
+new session. Agent immediately has prior context and can compact/summarise
+it in CLAUDE.md if it wants. Simple, no extra infrastructure.
+
+**Option B — Haiku summarisation**: before starting the new session,
+gateway spawns a cheap Haiku call with the last archive as input, gets a
+2-3 sentence summary, injects that into the first prompt. Cheaper context
+window usage than the full archive. Requires Anthropic API access from the
+gateway process.
+
+Option A is simpler and lets the agent decide what to retain. Option B
+is cheaper for long conversations.
+
+Injection should only happen when a prior archive exists and the session
+is genuinely new (not a resume of an existing session ID).
