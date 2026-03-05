@@ -1,81 +1,187 @@
-# Prompt format — open
+# Prompt format
 
-## Problem
+## Status key
 
-The pipeline is inconsistently formatted. Message history is XML but the
-stdin payload, IPC files, and agent output are all JSON. XML should be used
-throughout — it is already what the agent sees for message history, it is
-Claude's native format for structured context, and it eliminates the
-JSON/XML impedance mismatch.
+- **shipped** — implemented and running in production
+- **open** — specced but not yet implemented
 
-## Current state
+## Current state (shipped)
 
-| Part                      | Format |
-| ------------------------- | ------ |
-| stdin payload             | JSON   |
-| IPC message files         | JSON   |
-| agent output              | JSON   |
-| message history in prompt | XML    |
+| Part                       | Format                           |
+| -------------------------- | -------------------------------- |
+| stdin payload              | JSON (`ContainerInput`)          |
+| IPC message files (input)  | JSON (`{ type, text }`)          |
+| IPC message files (output) | JSON (`{ type, chatJid, text }`) |
+| agent stdout               | JSON (`ContainerOutput`)         |
+| message history in prompt  | XML (`<messages>`)               |
 
-## Proposed: XML throughout
+## stdin payload — shipped
 
-### stdin payload
+The gateway serialises a `ContainerInput` object to JSON and writes it to the
+container's stdin. The agent runner reads and parses it on startup.
 
-Replace `JSON.stringify(input)` with an XML envelope:
-
-```xml
-<input>
-  <chat_jid>tg:-100123456</chat_jid>
-  <is_main>1</is_main>
-  <messages>
-    <message sender="Alice" time="2026-03-05T10:00:00Z" reply_to="12345">
-      hey can you help
-    </message>
-    <message sender="Bob" time="2026-03-05T10:00:01Z">
-      sure what do you need
-    </message>
-  </messages>
-</input>
+```json
+{
+  "prompt": "<messages>\n<message sender=\"Alice\" time=\"2026-03-05T10:00:00Z\">hey</message>\n</messages>",
+  "sessionId": "abc123",
+  "groupFolder": "main",
+  "chatJid": "tg:-100123456",
+  "isMain": true,
+  "isScheduledTask": false,
+  "assistantName": "Rhia",
+  "secrets": { "ANTHROPIC_API_KEY": "..." }
+}
 ```
 
-`reply_to` on a `<message>` carries the channel-native thread handle
-(see `specs/v1/channels.md`).
+Fields:
 
-### Agent output
+| Field             | Type     | Notes                                           |
+| ----------------- | -------- | ----------------------------------------------- |
+| `prompt`          | string   | XML `<messages>` block (see below)              |
+| `sessionId`       | string?  | Claude Code session to resume; omit for new     |
+| `groupFolder`     | string   | Group folder name (filesystem-safe)             |
+| `chatJid`         | string   | Channel JID (`tg:…`, `discord:…`, etc.)         |
+| `isMain`          | boolean  | Whether this is the main (privileged) group     |
+| `isScheduledTask` | boolean? | Agent prepends scheduled-task header if true    |
+| `assistantName`   | string?  | Injected as `NANOCLAW_ASSISTANT_NAME` env var   |
+| `secrets`         | object?  | API keys; stripped after SDK init, never logged |
 
-Replace JSON response object with XML:
+`_annotations` (internal) — enricher strings prepended to `prompt` by the
+gateway before serialisation. Never present in logs or on disk.
+
+## Message history format — shipped
+
+`formatMessages()` in `src/router.ts` produces the XML block that becomes the
+`prompt` field:
 
 ```xml
-<output>
-  <message chat_jid="tg:-100123456" reply_to="12345">response text here</message>
-</output>
+<messages>
+<message sender="Alice" time="2026-03-05T10:00:00Z">hey can you help</message>
+<message sender="Bob" time="2026-03-05T10:00:01Z">sure what do you need</message>
+</messages>
 ```
 
-`reply_to` on `<message>` is optional — agent includes it when responding
-in a thread.
+Attributes:
 
-### IPC files
+- `sender` — display name if known; falls back to raw sender ID
+- `time` — ISO 8601 timestamp from the database record
+- Content — XML-escaped user text (`escapeXml()` in `src/router.ts`)
 
-Replace JSON IPC message files with XML:
+`reply_to` is **not** currently included in `<message>` attributes.
 
-```xml
-<ipc type="message" chat_jid="tg:-100123456">text here</ipc>
-<ipc type="file" chat_jid="tg:-100123456" filepath="/workspace/group/out.pdf" />
-<ipc type="task" action="schedule" ... />
+## Scheduled task header — shipped
+
+When `isScheduledTask` is true the agent runner prepends a plain-text header
+before the message block:
+
+```
+[SCHEDULED TASK - The following message was sent automatically and is not coming directly from the user or group.]
+
+<messages>…</messages>
 ```
 
-## Changes
+## Agent stdout — shipped
 
-- `src/container-runner.ts` — serialize `ContainerInput` to XML for stdin
-- `src/router.ts` — `formatMessages()` already XML; extend to full envelope;
-  remove `escapeXml()` duplication (keep one shared util)
-- `src/index.ts` — parse agent XML output instead of JSON
-- `src/ipc.ts` — read/write XML IPC files instead of JSON
-- `container/agent-runner/` — update agent-side IPC read/write to XML
-- `container/CLAUDE.md` — update agent context docs
+Agent stdout carries JSON wrapped in sentinel markers. The gateway
+stream-parses stdout for these markers.
 
-## Notes
+```
+---NANOCLAW_OUTPUT_START---
+{"status":"success","result":"Here is the answer…","newSessionId":"abc123"}
+---NANOCLAW_OUTPUT_END---
+```
 
-`escapeXml()` stays — required whenever user content is embedded in XML.
-`stripInternalTags()` stays — agents use `<internal>` for scratchpad content
-that should not be sent to users.
+`ContainerOutput` fields:
+
+| Field          | Type             | Notes                                      |
+| -------------- | ---------------- | ------------------------------------------ |
+| `status`       | `success\|error` |                                            |
+| `result`       | `string\|null`   | Text to send to the channel; null = silent |
+| `newSessionId` | string?          | Claude Code session ID; persisted by host  |
+| `error`        | string?          | Present when `status === 'error'`          |
+
+Multiple marker pairs may appear in one container run (streaming mode).
+
+`<internal>` tags in `result` are stripped by `stripInternalTags()` before
+sending to the user.
+
+## IPC files — gateway-to-agent (input) — shipped
+
+The gateway writes `.json` files to `/workspace/ipc/input/` and sends
+SIGUSR1 to the container. The agent polls on signal + 500ms fallback.
+
+```json
+{ "type": "message", "text": "<messages>\n<message …>…</message>\n</messages>" }
+```
+
+A `_close` sentinel file (empty, no extension) tells the agent to end its
+loop after finishing the current query.
+
+## IPC files — agent-to-gateway (output) — shipped
+
+The agent writes `.json` files to `/workspace/ipc/messages/` and
+`/workspace/ipc/tasks/`. The gateway watches these directories via
+`fs.watch` + fallback poll.
+
+### Message file
+
+```json
+{ "type": "message", "chatJid": "tg:-100123456", "text": "response text" }
+```
+
+### File attachment
+
+```json
+{
+  "type": "file",
+  "chatJid": "tg:-100123456",
+  "filepath": "/workspace/group/out.pdf",
+  "filename": "report.pdf"
+}
+```
+
+`filepath` must be under `/workspace/group/` — the gateway enforces this.
+
+### Task file (in `/workspace/ipc/tasks/`)
+
+```json
+{
+  "type": "schedule_task",
+  "targetJid": "tg:-100123456",
+  "prompt": "…",
+  "schedule_type": "cron",
+  "schedule_value": "0 9 * * 1",
+  "context_mode": "isolated"
+}
+```
+
+Other task types: `pause_task`, `resume_task`, `cancel_task`,
+`refresh_groups`, `register_group`.
+
+## System context injection — shipped
+
+The agent SDK receives character context and (for non-main groups) a global
+`CLAUDE.md` via `systemPrompt.append`:
+
+- `/app/character.json` (default) merged with `/workspace/global/character.json`
+  (instance override) — ElizaOS-style: `bio`, `topics`, `adjectives`
+  randomised per query; `system` injected verbatim.
+- `/workspace/global/CLAUDE.md` appended for non-main groups only.
+
+Group-specific CLAUDE.md lives in `/home/node/.claude/CLAUDE.md` and is
+loaded by the SDK's standard project-memory mechanism.
+
+## Open items
+
+### reply_to threading — open
+
+`reply_to` attribute on `<message>` is described in `specs/v1/channels.md`
+but is not yet emitted by `formatMessages()`. The field exists on `NewMessage`
+in the DB schema but `formatMessages()` in `src/router.ts` does not include
+it.
+
+### XML throughout — open
+
+The original proposal to migrate stdin payload, IPC files, and agent output
+from JSON to XML (see git history) has not been implemented. All three remain
+JSON. Only the message history embedded inside the `prompt` field is XML.
