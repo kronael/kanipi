@@ -1,50 +1,58 @@
-# Memory: Managed (CLAUDE.md) — shipped
+# Memory: Managed — shipped
 
-Claude manages its own persistent memory via `~/.claude/CLAUDE.md`.
+Claude manages two persistent memory files across sessions.
 
-## Current state
+## Two mechanisms
 
-Claude Code has a built-in auto-memory feature: it writes and updates
-`~/.claude/CLAUDE.md` to persist facts, preferences, and context across
-sessions. Enabled via:
+### CLAUDE.md — instructions and context
 
-```json
-{ "env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0" } }
-```
+Loaded as system context on every session. Contains behavioural instructions,
+project conventions, tool guidance. Seeded from `container/CLAUDE.md` on
+first spawn (one-time copy, agent can modify freely).
 
-This is set in `data/sessions/<folder>/.claude/settings.json` on first
-container spawn. The `.claude` directory is persisted on the host between
-container runs — so CLAUDE.md survives session resets.
+`~/.claude/CLAUDE.md` = per-group instructions.
+`/workspace/global/CLAUDE.md` = instance-wide instructions, mounted
+read-only into non-main groups via `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`.
 
-The agent runner also seeds `~/.claude/CLAUDE.md` from
-`container/CLAUDE.md` on first spawn (one-time copy, agent can modify).
+### MEMORY.md — auto-memory
 
-## What this provides
+Claude Code's auto-memory system ([docs](https://code.claude.com/docs/en/memory)).
+Stored at `~/.claude/projects/<project>/memory/MEMORY.md` where `<project>`
+is derived from the agent's cwd (`/workspace/group` → `-workspace-group`).
 
-- Agent remembers user preferences ("Alice prefers bullet points")
-- Agent notes recurring context ("this group is about the trading bot")
-- Survives idle timeout and container restart
-- Per-group: each group folder has its own `.claude/CLAUDE.md`
+- **First 200 lines loaded at every session start** — agent always sees it
+- Beyond 200 lines is truncated at load time — agent keeps it concise
+- Agent offloads detail into topic files (`debugging.md`, `patterns.md` etc.)
+  and reads them on demand
+- Enabled via `CLAUDE_CODE_DISABLE_AUTO_MEMORY: "0"` in settings.json
+  (already set by container-runner on first spawn)
 
-## Global CLAUDE.md
+Agent writes to MEMORY.md autonomously when it decides something is worth
+remembering across sessions: build commands, debugging insights, user
+preferences, architecture notes.
 
-`/workspace/global/CLAUDE.md` is mounted read-only into non-main groups.
-Loaded as additional system context via `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`.
-Main group has read-write access to seed/update global memory.
+## What survives session resets
 
-## Problems
+Both files are in `data/sessions/<folder>/.claude/` on the host, mounted
+into the container. They survive idle timeout and container restart — the
+agent picks up exactly where it left off in terms of accumulated knowledge.
 
-**No structure**: CLAUDE.md is freeform. The agent appends and edits it but
-there is no schema, no size limit, no compaction. Can grow stale or
-contradictory over time.
+## Distinction
 
-**No cross-group sync for group-specific facts**: each group's CLAUDE.md is
-isolated. If Alice tells the main group something, the agent in a secondary
-group won't know unless it's in global CLAUDE.md.
+| File        | Purpose                        | Written by           | Loaded                                 |
+| ----------- | ------------------------------ | -------------------- | -------------------------------------- |
+| `CLAUDE.md` | Instructions, conventions      | Agent + gateway seed | Always, as system prompt               |
+| `MEMORY.md` | Accumulated facts, preferences | Agent (auto-memory)  | First 200 lines always; rest on demand |
+
+## Global memory
+
+`/workspace/global/CLAUDE.md` is the instance-level instruction layer.
+No equivalent global MEMORY.md yet — group-specific memories stay isolated.
+Cross-group facts require either global CLAUDE.md (manual) or the facts
+spec (`specs/v2/memory-facts.md`).
 
 ## Open
 
-- Define a size limit / compaction policy for CLAUDE.md
-- Convention for what goes in group CLAUDE.md vs global CLAUDE.md
-- Structured sections (e.g. `## Users`, `## Preferences`, `## Context`)
-  so the agent has a consistent place to look and write
+- Convention for what goes in CLAUDE.md vs MEMORY.md vs facts DB
+- Structured sections in MEMORY.md so agent has a consistent schema to write to
+- Global MEMORY.md for instance-wide accumulated knowledge (main group writes, others read)
