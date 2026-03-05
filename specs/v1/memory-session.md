@@ -5,7 +5,7 @@ SDK session continuity across container invocations. Automatic, always on.
 ## What it is
 
 A session is a Claude Code SDK conversation identified by a session ID.
-The SDK stores the full transcript as a `.jsonl` file. When the gateway
+The SDK stores the full transcript as a `.jl` file. When the gateway
 spawns a container with `resume: sessionId`, the agent picks up exactly
 where it left off — full context, no re-introduction needed.
 
@@ -23,12 +23,70 @@ container start
   → next spawn receives it → continuous session
 ```
 
+## .claude/projects/ structure
+
+Claude Code writes session data under:
+
+```
+~/.claude/projects/<project-slug>/
+  <uuid>.jl                 ← conversation transcript (one per session)
+  <uuid>/
+    subagents/              ← subagent JSONL files (agent-<hash>.jl)
+    tool-results/           ← tool output blobs (<tool_id>.txt, <hash>.txt)
+  sessions-index.json       ← present only after compaction/summarization
+  memory/
+    MEMORY.md               ← auto-memory index (200-line limit)
+    *.md                    ← topic files offloaded from MEMORY.md
+```
+
+Session subdirectory (`<uuid>/`) only appears when the session spawned
+subagents or produced tool result blobs. Short sessions may have only
+the `.jl` file.
+
+`memory/` is at project level — shared across all sessions for the project.
+
+### sessions-index.json
+
+Written by Claude Code after compaction or summarization. Not always
+present. Format:
+
+```json
+{
+  "version": 1,
+  "entries": [
+    {
+      "sessionId": "b0a5a2cd-...",
+      "fullPath": "/home/node/.claude/projects/-workspace-group/b0a5a2cd.jl",
+      "fileMtime": 1770032833624,
+      "firstPrompt": "Implement the following plan...",
+      "summary": "Fact Verification System with Header Updates",
+      "messageCount": 31,
+      "created": "2026-02-01T15:00:32.274Z",
+      "modified": "2026-02-01T16:07:18.795Z",
+      "gitBranch": "develop",
+      "projectPath": "/workspace/group",
+      "isSidechain": false
+    }
+  ]
+}
+```
+
+The agent can read this file directly via file tools to discover past
+sessions and their summaries.
+
+### JSONL entry types
+
+Observed in live transcripts: `progress`, `assistant`, `user`, `system`,
+`file-history-snapshot`, `queue-operation`, `last-prompt`.
+
+Raw JSONL is SDK-internal format. Not useful to the agent directly.
+
 ## Compaction
 
 When context fills (~95%), Claude Code auto-compacts: generates a summary,
 replaces the in-context representation, continues the session.
 
-**Unverified**: whether auto-compact creates a new session ID and new JSONL
+**Unverified**: whether auto-compact creates a new session ID and new `.jl`
 file (GitHub #29342 suggests yes for manual `/compact`; other sources say
 auto-compact keeps the same ID). Needs verification in our container setup.
 
@@ -55,13 +113,9 @@ Context injection on reset is handled by the diary layer
 
 ## Pull (on demand)
 
-`sessions-index.json` at
-`/home/node/.claude/projects/-workspace-group/sessions-index.json`
-maps each session ID to a Claude Code-generated summary. Readable by
-the agent via file tools.
-
-JSONL transcripts are not useful to the agent directly (SDK internal
-format). Exposing them via an MCP tool is kept open.
+Agent reads `sessions-index.json` and individual `.jl` transcripts
+directly via file tools. `sessions-index.json` gives summaries without
+parsing raw JSONL; present only after compaction.
 
 ## Open
 
