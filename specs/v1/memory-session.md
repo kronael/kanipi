@@ -82,8 +82,12 @@ On session reset, the gateway enqueues system messages (see
 `specs/v1/system-messages.md`) before the next user message:
 
 ```xml
-<system origin="gateway:session-reset">session reset — previous session: 9123f10a, before that: fa649547, before that: 3c8a12bb</system>
-<system origin="diary">last session: 2026-03-04 — "discussed API design and auth flow"</system>
+<system origin="gateway" event="new-session">
+  <previous_session id="9123f10a"/>
+  <previous_session id="fa649547"/>
+  <previous_session id="3c8a12bb"/>
+</system>
+<system origin="diary" date="2026-03-04">discussed API design and auth flow</system>
 ```
 
 - **Session ID history**: last 3 session IDs are injected so the agent can
@@ -113,7 +117,7 @@ The agent must know:
 - Session IDs injected on reset and what they mean
 - Where `.jl` transcripts live (`~/.claude/projects/<slug>/<uuid>.jl`)
 - That raw JSONL is SDK-internal and hard to parse directly
-- System message origins it will receive (`gateway:session-reset`, `diary`)
+- System message origins it will receive (`gateway`/`new-session`, `diary`)
 - How to read diary files for continuity when needed
 
 This is documented in `container/skills/self/SKILL.md` (self-persona skill,
@@ -162,7 +166,7 @@ Observed on a live 4-day session (rhias instance, session 58f49dbe):
    auto-compact keeps the same session ID and same `.jl` file. No fix needed.
 
 3. **Session ID history injection** — on reset, inject last 3 session IDs
-   via `gateway:session-reset` system message. Requires storing session ID
+   via `<system origin="gateway" event="new-session">`. Requires storing session ID
    history (last 3) in DB alongside current session ID.
 
 4. **Agent skills** — document session layout and system messages in
