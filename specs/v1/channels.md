@@ -177,9 +177,10 @@ in-memory cache needed. Without it, fall back to plain send (no quote bubble).
 
 **4. Discord** — two distinct concepts:
 
-- **Thread channel**: sub-channel spun off a message, has its own channel ID.
-  Already handled by JID routing (`discord:<thread-channel-id>`). No `replyTo`
-  needed — the agent is already in the right room.
+- **Thread channel**: has its own Discord channel ID → unique
+  `discord:<threadChannelId>` JID. Works with current flat JIDs. Parent
+  channel available via `msg.channel.parentId` at runtime but not in JID
+  (v3 concern — see `specs/v3/jid-hierarchy.md`).
 - **Message reply**: `message.reference?.messageId` on inbound. On outbound:
   `channel.send({ content: text, reply: { messageReference: replyTo } })`.
 
