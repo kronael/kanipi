@@ -6,14 +6,24 @@
   flush in processGroupMessages, `new-session` injection with `<previous_session>`
   records, `sessions` history table; only inject `<messages>` on new session
 - **memory-session** (~75%) — gateway error notification to user on `status:error`
-- **message-threading** (~5%) — `NewMessage.replyTo`, `SendOpts`, channel impls
-  (telegram/whatsapp/discord), `<in_reply_to sender time ago>` in formatMessages()
-- **commands.md** (~5%) — `/new` detection in gateway message loop
+- **message-threading / channels** (~5%) — `NewMessage.replyTo`, `SendOpts`,
+  channel impls (telegram/whatsapp/discord), `<in_reply_to sender time ago>` in
+  `formatMessages()`, `messages.raw` column for WAMessage
+- **jid-hierarchy** (0%) — glob matching in group lookup, multi-segment JID
+  construction in Discord and Telegram
+- **commands** (~5%) — `/new` detection in gateway message loop
 - **memory-diary** (~25%) — silent PreCompact flush, periodic flush every N turns
-- **plugins.md** (open)
-- **cli.md** (partial)
 
-## IPC / MCP gaps
+## Specs still open
 
-- `get_history` — agent query into `messages` DB; specced in `systems.md`
-- `reset_session` IPC message — not wired in `src/ipc.ts`
+- **plugins.md** — not fully specced
+- **cli.md** — partial
+- **db-bootstrap.md** — sessions history table expansion not yet reflected
+
+## IPC gaps
+
+- `reset_session` — not wired in `src/ipc.ts`
+
+## Moved to v2
+
+- `get_history` → `specs/v2/message-mcp.md`
