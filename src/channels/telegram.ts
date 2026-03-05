@@ -365,11 +365,27 @@ export class TelegramChannel implements Channel {
       const html = mdToHtml(text);
       const MAX_LENGTH = 4096;
       for (let i = 0; i < html.length; i += MAX_LENGTH) {
-        await this.bot.api.sendMessage(
-          numericId,
-          html.slice(i, i + MAX_LENGTH),
-          { parse_mode: 'HTML' },
-        );
+        const chunk = html.slice(i, i + MAX_LENGTH);
+        try {
+          await this.bot.api.sendMessage(numericId, chunk, {
+            parse_mode: 'HTML',
+          });
+        } catch (htmlErr: any) {
+          // Telegram rejects malformed HTML (e.g. underscore inside <code> treated
+          // as italic, causing unmatched tags). Retry as plain text.
+          if (htmlErr?.error_code === 400) {
+            logger.warn(
+              { jid, error: htmlErr.description },
+              'HTML parse failed, retrying as plain text',
+            );
+            await this.bot.api.sendMessage(
+              numericId,
+              text.slice(i, i + MAX_LENGTH),
+            );
+          } else {
+            throw htmlErr;
+          }
+        }
       }
       logger.info({ jid, length: text.length }, 'Telegram message sent');
     } catch (err) {
