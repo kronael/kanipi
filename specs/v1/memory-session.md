@@ -8,22 +8,49 @@ Three things persist on the host across all spawns:
 
 ### 1. JSONL transcripts
 
-Claude Code writes one `.jsonl` file per session to
+Claude Code writes one `.jsonl` per session to
 `data/sessions/<folder>/.claude/projects/-workspace-group/`.
-All sessions accumulate — nothing is deleted. Each line is a turn
-(user, assistant, tool_use, tool_result). After compaction, new turns
-are appended to the same file; the compaction summary replaces the in-context
-representation but the raw lines survive on disk.
 
-`sessions-index.json` at the same path maps `sessionId → summary`, written
-by Claude Code after each compaction.
+**Compaction creates a new JSONL file.** When context fills (~95%), Claude Code
+generates an LLM summary, starts a new session (new ID, new `.jsonl`), and
+injects the summary as the opening context. The old file is preserved untouched.
+The `newSessionId` the agent runner already returns is the post-compaction ID —
+the gateway stores it and resumes from there on the next spawn.
+
+Over time the directory accumulates one file per session:
+
+```
+abc123.jsonl   ← session 1, raw turns up to first compaction
+def456.jsonl   ← session 2, starts with compaction summary + new turns
+ghi789.jsonl   ← session 3, etc.
+sessions-index.json  ← Claude Code-written: sessionId → summary text
+```
+
+JSONL files are not directly useful to the agent (SDK internal format) but
+are the raw record of everything. Not exposed to the agent by default.
 
 ### 2. Diary entries
 
 Agent-written notes at `groups/<folder>/diary/YYYYMMDD.md`.
-Created by the agent during a **pre-compaction silent flush** (see below).
+Created during the **pre-compaction silent flush** (see below).
 Appended if a file for today already exists. Permanent — never deleted.
-Format is freeform markdown decided by the agent.
+Format freeform markdown, decided by the agent.
+
+Alongside entries, the agent maintains `diary/summary.md` — a single file
+updated every time a diary entry is written, containing a ≤20-word summary
+of the current state. This is the only file the gateway reads for pointer
+injection. The agent decides what the summary says.
+
+```
+diary/
+  20260305.md     ← today's diary entry (may be appended multiple times)
+  20260304.md     ← yesterday
+  summary.md      ← "Deployed hel1v5. Alice working on auth. Two open bugs." (≤20w)
+```
+
+brainpro loads `memory/YYYY-MM-DD.md` for today + yesterday automatically
+into every session. We could adopt the same pattern (auto-mount last 2 diary
+files) rather than pointer-only injection — kept open.
 
 ### 3. CLAUDE.md / MEMORY.md
 
@@ -71,9 +98,10 @@ container start
 
 Session ID is per-group-folder. One active session per group.
 
-Claude Code auto-compacts in-place when context fills. Session ID does not
-change. Agent continues with a summarised context. Diary flush fires before
-each compaction.
+Claude Code auto-compacts when context fills — this creates a **new session
+and a new JSONL file**. Session ID changes. The `newSessionId` returned by the
+agent runner is stored by the gateway; the next spawn resumes from it.
+Diary flush fires before each compaction.
 
 ---
 
@@ -93,20 +121,19 @@ The new session has no SDK context. But:
 Gateway prepends a pointer to the first prompt:
 
 ```
-[Previous sessions: diary entries at /workspace/group/diary/
-Most recent: 20260305.md — deployment help, hel1v5 Ansible config
-Full diary index: /workspace/group/diary/]
+[Previous sessions — Deployed hel1v5. Alice working on auth. Two open bugs.
+Diary: /workspace/group/diary/ (20260305.md, 20260304.md)]
 
 <messages>...</messages>
 ```
 
 Pointer construction (gateway-side, no API call):
 
-1. List `groups/<folder>/diary/` — sort descending by filename
-2. Take the most recent 1–3 filenames
-3. Read first ~3 lines of the most recent entry for a snippet
-4. Inject ≤100-word block before the message XML
+1. Read `groups/<folder>/diary/summary.md` — the agent-maintained ≤20-word summary
+2. List diary filenames, take most recent 1–3
+3. Inject as ≤1 line before the message XML
 
+The gateway reads only `summary.md` — no content parsing of diary entries.
 Agent decides autonomously:
 
 - Read a diary file if the conversation is a continuation
