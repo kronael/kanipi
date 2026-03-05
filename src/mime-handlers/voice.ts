@@ -6,11 +6,6 @@ import { AttachmentHandler } from '../mime.js';
 import { logger } from '../logger.js';
 import { whisperTranscribe } from './whisper.js';
 
-function groupDirFromLocalPath(localPath: string): string | null {
-  const idx = localPath.indexOf(`${path.sep}media${path.sep}`);
-  return idx !== -1 ? localPath.slice(0, idx) : null;
-}
-
 function readLanguages(groupDir: string): string[] {
   const p = path.join(groupDir, '.whisper-language');
   try {
@@ -35,7 +30,8 @@ export const voiceHandler: AttachmentHandler = {
   handle: async (a, localPath) => {
     if (!VOICE_TRANSCRIPTION_ENABLED) return [];
 
-    const groupDir = groupDirFromLocalPath(localPath);
+    const idx = localPath.indexOf(`${path.sep}media${path.sep}`);
+    const groupDir = idx !== -1 ? localPath.slice(0, idx) : null;
     const languages = groupDir ? readLanguages(groupDir) : [];
 
     const passes: Array<string | undefined> = [undefined, ...languages];

@@ -48,9 +48,6 @@ export function enqueueEnrichment(
 }
 
 export async function waitForEnrichments(msgIds: string[]): Promise<void> {
-  const promises = msgIds.flatMap((id) => {
-    const p = pending.get(id);
-    return p ? [p] : [];
-  });
+  const promises = msgIds.flatMap((id) => pending.get(id) ?? []);
   if (promises.length > 0) await Promise.all(promises);
 }
