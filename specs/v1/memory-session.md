@@ -57,9 +57,14 @@ Raw JSONL is SDK-internal format. Not useful to the agent directly.
 When context fills (~95%), Claude Code auto-compacts: generates a summary,
 replaces the in-context representation, continues the session.
 
-**Unverified**: whether auto-compact creates a new session ID and new `.jl`
-file (GitHub #29342 suggests yes for manual `/compact`; other sources say
-auto-compact keeps the same ID). Needs verification in our container setup.
+**Verified (ex-2):** auto-compact keeps the same session ID and same `.jl`
+file. The compaction boundary is recorded as a `system/compact_boundary`
+entry with `parentUuid: null` and `logicalParentUuid` pointing to the last
+message before compaction. On resume, the SDK walks the `.jl` from the end,
+finds the last `compact_boundary`, and reconstructs context from
+`logicalParentUuid` forward — everything before is dropped from the live
+context window (compacted into a summary) but remains in the `.jl` for the
+record. Three compactions were observed in a single session in this project.
 
 The diary flush (pre-compaction) is handled separately in
 `specs/v1/memory-diary.md`.
