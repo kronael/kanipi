@@ -154,9 +154,11 @@ Observed on a live 4-day session (rhias instance, session 58f49dbe):
      `newSessionId` is present and store it; or simply clear and let the next
      message start fresh
 
-2. **Auto-compact session ID** — verify in our container setup whether
-   auto-compact changes the session ID. If it does, `newSessionId` must
-   always be stored. If it doesn't, the current code already handles it.
+2. **Auto-compact session ID** — **verified (ex-2)**:
+   auto-compact keeps the same session ID and same `.jl` file. Observed
+   directly on the kanipi dev session (`9123f10a`) after auto-compaction.
+   Current code already handles this correctly. `sessions-index.json` does
+   not appear on auto-compact — may require manual `/compact`. No fix needed.
 
 3. **`sessions` table collapse** — collapse into
    `registered_groups.session_id` column (see `specs/v1/db-bootstrap.md`).
