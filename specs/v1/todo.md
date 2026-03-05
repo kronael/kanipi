@@ -12,12 +12,15 @@
 - **jid-hierarchy** (0%) — glob matching in group lookup, multi-segment JID
   construction in Discord and Telegram
 - **commands** (~5%) — `/new` detection in gateway message loop
-- **memory-diary** (~25%) — silent PreCompact flush, periodic flush every N turns
 
 ## Specs still open
 
-- **plugins.md** — not fully specced
 - **cli.md** — partial
+
+## Deferred to phase II
+
+- **memory-diary** — silent PreCompact flush, periodic flush, SIGTERM hook
+- **plugins.md** — plugin proposal/approval/deploy flow
 - **db-bootstrap.md** — sessions history table expansion not yet reflected
 
 ## IPC gaps
