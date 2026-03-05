@@ -170,16 +170,22 @@ replyTo: msg.message?.extendedTextMessage?.contextInfo?.stanzaId,
 
 On outbound with `opts?.replyTo`, pass as `quoted` to baileys `sendMessage`.
 Baileys requires the full `WAMessage` object (raw protobuf), not just the
-stanza ID — keep a small in-memory LRU cache of recent messages keyed by
-stanza ID. Without it, fall back to plain send (no quote bubble).
+stanza ID. Store the raw object as JSON in `messages.raw` (nullable column)
+on inbound — look it up by stanza ID at send time. Survives restarts, no
+in-memory cache needed. Without it, fall back to plain send (no quote bubble).
 
 **4. Discord** — thread channel ID already available as the channel JID.
 Reply-to within a channel: `interaction.message?.id`. Lower priority.
 
-**5. `email_threads`** — generalise to `channel_threads` only when a second
+**5. `messages.raw` column** — add nullable `raw TEXT` to the `messages`
+table via migration (`ALTER TABLE messages ADD COLUMN raw TEXT`). WhatsApp
+populates with `JSON.stringify(msg)` on inbound. Other channels leave null.
+On outbound reply: `JSON.parse(raw)` and pass as `quoted` to Baileys.
+
+**6. `email_threads`** — generalise to `channel_threads` only when a second
 channel needs it. Email threading stays on `email_threads` for now.
 
-**6. `formatMessages()`** — emit `<in_reply_to sender time ago>` as child
+**7. `formatMessages()`** — emit `<in_reply_to sender time ago>` as child
 element of `<message>` when `NewMessage.replyTo` is set. Add `time` and `ago`
 attributes to `<message>` itself. `ago` = human-readable elapsed ("2m", "1h",
 "3d") computed from message timestamp at format time.
