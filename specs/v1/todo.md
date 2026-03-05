@@ -1,5 +1,6 @@
 # Specs to finish (v1)
 
+- message-threading (in channels.md — replyTo, sendMessage opts, channel_threads generalisation)
 - commands.md (~5% implemented)
 - system-messages.md (0% implemented)
 - memory-diary.md (~25% implemented)
