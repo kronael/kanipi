@@ -11,6 +11,9 @@ import {
 import fs from 'fs';
 import path from 'path';
 
+import crypto from 'crypto';
+
+import { recordSessionStart, updateSessionEnd } from './db.js';
 import {
   ASSISTANT_NAME,
   CONTAINER_IMAGE,
@@ -56,6 +59,7 @@ export interface ContainerInput {
   isScheduledTask?: boolean;
   assistantName?: string;
   secrets?: Record<string, string>;
+  messageCount?: number;
   // Enricher annotations prepended to prompt before container sees it.
   // Populated by runEnrichers() in index.ts — not sent as a separate field.
   _annotations?: string[];
@@ -380,11 +384,15 @@ export async function runContainerAgent(
   const logsDir = path.join(groupDir, 'logs');
   fs.mkdirSync(logsDir, { recursive: true });
 
+  const sessionRowId = crypto.randomUUID();
+  const sessionStartedAt = new Date().toISOString();
+
   return new Promise((resolve) => {
     const container = _spawnProcess(CONTAINER_RUNTIME_BIN, containerArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
+    recordSessionStart(sessionRowId, group.folder, sessionStartedAt);
     onProcess(container, containerName);
 
     let stdout = '';
@@ -516,6 +524,23 @@ export async function runContainerAgent(
       timeout = setTimeout(killOnTimeout, timeoutMs);
     };
 
+    const finishSession = (
+      sid: string | undefined,
+      result: 'ok' | 'error' | 'unknown',
+      err?: string,
+    ) => {
+      try {
+        updateSessionEnd(
+          sessionRowId,
+          sid,
+          new Date().toISOString(),
+          result,
+          err,
+          input.messageCount ?? 0,
+        );
+      } catch {}
+    };
+
     container.on('close', (code) => {
       clearTimeout(timeout);
       const duration = Date.now() - startTime;
@@ -545,6 +570,7 @@ export async function runContainerAgent(
             'Container timed out after output (idle cleanup)',
           );
           outputChain.then(() => {
+            finishSession(newSessionId, 'ok');
             resolve({
               status: 'success',
               result: null,
@@ -559,6 +585,11 @@ export async function runContainerAgent(
           'Container timed out with no output',
         );
 
+        finishSession(
+          newSessionId,
+          'error',
+          `Container timed out after ${configTimeout}ms`,
+        );
         resolve({
           status: 'error',
           result: null,
@@ -638,10 +669,12 @@ export async function runContainerAgent(
           'Container exited with error',
         );
 
+        const errMsg = `Container exited with code ${code}: ${stderr.slice(-200)}`;
+        finishSession(newSessionId, 'error', errMsg);
         resolve({
           status: 'error',
           result: null,
-          error: `Container exited with code ${code}: ${stderr.slice(-200)}`,
+          error: errMsg,
         });
         return;
       }
@@ -653,6 +686,7 @@ export async function runContainerAgent(
             { group: group.name, duration, newSessionId },
             'Container completed (streaming mode)',
           );
+          finishSession(newSessionId, 'ok');
           resolve({
             status: 'success',
             result: null,
@@ -691,6 +725,11 @@ export async function runContainerAgent(
           'Container completed',
         );
 
+        finishSession(
+          output.newSessionId,
+          output.status === 'success' ? 'ok' : 'error',
+          output.error,
+        );
         resolve(output);
       } catch (err) {
         logger.error(
@@ -703,10 +742,12 @@ export async function runContainerAgent(
           'Failed to parse container output',
         );
 
+        const errMsg = `Failed to parse container output: ${err instanceof Error ? err.message : String(err)}`;
+        finishSession(undefined, 'error', errMsg);
         resolve({
           status: 'error',
           result: null,
-          error: `Failed to parse container output: ${err instanceof Error ? err.message : String(err)}`,
+          error: errMsg,
         });
       }
     });
@@ -716,6 +757,11 @@ export async function runContainerAgent(
       logger.error(
         { group: group.name, containerName, error: err },
         'Container spawn error',
+      );
+      finishSession(
+        undefined,
+        'error',
+        `Container spawn error: ${err.message}`,
       );
       resolve({
         status: 'error',

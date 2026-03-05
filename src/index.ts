@@ -36,12 +36,15 @@ import {
 } from './container-runtime.js';
 import {
   deleteSession,
+  enqueueSystemMessage,
+  flushSystemMessages,
   getAllChats,
   getAllRegisteredGroups,
   getAllSessions,
   getAllTasks,
   getMessagesSince,
   getNewMessages,
+  getRecentSessions,
   getRouterState,
   initDatabase,
   setRegisteredGroup,
@@ -52,6 +55,14 @@ import {
 } from './db.js';
 import { AttachmentDownloader, RawAttachment } from './mime.js';
 import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
+import chatidCommand from './commands/chatid.js';
+import newCommand, { pendingCommandArgs } from './commands/new.js';
+import pingCommand from './commands/ping.js';
+import {
+  findCommand,
+  registerCommand,
+  writeCommandsXml,
+} from './commands/index.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
@@ -65,6 +76,7 @@ let sessions: Record<string, string> = {};
 let registeredGroups: Record<string, RegisteredGroup> = {};
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
+const lastMessageDate: Record<string, string> = {};
 
 const channels: Channel[] = [];
 const queue = new GroupQueue();
@@ -173,10 +185,61 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     if (!hasTrigger) return true;
   }
 
+  const isNewSession = !sessions[group.folder];
+  if (isNewSession) {
+    const prev = getRecentSessions(group.folder, 10);
+    const children = prev
+      .map((s) => {
+        let el =
+          `  <previous_session id="${s.session_id}"` +
+          ` started="${s.started_at}"`;
+        if (s.ended_at) el += ` ended="${s.ended_at}"`;
+        if (s.message_count != null) el += ` msgs="${s.message_count}"`;
+        el += ` result="${s.result ?? 'unknown'}"`;
+        if (s.error)
+          el += ` error="${s.error.replace(/"/g, '&quot;').slice(0, 200)}"`;
+        el += '/>';
+        return el;
+      })
+      .join('\n');
+    enqueueSystemMessage(group.folder, {
+      origin: 'gateway',
+      event: 'new-session',
+      body: prev.length > 0 ? `\n${children}\n` : '',
+    });
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (
+    lastMessageDate[group.folder] !== undefined &&
+    lastMessageDate[group.folder] !== today
+  ) {
+    enqueueSystemMessage(group.folder, {
+      origin: 'gateway',
+      event: 'new-day',
+      body: '',
+    });
+  }
+  lastMessageDate[group.folder] = today;
+
+  // Flush pending system messages (prepended to stdin)
+  const sysXml = flushSystemMessages(group.folder);
+
+  // Consume any pending args stashed by /new
+  const pendingArgs = pendingCommandArgs.get(chatJid);
+  if (pendingArgs) pendingCommandArgs.delete(chatJid);
+
   await waitForEnrichments(missedMessages.map((m) => m.id));
-  const prompt = formatMessages(
-    getMessagesSince(chatJid, sinceTimestamp, ASSISTANT_NAME),
+  const userMessages = getMessagesSince(
+    chatJid,
+    sinceTimestamp,
+    ASSISTANT_NAME,
   );
+  const formatted = formatMessages(userMessages);
+  const prompt =
+    (sysXml ? sysXml + '\n' : '') +
+    (pendingArgs ? pendingArgs + '\n' : '') +
+    formatted;
 
   // Advance cursor so the piping path in startMessageLoop won't re-fetch
   // these messages. Save the old cursor so we can roll back on error.
@@ -218,34 +281,43 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     channel.setTyping?.(chatJid, false);
   };
 
-  const output = await runAgent(group, prompt, chatJid, async (result) => {
-    // Streaming output callback — called for each agent result
-    if (result.result) {
-      const raw =
-        typeof result.result === 'string'
-          ? result.result
-          : JSON.stringify(result.result);
-      // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-      const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
-      logger.info({ group: group.name }, `Agent output: ${raw.slice(0, 200)}`);
-      if (text) {
-        await channel.sendMessage(chatJid, text);
-        outputSentToUser = true;
+  const output = await runAgent(
+    group,
+    prompt,
+    chatJid,
+    missedMessages.length,
+    async (result) => {
+      // Streaming output callback — called for each agent result
+      if (result.result) {
+        const raw =
+          typeof result.result === 'string'
+            ? result.result
+            : JSON.stringify(result.result);
+        // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
+        const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
+        logger.info(
+          { group: group.name },
+          `Agent output: ${raw.slice(0, 200)}`,
+        );
+        if (text) {
+          await channel.sendMessage(chatJid, text);
+          outputSentToUser = true;
+        }
+        resetIdleTimer();
       }
-      resetIdleTimer();
-    }
 
-    if (result.status === 'success') {
-      // Agent finished responding — stop typing indicator.
-      // Container stays alive (idle) but should not show as "working".
-      stopTyping();
-      queue.notifyIdle(chatJid);
-    }
+      if (result.status === 'success') {
+        // Agent finished responding — stop typing indicator.
+        // Container stays alive (idle) but should not show as "working".
+        stopTyping();
+        queue.notifyIdle(chatJid);
+      }
 
-    if (result.status === 'error') {
-      hadError = true;
-    }
-  });
+      if (result.status === 'error') {
+        hadError = true;
+      }
+    },
+  );
 
   stopTyping();
   clearTimeout(idleTimer ?? undefined);
@@ -267,6 +339,11 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       { group: group.name },
       'Agent error, rolled back message cursor for retry',
     );
+    channel
+      .sendMessage(chatJid, 'Something went wrong. Please try again.')
+      .catch((err) =>
+        logger.warn({ chatJid, err }, 'Failed to send error notification'),
+      );
     return false;
   }
 
@@ -277,6 +354,7 @@ async function runAgent(
   group: RegisteredGroup,
   prompt: string,
   chatJid: string,
+  messageCount: number,
   onOutput?: (output: ContainerOutput) => Promise<void>,
 ): Promise<'success' | 'error'> {
   const isMain = group.folder === MAIN_GROUP_FOLDER;
@@ -317,6 +395,7 @@ async function runAgent(
         chatJid,
         isMain,
         assistantName: ASSISTANT_NAME,
+        messageCount,
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
@@ -406,14 +485,57 @@ async function startMessageLoop(): Promise<void> {
           const isMainGroup = group.folder === MAIN_GROUP_FOLDER;
           const needsTrigger = !isMainGroup && group.requiresTrigger !== false;
 
+          // Intercept command messages before routing to agent
+          const nonCommandMessages: NewMessage[] = [];
+          for (const msg of groupMessages) {
+            const m = msg.content.trim();
+            if (m.startsWith('/')) {
+              const [word, ...rest] = m.slice(1).split(/\s+/);
+              const handler = findCommand(word.toLowerCase());
+              if (handler) {
+                handler
+                  .handle({
+                    group,
+                    groupJid: chatJid,
+                    message: msg,
+                    channel,
+                    args: rest.join(' '),
+                    clearSession: (folder) => {
+                      delete sessions[folder];
+                      deleteSession(folder);
+                    },
+                  })
+                  .catch((err) =>
+                    logger.error(
+                      { command: word, err },
+                      'Command handler error',
+                    ),
+                  );
+                // Advance cursor past the command message
+                if (msg.timestamp > (lastAgentTimestamp[chatJid] || '')) {
+                  lastAgentTimestamp[chatJid] = msg.timestamp;
+                  saveState();
+                }
+                // Enqueue so system messages + pending args can flush
+                queue.enqueueMessageCheck(chatJid);
+                continue;
+              }
+            }
+            nonCommandMessages.push(msg);
+          }
+          const effectiveMessages =
+            nonCommandMessages.length > 0 ? nonCommandMessages : [];
+
           // For non-main groups, only act on trigger messages.
           // Non-trigger messages accumulate in DB and get pulled as
           // context when a trigger eventually arrives.
-          if (needsTrigger) {
-            const hasTrigger = groupMessages.some((m) =>
+          if (needsTrigger && effectiveMessages.length > 0) {
+            const hasTrigger = effectiveMessages.some((m) =>
               TRIGGER_PATTERN.test(m.content.trim()),
             );
             if (!hasTrigger) continue;
+          } else if (effectiveMessages.length === 0) {
+            continue;
           }
 
           // Pull all messages since lastAgentTimestamp so non-trigger
@@ -479,12 +601,22 @@ function recoverPendingMessages(): void {
   }
 }
 
+function initCommands(): void {
+  registerCommand(newCommand);
+  registerCommand(pingCommand);
+  registerCommand(chatidCommand);
+}
+
 async function main(): Promise<void> {
   ensureContainerRuntimeRunning();
   cleanupOrphans(CONTAINER_IMAGE);
   initDatabase();
   logger.info('Database initialized');
   loadState();
+  initCommands();
+  for (const group of Object.values(registeredGroups)) {
+    writeCommandsXml(group.folder);
+  }
 
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
@@ -595,6 +727,10 @@ async function main(): Promise<void> {
     },
     registeredGroups: () => registeredGroups,
     registerGroup,
+    clearSession: (groupFolder) => {
+      delete sessions[groupFolder];
+      deleteSession(groupFolder);
+    },
     syncGroupMetadata: (force) => {
       const wa = channels.find((c) => c.name === 'whatsapp') as
         | WhatsAppChannel

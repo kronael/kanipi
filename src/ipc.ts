@@ -34,6 +34,7 @@ export interface IpcDeps {
     availableGroups: AvailableGroup[],
     registeredJids: Set<string>,
   ) => void;
+  clearSession: (groupFolder: string) => void;
 }
 
 let ipcWatcherRunning = false;
@@ -520,6 +521,11 @@ export async function processTaskIpc(
           'Invalid register_group request - missing required fields',
         );
       }
+      break;
+
+    case 'reset_session':
+      deps.clearSession(sourceGroup);
+      logger.info({ sourceGroup }, 'Session reset via IPC');
       break;
 
     default:

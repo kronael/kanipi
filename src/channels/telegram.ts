@@ -3,11 +3,7 @@ import path from 'path';
 
 import { Bot, InputFile } from 'grammy';
 
-import {
-  ASSISTANT_NAME,
-  TELEGRAM_BOT_TOKEN,
-  TRIGGER_PATTERN,
-} from '../config.js';
+import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import {
   AttachmentDownloader,
   AttachmentType,
@@ -61,30 +57,7 @@ export class TelegramChannel implements Channel {
   async connect(): Promise<void> {
     this.bot = new Bot(this.botToken);
 
-    // Command to get chat ID (useful for registration)
-    this.bot.command('chatid', (ctx) => {
-      const chatId = ctx.chat.id;
-      const chatType = ctx.chat.type;
-      const chatName =
-        chatType === 'private'
-          ? ctx.from?.first_name || 'Private'
-          : (ctx.chat as any).title || 'Unknown';
-
-      ctx.reply(
-        `Chat ID: \`tg:${chatId}\`\nName: ${chatName}\nType: ${chatType}`,
-        { parse_mode: 'Markdown' },
-      );
-    });
-
-    // Command to check bot status
-    this.bot.command('ping', (ctx) => {
-      ctx.reply(`${ASSISTANT_NAME} is online.`);
-    });
-
     this.bot.on('message:text', async (ctx) => {
-      // Skip commands
-      if (ctx.message.text.startsWith('/')) return;
-
       const chatJid = `tg:${ctx.chat.id}`;
       let content = ctx.message.text;
       const timestamp = new Date(ctx.message.date * 1000).toISOString();

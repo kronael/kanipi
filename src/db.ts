@@ -85,6 +85,18 @@ function createSchema(database: Database.Database): void {
       body     TEXT NOT NULL,
       ts       TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS session_history (
+      id            TEXT PRIMARY KEY,
+      group_id      TEXT NOT NULL,
+      session_id    TEXT,
+      started_at    TEXT NOT NULL,
+      ended_at      TEXT,
+      message_count INTEGER,
+      result        TEXT,
+      error         TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_session_history
+      ON session_history(group_id, started_at);
     CREATE TABLE IF NOT EXISTS registered_groups (
       jid TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -571,26 +583,92 @@ export function enqueueSystemMessage(
   );
 }
 
-export function flushSystemMessages(groupId: string): SystemMessage[] {
-  const rows = db
+export function flushSystemMessages(groupId: string): string {
+  let xml = '';
+  db.transaction(() => {
+    const rows = db
+      .prepare(
+        `SELECT origin, event, attrs, body FROM system_messages
+         WHERE group_id = ? ORDER BY id`,
+      )
+      .all(groupId) as Array<{
+      origin: string;
+      event: string | null;
+      attrs: string | null;
+      body: string;
+    }>;
+    if (rows.length === 0) return;
+    xml = rows
+      .map((r) => {
+        let tag = `<system origin="${r.origin}"`;
+        if (r.event) tag += ` event="${r.event}"`;
+        if (r.attrs) {
+          for (const [k, v] of Object.entries(
+            JSON.parse(r.attrs) as Record<string, string>,
+          )) {
+            tag += ` ${k}="${v}"`;
+          }
+        }
+        tag += `>${r.body}</system>`;
+        return tag;
+      })
+      .join('\n');
+    db.prepare('DELETE FROM system_messages WHERE group_id = ?').run(groupId);
+  })();
+  return xml;
+}
+
+// --- Session history accessors ---
+
+export interface SessionRecord {
+  id: string;
+  group_id: string;
+  session_id: string | null;
+  started_at: string;
+  ended_at: string | null;
+  message_count: number | null;
+  result: string | null;
+  error: string | null;
+}
+
+export function recordSessionStart(
+  rowId: string,
+  groupId: string,
+  startedAt: string,
+): void {
+  db.prepare(
+    `INSERT INTO session_history (id, group_id, started_at)
+     VALUES (?, ?, ?)`,
+  ).run(rowId, groupId, startedAt);
+}
+
+export function updateSessionEnd(
+  rowId: string,
+  sessionId: string | undefined,
+  endedAt: string,
+  result: 'ok' | 'error' | 'unknown',
+  error: string | undefined,
+  messageCount: number,
+): void {
+  db.prepare(
+    `UPDATE session_history
+     SET session_id = ?, ended_at = ?, result = ?, error = ?,
+         message_count = ?
+     WHERE id = ?`,
+  ).run(sessionId ?? null, endedAt, result, error ?? null, messageCount, rowId);
+}
+
+export function getRecentSessions(
+  groupId: string,
+  limit: number,
+): SessionRecord[] {
+  return db
     .prepare(
-      `SELECT origin, event, attrs, body FROM system_messages
-       WHERE group_id = ? ORDER BY id`,
+      `SELECT * FROM session_history
+       WHERE group_id = ? AND session_id IS NOT NULL
+       ORDER BY started_at DESC LIMIT ?`,
     )
-    .all(groupId) as Array<{
-    origin: string;
-    event: string | null;
-    attrs: string | null;
-    body: string;
-  }>;
-  if (rows.length === 0) return [];
-  db.prepare('DELETE FROM system_messages WHERE group_id = ?').run(groupId);
-  return rows.map((r) => ({
-    origin: r.origin,
-    event: r.event ?? undefined,
-    attrs: r.attrs ? JSON.parse(r.attrs) : undefined,
-    body: r.body,
-  }));
+    .all(groupId, limit) as SessionRecord[];
 }
 
 // --- Registered group accessors ---
