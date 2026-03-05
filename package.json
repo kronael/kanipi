@@ -1,6 +1,6 @@
 {
   "name": "kanipi",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "NanoClaw with telegram. Multitenant Claude agents.",
   "type": "module",
   "main": "dist/index.js",
