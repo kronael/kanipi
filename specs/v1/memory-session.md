@@ -82,4 +82,7 @@ format). Exposing them via an MCP tool is kept open.
    `specs/v1/ipc-signal.md` or wired in `src/ipc.ts`.
 
 5. **User reset keyword** — `/new` detection in gateway message loop
-   before routing to agent. Not yet specced or implemented.
+   before routing to agent. Specced in `specs/v1/commands.md` (`/new`
+   section): clear session ID, forward args with `[system: user invoked
+/new]` annotation, normal context injection (MEMORY.md, diary pointer)
+   still applies. Not yet implemented.

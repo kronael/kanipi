@@ -85,11 +85,37 @@ infrastructure exists (v2 territory).
 
 ## v1 commands
 
-| Command   | Effect                                                                |
-| --------- | --------------------------------------------------------------------- |
-| `/new`    | Clear stored session ID → next spawn starts fresh, sends confirmation |
-| `/ping`   | Reply with bot name + online status                                   |
-| `/chatid` | Reply with the channel JID for this chat                              |
+| Command   | Effect                                                            |
+| --------- | ----------------------------------------------------------------- |
+| `/new`    | Reset session; forward message with system annotation (see below) |
+| `/ping`   | Reply with bot name + online status                               |
+| `/chatid` | Reply with the channel JID for this chat                          |
+
+### `/new` — session reset with continuity
+
+Gateway intercepts `/new` before routing:
+
+1. Send confirmation to user: _"Starting fresh session…"_
+2. Clear stored session ID for the group
+3. Extract args (everything after `/new`) as the forwarded message;
+   if no args, use an empty string
+4. Prepend a system annotation to the stdin prompt:
+
+```
+[system: user invoked /new — session reset intentionally]
+<forwarded message or empty>
+```
+
+5. Spawn fresh container with new session — normal context injection
+   applies (MEMORY.md auto-injected, diary pointer from diary layer)
+
+The annotation tells the agent this is a deliberate reset, not an idle
+timeout. It can respond appropriately ("Fresh start — what would you
+like to work on?") without acting confused about missing context.
+
+Context refs to prior sessions come in via the diary pointer and
+MEMORY.md as usual — `/new` does not suppress them. The agent has
+full behavioural memory even in a fresh session.
 
 ## Current state (before this spec ships)
 
