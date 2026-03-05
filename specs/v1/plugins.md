@@ -30,6 +30,20 @@ IPC command).
 
 ---
 
+## Skill seeding — shipped
+
+Skills in `container/skills/` are seeded at runtime, not baked into the image.
+On first container spawn per group, gateway does:
+
+```typescript
+fs.cpSync('container/skills/', DATA_DIR/sessions/<group>/.claude/skills/, { recursive: true })
+```
+
+Only runs if destination doesn't exist. Agent can modify its own copy.
+Updates propagate via the `/migrate` skill (main group only) which compares
+`/workspace/self/container/skills/` against all groups' `~/.claude/skills/`
+and copies changed skills. `/workspace/self` = kanipi source, mounted read-only.
+
 ## Plugin Types
 
 ### 1. Skills
@@ -59,7 +73,18 @@ gateway host after operator review.
 `/workspace/group/plugins/<patch-name>.patch`, emit
 `plugin-propose` with `type=patch`.
 
-### 3. Config extensions
+### 3. MCP sidecars
+
+A new MCP server binary shipped as a sidecar (see `sidecar/` directory).
+Agent proposes by writing a sidecar config and binary to
+`/workspace/group/plugins/<name>/`, emitting `plugin-propose` with
+`kind=mcp`. Deploy hook installs the binary and wires it into the instance
+`.env` (`MCP_SERVERS` or equivalent). Requires gateway restart.
+
+MCP sidecars extend what tools the agent can call — not gateway behaviour.
+They run as separate processes alongside the container.
+
+### 4. Config extensions
 
 New `.env` keys or changes to `config.ts` exports. Always paired with
 a gateway patch.
