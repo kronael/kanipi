@@ -48,7 +48,8 @@ export const videoHandler: AttachmentHandler = {
     let text: string;
     try {
       await extractAudio(localPath, audioPath);
-      text = await whisperTranscribe(audioPath);
+      const result = await whisperTranscribe(audioPath);
+      text = result.text;
     } catch (err) {
       logger.warn({ err, localPath }, 'video: transcription failed');
       return [];

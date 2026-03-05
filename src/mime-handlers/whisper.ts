@@ -3,10 +3,15 @@ import path from 'path';
 
 import { WHISPER_BASE_URL, WHISPER_MODEL } from '../config.js';
 
+export interface WhisperResult {
+  text: string;
+  language: string; // detected or forced
+}
+
 export async function whisperTranscribe(
   filePath: string,
   language?: string,
-): Promise<string> {
+): Promise<WhisperResult> {
   const buf = fs.readFileSync(filePath);
   const form = new FormData();
   const blob = new Blob([buf]);
@@ -15,7 +20,7 @@ export async function whisperTranscribe(
   if (language) form.append('language', language);
 
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 30_000);
+  const timer = setTimeout(() => ac.abort(), 60_000);
   let res: Response;
   try {
     res = await fetch(`${WHISPER_BASE_URL}/inference`, {
@@ -29,6 +34,9 @@ export async function whisperTranscribe(
   if (!res.ok) {
     throw new Error(`whisper HTTP ${res.status}: ${await res.text()}`);
   }
-  const json = (await res.json()) as { text?: string };
-  return (json.text || '').trim();
+  const json = (await res.json()) as { text?: string; language?: string };
+  return {
+    text: (json.text || '').trim(),
+    language: json.language || language || 'unknown',
+  };
 }

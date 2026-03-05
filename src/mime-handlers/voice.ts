@@ -13,13 +13,17 @@ function groupDirFromLocalPath(localPath: string): string | null {
   return idx !== -1 ? localPath.slice(0, idx) : null;
 }
 
-function readLanguage(groupDir: string): string | undefined {
+// Returns language codes from .whisper-language (one per line, empty = auto only).
+function readLanguages(groupDir: string): string[] {
   const p = path.join(groupDir, '.whisper-language');
   try {
-    const lang = fs.readFileSync(p, 'utf-8').trim();
-    return lang || undefined;
+    return fs
+      .readFileSync(p, 'utf-8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
   } catch {
-    return undefined;
+    return [];
   }
 }
 
@@ -33,16 +37,34 @@ export const voiceHandler: AttachmentHandler = {
 
   handle: async (a, localPath) => {
     if (!VOICE_TRANSCRIPTION_ENABLED) return [];
+
     const groupDir = groupDirFromLocalPath(localPath);
-    const language = groupDir ? readLanguage(groupDir) : undefined;
-    let text: string;
-    try {
-      text = await whisperTranscribe(localPath, language);
-    } catch (err) {
-      logger.warn({ err, localPath, language }, 'voice: whisper failed');
-      return [];
+    const languages = groupDir ? readLanguages(groupDir) : [];
+
+    // Always include auto-detect; add one forced pass per configured language.
+    const passes: Array<string | undefined> = [undefined, ...languages];
+
+    const results = await Promise.allSettled(
+      passes.map((lang) => whisperTranscribe(localPath, lang)),
+    );
+
+    const lines: string[] = [];
+    for (const r of results) {
+      if (r.status === 'rejected') {
+        logger.warn({ err: r.reason, localPath }, 'voice: whisper pass failed');
+        continue;
+      }
+      const { text, language: detected } = r.value;
+      if (!text) continue;
+      // forced pass label: "voice/cs"; auto pass label: "voice/auto→cs"
+      const forced = passes[results.indexOf(r)];
+      const label = forced ? `voice/${forced}` : `voice/auto→${detected}`;
+      lines.push(`[${label}: ${text}]`);
     }
-    fs.writeFileSync(localPath.replace(/\.\w+$/, '-whisper.txt'), text);
-    return [`[voice: ${text}]`];
+
+    if (lines.length === 0) return [];
+    const combined = lines.join('\n');
+    fs.writeFileSync(localPath.replace(/\.\w+$/, '-whisper.txt'), combined);
+    return [combined];
   },
 };
