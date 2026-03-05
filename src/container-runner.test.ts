@@ -23,6 +23,12 @@ vi.mock('./config.js', () => ({
   MAIN_GROUP_FOLDER: 'main',
 }));
 
+// Mock db (container-runner now calls recordSessionStart/updateSessionEnd)
+vi.mock('./db.js', () => ({
+  recordSessionStart: vi.fn(),
+  updateSessionEnd: vi.fn(),
+}));
+
 // Mock logger
 vi.mock('./logger.js', () => ({
   logger: {

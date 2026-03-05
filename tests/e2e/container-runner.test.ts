@@ -65,6 +65,11 @@ vi.mock('../../src/mount-security.js', () => ({
   validateAdditionalMounts: vi.fn(() => []),
 }));
 
+vi.mock('../../src/db.js', () => ({
+  recordSessionStart: vi.fn(),
+  updateSessionEnd: vi.fn(),
+}));
+
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
   return {
