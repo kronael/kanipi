@@ -111,6 +111,31 @@ concepts from episodes. Diary is the raw input to both.
 brainpro auto-loads today + yesterday's notes into every session
 (not just on reset). This is an alternative push model — kept open.
 
+## Episode notes (rhias, Mar 2026)
+
+Observed on the rhias instance: a single session ran 4+ days with zero diary
+entries. The entire memory stack was raw message history replayed from JSONL
+on each container restart — no flush, no summary.
+
+**What this means for the diary spec:**
+
+- The pre-compaction flush is necessary but not sufficient. Rhias never
+  compacted (or compaction didn't fire), so the flush never triggered.
+  The diary must also flush on **session end** (idle timeout kill), not only
+  on compaction. Otherwise a long, low-volume session accumulates 4 days
+  of context with no diary entry until it eventually dies cold.
+- The gateway injects a one-line diary pointer on session reset — but if
+  no diary exists, the pointer is empty and the agent starts cold.
+  The spec should note this fallback: no diary = cold start with MEMORY.md only.
+- Multi-day sessions (project assistants, not chat bots) are the primary use
+  case. Diary entries should carry enough project state that resuming after
+  a cold start is workable, not just a session-end formality.
+
+**Open from this episode:**
+
+- Should diary flush also fire on container exit (not just PreCompact)?
+  Rhias suggests yes — idle timeout is a common session-end path.
+
 ## Open
 
 - Implement silent flush: replace `createPreCompactHook` in agent runner

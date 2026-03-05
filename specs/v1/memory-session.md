@@ -117,6 +117,29 @@ Agent reads `sessions-index.json` and individual `.jl` transcripts
 directly via file tools. `sessions-index.json` gives summaries without
 parsing raw JSONL; present only after compaction.
 
+## Episode notes (rhias, Mar 2026)
+
+Observed on a live 4-day session (rhias instance, session 58f49dbe):
+
+- Single session ran for 4+ days without reset — idle timeout didn't fire
+  (container was kept alive by incoming IPC messages between user turns)
+- Every container restart replayed the **full** message history (45+ msgs on a
+  mid-morning resume in Mar 3). No incremental loading, no checkpoint.
+- Full replay is the only continuity mechanism — no diary, no MEMORY.md,
+  no sessions-index.json (projects/ was inaccessible — permission silo)
+- IPC messages arrived mid-session during 51-min container runs (piped into
+  active query). No ACK visible; ordering risk if messages pile up.
+- After enough messages, startup replay will slow down. After a crash or
+  idle timeout, all context is gone with no fallback.
+
+**Implications for this spec:**
+
+- `resume: sessionId` works for the happy path but has no degradation story
+- Need the diary flush to fire on session end (not just compaction) so that
+  when idle timeout kills the container, something is preserved
+- SDK resume failure handling (open item 1) is more urgent than it appeared —
+  rhias would lose 4 days of context on first stale-ID incident
+
 ## Open
 
 1. **SDK resume failure handling** — detect when the SDK rejects a stale
