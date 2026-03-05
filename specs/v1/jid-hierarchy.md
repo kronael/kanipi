@@ -51,6 +51,17 @@ string and matches against registered groups via glob.
 - DB: `chat_jid` columns are plain strings, no schema change
 - Channels construct multi-segment JIDs where hierarchy exists
 
+## Reply vs reference rule
+
+- **Within the same JID (leaf)** — use native reply (`replyTo`). Message and
+  reply are in the same room. Channel renders as a reply bubble/thread.
+- **Across JIDs** — use a reference link (URL or channel-native deep link).
+  Replying across rooms is not possible natively; the agent includes a link
+  to the original message instead.
+
+This applies at all levels: replying within a Discord thread uses `replyTo`;
+referencing a message from a different thread or channel uses a link.
+
 ## Open
 
 - Add glob matching to group lookup (`src/index.ts` / `src/db.ts`)
