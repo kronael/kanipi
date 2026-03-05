@@ -285,6 +285,13 @@ export function setLastGroupSync(): void {
  * Store a message with full content.
  * Only call this for registered groups where message history is needed.
  */
+export function appendMessageContent(id: string, suffix: string): void {
+  db.prepare(`UPDATE messages SET content = content || ? WHERE id = ?`).run(
+    suffix,
+    id,
+  );
+}
+
 export function storeMessage(msg: NewMessage): void {
   db.prepare(
     `INSERT OR REPLACE INTO messages (id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,

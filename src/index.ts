@@ -9,7 +9,6 @@ import {
   GROUPS_DIR,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
-  MEDIA_ENABLED,
   POLL_INTERVAL,
   SLOTH_USERS,
   TELEGRAM_BOT_TOKEN,
@@ -51,15 +50,8 @@ import {
   storeChatMetadata,
   storeMessage,
 } from './db.js';
-import {
-  AttachmentDownloader,
-  RawAttachment,
-  makeDownloader,
-  processAttachments,
-  toAttachment,
-} from './mime.js';
-import { videoHandler } from './mime-handlers/video.js';
-import { voiceHandler } from './mime-handlers/voice.js';
+import { AttachmentDownloader, RawAttachment } from './mime.js';
+import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
@@ -73,17 +65,6 @@ let sessions: Record<string, string> = {};
 let registeredGroups: Record<string, RegisteredGroup> = {};
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
-
-// In-memory store: msgId → {attachments, download}
-// Populated by channel callbacks; consumed by enricher pipeline at dispatch.
-// TTL cleanup happens at dispatch (one-shot read).
-const pendingAttachments = new Map<
-  string,
-  {
-    attachments: RawAttachment[];
-    download: AttachmentDownloader;
-  }
->();
 
 const channels: Channel[] = [];
 const queue = new GroupQueue();
@@ -192,59 +173,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     if (!hasTrigger) return true;
   }
 
-  // Run enricher pipeline on messages that have pending attachments
-  let enrichedAnnotations: string[] = [];
-  if (MEDIA_ENABLED && pendingAttachments.size > 0) {
-    const groupDir = path.join(GROUPS_DIR, group.folder);
-    const bucket = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-
-    logger.info(
-      {
-        pendingCount: pendingAttachments.size,
-        msgIds: missedMessages.map((m) => m.id),
-      },
-      'mime: checking pending attachments',
-    );
-    for (const dbMsg of missedMessages) {
-      const pending = pendingAttachments.get(dbMsg.id);
-      if (!pending) {
-        logger.debug(
-          { msgId: dbMsg.id },
-          'mime: no pending attachment for message',
-        );
-        continue;
-      }
-      pendingAttachments.delete(dbMsg.id);
-      logger.info(
-        { msgId: dbMsg.id, attachmentCount: pending.attachments.length },
-        'mime: processing attachments',
-      );
-
-      const msgDir = path.join(groupDir, 'media', bucket, dbMsg.id);
-      const attachments = pending.attachments.map(toAttachment);
-      const download = makeDownloader(
-        pending.attachments,
-        pending.download,
-        attachments,
-      );
-
-      try {
-        const lines = await processAttachments(
-          dbMsg.id,
-          msgDir,
-          attachments,
-          download,
-          [voiceHandler, videoHandler],
-        );
-        logger.info({ msgId: dbMsg.id, lines }, 'mime: pipeline result');
-        if (lines.length > 0) {
-          enrichedAnnotations.push(lines.join('\n'));
-        }
-      } catch (err) {
-        logger.warn({ err, msgId: dbMsg.id }, 'mime pipeline failed');
-      }
-    }
-  }
+  await waitForEnrichments(missedMessages.map((m) => m.id));
 
   const prompt = formatMessages(missedMessages);
 
@@ -288,43 +217,34 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     channel.setTyping?.(chatJid, false);
   };
 
-  const output = await runAgent(
-    group,
-    prompt,
-    chatJid,
-    async (result) => {
-      // Streaming output callback — called for each agent result
-      if (result.result) {
-        const raw =
-          typeof result.result === 'string'
-            ? result.result
-            : JSON.stringify(result.result);
-        // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-        const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
-        logger.info(
-          { group: group.name },
-          `Agent output: ${raw.slice(0, 200)}`,
-        );
-        if (text) {
-          await channel.sendMessage(chatJid, text);
-          outputSentToUser = true;
-        }
-        resetIdleTimer();
+  const output = await runAgent(group, prompt, chatJid, async (result) => {
+    // Streaming output callback — called for each agent result
+    if (result.result) {
+      const raw =
+        typeof result.result === 'string'
+          ? result.result
+          : JSON.stringify(result.result);
+      // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
+      const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
+      logger.info({ group: group.name }, `Agent output: ${raw.slice(0, 200)}`);
+      if (text) {
+        await channel.sendMessage(chatJid, text);
+        outputSentToUser = true;
       }
+      resetIdleTimer();
+    }
 
-      if (result.status === 'success') {
-        // Agent finished responding — stop typing indicator.
-        // Container stays alive (idle) but should not show as "working".
-        stopTyping();
-        queue.notifyIdle(chatJid);
-      }
+    if (result.status === 'success') {
+      // Agent finished responding — stop typing indicator.
+      // Container stays alive (idle) but should not show as "working".
+      stopTyping();
+      queue.notifyIdle(chatJid);
+    }
 
-      if (result.status === 'error') {
-        hadError = true;
-      }
-    },
-    enrichedAnnotations,
-  );
+    if (result.status === 'error') {
+      hadError = true;
+    }
+  });
 
   stopTyping();
   clearTimeout(idleTimer ?? undefined);
@@ -357,7 +277,6 @@ async function runAgent(
   prompt: string,
   chatJid: string,
   onOutput?: (output: ContainerOutput) => Promise<void>,
-  annotations?: string[],
 ): Promise<'success' | 'error'> {
   const isMain = group.folder === MAIN_GROUP_FOLDER;
   const sessionId = sessions[group.folder];
@@ -397,8 +316,6 @@ async function runAgent(
         chatJid,
         isMain,
         assistantName: ASSISTANT_NAME,
-        _annotations:
-          annotations && annotations.length > 0 ? annotations : undefined,
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
@@ -507,6 +424,7 @@ async function startMessageLoop(): Promise<void> {
           );
           const messagesToSend =
             allPending.length > 0 ? allPending : groupMessages;
+          await waitForEnrichments(messagesToSend.map((m) => m.id));
           const formatted = formatMessages(messagesToSend);
 
           if (queue.sendMessage(chatJid, formatted)) {
@@ -580,8 +498,9 @@ async function main(): Promise<void> {
       download?: AttachmentDownloader,
     ) => {
       storeMessage(msg);
-      if (attachments && download && MEDIA_ENABLED) {
-        pendingAttachments.set(msg.id, { attachments, download });
+      const group = registeredGroups[msg.chat_jid];
+      if (attachments && download && group) {
+        enqueueEnrichment(msg.id, group.folder, attachments, download);
       }
     },
     onChatMetadata: (
