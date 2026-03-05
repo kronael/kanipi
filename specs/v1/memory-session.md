@@ -1,4 +1,4 @@
-# Memory: Session — partial
+# Memory: Session — open
 
 Claude Code session continuity across container invocations.
 
