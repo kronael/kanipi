@@ -33,7 +33,6 @@
 - **prompt-format** — format documentation (code predates spec)
 - **router** — routing flow documentation (code predates spec)
 - **reference-systems** — brainpro, takopi, eliza-atlas analysis
-- **critique** — 18/22 fixed, 3 deferred, 1 open (diary)
 - **testing** — test infrastructure and conventions
 
 ## Open (not shipped)
