@@ -375,11 +375,16 @@ export function getNewMessages(
   return { messages: rows, newTimestamp };
 }
 
+const MSG_LIMIT = 30;
+const MSG_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
+
 export function getMessagesSince(
   chatJid: string,
   sinceTimestamp: string,
   botPrefix: string,
 ): NewMessage[] {
+  const cutoff = new Date(Date.now() - MSG_MAX_AGE_MS).toISOString();
+  const since = sinceTimestamp > cutoff ? sinceTimestamp : cutoff;
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
   const sql = `
@@ -388,11 +393,13 @@ export function getMessagesSince(
     WHERE chat_jid = ? AND timestamp > ?
       AND is_bot_message = 0 AND content NOT LIKE ?
       AND content != '' AND content IS NOT NULL
-    ORDER BY timestamp
+    ORDER BY timestamp DESC
+    LIMIT ?
   `;
-  return db
+  const rows = db
     .prepare(sql)
-    .all(chatJid, sinceTimestamp, `${botPrefix}:%`) as NewMessage[];
+    .all(chatJid, since, `${botPrefix}:%`, MSG_LIMIT) as NewMessage[];
+  return rows.reverse();
 }
 
 export function createTask(
