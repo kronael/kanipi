@@ -433,7 +433,7 @@ describe('processGroupMessages — session/day injection', () => {
 });
 
 describe('processGroupMessages — agent error handling', () => {
-  it('sends retry message and rolls back cursor on error with no output', async () => {
+  it('sends error message and advances cursor on error with no output', async () => {
     const ch = setupGroup();
     mockRunContainerAgent.mockResolvedValue({
       status: 'error',
@@ -441,7 +441,7 @@ describe('processGroupMessages — agent error handling', () => {
       error: 'crashed',
     });
 
-    await _processGroupMessages(TEST_JID);
+    const result = await _processGroupMessages(TEST_JID);
 
     const retryCall = (
       ch.sendMessage as ReturnType<typeof vi.fn>
@@ -449,7 +449,8 @@ describe('processGroupMessages — agent error handling', () => {
       text.includes('Something went wrong'),
     );
     expect(retryCall).toBeDefined();
-    expect(_getLastAgentTimestamp(TEST_JID)).toBe('');
+    // Cursor advances — no auto-retry (user told to retry manually)
+    expect(result).toBe(true);
   });
 
   it('does NOT roll back cursor and skips retry when error after output sent', async () => {

@@ -393,19 +393,17 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       );
       return true;
     }
-    // Roll back cursor so retries can re-process these messages
-    lastAgentTimestamp[chatJid] = previousCursor;
-    saveState();
+    // Tell user to retry — don't auto-retry (error is likely permanent)
     logger.warn(
       { group: group.name },
-      'Agent error, rolled back message cursor for retry',
+      'Agent error, advancing cursor (user told to retry)',
     );
     channel
       .sendMessage(chatJid, 'Something went wrong. Please try again.')
       .catch((err) =>
         logger.warn({ chatJid, err }, 'Failed to send error notification'),
       );
-    return false;
+    return true;
   }
 
   return true;

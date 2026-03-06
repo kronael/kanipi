@@ -32,7 +32,7 @@ function writeIpcFile(dir: string, data: object): string {
   return filename;
 }
 
-function writeRequest(data: object & { id: string }): void {
+function writeRequest(data: object & { id: string; type: string }): void {
   fs.mkdirSync(REQUESTS_DIR, { recursive: true });
   const tmp = path.join(REQUESTS_DIR, `${data.id}.json.tmp`);
   const final = path.join(REQUESTS_DIR, `${data.id}.json`);
