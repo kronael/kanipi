@@ -32,6 +32,13 @@ export interface ContainerConfig {
   timeout?: number; // Default: 300000 (5 minutes)
 }
 
+export type RoutingRule =
+  | { type: 'command'; trigger: string; target: string }
+  | { type: 'pattern'; pattern: string; target: string }
+  | { type: 'keyword'; keyword: string; target: string }
+  | { type: 'sender'; pattern: string; target: string }
+  | { type: 'default'; target: string };
+
 export interface RegisteredGroup {
   name: string;
   folder: string;
@@ -40,6 +47,8 @@ export interface RegisteredGroup {
   containerConfig?: ContainerConfig;
   requiresTrigger?: boolean; // Default: true for groups, false for solo chats
   slinkToken?: string; // Only set for web: groups
+  parent?: string; // Parent folder, undefined for roots
+  routingRules?: RoutingRule[]; // Rules for routing to child groups
 }
 
 export interface SendOpts {

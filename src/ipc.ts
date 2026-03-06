@@ -16,7 +16,11 @@ import {
   resumeTask,
   scheduleTask,
 } from './actions/tasks.js';
-import { refreshGroups, registerGroup } from './actions/groups.js';
+import {
+  refreshGroups,
+  registerGroup,
+  setRoutingRules,
+} from './actions/groups.js';
 import {
   DATA_DIR,
   GROUPS_DIR,
@@ -56,6 +60,7 @@ const allActions: Action[] = [
   cancelTask,
   refreshGroups,
   registerGroup,
+  setRoutingRules,
   resetSession,
 ];
 for (const a of allActions) registerAction(a);

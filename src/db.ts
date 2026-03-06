@@ -144,6 +144,20 @@ function createSchema(database: Database.Database): void {
     /* column already exists */
   }
 
+  // Add parent and routing_rules columns (migration for existing DBs)
+  try {
+    database.exec(`ALTER TABLE registered_groups ADD COLUMN parent TEXT`);
+  } catch {
+    /* column already exists */
+  }
+  try {
+    database.exec(
+      `ALTER TABLE registered_groups ADD COLUMN routing_rules TEXT`,
+    );
+  } catch {
+    /* column already exists */
+  }
+
   // Add context_mode column if it doesn't exist (migration for existing DBs)
   try {
     database.exec(
@@ -673,23 +687,43 @@ export function getRecentSessions(
 
 // --- Registered group accessors ---
 
+type GroupRow = {
+  jid: string;
+  name: string;
+  folder: string;
+  trigger_pattern: string;
+  added_at: string;
+  container_config: string | null;
+  requires_trigger: number | null;
+  slink_token: string | null;
+  parent: string | null;
+  routing_rules: string | null;
+};
+
+function rowToGroup(row: GroupRow): RegisteredGroup & { jid: string } {
+  return {
+    jid: row.jid,
+    name: row.name,
+    folder: row.folder,
+    trigger: row.trigger_pattern,
+    added_at: row.added_at,
+    containerConfig: row.container_config
+      ? JSON.parse(row.container_config)
+      : undefined,
+    requiresTrigger:
+      row.requires_trigger === null ? undefined : row.requires_trigger === 1,
+    slinkToken: row.slink_token ?? undefined,
+    parent: row.parent ?? undefined,
+    routingRules: row.routing_rules ? JSON.parse(row.routing_rules) : undefined,
+  };
+}
+
 export function getRegisteredGroup(
   jid: string,
 ): (RegisteredGroup & { jid: string }) | undefined {
   const row = db
     .prepare('SELECT * FROM registered_groups WHERE jid = ?')
-    .get(jid) as
-    | {
-        jid: string;
-        name: string;
-        folder: string;
-        trigger_pattern: string;
-        added_at: string;
-        container_config: string | null;
-        requires_trigger: number | null;
-        slink_token: string | null;
-      }
-    | undefined;
+    .get(jid) as GroupRow | undefined;
   if (!row) return undefined;
   if (!isValidGroupFolder(row.folder)) {
     logger.warn(
@@ -698,19 +732,7 @@ export function getRegisteredGroup(
     );
     return undefined;
   }
-  return {
-    jid: row.jid,
-    name: row.name,
-    folder: row.folder,
-    trigger: row.trigger_pattern,
-    added_at: row.added_at,
-    containerConfig: row.container_config
-      ? JSON.parse(row.container_config)
-      : undefined,
-    requiresTrigger:
-      row.requires_trigger === null ? undefined : row.requires_trigger === 1,
-    slinkToken: row.slink_token ?? undefined,
-  };
+  return rowToGroup(row);
 }
 
 export function getGroupBySlink(
@@ -718,32 +740,9 @@ export function getGroupBySlink(
 ): (RegisteredGroup & { jid: string }) | undefined {
   const row = db
     .prepare('SELECT * FROM registered_groups WHERE slink_token = ?')
-    .get(token) as
-    | {
-        jid: string;
-        name: string;
-        folder: string;
-        trigger_pattern: string;
-        added_at: string;
-        container_config: string | null;
-        requires_trigger: number | null;
-        slink_token: string | null;
-      }
-    | undefined;
+    .get(token) as GroupRow | undefined;
   if (!row) return undefined;
-  return {
-    jid: row.jid,
-    name: row.name,
-    folder: row.folder,
-    trigger: row.trigger_pattern,
-    added_at: row.added_at,
-    containerConfig: row.container_config
-      ? JSON.parse(row.container_config)
-      : undefined,
-    requiresTrigger:
-      row.requires_trigger === null ? undefined : row.requires_trigger === 1,
-    slinkToken: row.slink_token ?? undefined,
-  };
+  return rowToGroup(row);
 }
 
 export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
@@ -751,8 +750,10 @@ export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
     throw new Error(`Invalid group folder "${group.folder}" for JID ${jid}`);
   }
   db.prepare(
-    `INSERT OR REPLACE INTO registered_groups (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger, slink_token)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO registered_groups
+       (jid, name, folder, trigger_pattern, added_at, container_config,
+        requires_trigger, slink_token, parent, routing_rules)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     jid,
     group.name,
@@ -762,20 +763,15 @@ export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
     group.containerConfig ? JSON.stringify(group.containerConfig) : null,
     group.requiresTrigger === undefined ? 1 : group.requiresTrigger ? 1 : 0,
     group.slinkToken ?? null,
+    group.parent ?? null,
+    group.routingRules ? JSON.stringify(group.routingRules) : null,
   );
 }
 
 export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
-  const rows = db.prepare('SELECT * FROM registered_groups').all() as Array<{
-    jid: string;
-    name: string;
-    folder: string;
-    trigger_pattern: string;
-    added_at: string;
-    container_config: string | null;
-    requires_trigger: number | null;
-    slink_token: string | null;
-  }>;
+  const rows = db
+    .prepare('SELECT * FROM registered_groups')
+    .all() as GroupRow[];
   const result: Record<string, RegisteredGroup> = {};
   for (const row of rows) {
     if (!isValidGroupFolder(row.folder)) {
@@ -785,18 +781,8 @@ export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
       );
       continue;
     }
-    result[row.jid] = {
-      name: row.name,
-      folder: row.folder,
-      trigger: row.trigger_pattern,
-      added_at: row.added_at,
-      containerConfig: row.container_config
-        ? JSON.parse(row.container_config)
-        : undefined,
-      requiresTrigger:
-        row.requires_trigger === null ? undefined : row.requires_trigger === 1,
-      slinkToken: row.slink_token ?? undefined,
-    };
+    const { jid: _jid, ...group } = rowToGroup(row);
+    result[row.jid] = group;
   }
   return result;
 }
