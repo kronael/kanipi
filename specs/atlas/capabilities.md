@@ -1,111 +1,75 @@
-# Evangelist Plugin Capabilities → Kanipi Equivalents
+# Atlas: What We Actually Need
 
-What the eliza-plugin-evangelist provided and how to replicate in kanipi.
+Strip away ElizaOS scaffolding. The evangelist plugin's real value is 5 things.
 
-## Already covered by kanipi
+## 1. Facts
 
-| Capability            | Evangelist                     | Kanipi equivalent                    |
-| --------------------- | ------------------------------ | ------------------------------------ |
-| Codebase search       | codebaseService grep/glob      | Claude Code SDK (Grep/Glob natively) |
-| Conversation logging  | JSONL daily files              | Gateway message DB + group logs/     |
-| Per-agent personality | character.json + system prompt | CLAUDE.md + character.json           |
-| Session management    | helpSessionManager (1h TTL)    | Group routing (trigger mode)         |
-| Diary / history       | facts/.diary/YYYYMMDD.md       | diary skill (YYYYMMDD.md)            |
-| File delivery         | N/A                            | send_file MCP tool                   |
-| Forwarded questions   | handleForward action           | Agent handles naturally via context  |
+YAML markdown knowledge files. Institutional memory.
 
-## Partially covered — needs skill/config work
+**Status:** Have them. 50+ files copied to `groups/main/facts/`.
 
-### 1. Facts loading and search
+## 2. Facts search (similarity)
 
-**Was:** factsService loads facts/\*.md, embeds them, semantic similarity search.
-Injected into every message via knowledgeContext provider (tiered confidence).
+Given a question, find the most relevant facts.
+Evangelist used embeddings with keyword fallback, tiered confidence
+(high >80%, medium 40-80%, low <40%). Max ~18 facts injected per message.
 
-**Now:** Facts are in `/workspace/group/facts/` — agent CAN read them.
-But no automatic injection or similarity search. Agent must grep/read manually.
+**Status:** Not built. Agent can grep facts/ manually but no
+automatic similarity search or injection.
 
-**To build:**
+**Options:**
 
-- [ ] Facts injection skill: read facts/\*.md frontmatter, inject summaries
-      into session context (like diary injection but for knowledge)
-- [ ] Later: embedding-based search as MCP sidecar
+- MCP sidecar with embedding model (nomic-embed-text via Ollama)
+- Simple keyword/TF-IDF search as a skill (no embeddings needed)
+- Agent-side: `/facts <query>` skill that searches and returns matches
+- Gateway-side: inject top-N facts into prompt (like diary injection)
 
-### 2. Codebase repo refresh
+## 3. Researcher
 
-**Was:** Every 6h background task: git fetch + reset all clones.
+Background task that explores repos, web, docs — writes findings
+to facts/ as new YAML markdown files.
 
-**Now:** Repos symlinked from eliza data dir. Static snapshots.
+Evangelist: 40-min Opus task, spawned on knowledge gap detection
+or explicit trigger. Read-only tools (Grep, Glob, Read, WebSearch,
+git clone). Output: XML factset parsed into fact files.
 
-**To build:**
+**Status:** Not built.
 
-- [ ] Scheduled task (kanipi task scheduler): refresh codebase repos
-      `cd refs/codebase/<repo> && git fetch -q && git reset --hard origin/main`
-- [ ] Or: MCP sidecar that handles git operations
+**Options:**
 
-## Not yet covered — needs new features
+- Subagent with research prompt + write access to facts/
+- Scheduled or on-demand via `/research <question>`
+- Agent already has all the tools — just needs the workflow
 
-### 3. Deep research (the big one)
+## 4. Verifier
 
-**Was:** 40-min background Opus research task. Clones repos, searches code,
-web searches, writes findings to facts/ as YAML markdown. Sonnet verifies.
-Delivered back to conversation thread via originalMessageId.
+Quality gate on research output. Evangelist: Opus researches,
+Sonnet cross-checks (two-phase). Rejection drops findings entirely.
 
-**Now:** Nothing. Agent can search mounted code but can't do background
-research, can't clone new repos, can't write to facts/.
+**Status:** Not built.
 
-**To build:**
+**Options:**
 
-- [ ] Research skill: `/research <question>` triggers subagent
-- [ ] Subagent gets read access to codebase + web search
-- [ ] Results written to facts/ (agent has write access to group dir)
-- [ ] No two-phase verification initially (simplify)
-- [ ] Research delivery: inject results on next message
+- Second subagent pass with verify prompt
+- Or skip initially — single-pass research with agent self-critique
+- Quality comes from the prompt, not the architecture
 
-### 4. Stats dashboard
+## 5. Persona / gatekeeper
 
-**Was:** HTTP dashboard at /evangelist/dashboard with stats, recent
-conversations, top queries, action breakdown.
+How the agent behaves, who it responds to, honesty rules.
 
-**Now:** Kanipi has web proxy but no analytics dashboard.
+**Status:** Done. CLAUDE.md + character.json + group trigger mode.
 
-**To build:**
+## That's it
 
-- [ ] Web app in instance web/ dir (vite)
-- [ ] Read from gateway message DB for stats
-- [ ] Low priority — diary serves as history
+Everything else the evangelist plugin did is either:
 
-### 5. Master commands / access control
+- Kanipi infrastructure (message routing, logging, sessions, file delivery)
+- Claude Code native (codebase grep, file reading, web search)
+- ElizaOS plumbing (providers, evaluators, action routing, Eliza cache)
 
-**Was:** Master users can start/stop sessions, ban users, list sessions.
-Session gating: bot only responds to user with active session.
+## Build order
 
-**Now:** Kanipi has trigger mode (respond when mentioned) and group routing.
-No per-user session gating or ban list.
-
-**To build:**
-
-- [ ] Auth actions in action registry (ban/unban)
-- [ ] Per-user session state (optional, low priority)
-- [ ] For now: trigger mode + group registration is sufficient
-
-### 6. Auto-indexing facts
-
-**Was:** Facts written to facts/CLAUDE.md with counts, topics, confidence.
-Automatic index rebuilt on every save.
-
-**Now:** No auto-index. Agent reads files manually.
-
-**To build:**
-
-- [ ] Index skill: `/index-facts` generates facts/INDEX.md
-- [ ] Run after research writes new facts
-- [ ] Or: scheduled task to rebuild index
-
-## Priority order
-
-1. **Facts injection** — biggest impact, simplest to build (skill)
-2. **Codebase refresh** — scheduled task, straightforward
-3. **Deep research** — most complex, highest value
-4. **Auto-indexing** — small quality-of-life
-5. **Stats dashboard** — nice to have
-6. **Access control** — only if multi-user demand
+1. **Facts search** — a `/facts` skill or gateway injection. Biggest impact.
+2. **Researcher** — subagent workflow. Write findings to facts/.
+3. **Verifier** — second pass. Can defer (single-pass is fine initially).
