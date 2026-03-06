@@ -44,49 +44,16 @@ Scheduled research (cron) deferred to phase 2.
 CLAUDE.md instructs agent to grep facts/ before answering.
 No skill needed — agent has Grep/Read natively.
 
-## Phase 2: Semantic + Injection
+## Phase 2: Polish
 
-### 2a. Semantic search
+### 2a. Scheduled research
 
-Embeddings-based similarity search replaces grep.
+Cron task to grow knowledge base automatically.
 
-- [ ] MCP sidecar: nomic-embed-text via Ollama
-  - `search_facts(query) → [fact, similarity, path]`
-  - Header-level ranking (one embedding per file)
-  - Paragraph-level retrieval from top files
-- [ ] Relevance ranking by similarity score
-- [ ] Fallback to keyword search if embeddings unavailable
-
-### 2b. Gateway injection
-
-Push relevant facts into agent context automatically.
-
-- [ ] Top-N facts injected per message (like diary injection)
-- [ ] XML format: `<knowledge layer="facts" count="N">`
-- [ ] Cap: top-N most relevant facts
-
-### 2c. User context injection
-
-Per-user memory, gateway-injected.
-
-- [ ] users/\*.md files (see specs/atlas/user-context.md)
-- [ ] Gateway reads user file on message, injects as XML
-- [ ] Agent nudge to create file on first encounter
-
-### 2d. Verifier — done (in research flow)
-
-Verification is the second subagent in the research flow (CLAUDE.md).
-No separate phase needed.
-
-### 2e. Knowledge gap detection
-
-Auto-trigger research when facts are insufficient.
-
-- [ ] After semantic search: if best match <threshold, flag gap
-- [ ] Auto-spawn researcher (or queue for next scheduled run)
+- [ ] Scheduled task: periodic research on knowledge gaps
 - [ ] Prevent duplicate research on same topic
 
-### 2f. Per-channel output styles
+### 2b. Per-channel output styles
 
 Different voice per channel. SDK supports output styles natively
 (`~/.claude/output-styles/*.md`). Gateway writes the style file
@@ -98,7 +65,50 @@ before spawning the container based on channel.
 - [ ] Email style (formal, structured, signature)
 - [ ] Web style (rich formatting, links)
 
-### 2g. Generalized memory
+### 2c. Verifier — done (in research flow)
+
+Verification is the second subagent in the /facts skill.
+
+## Phase 3: Semantic + Injection
+
+Requires embeddings sidecar infrastructure.
+
+### 3a. Semantic search
+
+Embeddings-based similarity search replaces grep.
+
+- [ ] MCP sidecar: nomic-embed-text via Ollama
+  - `search_facts(query) → [fact, similarity, path]`
+  - Header-level ranking (one embedding per file)
+  - Paragraph-level retrieval from top files
+- [ ] Relevance ranking by similarity score
+- [ ] Fallback to keyword search if embeddings unavailable
+
+### 3b. Gateway injection
+
+Push relevant facts into agent context automatically.
+
+- [ ] Top-N facts injected per message (like diary injection)
+- [ ] XML format: `<knowledge layer="facts" count="N">`
+- [ ] Cap: top-N most relevant facts
+
+### 3c. User context injection
+
+Per-user memory, gateway-injected.
+
+- [ ] users/\*.md files (see specs/atlas/user-context.md)
+- [ ] Gateway reads user file on message, injects as XML
+- [ ] Agent nudge to create file on first encounter
+
+### 3d. Knowledge gap detection
+
+Auto-trigger research when facts are insufficient.
+
+- [ ] After semantic search: if best match <threshold, flag gap
+- [ ] Auto-spawn researcher (or queue for next scheduled run)
+- [ ] Prevent duplicate research on same topic
+
+### 3e. Generalized memory
 
 Abstract the pattern across diary, facts, episodes, user context.
 
