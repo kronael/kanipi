@@ -6,13 +6,18 @@ Interface, callbacks, activation, threading.
 
 No token = channel never loads.
 
-| Channel  | Enabled when                   | JID prefix  |
-| -------- | ------------------------------ | ----------- |
-| telegram | `TELEGRAM_BOT_TOKEN` set       | `telegram/` |
-| whatsapp | `store/auth/creds.json` exists | `whatsapp/` |
-| discord  | `DISCORD_BOT_TOKEN` set        | `discord/`  |
-| email    | `EMAIL_IMAP_HOST` set          | `email/`    |
-| web      | always (slink HTTP)            | `web:`      |
+| Channel  | Enabled when                   | JID prefix | Example              |
+| -------- | ------------------------------ | ---------- | -------------------- |
+| telegram | `TELEGRAM_BOT_TOKEN` set       | `tg:`      | `tg:-100123456`      |
+| whatsapp | `store/auth/creds.json` exists | (native)   | `123@g.us`           |
+| discord  | `DISCORD_BOT_TOKEN` set        | `discord:` | `discord:1234567890` |
+| email    | `EMAIL_IMAP_HOST` set          | `email:`   | `email:a1b2c3d4e5f6` |
+| web      | always (slink HTTP)            | `web:`     | `web:main`           |
+
+JID format is `scheme:id` (URI-like). WhatsApp uses native
+Baileys JIDs (`@g.us`, `@s.whatsapp.net`). `ownsJid()` does
+prefix matching. See `worlds.md` for future `/`-separated
+hierarchical JIDs.
 
 ## Channel interface
 

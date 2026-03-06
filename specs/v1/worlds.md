@@ -1,28 +1,28 @@
 # Worlds
 
-JIDs are structured paths. Group folders can nest. Router
-maps JIDs to groups via exact match or glob.
+JIDs are URIs. Group folders can nest. Router maps JIDs
+to groups via exact match or glob.
 
 ## JID format
 
 ```
-channel/world/room/thread
+channel:id
+channel:id:subid
 ```
 
-`/` separator. First segment = full channel name. Path
-depth varies by platform.
+`:` separator (URI scheme). First segment = full channel
+name. Depth varies by platform.
 
-| Channel  | Flat                | With world                  | With thread                          |
-| -------- | ------------------- | --------------------------- | ------------------------------------ |
-| telegram | `telegram/chatid`   | --                          | `telegram/chatid/threadid`           |
-| discord  | `discord/channelid` | `discord/guildid/channelid` | `discord/guildid/channelid/threadid` |
-| whatsapp | `whatsapp/groupjid` | --                          | (flat)                               |
-| email    | `email/threadid`    | `email/domain/threadid`     | (flat)                               |
-| web      | `web/slinkid`       | --                          | (flat)                               |
+| Channel  | Flat                | Hierarchical                |
+| -------- | ------------------- | --------------------------- |
+| telegram | `telegram:chatid`   | `telegram:chatid:threadid`  |
+| discord  | `discord:channelid` | `discord:guildid:channelid` |
+| whatsapp | `whatsapp:groupjid` | (flat)                      |
+| email    | `email:threadid`    | `email:domain:threadid`     |
+| web      | `web:slinkid`       | (flat)                      |
 
-Flat JIDs remain valid. `/` because glob libraries
-understand it natively, `:` was ambiguous, channel IDs
-never contain `/`.
+Flat JIDs remain valid. `:` is standard URI scheme
+separator. Channel IDs never contain `:`.
 
 Each channel constructs its own JIDs. Gateway only matches
 strings against registered groups.
@@ -31,18 +31,20 @@ strings against registered groups.
 
 ## Phase 1 (implement now)
 
-### 1a. Separator migration (`:` -> `/`, prefix expansion)
+### 1a. Prefix expansion (`tg:` -> `telegram:`, wrap WhatsApp)
 
 One-time DB migration:
 
 ```sql
-UPDATE chats SET jid =
-  REPLACE(REPLACE(REPLACE(jid,
-    'tg:', 'telegram/'), 'wa:', 'whatsapp/'), ':', '/');
+UPDATE chats SET jid = REPLACE(jid, 'tg:', 'telegram:')
+  WHERE jid LIKE 'tg:%';
+UPDATE chats SET jid = 'whatsapp:' || jid
+  WHERE jid LIKE '%@g.us' OR jid LIKE '%@s.whatsapp.net';
 -- same for messages, registered_groups, scheduled_tasks
 ```
 
-Code: `startsWith('tg:')` -> `startsWith('telegram/')` etc.
+Code: `startsWith('tg:')` -> `startsWith('telegram:')` etc.
+WhatsApp: wrap native JIDs with `whatsapp:` prefix.
 
 ### 1b. isRoot replaces isMain
 
