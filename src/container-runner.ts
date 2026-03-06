@@ -21,7 +21,11 @@ import {
   HOST_APP_DIR,
   HOST_PROJECT_ROOT_PATH,
   IDLE_TIMEOUT,
+  MEDIA_ENABLED,
+  MEDIA_MAX_FILE_BYTES,
   TIMEZONE,
+  VIDEO_TRANSCRIPTION_ENABLED,
+  VOICE_TRANSCRIPTION_ENABLED,
   WEB_DIR,
   WEB_HOST,
   isRoot,
@@ -534,6 +538,51 @@ async function stopSidecars(handles: SidecarHandle[]): Promise<void> {
   );
 }
 
+// --- Gateway capabilities manifest ---
+
+function writeGatewayCaps(groupDir: string): void {
+  const voiceEnabled = VOICE_TRANSCRIPTION_ENABLED;
+  const videoEnabled = VIDEO_TRANSCRIPTION_ENABLED;
+  const mediaEnabled = MEDIA_ENABLED;
+  const mediaMb = Math.round(MEDIA_MAX_FILE_BYTES / (1024 * 1024));
+  const webEnabled = !!WEB_HOST;
+
+  // Read configured whisper languages for this group
+  const langFile = path.join(groupDir, '.whisper-language');
+  let languages: string[] = [];
+  try {
+    languages = fs
+      .readFileSync(langFile, 'utf-8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+  } catch {}
+
+  const langArray = languages.length
+    ? `[${languages.map((l) => `"${l}"`).join(', ')}]`
+    : '[]';
+
+  const toml = [
+    '[voice]',
+    `enabled = ${voiceEnabled}`,
+    `languages = ${langArray}`,
+    '',
+    '[video]',
+    `enabled = ${videoEnabled}`,
+    '',
+    '[media]',
+    `enabled = ${mediaEnabled}`,
+    `max_size_mb = ${mediaMb}`,
+    '',
+    '[web]',
+    `enabled = ${webEnabled}`,
+    `host = "${WEB_HOST}"`,
+    '',
+  ].join('\n');
+
+  fs.writeFileSync(path.join(groupDir, '.gateway-caps'), toml);
+}
+
 // --- Agent runner ---
 
 export async function runContainerAgent(
@@ -584,6 +633,9 @@ export async function runContainerAgent(
         `Run /migrate (main group) to sync all groups.`,
     );
   }
+
+  // Write capability manifest so the agent knows what's enabled
+  writeGatewayCaps(groupDir);
 
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
