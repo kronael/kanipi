@@ -231,13 +231,42 @@ function createSchema(database: Database.Database): void {
       UPDATE chats SET jid = 'telegram:' || SUBSTR(jid, 4) WHERE jid LIKE 'tg:%';
       UPDATE scheduled_tasks SET chat_jid = 'telegram:' || SUBSTR(chat_jid, 4) WHERE chat_jid LIKE 'tg:%';
 
-      UPDATE messages SET chat_jid = 'whatsapp:' || chat_jid WHERE chat_jid LIKE '%@g.us' OR chat_jid LIKE '%@s.whatsapp.net';
-      UPDATE registered_groups SET jid = 'whatsapp:' || jid WHERE jid LIKE '%@g.us' OR jid LIKE '%@s.whatsapp.net';
-      UPDATE chats SET jid = 'whatsapp:' || jid WHERE jid LIKE '%@g.us' OR jid LIKE '%@s.whatsapp.net';
+      UPDATE messages SET chat_jid = 'whatsapp:' || chat_jid WHERE (chat_jid LIKE '%@g.us' OR chat_jid LIKE '%@s.whatsapp.net') AND chat_jid NOT LIKE 'whatsapp:%';
+      UPDATE registered_groups SET jid = 'whatsapp:' || jid WHERE (jid LIKE '%@g.us' OR jid LIKE '%@s.whatsapp.net') AND jid NOT LIKE 'whatsapp:%';
+      UPDATE chats SET jid = 'whatsapp:' || jid WHERE (jid LIKE '%@g.us' OR jid LIKE '%@s.whatsapp.net') AND jid NOT LIKE 'whatsapp:%';
       UPDATE scheduled_tasks SET chat_jid = 'whatsapp:' || chat_jid WHERE (chat_jid LIKE '%@g.us' OR chat_jid LIKE '%@s.whatsapp.net') AND chat_jid NOT LIKE 'whatsapp:%';
 
       PRAGMA user_version = 1;
     `);
+    // Migrate JID keys in router_state JSON blobs
+    const agentTs = database
+      .prepare(
+        "SELECT value FROM router_state WHERE key = 'last_agent_timestamp'",
+      )
+      .get() as { value: string } | undefined;
+    if (agentTs?.value) {
+      try {
+        const parsed = JSON.parse(agentTs.value) as Record<string, string>;
+        const migrated: Record<string, string> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          let nk = k;
+          if (k.startsWith('tg:')) nk = 'telegram:' + k.slice(3);
+          else if (
+            (k.endsWith('@g.us') || k.endsWith('@s.whatsapp.net')) &&
+            !k.startsWith('whatsapp:')
+          )
+            nk = 'whatsapp:' + k;
+          migrated[nk] = v;
+        }
+        database
+          .prepare(
+            "UPDATE router_state SET value = ? WHERE key = 'last_agent_timestamp'",
+          )
+          .run(JSON.stringify(migrated));
+      } catch {
+        /* corrupted JSON — let it reset naturally */
+      }
+    }
     logger.info('Migrated JID prefixes (tg: → telegram:, bare → whatsapp:)');
   }
 }

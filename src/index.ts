@@ -102,7 +102,9 @@ function startTyping(channel: Channel, jid: string): void {
   channel.setTyping?.(jid, true);
   if (channel.setTyping) {
     typingState[jid] = {
-      interval: setInterval(() => channel.setTyping!(jid, true), 4000),
+      interval: setInterval(() => {
+        channel.setTyping!(jid, true).catch(() => {});
+      }, 4000),
       channel,
     };
   }
@@ -373,48 +375,53 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   startTyping(channel, chatJid);
   let hadError = false;
   let outputSentToUser = false;
+  let output: 'success' | 'error';
 
-  const output = await runAgent(
-    group,
-    prompt,
-    chatJid,
-    missedMessages.length,
-    channel.name,
-    async (result) => {
-      // Streaming output callback — called for each agent result
-      if (result.result) {
-        const raw =
-          typeof result.result === 'string'
-            ? result.result
-            : JSON.stringify(result.result);
-        // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-        const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
-        logger.info(
-          { group: group.name },
-          `Agent output: ${raw.slice(0, 200)}`,
-        );
-        if (text) {
-          await channel.sendMessage(chatJid, text);
-          outputSentToUser = true;
+  try {
+    output = await runAgent(
+      group,
+      prompt,
+      chatJid,
+      missedMessages.length,
+      channel.name,
+      async (result) => {
+        // Streaming output callback — called for each agent result
+        if (result.result) {
+          const raw =
+            typeof result.result === 'string'
+              ? result.result
+              : JSON.stringify(result.result);
+          // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
+          const text = raw
+            .replace(/<internal>[\s\S]*?<\/internal>/g, '')
+            .trim();
+          logger.info(
+            { group: group.name },
+            `Agent output: ${raw.slice(0, 200)}`,
+          );
+          if (text) {
+            await channel.sendMessage(chatJid, text);
+            outputSentToUser = true;
+          }
+          resetIdleTimer();
         }
-        resetIdleTimer();
-      }
 
-      if (result.status === 'success') {
-        // Agent finished responding — stop typing indicator.
-        // Container stays alive (idle) but should not show as "working".
-        stopTypingFor(chatJid);
-        queue.notifyIdle(chatJid);
-      }
+        if (result.status === 'success') {
+          // Agent finished responding — stop typing indicator.
+          // Container stays alive (idle) but should not show as "working".
+          stopTypingFor(chatJid);
+          queue.notifyIdle(chatJid);
+        }
 
-      if (result.status === 'error') {
-        hadError = true;
-      }
-    },
-  );
-
-  stopTypingFor(chatJid);
-  clearTimeout(idleTimer ?? undefined);
+        if (result.status === 'error') {
+          hadError = true;
+        }
+      },
+    );
+  } finally {
+    stopTypingFor(chatJid);
+    clearTimeout(idleTimer ?? undefined);
+  }
 
   if (output === 'error' || hadError) {
     // If we already sent output to the user, don't roll back the cursor —
