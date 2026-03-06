@@ -14,11 +14,11 @@ use the `/hello` skill to introduce yourself.
 On every NEW session, recover context from past sessions:
 
 1. Read the 2 most recent `diary/*.md` files (by filename date)
-2. If diary is empty or insufficient, find past session transcripts:
+2. If diary is empty or insufficient, find past session files:
    ```bash
-   ls -t ~/.claude/projects/*/sessions/*.jsonl | head -3
+   ls -t ~/.claude/projects/-workspace-group/*.jsonl | head -3
    ```
-   Read the most recent transcript (tail the last 100 lines to see
+   Read the most recent file (tail the last 100 lines to see
    what was discussed). The gateway also injects `<system event="new-session">`
    with the previous session ID — use it to find the right file.
 
