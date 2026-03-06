@@ -2,10 +2,10 @@
 
 ## atlas — phase 1 (viability)
 
-- [ ] facts search: `/facts <query>` skill, grep-based
-- [ ] researcher: subagent workflow, writes to facts/
+- [x] facts search: `/facts <query>` skill, grep-based
+- [x] researcher: subagent workflow, writes to facts/
 - [ ] user context: per-user memory files, gateway injection
-- [ ] group add CLI bug: stomps existing groups on same folder
+- [x] group add CLI bug: stomps existing groups on same folder
 
 ## atlas — phase 2 (quality)
 
