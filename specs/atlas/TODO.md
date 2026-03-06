@@ -27,26 +27,21 @@ generalized memory.
 Useful fields: path, category, topic, verified_at, header (summary
 for search). Strip: `confidence`, `findings_count` (eliza artifacts).
 
-### 1b. Persona + skills — done
+### 1b. Persona — done
 
 - [x] SOUL.md persona (replaces character.json)
 - [x] Agentic search (CLAUDE.md instructs: grep facts/)
-- [ ] `/research <question>` skill — spawn subagent with:
-  - read access to facts/, refs/codebase/
-  - web search tools
-  - write access to facts/ (new findings)
-  - 5-10 min timeout (not 40 min like eliza)
-  - output: new fact files with YAML frontmatter
 
 ### 1c. Researcher
 
-Subagent workflow for growing the knowledge base.
+`/research <question>` skill — spawns subagent to grow the knowledge base.
 
-- [ ] Research subagent prompt (what to search, how to write facts)
+- [ ] Skill prompt: what to search, how to write facts
+- [ ] Subagent access: facts/, refs/codebase/, web search
 - [ ] Tool restrictions: Read, Glob, Grep, WebSearch, WebFetch,
       Bash (git, curl only). No Edit on existing facts
-- [ ] Output: new facts/\*.md files with standardized frontmatter
-- [ ] Delivery: parent agent summarizes findings to user
+- [ ] Output: new facts/\*.md with standardized frontmatter
+- [ ] Parent summarizes findings to user
 - [ ] Scheduled research: cron task for knowledge gap filling
 
 ### 1d. Agentic search — done
