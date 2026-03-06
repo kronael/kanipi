@@ -58,7 +58,7 @@ import { AttachmentDownloader, RawAttachment } from './mime.js';
 import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
 import { formatDiaryXml, readDiaryEntries } from './diary.js';
 import chatidCommand from './commands/chatid.js';
-import fileCommand from './commands/file.js';
+import { putCommand, getCommand, lsCommand } from './commands/file.js';
 import newCommand, { pendingCommandArgs } from './commands/new.js';
 import pingCommand from './commands/ping.js';
 import {
@@ -631,7 +631,7 @@ async function startMessageLoop(): Promise<void> {
           const nonCommandMessages: NewMessage[] = [];
           for (const msg of groupMessages) {
             const m = msg.content.trim();
-            // Strip leading media placeholder (e.g. "[Document: file.txt] /file put")
+            // Strip leading media placeholder (e.g. "[Document: file.txt] /put")
             const cmdText = m.startsWith('[')
               ? m.replace(/^\[[^\]]*\]\s*/, '')
               : m;
@@ -793,7 +793,9 @@ function initCommands(): void {
   registerCommand(newCommand);
   registerCommand(pingCommand);
   registerCommand(chatidCommand);
-  registerCommand(fileCommand);
+  registerCommand(putCommand);
+  registerCommand(getCommand);
+  registerCommand(lsCommand);
 }
 
 async function main(): Promise<void> {
