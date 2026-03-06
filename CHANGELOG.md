@@ -7,6 +7,35 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v0.7.0] — 2026-03-06
+
+### Features
+
+- Forward metadata: forwarded message origin and reply-to context
+  extracted per channel (Telegram, WhatsApp, Discord), rendered as
+  nested XML tags in agent prompt
+- Diary injection: gateway reads diary/\*.md files and injects 2 most
+  recent summaries into agent prompt on session start
+- Diary nudge: PreCompact hook nudges agent to write diary entry before
+  context compression
+- Gateway capabilities manifest: .gateway-caps TOML file written before
+  each agent spawn (voice, video, media, web capability state)
+- File commands: /put, /get, /ls for bidirectional file transfer between
+  chat users and group workspace (disabled by default)
+- JID normalization: `kanipi group add` normalizes telegram:/whatsapp:
+  prefixes to match runtime format
+
+### Fixes
+
+- Diary XML format matched to knowledge system spec
+- Calendar-day diff bug in diary age labels
+- Forward metadata: reply context no longer dropped when sender missing
+- Telegram: null chat/channel title safety in forward extraction
+- File commands: symlink escape protection, --force flag parsing
+- Gateway-caps: whisper model field, sanitized language values
+
+---
+
 ## [v0.6.3] — 2026-03-06
 
 ### Features
