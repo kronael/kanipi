@@ -12,8 +12,17 @@ interface DiaryEntry {
 }
 
 function ageLabel(date: string, now: Date): string {
-  const d = new Date(date + 'T00:00:00');
-  const days = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
+  // Calendar-day diff: avoid sub-24h bugs by comparing date-only strings
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-');
+  const days = Math.round(
+    (new Date(todayStr + 'T00:00:00').getTime() -
+      new Date(date + 'T00:00:00').getTime()) /
+      86_400_000,
+  );
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   if (days < 7) return `${days} days ago`;
@@ -62,7 +71,7 @@ export function formatDiaryXml(entries: DiaryEntry[]): string {
   const now = new Date();
   const lines = entries.map(
     (e) =>
-      `  <entry date="${e.date}" age="${ageLabel(e.date, now)}">${e.summary}</entry>`,
+      `  <entry key="${e.date.replace(/-/g, '')}" age="${ageLabel(e.date, now)}">${e.summary}</entry>`,
   );
-  return `<diary count="${entries.length}">\n${lines.join('\n')}\n</diary>`;
+  return `<knowledge layer="diary" count="${entries.length}">\n${lines.join('\n')}\n</knowledge>`;
 }
