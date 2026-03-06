@@ -2,7 +2,6 @@
 
 ## Specs complete, pending implementation
 
-- **memory-session** (~75%) — gateway error notification to user on `status:error`
 - **message-threading / channels** (~5%) — `NewMessage.replyTo`, `SendOpts`,
   channel impls (telegram/whatsapp/discord), `<in_reply_to sender time ago>` in
   `formatMessages()`, `messages.raw` column for WAMessage
@@ -26,6 +25,7 @@
 - **commands** ✓ — `/new`, `/ping`, `/chatid` command registry (`src/commands/`),
   migrated from telegram hardcoding
 - **reset_session IPC** ✓ — wired in `src/ipc.ts`
+- **memory-session** ✓ — error notification to user on agent error, cursor rollback for retry
 
 ## Moved to v2
 
