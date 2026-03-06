@@ -6,77 +6,71 @@ Telegram (and other channels) carry metadata on forwarded messages:
 who originally sent it, from which chat, when. Kanipi drops all of
 this — the agent sees raw text with no context that it was forwarded.
 
+Same for reply-to: when a user replies to a specific message, the
+agent doesn't see what was being replied to.
+
 ## Solution
 
-Parse forward metadata in each channel adapter. Prepend a metadata
-line to the message text, same pattern as media placeholders.
+Store forward/reply metadata in the message DB. Render as XML
+attributes on `<message>` tags in the prompt (router.ts).
 
-## Format
+### Prompt format
 
-```
-[Forwarded from <name>] <original text>
-[Forwarded from <name>, <date>] <original text>
-```
-
-If the forward origin is hidden (privacy settings):
-
-```
-[Forwarded message] <text>
+```xml
+<message sender="Alice" time="..." forwarded_from="Bob">text</message>
+<message sender="Alice" time="..." forwarded_from="(hidden)">text</message>
+<message sender="Alice" time="..." reply_to="Bob: how does SAM work?">my answer</message>
 ```
 
-## Channels
+Consistent with existing XML: `<message>`, `<system>`, `<messages>`.
+
+## Schema
+
+Add optional columns to messages table (or fields on NewMessage):
+
+- `forwarded_from` — original sender name (null if not forwarded)
+- `reply_to_text` — quoted message preview (null if not a reply)
+- `reply_to_sender` — who was being replied to
+
+## Channel extraction
 
 ### Telegram
 
-grammy `ctx.message.forward_origin` object:
+grammy `ctx.message.forward_origin`:
 
-- `type: "user"` → `forward_origin.sender_user.first_name`
-- `type: "hidden_user"` → `forward_origin.sender_user_name`
-- `type: "chat"` → `forward_origin.chat.title`
-- `type: "channel"` → `forward_origin.chat.title`
+- `type: "user"` → `sender_user.first_name`
+- `type: "hidden_user"` → `sender_user_name` or "(hidden)"
+- `type: "chat"` → `chat.title`
+- `type: "channel"` → `chat.title`
 
-Also: `forward_origin.date` (unix timestamp).
+Reply: `ctx.message.reply_to_message.text` (truncate to ~100 chars)
+
+- `reply_to_message.from.first_name`
 
 ### WhatsApp
 
-Baileys: `message.message?.extendedTextMessage?.contextInfo?.isForwarded`
-and `contextInfo.forwardingScore`. No original sender info exposed.
+Forward: `contextInfo?.isForwarded` (boolean, no sender info).
+Set `forwarded_from` to "(forwarded)".
 
-```
-[Forwarded message] <text>
-```
+Reply: `contextInfo?.quotedMessage` + `contextInfo?.participant`
 
 ### Discord
 
-Discord doesn't have native forwarding. Users quote or embed.
-No change needed.
+No native forwarding. Reply: `message.reference` → fetch referenced
+message for preview.
 
 ### Email
 
-Email forwards have `Fwd:` subject prefix and quoted body.
-Already visible in text — no metadata extraction needed.
+Forwards visible in subject/body. No extraction needed.
+Reply threading handled by In-Reply-To header already.
 
 ### Web (Slink)
 
-No forwarding concept. No change needed.
-
-## Reply-to context
-
-Separate but related: messages that are replies carry `reply_to_message_id`.
-This should also be preserved as metadata:
-
-```
-[Reply to <sender>: "<preview>"] <text>
-```
-
-Telegram: `ctx.message.reply_to_message`
-WhatsApp: `contextInfo.quotedMessage` + `contextInfo.participant`
+No forwarding or reply-to concept.
 
 ## Implementation
 
-In each channel's message handler, before passing text to the gateway:
-
-1. Check for forward metadata
-2. Check for reply-to metadata
-3. Prepend metadata lines to message text
-4. Gateway and agent see enriched text — no schema changes needed
+1. Channel adapters: extract metadata, pass to `storeMessage()`
+2. DB: add nullable `forwarded_from`, `reply_to_text`, `reply_to_sender`
+3. router.ts `formatMessages()`: render as XML attributes
+4. No agent-side changes — it just sees richer XML
