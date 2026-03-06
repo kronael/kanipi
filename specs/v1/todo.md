@@ -17,6 +17,9 @@
   discord threads to correct agent containers. Topic/thread ID
   as JID segment, glob patterns match topic families.
   Builds on worlds router.
+- **router** — specced in router.md. Current flow documented,
+  open items (glob routing, formatMessages improvements) depend on
+  worlds and channels specs shipping first.
 - **cli.md** — partial
 - **integration tests** — testcontainers harness, mock agent image,
   slink scenarios. Specced in testing.md.
