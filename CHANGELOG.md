@@ -7,17 +7,19 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [Unreleased]
+## [v1.0.1] — 2026-03-06
 
 ### Changes
 
-- Replaced character.json with soul skill (`container/skills/soul/SKILL.md`)
-- Agent personality now via SOUL.md (group-level override) instead of
-  ElizaOS-style character.json with bio/topics/adjectives randomization
+- Replaced character.json with SOUL.md persona (zero code in agent-runner)
+- Agent personality via CLAUDE.md instruction to read SOUL.md on new sessions
 - Removed ~100 lines from agent-runner (Character interface, shuffle,
-  assembleCharacter, loadCharacter, loadSoul) — personality is purely skill-driven
-- Removed `container/character.json` from Docker image
-- Added per-channel output styles spec for v2 (`specs/atlas/TODO.md` §2f)
+  assembleCharacter, loadCharacter, loadSoul)
+- Per-channel output styles: telegram, discord, email, web (SDK native feature)
+- Gateway threads channel name into container settings for style activation
+- `/stop` command: gracefully stop running agent container
+- Hello skill reads SOUL.md persona instead of hardcoded intro
+- Migration 013: updates seeded CLAUDE.md with Soul/Knowledge/Greetings sections
 
 ---
 
