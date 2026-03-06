@@ -6,23 +6,11 @@ generalized memory.
 
 ## Phase 1: Viability
 
-### 1a. Fact format
+### 1a. Fact format — done
 
-Define how facts look. Start concrete for marinade, abstract later.
-
-- [ ] Fact file format: YAML frontmatter + markdown body
-  ```yaml
-  ---
-  topic: validator-bonds
-  confidence: high
-  source: liquid-staking-program/programs/marinade-finance/src/...
-  verified_at: 2026-03-06
-  ---
-  Bond accounts store validator identity, vote account...
-  ```
-- [ ] Standardize existing 60+ marinade facts to this format
-- [ ] Frontmatter fields: topic, confidence (high/medium/low),
-      source (file:line or URL), verified_at, findings_count
+60+ marinade facts already have YAML frontmatter from eliza-atlas
+migration: path, category, topic, confidence, verified_at, header,
+findings_count.
 
 ### 1b. Character + skills
 
