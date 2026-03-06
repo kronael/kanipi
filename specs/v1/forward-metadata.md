@@ -1,4 +1,4 @@
-# Forwarded Message Metadata
+# Forwarded Message Metadata — shipped
 
 ## Problem
 
