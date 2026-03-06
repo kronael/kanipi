@@ -1,9 +1,3 @@
-/**
- * Stdio MCP Server for NanoClaw
- * Request-response IPC: writes requests, polls for replies.
- * Falls back to fire-and-forget if no manifest found.
- */
-
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -37,8 +31,6 @@ function writeIpcFile(dir: string, data: object): string {
   fs.renameSync(tmp, filepath);
   return filename;
 }
-
-// --- Request/reply helpers ---
 
 function writeRequest(data: object & { id: string }): void {
   fs.mkdirSync(REQUESTS_DIR, { recursive: true });
@@ -96,7 +88,6 @@ async function callAction(
   return { content: [{ type: 'text', text }] };
 }
 
-// Check if request/reply IPC is available (gateway created dirs)
 const useRequestReply =
   fs.existsSync(REQUESTS_DIR) && fs.existsSync(REPLIES_DIR);
 
@@ -104,9 +95,6 @@ const server = new McpServer({
   name: 'nanoclaw',
   version: '1.0.0',
 });
-
-// --- Tools ---
-// Each tool uses request/reply if available, else fire-and-forget
 
 server.tool(
   'send_message',
@@ -184,7 +172,6 @@ SCHEDULE VALUE FORMAT (all times are LOCAL timezone):
     target_group_jid: z.string().optional().describe('(Root only) JID of target group'),
   },
   async (args) => {
-    // Client-side validation
     if (args.schedule_type === 'cron') {
       try { CronExpressionParser.parse(args.schedule_value); } catch {
         return {
@@ -225,7 +212,7 @@ SCHEDULE VALUE FORMAT (all times are LOCAL timezone):
         prompt: args.prompt,
         schedule_type: args.schedule_type,
         schedule_value: args.schedule_value,
-        context_mode: args.context_mode || 'group',
+        context_mode: args.context_mode,
       });
     }
 
@@ -234,7 +221,7 @@ SCHEDULE VALUE FORMAT (all times are LOCAL timezone):
       prompt: args.prompt,
       schedule_type: args.schedule_type,
       schedule_value: args.schedule_value,
-      context_mode: args.context_mode || 'group',
+      context_mode: args.context_mode,
       targetJid,
       timestamp: new Date().toISOString(),
     });

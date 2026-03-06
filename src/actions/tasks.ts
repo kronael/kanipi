@@ -52,10 +52,7 @@ export const scheduleTask: Action = {
     }
 
     const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const contextMode =
-      input.context_mode === 'group' || input.context_mode === 'isolated'
-        ? input.context_mode
-        : 'isolated';
+    const contextMode = input.context_mode === 'group' ? 'group' : 'isolated';
     createTask({
       id: taskId,
       group_folder: targetFolder,

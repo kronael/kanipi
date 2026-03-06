@@ -1,7 +1,3 @@
-/**
- * Container Runner for NanoClaw
- * Spawns agent execution in containers and handles IPC
- */
 import {
   ChildProcess,
   ChildProcessWithoutNullStreams,
@@ -41,14 +37,12 @@ import {
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup } from './types.js';
 
-// Seam for tests to inject a mock spawn
 export let _spawnProcess: (
   cmd: string,
   args: string[],
   opts: { stdio: ['pipe', 'pipe', 'pipe'] },
 ) => ChildProcessWithoutNullStreams = spawn;
 
-// Sentinel markers for robust output parsing (must match agent-runner)
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
 const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
 
