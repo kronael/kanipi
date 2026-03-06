@@ -6,20 +6,28 @@ channel prefix, subsequent segments form a hierarchy from broad to narrow.
 ## Format
 
 ```
-channel/scope/leaf
+channel/world/room/thread
 ```
 
-| Channel  | Flat (current)      | Hierarchical (threads)                |
-| -------- | ------------------- | ------------------------------------- |
-| telegram | `tg/chatid`         | `tg/chatid/threadid`                  |
-| discord  | `discord/channelid` | `discord/serverid/channelid/threadid` |
-| whatsapp | `wa/groupjid`       | (flat for now)                        |
-| email    | `email/threadid`    | (flat for now)                        |
-| web      | `web/slinkid`       | (flat for now)                        |
+Not every channel has all levels. The path is as deep as the platform's
+hierarchy goes. "World" is the outermost grouping (Discord guild, email
+domain); "room" is a single conversation space; "thread" is a sub-conversation.
+
+| Channel  | Flat (current)      | With world                  | With thread                          |
+| -------- | ------------------- | --------------------------- | ------------------------------------ |
+| telegram | `tg/chatid`         | —                           | `tg/chatid/threadid`                 |
+| discord  | `discord/channelid` | `discord/guildid/channelid` | `discord/guildid/channelid/threadid` |
+| whatsapp | `wa/groupjid`       | —                           | (flat for now)                       |
+| email    | `email/threadid`    | `email/domain/threadid`     | (flat for now)                       |
+| web      | `web/slinkid`       | —                           | (flat for now)                       |
+
+The JID path IS the hierarchy — no separate World/Room entities needed.
+A world-scoped query is just a glob or prefix match on the JID:
+`discord/guildid/*` matches all channels and threads in that guild.
 
 Flat JIDs (`tg/-100123456`, `discord/987654321`) remain valid — they are
-the first N segments. No migration needed for channels that don't use
-sub-hierarchy.
+the shortest form. Channels add segments as hierarchy becomes available.
+No migration needed for channels that don't use sub-hierarchy.
 
 ## Why `/` not `:`
 
@@ -103,15 +111,18 @@ The `kanipi` CLI `group add` also needs updating (constructs JIDs).
 Each channel constructs its JIDs. Gateway only sees the string and
 matches against registered groups via exact lookup or glob.
 
-- **Discord** — `discord/<channelId>` for channels;
-  `discord/<serverId>/<channelId>/<threadId>` for threads.
-  Non-thread channels keep the flat form (backwards compatible with
-  existing registrations). Thread JIDs add server+thread segments.
-  `msg.channel.parentId` and `msg.guildId` available at runtime.
+- **Discord** — always includes guild:
+  `discord/<guildId>/<channelId>` for channels;
+  `discord/<guildId>/<channelId>/<threadId>` for threads.
+  `msg.guildId` and `msg.channel.parentId` available at runtime.
+  DMs (no guild): `discord/dm/<channelId>`.
 - **Telegram** — `tg/<chatId>` for plain chats;
   `tg/<chatId>/<messageThreadId>` for forum topics.
   `ctx.message.message_thread_id` available on inbound.
-- **WhatsApp**, **email**, **web** — flat for now; extend when needed.
+  No world segment — Telegram has no server/guild concept.
+- **Email** — `email/<domain>/<threadId>` when domain extraction
+  is trivial; `email/<threadId>` as fallback. Domain = world.
+- **WhatsApp**, **web** — flat for now; extend when needed.
 
 ## `ownsJid()` update
 
@@ -134,13 +145,22 @@ ownsJid(jid: string) { return jid.startsWith('tg/'); }
 5. Update `email:` references in email.ts
 6. Run migration on all instances, rebuild images
 
-### Phase 2: hierarchy + glob (additive, safe after phase 1)
+### Phase 2: worlds — expand Discord + email JIDs
 
-1. Add `minimatch` dependency (or `picomatch` — smaller, faster)
+1. Discord: emit `discord/<guildId>/<channelId>` (always include guild)
+2. Discord DMs: `discord/dm/<channelId>`
+3. Email: emit `email/<domain>/<threadId>`
+4. Migrate existing flat Discord JIDs:
+   `discord/<channelId>` → `discord/<guildId>/<channelId>`
+   (requires one-time lookup of guild for each registered channel)
+
+### Phase 3: hierarchy + glob (additive, safe after phase 2)
+
+1. Add `picomatch` dependency (smaller/faster than minimatch)
 2. Replace exact `registeredGroups[chatJid]` lookup with `findGroup()`
 3. Pre-compile glob patterns at group registration
-4. Discord: emit `discord/<guildId>/<channelId>/<threadId>` for threads
-5. Telegram: emit `tg/<chatId>/<threadId>` for forum topics
+4. Discord threads: `discord/<guildId>/<channelId>/<threadId>`
+5. Telegram forum topics: `tg/<chatId>/<threadId>`
 6. Document JID format in agent SKILL.md
 
 ## Open
