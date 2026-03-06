@@ -133,13 +133,23 @@ import {
   storeChatMetadata,
 } from '../../src/db.js';
 import { GroupQueue } from '../../src/group-queue.js';
-import { getAvailableGroups, _setRegisteredGroups } from '../../src/index.js';
+import {
+  getAvailableGroups,
+  _setRegisteredGroups,
+  _processGroupMessages,
+  _pushChannel,
+  _setLastMessageDate,
+  _getLastAgentTimestamp,
+  _clearTestState,
+} from '../../src/index.js';
 import type { RegisteredGroup } from '../../src/types.js';
+import type { Channel } from '../../src/types.js';
 
 beforeEach(() => {
   vi.useFakeTimers();
   _initTestDatabase();
   _setRegisteredGroups({});
+  _clearTestState();
   vi.resetAllMocks();
 });
 
@@ -319,5 +329,153 @@ describe('DB state for gateway routing', () => {
     const all = getAllRegisteredGroups();
     expect(all['g@g.us']).toBeDefined();
     expect(all['g@g.us'].name).toBe('Test');
+  });
+});
+
+// ── processGroupMessages integration ─────────────────────────────────────────
+
+function makeChannel(
+  jid: string,
+): Channel & { sendMessage: ReturnType<typeof vi.fn> } {
+  return {
+    name: 'test',
+    connect: vi.fn().mockResolvedValue(undefined),
+    isConnected: vi.fn(() => true),
+    disconnect: vi.fn(),
+    ownsJid: vi.fn((j: string) => j === jid),
+    sendMessage: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+const TEST_JID = 'testgroup@g.us';
+const TEST_FOLDER = 'testfolder';
+const TEST_GROUP: RegisteredGroup = {
+  name: 'Test Group',
+  folder: TEST_FOLDER,
+  trigger: '@Andy',
+  added_at: '2024-01-01T00:00:00.000Z',
+  requiresTrigger: false,
+};
+
+function setupGroup(): Channel & { sendMessage: ReturnType<typeof vi.fn> } {
+  storeChatMetadata(TEST_JID, '2024-01-01T00:00:00.000Z', 'Test', 'test', true);
+  storeMessage({
+    id: 'msg1',
+    chat_jid: TEST_JID,
+    sender: 'user@s.us',
+    sender_name: 'Alice',
+    content: 'hello',
+    timestamp: '2024-01-01T00:01:00.000Z',
+  });
+  _setRegisteredGroups({ [TEST_JID]: TEST_GROUP });
+  const ch = makeChannel(TEST_JID);
+  _pushChannel(ch);
+  return ch;
+}
+
+describe('processGroupMessages — session/day injection', () => {
+  it('enqueues new-session system message when no active session', async () => {
+    setupGroup();
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+      newSessionId: 'sess-1',
+    });
+
+    await _processGroupMessages(TEST_JID);
+
+    const [, input] = mockRunContainerAgent.mock.calls[0] as [
+      unknown,
+      { prompt: string },
+    ];
+    expect(input.prompt).toContain('event="new-session"');
+  });
+
+  it('enqueues new-day system message when date changed since last run', async () => {
+    setupGroup();
+    _setLastMessageDate(TEST_FOLDER, '2020-01-01');
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+      newSessionId: 'sess-2',
+    });
+
+    await _processGroupMessages(TEST_JID);
+
+    const [, input] = mockRunContainerAgent.mock.calls[0] as [
+      unknown,
+      { prompt: string },
+    ];
+    expect(input.prompt).toContain('event="new-day"');
+  });
+
+  it('does NOT enqueue new-day when date is unchanged', async () => {
+    setupGroup();
+    const today = new Date().toISOString().slice(0, 10);
+    _setLastMessageDate(TEST_FOLDER, today);
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+      newSessionId: 'sess-3',
+    });
+
+    await _processGroupMessages(TEST_JID);
+
+    const [, input] = mockRunContainerAgent.mock.calls[0] as [
+      unknown,
+      { prompt: string },
+    ];
+    expect(input.prompt).not.toContain('event="new-day"');
+  });
+});
+
+describe('processGroupMessages — agent error handling', () => {
+  it('sends retry message and rolls back cursor on error with no output', async () => {
+    const ch = setupGroup();
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'error',
+      result: null,
+      error: 'crashed',
+    });
+
+    await _processGroupMessages(TEST_JID);
+
+    const retryCall = (
+      ch.sendMessage as ReturnType<typeof vi.fn>
+    ).mock.calls.find(([, text]: [string, string]) =>
+      text.includes('Something went wrong'),
+    );
+    expect(retryCall).toBeDefined();
+    expect(_getLastAgentTimestamp(TEST_JID)).toBe('');
+  });
+
+  it('does NOT roll back cursor and skips retry when error after output sent', async () => {
+    const ch = setupGroup();
+    mockRunContainerAgent.mockImplementation(
+      async (
+        _g: unknown,
+        _i: unknown,
+        _p: unknown,
+        onOutput?: (o: {
+          status: string;
+          result: string | null;
+        }) => Promise<void>,
+      ) => {
+        if (onOutput) {
+          await onOutput({ status: 'success', result: 'partial answer' });
+        }
+        return { status: 'error', result: null, error: 'crash after output' };
+      },
+    );
+
+    await _processGroupMessages(TEST_JID);
+
+    const retryCalls = (
+      ch.sendMessage as ReturnType<typeof vi.fn>
+    ).mock.calls.filter(([, text]: [string, string]) =>
+      text.includes('Something went wrong'),
+    );
+    expect(retryCalls).toHaveLength(0);
+    expect(_getLastAgentTimestamp(TEST_JID)).not.toBe('');
   });
 });

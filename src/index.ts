@@ -152,6 +152,32 @@ export function _setRegisteredGroups(
   registeredGroups = groups;
 }
 
+/** @internal - exported for testing */
+export const _processGroupMessages = processGroupMessages;
+
+/** @internal - exported for testing */
+export function _pushChannel(ch: Channel): void {
+  channels.push(ch);
+}
+
+/** @internal - exported for testing */
+export function _setLastMessageDate(folder: string, date: string): void {
+  lastMessageDate[folder] = date;
+}
+
+/** @internal - exported for testing */
+export function _getLastAgentTimestamp(jid: string): string {
+  return lastAgentTimestamp[jid] ?? '';
+}
+
+/** @internal - exported for testing */
+export function _clearTestState(): void {
+  sessions = {};
+  for (const k of Object.keys(lastMessageDate)) delete lastMessageDate[k];
+  for (const k of Object.keys(lastAgentTimestamp)) delete lastAgentTimestamp[k];
+  channels.splice(0);
+}
+
 /**
  * Process all pending messages for a group.
  * Called by the GroupQueue when it's this group's turn.
