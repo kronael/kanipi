@@ -225,6 +225,9 @@ function createSchema(database: Database.Database): void {
     .prepare('PRAGMA user_version')
     .get() as { user_version: number };
   if (ver < 1) {
+    // Disable FK checks — we update parent (chats) and child (messages) tables
+    // in the same batch; FK enforcement would fail mid-migration.
+    database.exec('PRAGMA foreign_keys = OFF');
     database.exec(`
       UPDATE messages SET chat_jid = 'telegram:' || SUBSTR(chat_jid, 4) WHERE chat_jid LIKE 'tg:%';
       UPDATE registered_groups SET jid = 'telegram:' || SUBSTR(jid, 4) WHERE jid LIKE 'tg:%';
@@ -243,6 +246,7 @@ function createSchema(database: Database.Database): void {
 
       PRAGMA user_version = 1;
     `);
+    database.exec('PRAGMA foreign_keys = ON');
     // Migrate JID keys in router_state JSON blobs
     const agentTs = database
       .prepare(
