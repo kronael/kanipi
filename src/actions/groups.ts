@@ -4,6 +4,7 @@ import { Action } from '../action-registry.js';
 import { writeCommandsXml } from '../commands/index.js';
 import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
+import { ContainerConfigSchema } from '../types.js';
 
 const MAX_DELEGATE_DEPTH = 3;
 
@@ -82,7 +83,7 @@ const RegisterGroupSchema = z.object({
   folder: z.string().min(1),
   trigger: z.string(),
   requiresTrigger: z.boolean().optional(),
-  containerConfig: z.record(z.string(), z.unknown()).optional(),
+  containerConfig: ContainerConfigSchema.optional(),
   parent: z.string().min(1).optional(),
   routingRules: z.array(RoutingRuleSchema).optional(),
 });
@@ -102,7 +103,7 @@ export const registerGroup: Action = {
       folder: input.folder,
       trigger: input.trigger,
       added_at: new Date().toISOString(),
-      containerConfig: input.containerConfig as any,
+      containerConfig: input.containerConfig,
       requiresTrigger: input.requiresTrigger,
       parent: input.parent,
       routingRules: input.routingRules,
@@ -112,22 +113,19 @@ export const registerGroup: Action = {
   },
 };
 
+const DelegateGroupInput = z.object({
+  group: z.string().min(1),
+  prompt: z.string().min(1),
+  chatJid: z.string().min(1),
+  depth: z.number().int().min(0).optional(),
+});
+
 export const delegateGroup: Action = {
   name: 'delegate_group',
   description: 'Delegate a prompt to a registered child group agent',
-  input: z.object({
-    group: z.string().min(1),
-    prompt: z.string().min(1),
-    chatJid: z.string().min(1),
-    depth: z.number().int().min(0).optional(),
-  }),
+  input: DelegateGroupInput,
   async handler(raw, ctx) {
-    const input = raw as {
-      group: string;
-      prompt: string;
-      chatJid: string;
-      depth?: number;
-    };
+    const input = DelegateGroupInput.parse(raw);
     const depth = input.depth ?? 0;
 
     if (depth >= MAX_DELEGATE_DEPTH) {
@@ -163,32 +161,31 @@ export const delegateGroup: Action = {
   },
 };
 
+const SetRoutingRulesInput = z.object({
+  folder: z.string().min(1),
+  rules: z.array(RoutingRuleSchema),
+});
+
 export const setRoutingRules: Action = {
   name: 'set_routing_rules',
   description: 'Set routing rules for a parent group',
-  input: z.object({
-    folder: z.string().min(1),
-    rules: z.array(RoutingRuleSchema),
-  }),
+  input: SetRoutingRulesInput,
   async handler(raw, ctx) {
     if (!ctx.isRoot) throw new Error('unauthorized');
-    const parsed = raw as {
-      folder: string;
-      rules: import('../types.js').RoutingRule[];
-    };
+    const input = SetRoutingRulesInput.parse(raw);
     const groups = ctx.registeredGroups();
     const jid = Object.keys(groups).find(
-      (k) => groups[k].folder === parsed.folder,
+      (k) => groups[k].folder === input.folder,
     );
-    if (!jid) throw new Error(`group not found: ${parsed.folder}`);
+    if (!jid) throw new Error(`group not found: ${input.folder}`);
     logger.info(
-      { folder: parsed.folder, ruleCount: parsed.rules.length },
+      { folder: input.folder, ruleCount: input.rules.length },
       'setting routing rules',
     );
     ctx.registerGroup(jid, {
       ...groups[jid],
-      routingRules: parsed.rules,
+      routingRules: input.rules,
     });
-    return { updated: true, ruleCount: parsed.rules.length };
+    return { updated: true, ruleCount: input.rules.length };
   },
 };
