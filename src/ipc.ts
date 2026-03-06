@@ -113,8 +113,17 @@ export async function drainRequests(
     const filePath = path.join(requestsDir, file);
     try {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      const id = data.id as string;
-      const type = data.type as string;
+      const id = typeof data.id === 'string' ? data.id : String(data.id ?? '');
+      const type = typeof data.type === 'string' ? data.type : '';
+      if (!id || !type) {
+        logger.warn({ file, sourceGroup }, 'IPC request missing id or type');
+        try {
+          fs.unlinkSync(filePath);
+        } catch (e: unknown) {
+          if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+        }
+        continue;
+      }
 
       let reply: { id: string; ok: boolean; result?: unknown; error?: string };
 
@@ -143,7 +152,9 @@ export async function drainRequests(
                 writeReply(repliesDir, reply);
                 try {
                   fs.unlinkSync(filePath);
-                } catch {}
+                } catch (e: unknown) {
+                  if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+                }
                 continue;
               }
             }
@@ -171,11 +182,11 @@ export async function drainRequests(
       }
     } catch (err) {
       logger.error({ file, sourceGroup, err }, 'error processing IPC request');
-      const errorDir = path.join(ipcBaseDir, 'errors');
-      fs.mkdirSync(errorDir, { recursive: true });
       try {
-        fs.renameSync(filePath, path.join(errorDir, `${sourceGroup}-${file}`));
-      } catch {}
+        fs.unlinkSync(filePath);
+      } catch (e: unknown) {
+        if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+      }
     }
   }
 }
@@ -269,11 +280,11 @@ async function drainLegacyMessages(
       }
     } catch (err) {
       logger.error({ file, sourceGroup, err }, 'Error processing IPC message');
-      const errorDir = path.join(ipcBaseDir, 'errors');
-      fs.mkdirSync(errorDir, { recursive: true });
       try {
-        fs.renameSync(filePath, path.join(errorDir, `${sourceGroup}-${file}`));
-      } catch {}
+        fs.unlinkSync(filePath);
+      } catch (e: unknown) {
+        if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+      }
     }
   }
 }
@@ -315,11 +326,11 @@ async function drainLegacyTasks(
       fs.unlinkSync(filePath);
     } catch (err) {
       logger.error({ file, sourceGroup, err }, 'Error processing IPC task');
-      const errorDir = path.join(ipcBaseDir, 'errors');
-      fs.mkdirSync(errorDir, { recursive: true });
       try {
-        fs.renameSync(filePath, path.join(errorDir, `${sourceGroup}-${file}`));
-      } catch {}
+        fs.unlinkSync(filePath);
+      } catch (e: unknown) {
+        if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+      }
     }
   }
 }

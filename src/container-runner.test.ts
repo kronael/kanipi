@@ -82,12 +82,27 @@ function createFakeProcess() {
 let fakeProc: ReturnType<typeof createFakeProcess>;
 
 // Mock child_process.spawn
+// Agent spawn (stdio: pipe) returns fakeProc; sidecar spawn (stdio: ignore)
+// returns a short-lived process that exits immediately with code 0.
 vi.mock('child_process', async () => {
   const actual =
     await vi.importActual<typeof import('child_process')>('child_process');
   return {
     ...actual,
-    spawn: vi.fn(() => fakeProc),
+    spawn: vi.fn(
+      (_cmd: string, _args: string[], opts?: { stdio?: unknown }) => {
+        const isIgnored =
+          opts?.stdio === 'ignore' ||
+          (Array.isArray(opts?.stdio) && opts.stdio[0] === 'ignore');
+        if (isIgnored) {
+          const p = new EventEmitter() as EventEmitter & { pid: number };
+          p.pid = 99999;
+          process.nextTick(() => p.emit('close', 0));
+          return p;
+        }
+        return fakeProc;
+      },
+    ),
     // Handle both exec(cmd, cb) and exec(cmd, opts, cb) call forms
     exec: vi.fn(
       (_cmd: string, optsOrCb: unknown, cb?: (err: Error | null) => void) => {
@@ -274,17 +289,15 @@ describe('sidecar startup failure fallback', () => {
 
   it('agent still runs when sidecar docker run fails', async () => {
     const cp = await import('child_process');
-    vi.mocked(cp.exec).mockImplementationOnce(
-      (_cmd: string, optsOrCb: unknown, cb?: (err: Error | null) => void) => {
-        const callback =
-          typeof optsOrCb === 'function'
-            ? (optsOrCb as (err: Error | null) => void)
-            : cb;
-        // Fail the sidecar docker run
-        if (callback) callback(new Error('docker: image not found'));
-        return new EventEmitter();
-      },
-    );
+    // First spawn call is for sidecar (stdio: ignore) — make it fail
+    vi.mocked(cp.spawn).mockImplementationOnce(() => {
+      const p = new EventEmitter() as EventEmitter & { pid: number };
+      p.pid = 99999;
+      process.nextTick(() =>
+        p.emit('error', new Error('docker: image not found')),
+      );
+      return p as ReturnType<typeof cp.spawn>;
+    });
 
     const onOutput = vi.fn(async () => {});
     const resultPromise = runContainerAgent(
@@ -309,19 +322,6 @@ describe('sidecar startup failure fallback', () => {
   });
 
   it('agent still runs when sidecar socket never appears (timeout)', async () => {
-    const cp = await import('child_process');
-    // exec succeeds for sidecar docker run
-    vi.mocked(cp.exec).mockImplementationOnce(
-      (_cmd: string, optsOrCb: unknown, cb?: (err: Error | null) => void) => {
-        const callback =
-          typeof optsOrCb === 'function'
-            ? (optsOrCb as (err: Error | null) => void)
-            : cb;
-        if (callback) callback(null); // docker run succeeds
-        return new EventEmitter();
-      },
-    );
-
     // fs.existsSync returns false → socket never appears → waitForSocket times out
     const fs = await import('fs');
     vi.mocked(fs.default.existsSync).mockReturnValue(false);
@@ -351,44 +351,31 @@ describe('sidecar startup failure fallback', () => {
 
 describe('sidecar cleanup behavior', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     fakeProc = createFakeProcess();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it('stop is called for sidecars when agent exits normally', async () => {
     const cp = await import('child_process');
     const fs = await import('fs');
 
-    // Make sidecar start succeed: exec resolves, socket appears, probe connects
-    vi.mocked(cp.exec).mockImplementation(
-      (_cmd: string, optsOrCb: unknown, cb?: (err: Error | null) => void) => {
-        const callback =
-          typeof optsOrCb === 'function'
-            ? (optsOrCb as (err: Error | null) => void)
-            : cb;
-        if (callback) callback(null);
-        return new EventEmitter();
-      },
-    );
-    // existsSync: return true for .sock paths so waitForSocket resolves
     vi.mocked(fs.default.existsSync).mockImplementation(
       (p: unknown) => typeof p === 'string' && p.endsWith('.sock'),
     );
 
-    const stopCalls: string[] = [];
-    vi.mocked(cp.exec).mockImplementation(
-      (cmd: string, optsOrCb: unknown, cb?: (err: Error | null) => void) => {
-        const callback =
-          typeof optsOrCb === 'function'
-            ? (optsOrCb as (err: Error | null) => void)
-            : cb;
-        if (String(cmd).includes(' stop ')) stopCalls.push(String(cmd));
-        if (callback) callback(null);
-        return new EventEmitter();
+    const stopArgs: string[][] = [];
+    vi.mocked(cp.spawn).mockImplementation(
+      (_cmd: string, args: string[], opts?: { stdio?: unknown }) => {
+        const isIgnored =
+          opts?.stdio === 'ignore' ||
+          (Array.isArray(opts?.stdio) && opts.stdio[0] === 'ignore');
+        if (isIgnored) {
+          if (args.includes('stop')) stopArgs.push(args);
+          const p = new EventEmitter() as EventEmitter & { pid: number };
+          p.pid = 99999;
+          process.nextTick(() => p.emit('close', 0));
+          return p as ReturnType<typeof cp.spawn>;
+        }
+        return fakeProc as ReturnType<typeof cp.spawn>;
       },
     );
 
@@ -400,19 +387,18 @@ describe('sidecar cleanup behavior', () => {
       onOutput,
     );
 
-    // net mock: probeSidecar connects via setTimeout(0) — advance timers a bit
-    await vi.advanceTimersByTimeAsync(10);
+    // Wait for sidecar startup (probeSidecar uses setTimeout)
+    await new Promise((r) => setTimeout(r, 50));
 
-    // Agent has spawned, emit output and close
     emitOutputMarker(fakeProc, { status: 'success', result: 'done' });
-    await vi.advanceTimersByTimeAsync(10);
+    await new Promise((r) => setTimeout(r, 10));
     fakeProc.emit('close', 0);
-    await vi.advanceTimersByTimeAsync(10);
 
     await resultPromise;
-    // stopSidecars called with the sidecar container name
     expect(
-      stopCalls.some((c) => c.includes('stop') && c.includes('sidecar')),
+      stopArgs.some(
+        (a) => a.includes('stop') && a.some((x) => x.includes('sidecar')),
+      ),
     ).toBe(true);
   });
 
@@ -420,30 +406,24 @@ describe('sidecar cleanup behavior', () => {
     const cp = await import('child_process');
     const fs = await import('fs');
 
-    vi.mocked(cp.exec).mockImplementation(
-      (_cmd: string, optsOrCb: unknown, cb?: (err: Error | null) => void) => {
-        const callback =
-          typeof optsOrCb === 'function'
-            ? (optsOrCb as (err: Error | null) => void)
-            : cb;
-        if (callback) callback(null);
-        return new EventEmitter();
-      },
-    );
     vi.mocked(fs.default.existsSync).mockImplementation(
       (p: unknown) => typeof p === 'string' && p.endsWith('.sock'),
     );
 
-    const stopCalls: string[] = [];
-    vi.mocked(cp.exec).mockImplementation(
-      (cmd: string, optsOrCb: unknown, cb?: (err: Error | null) => void) => {
-        const callback =
-          typeof optsOrCb === 'function'
-            ? (optsOrCb as (err: Error | null) => void)
-            : cb;
-        if (String(cmd).includes(' stop ')) stopCalls.push(String(cmd));
-        if (callback) callback(null);
-        return new EventEmitter();
+    const stopArgs: string[][] = [];
+    vi.mocked(cp.spawn).mockImplementation(
+      (_cmd: string, args: string[], opts?: { stdio?: unknown }) => {
+        const isIgnored =
+          opts?.stdio === 'ignore' ||
+          (Array.isArray(opts?.stdio) && opts.stdio[0] === 'ignore');
+        if (isIgnored) {
+          if (args.includes('stop')) stopArgs.push(args);
+          const p = new EventEmitter() as EventEmitter & { pid: number };
+          p.pid = 99999;
+          process.nextTick(() => p.emit('close', 0));
+          return p as ReturnType<typeof cp.spawn>;
+        }
+        return fakeProc as ReturnType<typeof cp.spawn>;
       },
     );
 
@@ -453,16 +433,15 @@ describe('sidecar cleanup behavior', () => {
       () => {},
     );
 
-    await vi.advanceTimersByTimeAsync(10);
-
-    // Agent exits with non-zero code
+    await new Promise((r) => setTimeout(r, 50));
     fakeProc.emit('close', 1);
-    await vi.advanceTimersByTimeAsync(10);
 
     const result = await resultPromise;
     expect(result.status).toBe('error');
     expect(
-      stopCalls.some((c) => c.includes('stop') && c.includes('sidecar')),
+      stopArgs.some(
+        (a) => a.includes('stop') && a.some((x) => x.includes('sidecar')),
+      ),
     ).toBe(true);
   });
 });

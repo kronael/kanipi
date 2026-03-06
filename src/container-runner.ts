@@ -324,12 +324,13 @@ function buildContainerArgs(
 
 // --- Sidecar lifecycle ---
 
-function execCmd(cmd: string): Promise<void> {
+function execArgs(bin: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    exec(cmd, (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
+    const p = spawn(bin, args, { stdio: 'ignore' });
+    p.on('close', (code) =>
+      code === 0 ? resolve() : reject(new Error(`${bin} exited ${code}`)),
+    );
+    p.on('error', reject);
   });
 }
 
@@ -430,7 +431,7 @@ async function startSidecar(
   args.push(spec.image);
 
   try {
-    await execCmd(`${CONTAINER_RUNTIME_BIN} ${args.join(' ')}`);
+    await execArgs(CONTAINER_RUNTIME_BIN, args);
     await waitForSocket(sockPath, 5000);
     const ok = await probeSidecar(sockPath);
     if (!ok) {
@@ -438,7 +439,7 @@ async function startSidecar(
         { name, containerName },
         'sidecar probe failed, excluding from settings',
       );
-      execCmd(`${CONTAINER_RUNTIME_BIN} stop ${containerName}`).catch(() => {});
+      execArgs(CONTAINER_RUNTIME_BIN, ['stop', containerName]).catch(() => {});
       return null;
     }
     logger.info({ name, containerName }, 'sidecar ready');
@@ -521,7 +522,7 @@ export function reconcileSidecarSettings(
 async function stopSidecars(handles: SidecarHandle[]): Promise<void> {
   await Promise.all(
     handles.map((h) =>
-      execCmd(`${CONTAINER_RUNTIME_BIN} stop ${h.containerName}`).catch(
+      execArgs(CONTAINER_RUNTIME_BIN, ['stop', h.containerName]).catch(
         () => {},
       ),
     ),

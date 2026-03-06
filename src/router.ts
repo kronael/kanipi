@@ -80,6 +80,7 @@ export function resolveRoutingTarget(
         if (t === rule.trigger || t.startsWith(rule.trigger + ' '))
           return rule.target;
       } else if (rule.type === 'pattern') {
+        if (rule.pattern.length > 200) continue;
         try {
           if (new RegExp(rule.pattern).test(msg.content)) return rule.target;
         } catch {
@@ -89,6 +90,7 @@ export function resolveRoutingTarget(
         if (msg.content.toLowerCase().includes(rule.keyword.toLowerCase()))
           return rule.target;
       } else if (rule.type === 'sender') {
+        if (rule.pattern.length > 200) continue;
         const s = msg.sender_name ?? msg.sender;
         try {
           if (new RegExp(rule.pattern).test(s)) return rule.target;

@@ -239,7 +239,7 @@ describe('drainRequests — real fs request/reply protocol', () => {
     expect(fs.existsSync(reqPath)).toBe(false);
   });
 
-  it('malformed JSON: moves bad file to errors dir, does not write reply', async () => {
+  it('malformed JSON: deletes bad file, does not write reply', async () => {
     const deps = makeDeps();
     const reqDir = path.join(ipcDir, 'main', 'requests');
     fs.mkdirSync(reqDir, { recursive: true });
@@ -247,10 +247,7 @@ describe('drainRequests — real fs request/reply protocol', () => {
 
     await drainRequests(ipcDir, 'main', deps);
 
-    // Bad file moved to errors/
-    const errDir = path.join(ipcDir, 'errors');
-    expect(listDir(errDir).length).toBeGreaterThan(0);
-    // Requests dir should be empty now
+    // Requests dir should be empty — bad file deleted
     expect(listDir(reqDir)).toHaveLength(0);
   });
 

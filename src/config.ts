@@ -88,9 +88,17 @@ export const TRIGGER_PATTERN = new RegExp(
 );
 
 // Timezone for scheduled tasks (cron expressions, etc.)
-// Uses system timezone by default
-export const TIMEZONE =
-  process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
+// Uses system timezone by default; falls back to UTC if invalid.
+function resolveTimezone(): string {
+  const tz = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return tz;
+  } catch {
+    return 'UTC';
+  }
+}
+export const TIMEZONE = resolveTimezone();
 
 // Channel configuration
 export const TELEGRAM_BOT_TOKEN =
