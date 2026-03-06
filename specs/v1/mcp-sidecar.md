@@ -229,6 +229,86 @@ Agent chooses: in-process (fast, no isolation) or sidecar
 | `config.ts`           | SIDECAR_ALLOWED_IMAGES, SIDECAR_NETWORK_IMAGES |
 | `ipc.ts`              | Wire new actions to IPC handler                |
 
+## Isolation modes
+
+Network isolation is not the primary dimension. Sidecars operate
+in one of three modes based on what they can access:
+
+| Mode           | Files | Network | IPC | Use case                    |
+| -------------- | ----- | ------- | --- | --------------------------- |
+| **privileged** | yes   | yes     | yes | runs alongside agent, full  |
+| **offline**    | yes   | no      | no  | code exec, file processing  |
+| **web**        | no    | yes     | no  | search, API calls, fetching |
+
+**Privileged**: sidecar mounts group workspace and IPC socket
+dir, has bridge network. Effectively an extension of the agent
+container — same access, separate process. For trusted tools
+that need everything (e.g. a coding assistant sidecar).
+
+**Offline**: sidecar mounts group workspace (or subset), no
+network (`--network=none`), no IPC socket. For compute-bound
+tools that process files — code execution, image processing,
+PDF parsing. Can't exfiltrate data.
+
+**Web**: sidecar has bridge network, no file mounts (only the
+MCP socket dir). For tools that fetch external data — web
+search, API integrations. Can't read agent files.
+
+### Mode selection
+
+Agent specifies mode in `request_sidecar`:
+
+```typescript
+const RequestSidecarInput = z.object({
+  // ... existing fields ...
+  mode: z.enum(['privileged', 'offline', 'web']).optional(),
+});
+```
+
+Default: `offline` (safest). Gateway enforces:
+
+- `privileged` requires operator allowlist
+  (`SIDECAR_PRIVILEGED_IMAGES` in `.env`)
+- `web` requires network allowlist (existing
+  `SIDECAR_NETWORK_IMAGES`)
+- `offline` always permitted (within resource caps)
+
+Gateway translates mode to docker flags:
+
+```typescript
+function modeToFlags(
+  mode: string,
+  sockDir: string,
+  groupDir: string,
+): string[] {
+  switch (mode) {
+    case 'privileged':
+      return [
+        '--network=bridge',
+        '-v',
+        `${groupDir}:/workspace:rw`,
+        '-v',
+        `${sockDir}:/run/socks`,
+      ];
+    case 'web':
+      return ['--network=bridge', '-v', `${sockDir}:/run/socks`];
+    case 'offline':
+    default:
+      return [
+        '--network=none',
+        '-v',
+        `${groupDir}:/workspace:ro`,
+        '-v',
+        `${sockDir}:/run/socks`,
+      ];
+  }
+}
+```
+
+> **Status**: to spec and resolve. Mode names, default mounts,
+> and permission model need validation against real use cases
+> before implementation.
+
 ## Open questions
 
 - **Docker socket access**: agent needs gateway to spawn
