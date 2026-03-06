@@ -73,7 +73,7 @@ Gateway enqueues system messages (see `system-messages.md`):
 </system>
 ```
 
-- Last 3 session IDs for continuity tracing
+- Last 2 session IDs for continuity tracing
 - Last diary entry summary (if exists)
 - MEMORY.md loaded automatically by SDK
 

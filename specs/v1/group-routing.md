@@ -82,16 +82,18 @@ writing an IPC request:
 ```json
 {
   "id": "1709693200000-abc123",
-  "type": "delegate",
+  "type": "delegate_group",
   "group": "main/code",
-  "prompt": "Fix the type error in src/db.ts"
+  "prompt": "Fix the type error in src/db.ts",
+  "chatJid": "tg:-100123456"
 }
 ```
 
-| Field    | Description                              |
-| -------- | ---------------------------------------- |
-| `group`  | Target child folder (must be registered) |
-| `prompt` | Prompt to send to the child agent        |
+| Field     | Description                              |
+| --------- | ---------------------------------------- |
+| `group`   | Target child folder (must be registered) |
+| `prompt`  | Prompt to send to the child agent        |
+| `chatJid` | Originating JID (for reply routing)      |
 
 Gateway reply:
 

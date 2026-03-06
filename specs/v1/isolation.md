@@ -33,7 +33,7 @@ Gateway
   │     ~/.claude/settings.json              ← sidecar MCP entries
   └── Sidecar containers (per MCP server)
         nanoclaw-sidecar-<name>-<group>
-        /run/mcp.sock                        ← same socket, other side
+        /run/socks/<name>.sock               ← same socket, other side
 ```
 
 Each sidecar exposes a single MCP server over a unix socket.
@@ -56,12 +56,12 @@ Inside agent container:
 Inside sidecar container:
 
 ```
-/run/mcp.sock
+/run/socks/<name>.sock
 ```
 
 Both containers mount the same host socket directory. The sidecar
-binds on `/run/mcp.sock`; the agent connects to
-`/workspace/ipc/sidecars/<name>.sock`.
+binds on `/run/socks/<name>.sock` (via `$MCP_SOCK` env); the
+agent connects to `/workspace/ipc/sidecars/<name>.sock`.
 
 ## Sidecar configuration
 
@@ -138,7 +138,12 @@ async function startSidecar(
   ];
   await exec(`${CONTAINER_RUNTIME_BIN} ${args.join(' ')}`);
   await waitForSocket(sockPath, { timeoutMs: 5000 });
-  return { name, sockPath };
+  return {
+    containerName: name,
+    specName: spec.name,
+    sockPath,
+    allowedTools: spec.allowedTools,
+  };
 }
 ```
 

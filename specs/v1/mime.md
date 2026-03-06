@@ -147,11 +147,11 @@ VIDEO_TRANSCRIPTION_ENABLED=false    # requires ffmpeg
 
 ```
 src/
-  enricher-pipeline.ts    -- interfaces, runEnrichers()
-  enrichers/
+  mime-enricher.ts        -- interfaces, runEnrichers()
+  mime-handlers/
     voice.ts              -- VoiceTranscriber
     video.ts              -- VideoAudioTranscriber
-    generic.ts            -- GenericFileSaver
+    whisper.ts            -- Whisper API client
   channels/               -- extractAttachments() per channel
   container-runner.ts     -- mount /workspace/media
 ```
@@ -167,6 +167,6 @@ groups/<folder>/media/ -> /workspace/media/
 
 ## Extension
 
-1. Implement `MessageEnricher` in `src/enrichers/<name>.ts`
+1. Implement handler in `src/mime-handlers/<name>.ts`
 2. Add `<NAME>_ENABLED` to `config.ts`
-3. Register in `buildEnrichers()` in `enricher-pipeline.ts`
+3. Register in `src/mime-enricher.ts`

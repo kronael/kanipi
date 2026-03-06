@@ -22,7 +22,6 @@
   "sessionId": "abc123",
   "groupFolder": "main",
   "chatJid": "tg:-100123456",
-  "isMain": true,
   "isScheduledTask": false,
   "assistantName": "Rhia",
   "secrets": { "ANTHROPIC_API_KEY": "..." }
@@ -35,7 +34,8 @@
 | `sessionId`       | string?  | Resume; omit for new           |
 | `groupFolder`     | string   | Filesystem-safe folder name    |
 | `chatJid`         | string   | Channel JID                    |
-| `isMain`          | boolean  | Privileged group               |
+| `messageCount`    | number?  | Messages in this batch         |
+| `delegateDepth`   | number?  | Delegation nesting depth       |
 | `isScheduledTask` | boolean? | Scheduled task header if true  |
 | `assistantName`   | string?  | `NANOCLAW_ASSISTANT_NAME` env  |
 | `secrets`         | object?  | API keys; stripped, not logged |
@@ -110,8 +110,8 @@ Task: `{ "type": "schedule_task", "targetJid": "...", ... }`
 Character context via `systemPrompt.append`:
 
 - `/app/character.json` merged with
-  `/workspace/global/character.json` (instance override)
-- `/workspace/global/CLAUDE.md` appended for non-main only
+  `/workspace/share/character.json` (instance override)
+- `/workspace/share/CLAUDE.md` appended for non-root only
 
 Group CLAUDE.md at `/home/node/.claude/CLAUDE.md`, loaded
 by SDK project-memory.

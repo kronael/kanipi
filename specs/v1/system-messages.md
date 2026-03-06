@@ -81,7 +81,12 @@ CREATE TABLE sessions (
 );
 ```
 
-New-session injection: last 10 sessions by `started_at`.
+New-session injection: last 2 sessions by `started_at`.
+
+Code uses two tables: `sessions` (current session per group,
+keyed by `group_folder`) and `session_history` (historical
+records with `session_id`, `group_id`, `started_at`,
+`ended_at`, `message_count`, `result`, `error`).
 
 ## new-day trigger
 
