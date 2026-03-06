@@ -16,7 +16,11 @@ Mounted rw at `/workspace/group/diary/` inside the container.
 
 ```markdown
 ---
-summary: Deployed hel1v5. Alice working on auth. Two open bugs.
+summary: |
+  Working on kanipi gateway. Alice is the main user.
+  - auth: OAuth flow design, provider TBD
+  - deploy: hel1v5 Ansible config done
+  - open: two bugs in IPC file sending
 ---
 
 ## 10:32
@@ -30,7 +34,9 @@ Auth flow discussion. Alice wants OAuth not passwords.
 Open: which provider.
 ```
 
-- YAML frontmatter `summary:` — 20 words max, current state
+- `summary:` — YAML block scalar: one line of project context,
+  then up to 5 bullet points of high-level tasks/status.
+  Gateway reads only this field for session-start injection.
 - `## HH:MM` entries — 250 chars max each
 - Agent may rewrite/compress old entries to save space
 - Truthful, summarizing — only what matters
