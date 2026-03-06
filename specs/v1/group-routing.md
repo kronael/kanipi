@@ -213,7 +213,7 @@ async function delegateToChild(
 
 ### 1. Root routes `/code` to child group
 
-Root group `main` (JID `telegram/-100111`) has:
+Root group `main` (JID `telegram:-100111`) has:
 
 ```json
 {
@@ -231,20 +231,20 @@ Child group `main/code` registered:
 ```
 
 Message `/code fix the null check` arrives on
-`telegram/-100111`:
+`telegram:-100111`:
 
 1. Gateway finds group `main` via JID lookup
 2. `resolveRoutingTarget` matches `command` rule
 3. Message enqueued for `main/code` GroupQueue slot
 4. `main/code` container spawned; response sent back to
-   `telegram/-100111`
+   `telegram:-100111`
 
 The `/code` prefix can be stripped before the child sees
 it (configurable per rule, default: strip).
 
 ### 2. Team parent routes by sender to per-person children
 
-Group `team` (JID `discord/12345`) has:
+Group `team` (JID `discord:12345`) has:
 
 ```json
 {

@@ -16,8 +16,8 @@ No token = channel never loads.
 
 JID format is `scheme:id` (URI-like). WhatsApp uses native
 Baileys JIDs (`@g.us`, `@s.whatsapp.net`). `ownsJid()` does
-prefix matching. See `worlds.md` for future `/`-separated
-hierarchical JIDs.
+prefix matching. See `worlds.md` for prefix expansion
+(`tg:` → `telegram:`, WhatsApp wrapping).
 
 ## Channel interface
 

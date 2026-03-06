@@ -139,7 +139,7 @@ function findGroup(
 
 ### Implementation order
 
-1. DB migration (`:` -> `/`)
+1. DB migration (`tg:` → `telegram:`, wrap WhatsApp)
 2. Channel ownsJid(), JID construction
 3. config.ts: `isRoot()`
 4. group-folder.ts: allow `/`, reserve `share`
@@ -155,11 +155,18 @@ function findGroup(
 
 ---
 
-## Phase 2: Expand Discord + email JIDs (future)
+## Phase 2: Hierarchical JIDs (future)
 
-Discord: `discord/<guildId>/<channelId>`, threads,
-DMs as `discord/dm/<channelId>`. Email: domain segment.
-Telegram forum topics. Migrate existing flat JIDs.
+Extend flat URIs with `:` sub-segments:
+
+- Discord: `discord:guildId:channelId`, threads
+  `discord:guildId:channelId:threadId`,
+  DMs as `discord:dm:channelId`
+- Email: `email:domain:threadid`
+- Telegram: `telegram:chatid:threadid` (forum topics)
+
+Migrate existing flat JIDs. Glob matching (`discord:*`)
+already supports prefix patterns.
 
 ## Phase 3: World tree mount (future)
 
@@ -175,7 +182,8 @@ but not `acme/dev`. Deferred until nested groups exist.
 
 ## Open
 
-- WhatsApp `@g.us` suffix -- ugly but harmless
+- WhatsApp native JIDs (`@g.us`) wrapped as `whatsapp:id@g.us`
+  — the `@g.us` suffix is ugly but harmless inside the URI
 - Email threading uses table, not JID hierarchy
 - Cross-world: use additionalMounts
 - Max depth: filesystem path length limit
