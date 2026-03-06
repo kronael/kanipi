@@ -47,7 +47,7 @@ interface ActionContext {
 
 | Action         | Command | MCP | Input                              | Description            |
 | -------------- | ------- | --- | ---------------------------------- | ---------------------- |
-| `send_message` | —       | ✓   | `{ chatJid, text }`                | Send text to a channel |
+| `send_message` | —       | ✓   | `{ chatJid, text, sender? }`       | Send text to a channel |
 | `send_file`    | —       | ✓   | `{ chatJid, filepath, filename? }` | Send file attachment   |
 
 ### Session
@@ -63,6 +63,7 @@ interface ActionContext {
 | Action          | Command | MCP | Input                                                                | Description           |
 | --------------- | ------- | --- | -------------------------------------------------------------------- | --------------------- |
 | `schedule_task` | —       | ✓   | `{ targetJid, prompt, schedule_type, schedule_value, context_mode }` | Create scheduled task |
+| `list_tasks`    | —       | ✓   | —                                                                    | List scheduled tasks  |
 | `pause_task`    | —       | ✓   | `{ taskId }`                                                         | Pause a task          |
 | `resume_task`   | —       | ✓   | `{ taskId }`                                                         | Resume a task         |
 | `cancel_task`   | —       | ✓   | `{ taskId }`                                                         | Cancel a task         |
