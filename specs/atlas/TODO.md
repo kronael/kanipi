@@ -34,9 +34,10 @@ for search). Strip: `confidence`, `findings_count` (eliza artifacts).
 
 ### 1c. Researcher — done
 
-CLAUDE.md instructs: spawn research subagent → write facts →
-spawn verifier subagent → delete bad facts → summarize.
-No skill needed. Scheduled research (cron) deferred to phase 2.
+`/facts` skill: research subagent → write facts → verifier
+subagent (batches of 5) → delete bad facts → summarize.
+CLAUDE.md auto-triggers when facts/ has no matches.
+Scheduled research (cron) deferred to phase 2.
 
 ### 1d. Agentic search — done
 

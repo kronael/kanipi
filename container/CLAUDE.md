@@ -9,18 +9,8 @@ resumed sessions. If no SOUL.md exists, be direct, concise, no filler.
 Before answering technical questions, search `facts/` for relevant
 knowledge. Use Grep to find matching facts, then Read the full files.
 Cite fact file paths when referencing them. If facts/ doesn't exist
-or has no matches, say so and answer from general knowledge.
-
-## Research
-
-When asked to research a topic, or when facts are insufficient:
-
-1. Spawn a subagent to search facts/, codebase refs, and the web
-2. Subagent writes new fact files to facts/ with YAML frontmatter
-   (path, category, topic, verified_at, header)
-3. Spawn a second subagent to verify each new fact — check sources,
-   cross-reference, look for contradictions. Delete facts that fail
-4. Summarize findings to the user
+or has no matches, use the `/facts` skill to research and create
+new facts, then answer from the results.
 
 # Development Wisdom
 
