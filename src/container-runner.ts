@@ -1,7 +1,6 @@
 import {
   ChildProcess,
   ChildProcessWithoutNullStreams,
-  exec,
   spawn,
 } from 'child_process';
 import fs from 'fs';
@@ -33,7 +32,7 @@ import { logger } from './logger.js';
 import {
   CONTAINER_RUNTIME_BIN,
   readonlyMountArgs,
-  stopContainer,
+  stopContainerArgs,
 } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup, SidecarHandle, SidecarSpec } from './types.js';
@@ -404,7 +403,9 @@ async function startSidecar(
   if (fs.existsSync(sockPath)) {
     try {
       fs.unlinkSync(sockPath);
-    } catch {}
+    } catch (e: unknown) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    }
   }
 
   const args = [
@@ -731,15 +732,21 @@ export async function runContainerAgent(
         { group: group.name, containerName },
         'Container timeout, stopping gracefully',
       );
-      exec(stopContainer(containerName), { timeout: 15000 }, (err) => {
-        if (err) {
+      const stopArgs = stopContainerArgs(containerName);
+      const stop = spawn(CONTAINER_RUNTIME_BIN, stopArgs, {
+        stdio: 'ignore',
+        timeout: 15000,
+      });
+      stop.on('close', (code) => {
+        if (code !== 0) {
           logger.warn(
-            { group: group.name, containerName, err },
+            { group: group.name, containerName },
             'Graceful stop failed, force killing',
           );
           container.kill('SIGKILL');
         }
       });
+      stop.on('error', () => container.kill('SIGKILL'));
     };
 
     let timeout = setTimeout(killOnTimeout, timeoutMs);

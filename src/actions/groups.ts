@@ -20,6 +20,7 @@ const RoutingRuleSchema = z.discriminatedUnion('type', [
     pattern: z
       .string()
       .min(1)
+      .max(200)
       .superRefine((val, ctx) => {
         try {
           new RegExp(val);
@@ -42,6 +43,7 @@ const RoutingRuleSchema = z.discriminatedUnion('type', [
     pattern: z
       .string()
       .min(1)
+      .max(200)
       .superRefine((val, ctx) => {
         try {
           new RegExp(val);

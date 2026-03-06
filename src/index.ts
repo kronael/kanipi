@@ -608,8 +608,8 @@ async function startMessageLoop(): Promise<void> {
               const [word, ...rest] = m.slice(1).split(/\s+/);
               const handler = findCommand(word.toLowerCase());
               if (handler) {
-                handler
-                  .handle({
+                try {
+                  await handler.handle({
                     group,
                     groupJid: chatJid,
                     message: msg,
@@ -619,13 +619,10 @@ async function startMessageLoop(): Promise<void> {
                       delete sessions[folder];
                       deleteSession(folder);
                     },
-                  })
-                  .catch((err) =>
-                    logger.error(
-                      { command: word, err },
-                      'Command handler error',
-                    ),
-                  );
+                  });
+                } catch (err) {
+                  logger.error({ command: word, err }, 'Command handler error');
+                }
                 // Advance cursor past the command message
                 if (msg.timestamp > (lastAgentTimestamp[chatJid] || '')) {
                   lastAgentTimestamp[chatJid] = msg.timestamp;
@@ -702,12 +699,14 @@ async function startMessageLoop(): Promise<void> {
           const messagesToSend =
             allPending.length > 0 ? allPending : groupMessages;
           await waitForEnrichments(messagesToSend.map((m) => m.id));
+          // Re-fetch after enrichment so voice/video content is included
+          const enriched = getMessagesSince(
+            chatJid,
+            lastAgentTimestamp[chatJid] || '',
+            ASSISTANT_NAME,
+          );
           const formatted = formatMessages(
-            getMessagesSince(
-              chatJid,
-              lastAgentTimestamp[chatJid] || '',
-              ASSISTANT_NAME,
-            ),
+            enriched.length > 0 ? enriched : messagesToSend,
           );
 
           if (queue.sendMessage(chatJid, formatted)) {
