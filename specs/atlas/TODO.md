@@ -32,17 +32,11 @@ for search). Strip: `confidence`, `findings_count` (eliza artifacts).
 - [x] SOUL.md persona (replaces character.json)
 - [x] Agentic search (CLAUDE.md instructs: grep facts/)
 
-### 1c. Researcher
+### 1c. Researcher — done
 
-`/research <question>` skill — spawns subagent to grow the knowledge base.
-
-- [ ] Skill prompt: what to search, how to write facts
-- [ ] Subagent access: facts/, refs/codebase/, web search
-- [ ] Tool restrictions: Read, Glob, Grep, WebSearch, WebFetch,
-      Bash (git, curl only). No Edit on existing facts
-- [ ] Output: new facts/\*.md with standardized frontmatter
-- [ ] Parent summarizes findings to user
-- [ ] Scheduled research: cron task for knowledge gap filling
+CLAUDE.md instructs: spawn research subagent → write facts →
+spawn verifier subagent → delete bad facts → summarize.
+No skill needed. Scheduled research (cron) deferred to phase 2.
 
 ### 1d. Agentic search — done
 
@@ -78,13 +72,10 @@ Per-user memory, gateway-injected.
 - [ ] Gateway reads user file on message, injects as XML
 - [ ] Agent nudge to create file on first encounter
 
-### 2d. Verifier
+### 2d. Verifier — done (in research flow)
 
-Quality gate on research output.
-
-- [ ] Second subagent pass with verify/disproval prompt
-- [ ] Reject findings that fail verification
-- [ ] Track verification metadata in fact frontmatter
+Verification is the second subagent in the research flow (CLAUDE.md).
+No separate phase needed.
 
 ### 2e. Knowledge gap detection
 
