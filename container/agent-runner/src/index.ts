@@ -107,7 +107,7 @@ function assembleCharacter(char: Character, name: string): string {
 
 function loadCharacter(name: string): string {
   // /app is base; /workspace/share overrides (arrays concat, scalars: later wins)
-  const paths = ['/app/character.json', '/workspace/share/character.json'];
+  const paths = ['/app/character.json', '/workspace/share/character.json', '/workspace/group/character.json'];
   let merged: Character = {};
   for (const p of paths) {
     if (!fs.existsSync(p)) continue;
