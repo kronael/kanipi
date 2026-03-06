@@ -1,59 +1,18 @@
-# Memory: Diary — open
+# Memory: Diary — shipping
 
-Agent-written daily notes. Pre-compaction flush. Automatic, always on.
-The agent decides what goes in — content is subjective, freeform, chosen
-by the agent. Contrast with episodes (v2) which are mechanically produced.
+Agent-written daily notes. The agent decides what goes in —
+content is subjective, freeform. The primary human-readable
+record of what happened in a group over time.
 
-## What it is
-
-The diary is the agent's persistent working memory between sessions and
-across compaction boundaries. The agent writes to it; the gateway reads
-a summary from it. It is the primary human-readable record of what
-happened in a group over time.
+## Path
 
 ```
-groups/<folder>/diary/
-  20260305.md     ← today's entry (appended on each flush)
-  20260304.md     ← yesterday
-  ...
+groups/<folder>/diary/YYYYMMDD.md
 ```
 
-## Push (auto-injected)
+Mounted rw at `/workspace/group/diary/` inside the container.
 
-On session reset, the gateway reads `diary/` and injects a one-line
-pointer before the message XML:
-
-```
-[Previous sessions — Deployed hel1v5. Alice working on auth. Two open bugs.
-Diary: /workspace/group/diary/ (20260305.md, 20260304.md)]
-```
-
-Pointer construction (gateway-side, no API call):
-
-1. List `groups/<folder>/diary/` — filter `*.md` excluding `YYYYMMDD.md`
-   pattern is the entry files; sort descending
-2. Read YAML frontmatter `summary:` field from the most recent entry
-3. Take most recent 1–3 filenames
-4. Inject ≤1 line before the message XML
-
-The gateway reads only the frontmatter — never the diary body.
-
-## Pull (on demand)
-
-Agent reads diary files directly via file tools:
-
-```
-/workspace/group/diary/20260305.md   ← today
-/workspace/group/diary/20260304.md   ← yesterday
-```
-
-Agent lists `diary/` to discover all entries and reads any it finds
-relevant.
-
-## Diary file format
-
-Each file is freeform markdown with a YAML frontmatter summary the agent
-updates on every append:
+## File format
 
 ```markdown
 ---
@@ -62,94 +21,98 @@ summary: Deployed hel1v5. Alice working on auth. Two open bugs.
 
 ## 10:32
 
-Helped Alice configure Ansible playbook for hel1v5. Key issue was the
-vault password path — resolved by...
+Helped Alice configure Ansible for hel1v5. Vault password
+path was wrong — fixed.
 
 ## 14:07
 
-Discussed auth flow. Alice wants OAuth, not username/password. Left open:
-which provider.
+Auth flow discussion. Alice wants OAuth not passwords.
+Open: which provider.
 ```
 
-The agent controls the summary entirely. ≤20 words. Gateway reads only
-this field for injection.
+- YAML frontmatter `summary:` — 20 words max, current state
+- `## HH:MM` entries — 250 chars max each
+- Agent may rewrite/compress old entries to save space
+- Truthful, summarizing — only what matters
+- If nothing noteworthy, skip
 
-## Pre-compaction flush
+## Triggers
 
-When context approaches its limit, Claude Code fires `PreCompact`.
-The agent runner hook injects a **silent turn**:
+### 1. `/diary` skill (agent-initiated)
+
+Agent can run `/diary` anytime during a session. The skill
+instructs the agent to append to `/workspace/group/diary/YYYYMMDD.md`.
+
+### 2. PreCompact hook (automatic)
+
+On compaction, the hook injects a system message:
 
 ```
-Before this session compacts: append key facts, decisions, and context
-worth preserving to /workspace/group/diary/YYYYMMDD.md. Update the YAML
-summary: field to reflect the current state in ≤20 words.
-Reply NO_REPLY if nothing to note.
+If anything worth noting happened since your last diary
+entry, run /diary.
 ```
 
-The turn is invisible to the user. `NO_REPLY` is suppressed.
-The agent decides what matters — no mechanical transcript parsing.
+Agent decides whether to act. Not a command — a nudge.
+Replaces the current `createPreCompactHook` transcript dump.
 
-This replaces the current `createPreCompactHook` in
-`container/agent-runner/src/index.ts` (mechanical transcript → markdown
-archive approach dropped).
+### 3. Gateway turn nudge (automatic, every 100 turns)
 
-**Known SDK issue**: `transcript_path` in `PreCompactHookInput` is
-sometimes empty (GitHub #13668). The silent flush approach is unaffected —
-it does not need the transcript path.
+Gateway counts agent responses per group. Every 100 turns,
+injects the same nudge text as a system message via stdin
+piping. Resets counter after nudge. PreCompact resets it too.
+
+## Gateway: session-start injection
+
+On session reset, gateway reads the most recent diary file's
+YAML frontmatter and injects a system message:
+
+```
+[diary] <summary text> — see /workspace/group/diary/
+```
+
+Construction (no API call):
+
+1. List `groups/<folder>/diary/*.md`, sort descending
+2. Read `summary:` from frontmatter of most recent file
+3. Inject as system message before conversation XML
+
+No diary = no injection (cold start with MEMORY.md only).
+
+## Gateway: mount
+
+`container-runner.ts` adds:
+
+```
+groups/<folder>/diary/ → /workspace/group/diary/ (rw)
+```
+
+Create dir if missing (`mkdirSync recursive`).
+
+## What gets deleted
+
+- `createPreCompactHook` — transcript dump (replaced by nudge)
+- `parseTranscript`, `formatTranscriptMarkdown`,
+  `sanitizeFilename`, `generateFallbackName` — dead code
+- `conversations/` directory — no longer created
+
+## Implementation
+
+| Component  | File                                   | Change                              |
+| ---------- | -------------------------------------- | ----------------------------------- |
+| Mount      | `src/container-runner.ts`              | Add diary dir mount                 |
+| Injection  | `src/index.ts`                         | Read frontmatter, inject system msg |
+| PreCompact | `container/agent-runner/src/index.ts`  | Replace transcript dump with nudge  |
+| Turn nudge | `src/index.ts`                         | Counter per group, nudge at 100     |
+| Skill      | `container/skills/self/diary/SKILL.md` | Writing rules                       |
+| Migration  | `container/skills/self/migrations/`    | Skill file delivery                 |
 
 ## Relationship to other memory layers
 
-| Layer                | Trigger                       | Granularity                      |
-| -------------------- | ----------------------------- | -------------------------------- |
-| Diary (this)         | Pre-compaction flush          | Per-compaction, within a session |
-| Episodes (v2)        | Scheduled task, time-based    | Per day/week/month aggregation   |
-| Long-term/facts (v2) | Fed by episodes, atlas system | Concept-centric, permanent       |
+| Layer                | Trigger        | Granularity           |
+| -------------------- | -------------- | --------------------- |
+| Diary (this)         | Agent + hooks  | Per-session, daily    |
+| Episodes (v2)        | Scheduled task | Weekly/monthly        |
+| Long-term/facts (v2) | Episode rollup | Permanent, conceptual |
 
-Episodes aggregate diary entries upward. Long-term distills recurring
-concepts from episodes. Diary is the raw input to both.
-
-brainpro auto-loads today + yesterday's notes into every session
-(not just on reset). This is an alternative push model — kept open.
-
-## Episode notes (rhias, Mar 2026)
-
-Observed on the rhias instance: a single session ran 4+ days with zero diary
-entries. The entire memory stack was raw message history replayed from JSONL
-on each container restart — no flush, no summary.
-
-**What this means for the diary spec:**
-
-- The pre-compaction flush is necessary but not sufficient. Rhias never
-  compacted (or compaction didn't fire), so the flush never triggered.
-  The diary must also flush on **session end** (idle timeout kill), not only
-  on compaction. Otherwise a long, low-volume session accumulates 4 days
-  of context with no diary entry until it eventually dies cold.
-- The gateway injects a one-line diary pointer on session reset — but if
-  no diary exists, the pointer is empty and the agent starts cold.
-  The spec should note this fallback: no diary = cold start with MEMORY.md only.
-- Multi-day sessions (project assistants, not chat bots) are the primary use
-  case. Diary entries should carry enough project state that resuming after
-  a cold start is workable, not just a session-end formality.
-
-**Open from this episode:**
-
-- Diary must flush on **session end** (idle timeout), not only pre-compaction.
-  Two options:
-  - **a) Periodic flush every N turns** (e.g. every 10 interactions, muaddib
-    pattern) — simplest, shippable now, no IPC change needed
-  - **b) Gateway SIGTERM → grace period → SIGKILL** — gateway signals container
-    before killing it; agent has a few seconds to flush diary; requires IPC
-    change (container must listen for SIGTERM and run flush before exit)
-  - Both are likely needed: periodic as baseline, SIGTERM as best-effort on
-    controlled shutdown. Idle timeout (hard kill) will always need periodic.
-
-## Open
-
-- Implement silent flush: replace `createPreCompactHook` in agent runner
-- `diary/` path needs to be created and mounted (currently `conversations/`
-  is the legacy path — migrate or rename)
-- Frontmatter YAML format needs to be in agent SKILL.md / CLAUDE.md so
-  agent knows the convention
-- Flush on session end: implement periodic (every N turns) + SIGTERM hook
-- Whether gateway should auto-mount last 2 diary files into every session
-  (brainpro pattern) instead of pointer-only injection via system-messages
+Diary is the raw input. Episodes aggregate upward.
+Long-term distills recurring concepts from episodes.
