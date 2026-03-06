@@ -42,6 +42,10 @@ export interface RegisteredGroup {
   slinkToken?: string; // Only set for web: groups
 }
 
+export interface SendOpts {
+  replyTo?: string;
+}
+
 export interface NewMessage {
   id: string;
   chat_jid: string;
@@ -51,6 +55,7 @@ export interface NewMessage {
   timestamp: string;
   is_from_me?: boolean;
   is_bot_message?: boolean;
+  replyTo?: string;
 }
 
 export interface ScheduledTask {
@@ -82,13 +87,11 @@ export interface TaskRunLog {
 export interface Channel {
   name: string;
   connect(): Promise<void>;
-  sendMessage(jid: string, text: string): Promise<void>;
+  sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void>;
   isConnected(): boolean;
   ownsJid(jid: string): boolean;
   disconnect(): Promise<void>;
-  // Optional: typing indicator. Channels that support it implement it.
   setTyping?(jid: string, isTyping: boolean): Promise<void>;
-  // Optional: send a file as a document attachment.
   sendDocument?(
     jid: string,
     filePath: string,

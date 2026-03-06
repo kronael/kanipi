@@ -27,6 +27,7 @@ import { startWebProxy } from './web-proxy.js';
 import {
   ContainerOutput,
   runContainerAgent,
+  writeActionManifest,
   writeGroupsSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
@@ -403,6 +404,9 @@ async function runAgent(
     availableGroups,
     new Set(Object.keys(registeredGroups)),
   );
+
+  // Write action manifest for agent-side tool discovery
+  writeActionManifest(group.folder);
 
   try {
     const output = await runContainerAgent(

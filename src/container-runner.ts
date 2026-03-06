@@ -13,6 +13,7 @@ import path from 'path';
 
 import crypto from 'crypto';
 
+import { getManifest } from './action-registry.js';
 import { recordSessionStart, updateSessionEnd } from './db.js';
 import {
   ASSISTANT_NAME,
@@ -220,6 +221,8 @@ function buildVolumeMounts(group: RegisteredGroup): VolumeMount[] {
   fs.mkdirSync(path.join(groupIpcDir, 'messages'), { recursive: true });
   fs.mkdirSync(path.join(groupIpcDir, 'tasks'), { recursive: true });
   fs.mkdirSync(path.join(groupIpcDir, 'input'), { recursive: true });
+  fs.mkdirSync(path.join(groupIpcDir, 'requests'), { recursive: true });
+  fs.mkdirSync(path.join(groupIpcDir, 'replies'), { recursive: true });
   chownRecursive(groupIpcDir, 1000, 1000);
   mounts.push({
     hostPath: hostPath(groupIpcDir),
@@ -795,6 +798,13 @@ export function writeTasksSnapshot(
 
   const tasksFile = path.join(groupIpcDir, 'current_tasks.json');
   fs.writeFileSync(tasksFile, JSON.stringify(filteredTasks, null, 2));
+}
+
+export function writeActionManifest(groupFolder: string): void {
+  const groupIpcDir = resolveGroupIpcPath(groupFolder);
+  fs.mkdirSync(groupIpcDir, { recursive: true });
+  const manifestFile = path.join(groupIpcDir, 'action_manifest.json');
+  fs.writeFileSync(manifestFile, JSON.stringify(getManifest(), null, 2));
 }
 
 export interface AvailableGroup {
