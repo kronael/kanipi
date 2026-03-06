@@ -17,9 +17,10 @@
   discord threads to correct agent containers. Topic/thread ID
   as JID segment, glob patterns match topic families.
   Builds on worlds router.
-- **extensibility** — specced in extend.md. All registries documented,
-  extension directory convention, agent self-modification model.
-  Actions registry is v1, other drop-in registries are v2.
+- **agent MCP self-registration** — specced in extend-agent.md.
+  Agent-runner merges MCP servers from settings.json, dynamic
+  allowedTools. Two changes in agent-runner/src/index.ts.
+  Gateway must preserve agent's mcpServers in settings injection.
 - **router** — specced in router.md. Current flow documented,
   open items (glob routing, formatMessages improvements) depend on
   worlds and channels specs shipping first.

@@ -2,53 +2,34 @@
 
 How the agent extends its own capabilities across sessions.
 The agent runs Claude Code inside a container with a persistent
-writable `.claude/` directory.
+writable `~/.claude/` directory.
 
 ## SDK-native mechanisms (shipped)
 
-| Mechanism    | Path                             | Effect                             |
-| ------------ | -------------------------------- | ---------------------------------- |
-| Skills       | `.claude/skills/<name>/SKILL.md` | New capabilities, loaded by SDK    |
-| Instructions | `.claude/CLAUDE.md`              | Changes own behavior/personality   |
-| Memory       | `.claude/projects/*/memory/`     | Persists knowledge across sessions |
-| Settings     | `.claude/settings.json`          | SDK configuration                  |
+| Mechanism    | Path                               | Effect                             |
+| ------------ | ---------------------------------- | ---------------------------------- |
+| Skills       | `~/.claude/skills/<name>/SKILL.md` | New capabilities, loaded by SDK    |
+| Instructions | `~/.claude/CLAUDE.md`              | Changes own behavior/personality   |
+| Memory       | `~/.claude/projects/*/memory/`     | Persists knowledge across sessions |
+| Settings     | `~/.claude/settings.json`          | SDK configuration                  |
 
-The agent can create skills, edit its own instructions, and write
-memory files without gateway involvement. Changes take effect on
-next session spawn.
+Changes take effect on next session spawn.
 
 ### Skill seeding
 
-Gateway seeds skills from `container/skills/` into `.claude/skills/`
-on first spawn per group. The `/migrate` skill propagates updates
-across groups. See `specs/v1/skills.md`.
+Gateway seeds `container/skills/` → `~/.claude/skills/` on first
+spawn. `/migrate` skill propagates updates. See `specs/v1/skills.md`.
 
-## Gaps
+## Agent-registered MCP servers (v1 — to ship)
 
-Three things the agent cannot extend today because agent-runner
-hardcodes them in the `query()` call:
+The agent can register its own MCP servers by writing to
+`~/.claude/settings.json`. Agent-runner merges them with the
+built-in `nanoclaw` server before calling `query()`.
 
-### 1. MCP servers
+### How it works
 
-`mcpServers` is hardcoded to just `nanoclaw`. The agent cannot add
-new MCP servers to its own runtime.
-
-**Fix**: agent-runner reads `.claude/settings.json` at spawn time,
-merges any `mcpServers` entries with the hardcoded `nanoclaw` server
-before calling `query()`.
-
-```typescript
-// agent-runner reads agent's settings
-const agentSettings = JSON.parse(
-  fs.readFileSync('/home/node/.claude/settings.json', 'utf-8')
-);
-const agentMcp = agentSettings.mcpServers ?? {};
-
-// merge with built-in nanoclaw
-const mcpServers = { nanoclaw: { ... }, ...agentMcp };
-```
-
-The agent then self-registers by writing to its own settings:
+1. Agent writes an MCP server binary/script to its workspace
+2. Agent adds entry to `~/.claude/settings.json`:
 
 ```json
 {
@@ -61,37 +42,96 @@ The agent then self-registers by writing to its own settings:
 }
 ```
 
-Next spawn, agent-runner merges it. Agent has new tools.
+3. On next spawn, agent-runner reads settings, merges MCP servers
+4. Agent has access to `mcp__mytools__*` tools
 
-Security: agent can only run binaries inside its container. MCP
-servers run with the same sandboxing as the agent itself. The
-`nanoclaw` server cannot be overridden (built-in wins).
+### Agent-runner changes
 
-### 2. Allowed tools
+Two changes in `container/agent-runner/src/index.ts`:
 
-`allowedTools` is hardcoded. It includes `mcp__nanoclaw__*` as a
-wildcard. If the agent adds a new MCP server `mytools`, the tools
-it provides would need `mcp__mytools__*` in the allowed list.
-
-**Fix**: agent-runner generates `allowedTools` dynamically from the
-merged MCP servers list:
+**1. Merge MCP servers from settings:**
 
 ```typescript
-const toolWildcards = Object.keys(mcpServers).map((name) => `mcp__${name}__*`);
-const allowedTools = [...builtinTools, ...toolWildcards];
+const settingsPath = '/home/node/.claude/settings.json';
+let agentMcp: Record<string, unknown> = {};
+if (fs.existsSync(settingsPath)) {
+  try {
+    const s = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+    agentMcp = s.mcpServers ?? {};
+  } catch {}
+}
+
+// built-in nanoclaw wins — agent cannot override it
+const mcpServers = {
+  ...agentMcp,
+  nanoclaw: {
+    command: 'node',
+    args: [mcpServerPath],
+    env: { ... },
+  },
+};
 ```
 
-Pairs with the MCP server merge above — one change enables both.
+**2. Dynamic allowedTools:**
 
-### 3. Hooks
+```typescript
+const builtinTools = [
+  'Bash',
+  'Read',
+  'Write',
+  'Edit',
+  'Glob',
+  'Grep',
+  'WebSearch',
+  'WebFetch',
+  'Task',
+  'TaskOutput',
+  'TaskStop',
+  'TodoWrite',
+  'ToolSearch',
+  'Skill',
+  'NotebookEdit',
+];
+const mcpWildcards = Object.keys(mcpServers).map((name) => `mcp__${name}__*`);
+const allowedTools = [...builtinTools, ...mcpWildcards];
+```
 
-`hooks` is hardcoded to PreCompact (conversation archiving) and
-PreToolUse/Bash (secret sanitization). The agent cannot add hooks.
+### Security
 
-**Defer**: hooks modify SDK behavior at a deep level. Only two exist,
-a third (diary flush) is planned. No agent use case for self-defined
-hooks yet. If needed later, agent-runner could load hook definitions
-from a well-known path (`.claude/hooks/`).
+- Agent can only run binaries inside its container (sandboxed)
+- MCP servers run with same privileges as the agent itself
+- `nanoclaw` cannot be overridden (spread order: agent first,
+  built-in last wins)
+- Gateway-side IPC dispatch is unaffected — agent MCP servers
+  are local to the container, they don't talk to the gateway
+
+### Gateway-side settings injection
+
+Gateway already writes to `~/.claude/settings.json` per-spawn
+(`container-runner.ts:162-189`) to inject env vars. The merge
+must preserve agent-written `mcpServers` entries:
+
+```typescript
+// container-runner.ts — preserve agent's mcpServers
+const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+settings.env = settings.env ?? {};
+settings.env.WEB_HOST = WEB_HOST;
+// ... other env injections ...
+// DO NOT overwrite settings.mcpServers — agent owns those
+fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
+```
+
+## Known limitation: hooks
+
+Agent cannot add SDK hooks (PreCompact, PreToolUse, etc).
+These are hardcoded in agent-runner. Two exist:
+
+- **PreCompact** — archives conversation to markdown
+- **PreToolUse/Bash** — strips API keys from subprocess env
+
+Adding hooks requires editing `agent-runner/src/index.ts`. No
+agent-facing mechanism planned for v1. Diary flush (phase II)
+would be the third hook, added by the developer.
 
 ## What the agent cannot extend
 
@@ -104,21 +144,3 @@ Gateway-side code — always requires developer changes:
 - **Inbound pipeline** — message processing steps
 
 See `specs/v1/extend.md` for the gateway registry reference.
-
-## Implementation
-
-### v1 — MCP server merge + dynamic allowedTools
-
-Two changes in `container/agent-runner/src/index.ts`:
-
-1. Before `query()`, read `.claude/settings.json`, extract
-   `mcpServers`, merge with hardcoded `nanoclaw`
-2. Generate `allowedTools` from merged MCP server names
-
-Small, self-contained. No framework.
-
-### v2 — hook loading (if needed)
-
-Agent-runner scans `.claude/hooks/` for hook definition files.
-Each exports a hook factory matching the SDK's `HookCallback`
-interface. Only when a real use case appears.
