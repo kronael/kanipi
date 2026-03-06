@@ -107,6 +107,19 @@ CREATE TABLE sessions (
 
 On new-session injection: `SELECT * FROM sessions WHERE group_id = ? ORDER BY started_at DESC LIMIT 10`.
 
+## new-day trigger
+
+Gateway tracks the last calendar date a message was processed per group.
+On each inbound message, compare `new Date().toDateString()` against stored
+date. If different, enqueue:
+
+```xml
+<system origin="gateway" event="new-day">2026-03-06</system>
+```
+
+Simple date boundary check. Agent knows a new day started — useful for
+diary, greetings, time-sensitive context.
+
 ## Persistence
 
 System messages are stored in DB — loss on gateway restart is not acceptable.

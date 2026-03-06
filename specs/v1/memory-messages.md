@@ -31,8 +31,18 @@ The agent reads top to bottom: orient first, then act on messages.
 
 `formatMessages()` in `src/router.ts` produces the `<messages>` block.
 Gateway stores every inbound message in the `messages` table (SQLite).
-On each invocation, `getMessagesSince(chatJid, lastAgentTimestamp)` fetches
-messages since the last agent run.
+On each invocation, query fetches at most **30 messages from the last 2 days**.
+If older messages exist, a comment is included:
+
+```xml
+<messages>
+  <!-- 47 older messages not shown — use get_history to retrieve -->
+  <message sender="Alice" time="2026-03-05T10:00:00Z">hey can you help</message>
+  ...
+</messages>
+```
+
+This limit will be expanded as memory layers improve.
 
 ```xml
 <messages>
