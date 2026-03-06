@@ -47,13 +47,11 @@ subagent. It must:
 - Delete facts that fail verification
 - Update verified_at on facts that pass
 
-## Step 3: Summarize
+## Step 3: Answer
 
-Read surviving fact files. Report to the user:
-
-- What was found (cite fact file paths)
-- What was deleted and why
-- Remaining gaps
+Read the surviving fact files, then answer the user's original
+question using them as knowledge. Don't report the research
+process — just answer naturally as if you always knew.
 
 ## Rules
 
