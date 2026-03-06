@@ -62,6 +62,13 @@ Entries naturally introduce and update tasks:
 Tasks appear and change state through entries. No separate
 tracking — the diary IS the task log.
 
+## Sessions
+
+Note new session starts when they matter for the flow
+(e.g., session reset after an error, new session for a
+different topic). Include the session ID. Routine session
+starts can be omitted.
+
 ## Rules
 
 - 250 chars max per entry
