@@ -1,26 +1,36 @@
 # Atlas TODO — Phased Delivery
 
 Two phases. Phase 1: viable product (agentic search, research,
-character, skills). Phase 2: semantic search, gateway injections,
+persona, skills). Phase 2: semantic search, gateway injections,
 generalized memory.
+
+## Design decisions
+
+- **No character.json** — replaced by SOUL.md (persona) + CLAUDE.md
+  (instructions). Zero code in agent-runner. SDK auto-loads group
+  CLAUDE.md; SOUL.md read by agent per CLAUDE.md instruction on
+  new sessions only
+- **No `/facts` skill** — agent has Grep/Read natively. CLAUDE.md
+  instructs: search facts/ before answering. No skill wrapper needed
+- **Facts are binary** — verified or deleted. No confidence tiers on
+  facts themselves. `confidence` and `findings_count` are eliza
+  artifacts to strip. Search relevance (similarity) is separate
+- **Atlas-specific vs general** — facts/ search instruction is in
+  shared container CLAUDE.md for now. Split to group CLAUDE.md later
+  if it becomes noise for non-atlas instances
 
 ## Phase 1: Viability
 
 ### 1a. Fact format — done
 
 60+ marinade facts have YAML frontmatter from eliza-atlas migration.
-Frontmatter: path, category, topic, verified_at, header (summary
-for search). Strip eliza artifacts: `confidence` and `findings_count`
-are meaningless outside the vector search system. If a fact isn't
-verified, delete it — don't tag it low confidence.
+Useful fields: path, category, topic, verified_at, header (summary
+for search). Strip: `confidence`, `findings_count` (eliza artifacts).
 
-### 1b. Character + skills
+### 1b. Persona + skills — done
 
-Agent personality and tooling for the evangelist role.
-
-- [x] CLAUDE.md personality (high energy, evidence-based)
 - [x] SOUL.md persona (replaces character.json)
-- [x] Agentic search (CLAUDE.md instructs: grep facts/ before answering)
+- [x] Agentic search (CLAUDE.md instructs: grep facts/)
 - [ ] `/research <question>` skill — spawn subagent with:
   - read access to facts/, refs/codebase/
   - web search tools
