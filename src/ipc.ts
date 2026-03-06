@@ -90,7 +90,7 @@ function buildContext(sourceGroup: string, deps: IpcDeps): ActionContext {
   return { sourceGroup, isRoot: isRoot(sourceGroup), ...deps };
 }
 
-async function drainRequests(
+export async function drainRequests(
   ipcBaseDir: string,
   sourceGroup: string,
   deps: IpcDeps,
