@@ -4,6 +4,7 @@ import { Action } from '../action-registry.js';
 import { writeCommandsXml } from '../commands/index.js';
 import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
+import { isAuthorizedRoutingTarget } from '../router.js';
 import { ContainerConfigSchema } from '../types.js';
 
 const MAX_DELEGATE_DEPTH = 3;
@@ -134,13 +135,7 @@ export const delegateGroup: Action = {
       );
     }
 
-    // Direct parent → child only: target must be exactly one
-    // segment deeper than source (same world, no level-skipping).
-    const suffix = input.group.startsWith(ctx.sourceGroup + '/')
-      ? input.group.slice(ctx.sourceGroup.length + 1)
-      : null;
-    const isDirectChild = suffix !== null && !suffix.includes('/');
-    if (!isDirectChild) {
+    if (!isAuthorizedRoutingTarget(ctx.sourceGroup, input.group)) {
       throw new Error(
         `unauthorized: ${ctx.sourceGroup} cannot delegate to ${input.group}`,
       );

@@ -16,7 +16,7 @@ The `/migrate` skill + `MIGRATION_VERSION` system addresses all four
 requirements:
 
 - **Per-group isolation**: skills are seeded once into each group's session
-  dir (`data/sessions/<group>/skills/`); groups diverge independently.
+  dir (`data/sessions/<group>/.claude/skills/`); groups diverge independently.
 - **Agent-modifiable**: seeded files are agent-owned; gateway never
   overwrites after initial seed.
 - **Versioned**: `container/skills/self/MIGRATION_VERSION` tracks gateway

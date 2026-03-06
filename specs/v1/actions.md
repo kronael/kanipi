@@ -174,10 +174,12 @@ on next drain.
 
 ### Groups
 
-| Action           | MCP | Input                      |
-| ---------------- | --- | -------------------------- |
-| `refresh_groups` | yes | --                         |
-| `register_group` | yes | `{ chatJid, folder, ... }` |
+| Action              | MCP | Input                        |
+| ------------------- | --- | ---------------------------- |
+| `refresh_groups`    | yes | --                           |
+| `register_group`    | yes | `{ chatJid, folder, ... }`   |
+| `delegate_group`    | yes | `{ group, prompt, chatJid }` |
+| `set_routing_rules` | yes | `{ group, rules }`           |
 
 ### Future
 

@@ -212,36 +212,9 @@ describe('getMessagesSince', () => {
     expect(botMsgs).toHaveLength(0);
   });
 
-  it('returns all non-bot messages when sinceTimestamp is empty (recent data)', () => {
-    const now = new Date();
-    const ts = (offset: number) =>
-      new Date(now.getTime() + offset).toISOString();
-    storeChatMetadata('recent@g.us', ts(-5000));
-    store({
-      id: 'r1',
-      chat_jid: 'recent@g.us',
-      sender: 'A',
-      sender_name: 'A',
-      content: 'a',
-      timestamp: ts(-3000),
-    });
-    store({
-      id: 'r2',
-      chat_jid: 'recent@g.us',
-      sender: 'B',
-      sender_name: 'B',
-      content: 'b',
-      timestamp: ts(-2000),
-    });
-    store({
-      id: 'r3',
-      chat_jid: 'recent@g.us',
-      sender: 'C',
-      sender_name: 'C',
-      content: 'c',
-      timestamp: ts(-1000),
-    });
-    const msgs = getMessagesSince('recent@g.us', '', 'Andy');
+  it('returns all non-bot messages when sinceTimestamp is empty', () => {
+    const msgs = getMessagesSince('group@g.us', '', 'Andy');
+    // 3 user messages (bot message excluded)
     expect(msgs).toHaveLength(3);
   });
 

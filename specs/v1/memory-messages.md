@@ -29,7 +29,7 @@ system messages then message history:
 
 `formatMessages()` in `src/router.ts`. Gateway stores every
 inbound message in `messages` table. On each invocation:
-**30 messages from the last 2 days**.
+**last 100 messages** (most recent, ordered by time).
 
 ```xml
 <messages>

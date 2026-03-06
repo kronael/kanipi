@@ -4,7 +4,7 @@
 
 ```
 make test         unit, mocked, <5s
-make integration  gateway + mock agent in docker, ~30s
+vitest run tests/e2e  gateway + mock agent, ~10s
 make smoke        real instance, real API (SDK wiring only)
 ```
 

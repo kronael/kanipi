@@ -15,9 +15,11 @@ interface CommandHandler {
 
 interface CommandContext {
   group: RegisteredGroup;
+  groupJid: string;
   message: NewMessage;
   channel: Channel;
   args: string;
+  clearSession(): void;
 }
 ```
 

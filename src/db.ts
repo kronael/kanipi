@@ -395,18 +395,16 @@ export function getNewMessages(
   return { messages: rows, newTimestamp };
 }
 
-const MSG_LIMIT = 30;
-const MSG_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
+const MSG_LIMIT = 100;
 
 export function getMessagesSince(
   chatJid: string,
   sinceTimestamp: string,
   botPrefix: string,
 ): NewMessage[] {
-  const since =
-    sinceTimestamp || new Date(Date.now() - MSG_MAX_AGE_MS).toISOString();
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
+  const since = sinceTimestamp || '';
   const sql = `
     SELECT id, chat_jid, sender, sender_name, content, timestamp
     FROM messages
