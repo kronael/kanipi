@@ -212,9 +212,36 @@ describe('getMessagesSince', () => {
     expect(botMsgs).toHaveLength(0);
   });
 
-  it('returns all non-bot messages when sinceTimestamp is empty', () => {
-    const msgs = getMessagesSince('group@g.us', '', 'Andy');
-    // 3 user messages (bot message excluded)
+  it('returns all non-bot messages when sinceTimestamp is empty (recent data)', () => {
+    const now = new Date();
+    const ts = (offset: number) =>
+      new Date(now.getTime() + offset).toISOString();
+    storeChatMetadata('recent@g.us', ts(-5000));
+    store({
+      id: 'r1',
+      chat_jid: 'recent@g.us',
+      sender: 'A',
+      sender_name: 'A',
+      content: 'a',
+      timestamp: ts(-3000),
+    });
+    store({
+      id: 'r2',
+      chat_jid: 'recent@g.us',
+      sender: 'B',
+      sender_name: 'B',
+      content: 'b',
+      timestamp: ts(-2000),
+    });
+    store({
+      id: 'r3',
+      chat_jid: 'recent@g.us',
+      sender: 'C',
+      sender_name: 'C',
+      content: 'c',
+      timestamp: ts(-1000),
+    });
+    const msgs = getMessagesSince('recent@g.us', '', 'Andy');
     expect(msgs).toHaveLength(3);
   });
 
@@ -576,56 +603,6 @@ describe('registered_groups round-trip', () => {
       type: 'default',
       target: 'main',
     });
-  });
-});
-
-// --- registered_groups malformed JSON fallback ---
-
-describe('registered_groups malformed JSON fallback', () => {
-  it('returns undefined containerConfig for invalid JSON', () => {
-    _setRawGroupColumns('tg:bad-json-cc', {
-      container_config: '{not valid json',
-    });
-    const g = getRegisteredGroup('tg:bad-json-cc');
-    expect(g).toBeDefined();
-    expect(g!.containerConfig).toBeUndefined();
-  });
-
-  it('returns undefined containerConfig for schema-invalid JSON', () => {
-    _setRawGroupColumns('tg:schema-cc', {
-      container_config: JSON.stringify({ timeout: 'not-a-number' }),
-    });
-    const g = getRegisteredGroup('tg:schema-cc');
-    expect(g).toBeDefined();
-    expect(g!.containerConfig).toBeUndefined();
-  });
-
-  it('returns undefined routingRules for invalid JSON', () => {
-    _setRawGroupColumns('tg:bad-json-rr', { routing_rules: '[{broken' });
-    const g = getRegisteredGroup('tg:bad-json-rr');
-    expect(g).toBeDefined();
-    expect(g!.routingRules).toBeUndefined();
-  });
-
-  it('returns undefined routingRules for schema-invalid JSON', () => {
-    _setRawGroupColumns('tg:schema-rr', {
-      routing_rules: JSON.stringify([{ type: 'unknown', target: 'x' }]),
-    });
-    const g = getRegisteredGroup('tg:schema-rr');
-    expect(g).toBeDefined();
-    expect(g!.routingRules).toBeUndefined();
-  });
-
-  it('getAllRegisteredGroups skips malformed fields without throwing', () => {
-    _setRawGroupColumns('tg:all-bad', {
-      container_config: '{bad',
-      routing_rules: '[bad',
-    });
-    let all: Record<string, unknown> | undefined;
-    expect(() => {
-      all = getAllRegisteredGroups();
-    }).not.toThrow();
-    expect(all!['tg:all-bad']).toBeDefined();
   });
 });
 

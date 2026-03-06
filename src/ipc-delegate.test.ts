@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
-import { drainRequests, IpcDeps } from './ipc.js';
+import { drainRequests, _drainGroup, IpcDeps } from './ipc.js';
 // Register all actions (side-effect)
 import './ipc.js';
 import {
@@ -429,5 +429,66 @@ describe('DB-backed registeredGroups — live reads', () => {
       'tg/-100',
       2,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Full drain pipeline: legacy messages + requests in one _drainGroup pass
+// Real fs + real DB; only container boundary mocked
+// ---------------------------------------------------------------------------
+
+describe('full drain pipeline (_drainGroup)', () => {
+  it('processes legacy message and request in single drain pass', async () => {
+    setRegisteredGroup('main@g.us', MAIN);
+
+    // Write a legacy message IPC file
+    const messagesDir = path.join(tmpDir, 'main', 'messages');
+    fs.mkdirSync(messagesDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(messagesDir, 'msg-1.json'),
+      JSON.stringify({ type: 'message', chatJid: 'main@g.us', text: 'hello' }),
+    );
+
+    // Write a request IPC file
+    writeRequest('main', {
+      id: 'req-drain',
+      type: 'delegate_group',
+      group: 'main/code',
+      prompt: 'run',
+      chatJid: 'tg/-100',
+    });
+
+    await _drainGroup(tmpDir, 'main', deps);
+
+    // Legacy message path: sendMessage called
+    expect(deps.sendMessage).toHaveBeenCalledWith('main@g.us', 'hello');
+    // Legacy message file deleted
+    expect(fs.existsSync(path.join(messagesDir, 'msg-1.json'))).toBe(false);
+
+    // Request path: reply written
+    const reply = readReply('main', 'req-drain');
+    expect(reply).not.toBeNull();
+    expect(reply!.ok).toBe(true);
+  });
+
+  it('concurrent drain for same group is serialized (lock prevents double-process)', async () => {
+    setRegisteredGroup('main@g.us', MAIN);
+
+    writeRequest('main', {
+      id: 'req-lock',
+      type: 'delegate_group',
+      group: 'main/code',
+      prompt: 'go',
+      chatJid: 'tg/-100',
+    });
+
+    // Fire two concurrent drains; only one should see the file
+    await Promise.all([
+      _drainGroup(tmpDir, 'main', deps),
+      _drainGroup(tmpDir, 'main', deps),
+    ]);
+
+    // delegateToChild called exactly once (lock prevented double process)
+    expect(delegateToChild).toHaveBeenCalledTimes(1);
   });
 });

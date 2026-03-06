@@ -90,6 +90,14 @@ function buildContext(sourceGroup: string, deps: IpcDeps): ActionContext {
   return { sourceGroup, isRoot: isRoot(sourceGroup), ...deps };
 }
 
+export async function _drainGroup(
+  ipcBaseDir: string,
+  sourceGroup: string,
+  deps: IpcDeps,
+): Promise<void> {
+  return drainGroupMessages(ipcBaseDir, sourceGroup, deps);
+}
+
 export async function drainRequests(
   ipcBaseDir: string,
   sourceGroup: string,
