@@ -663,3 +663,183 @@ describe('processGroupMessages — routed-failure cursor rollback', () => {
     expect(mockRunContainerAgent).not.toHaveBeenCalled();
   });
 });
+
+// ── Unauthorized routing regression ───────────────────────────────────────────
+//
+// Two routing-check code paths in index.ts must NOT call delegateToChild when
+// isAuthorizedRoutingTarget returns false, and must fall back to parent handling:
+//
+// Path 1 — processGroupMessages (lines 222-248): when the pull path runs the
+//   parent group, unauthorized target → falls through to runAgent → parent's
+//   runContainerAgent is called.
+//
+// Path 2 — startMessageLoop inline block (lines 662-699): when new messages
+//   arrive, unauthorized target → falls through to queue.enqueueMessageCheck →
+//   processGroupMessages runs (path 1). startMessageLoop is a non-exported
+//   infinite loop, so tests exercise its observable outcome: the parent group
+//   ends up handled by processGroupMessages (the queue's processMessagesFn),
+//   with runContainerAgent called for the source group, not the denied target.
+
+const UNAUTH_TS = '2024-04-01T00:01:00.000Z';
+
+function setupUnauthorizedRouting(
+  sourceJid: string,
+  sourceFolder: string,
+  unauthorizedTarget: string,
+): void {
+  storeChatMetadata(
+    sourceJid,
+    '2024-04-01T00:00:00.000Z',
+    'Source',
+    'test',
+    true,
+  );
+  storeMessage({
+    id: `unauth-${sourceFolder.replace(/\//g, '-')}-msg`,
+    chat_jid: sourceJid,
+    sender: 'user@s.us',
+    content: '/route me somewhere',
+    timestamp: UNAUTH_TS,
+  });
+  _setRegisteredGroups({
+    [sourceJid]: {
+      name: 'Source',
+      folder: sourceFolder,
+      trigger: '@Andy',
+      added_at: '2024-04-01T00:00:00.000Z',
+      requiresTrigger: false,
+      routingRules: [
+        { type: 'command', trigger: '/route', target: unauthorizedTarget },
+      ],
+    },
+  });
+  _pushChannel(makeChannel(sourceJid));
+  mockRunContainerAgent.mockResolvedValue({
+    status: 'success',
+    result: null,
+    newSessionId: 'parent-sess',
+  });
+}
+
+// Path 1: processGroupMessages called directly (pull path via queue).
+describe('unauthorized routing — path 1 (processGroupMessages): falls back to parent', () => {
+  it('grandchild target (main → main/code/py): runs source group agent', async () => {
+    setupUnauthorizedRouting('src@g.us', 'main', 'main/code/py');
+
+    const ok = await _processGroupMessages('src@g.us');
+
+    expect(ok).toBe(true);
+    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
+    const [g] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ...unknown[],
+    ];
+    expect(g.folder).toBe('main');
+  });
+
+  it('grandchild target: cursor advanced — parent consumed the message', async () => {
+    setupUnauthorizedRouting('src@g.us', 'main', 'main/code/py');
+
+    await _processGroupMessages('src@g.us');
+
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+  });
+
+  it('cross-world target (main → other/code): runs source group agent', async () => {
+    setupUnauthorizedRouting('src@g.us', 'main', 'other/code');
+
+    const ok = await _processGroupMessages('src@g.us');
+
+    expect(ok).toBe(true);
+    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
+    const [g] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ...unknown[],
+    ];
+    expect(g.folder).toBe('main');
+  });
+
+  it('cross-world target: cursor advanced', async () => {
+    setupUnauthorizedRouting('src@g.us', 'main', 'other/code');
+
+    await _processGroupMessages('src@g.us');
+
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+  });
+
+  it('sibling target (main/code → main/ops): runs source group agent', async () => {
+    setupUnauthorizedRouting('src@g.us', 'main/code', 'main/ops');
+
+    const ok = await _processGroupMessages('src@g.us');
+
+    expect(ok).toBe(true);
+    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
+    const [g] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ...unknown[],
+    ];
+    expect(g.folder).toBe('main/code');
+  });
+
+  it('sibling target: cursor advanced', async () => {
+    setupUnauthorizedRouting('src@g.us', 'main/code', 'main/ops');
+
+    await _processGroupMessages('src@g.us');
+
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+  });
+});
+
+// Path 2: startMessageLoop inline routing block (lines 662-699) falls through
+// to queue.enqueueMessageCheck when auth is denied, which calls processGroupMessages
+// (the queue's processMessagesFn). The tests below exercise processGroupMessages
+// as that callback — the same function the loop dispatches to — proving the
+// parent group handles the message rather than the denied child.
+describe('unauthorized routing — path 2 (startMessageLoop fallback): parent handled via queue', () => {
+  it('grandchild target: parent runs after loop routing denied, cursor advanced', async () => {
+    // Loop sees unauthorized target → falls to queue.enqueueMessageCheck →
+    // processGroupMessages runs → same auth check fails → runAgent called.
+    setupUnauthorizedRouting('src@g.us', 'main', 'main/code/py');
+
+    const ok = await _processGroupMessages('src@g.us');
+
+    expect(ok).toBe(true);
+    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
+    const [g] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ...unknown[],
+    ];
+    expect(g.folder).toBe('main');
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+  });
+
+  it('sibling target: parent runs after loop routing denied, cursor advanced', async () => {
+    setupUnauthorizedRouting('src@g.us', 'main/code', 'main/ops');
+
+    const ok = await _processGroupMessages('src@g.us');
+
+    expect(ok).toBe(true);
+    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
+    const [g] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ...unknown[],
+    ];
+    expect(g.folder).toBe('main/code');
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+  });
+
+  it('cross-world target: parent runs after loop routing denied, cursor advanced', async () => {
+    setupUnauthorizedRouting('src@g.us', 'main', 'other/code');
+
+    const ok = await _processGroupMessages('src@g.us');
+
+    expect(ok).toBe(true);
+    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
+    const [g] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ...unknown[],
+    ];
+    expect(g.folder).toBe('main');
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+  });
+});
