@@ -180,8 +180,9 @@ but is not yet emitted by `formatMessages()`. The field exists on `NewMessage`
 in the DB schema but `formatMessages()` in `src/router.ts` does not include
 it.
 
-### XML throughout — open
+### XML throughout — closed, won't do
 
-The original proposal to migrate stdin payload, IPC files, and agent output
-from JSON to XML (see git history) has not been implemented. All three remain
-JSON. Only the message history embedded inside the `prompt` field is XML.
+XML for prompt content Claude reads (`<messages>`, `<system>`). JSON
+for everything the SDK/machine touches: stdin envelope, stdout envelope,
+IPC files, tool calls. The SDK speaks JSON natively — wrapping it in
+XML adds complexity for no gain. See `specs/xml-vs-json-llm.md`.

@@ -3,6 +3,9 @@
 Cross-referenced against refs/takopi, refs/muaddib, refs/brainpro.
 Updated 2026-03-06.
 
+Focus: extensibility and reusability. Speed/performance concerns
+are out of scope — optimize only when measured.
+
 ---
 
 ## Resolved
@@ -18,6 +21,10 @@ Updated 2026-03-06.
 - **`jid-hierarchy.md` missing** — merged into worlds.md.
 - **Command handler loader** — `registerCommand()` exists. Actions spec
   supersedes further loader concerns.
+- **`xml-vs-json-llm.md` reference** — file exists at
+  `specs/xml-vs-json-llm.md`. Reference in commands.md is valid.
+- **systems.md too skeletal** — removed. Superseded by
+  `extend-gateway.md` flat registries approach.
 
 ---
 
@@ -46,10 +53,6 @@ If gateway crashes, `ended_at` may be null. Document fallback: null
 
 ### channels.md / worlds.md
 
-**Glob performance (HIGH)**
-Pre-compile and cache minimatch patterns at group registration time.
-Don't run pattern compilation per message.
-
 **Thread vs reply orthogonality (MEDIUM)**
 Threading (message concern) is orthogonal to JID hierarchy (routing).
 Spec should clarify: `replyTo` is per-message, topic/thread ID is a
@@ -64,9 +67,6 @@ channels.md says 120 chars. prompt-format.md doesn't document it.
 Listed as open. Needs: list commands with description, per-channel
 format awareness.
 
-**`xml-vs-json-llm.md` reference (LOW)**
-Cited in commands.md but doesn't exist. Remove reference.
-
 ### extend-skills.md
 
 **Skill naming enforcement (MEDIUM)**
@@ -75,13 +75,6 @@ No validation on skill names. Add `^[a-z0-9\-]+$` check at seeding.
 **Migration failure behavior (MEDIUM)**
 What if a migration fails midway? Should: stop, log, retry on next
 `/migrate`.
-
-### systems.md
-
-**Too skeletal (HIGH)**
-No concrete interfaces, no hook composition rules. Needs work before
-implementation. May be superseded by extend-gateway.md registry
-approach.
 
 ### Cross-spec
 

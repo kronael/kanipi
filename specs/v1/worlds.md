@@ -152,7 +152,7 @@ folder is a root. Nested folders like `acme/ops` are non-root.
 | File                              | Change                                               |
 | --------------------------------- | ---------------------------------------------------- |
 | specs/v1/prompt-format.md         | Remove `isMain` from schema                          |
-| specs/enricher-pipeline.md        | Remove `isMain` from schema                          |
+| specs/v1/mime.md                  | Remove `isMain` from schema                          |
 | container/skills/self/SKILL.md    | `NANOCLAW_IS_ROOT`, `/workspace/share`, layout table |
 | container/skills/migrate/SKILL.md | `NANOCLAW_IS_ROOT`                                   |
 | ARCHITECTURE.md                   | Mount examples                                       |
