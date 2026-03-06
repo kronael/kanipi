@@ -138,9 +138,9 @@ describe('GroupQueue', () => {
     // Messages would run after task completes
   });
 
-  // --- Retry with backoff on failure ---
+  // --- No auto-retry on failure ---
 
-  it('retries with exponential backoff on failure', async () => {
+  it('does not auto-retry on failure, increments consecutiveFailures', async () => {
     let callCount = 0;
 
     const processMessages = vi.fn(async () => {
@@ -151,19 +151,12 @@ describe('GroupQueue', () => {
     queue.setProcessMessagesFn(processMessages);
     queue.enqueueMessageCheck('group1@g.us');
 
-    // First call happens immediately
     await vi.advanceTimersByTimeAsync(10);
     expect(callCount).toBe(1);
 
-    // First retry after 5000ms (BASE_RETRY_MS * 2^0)
-    await vi.advanceTimersByTimeAsync(5000);
-    await vi.advanceTimersByTimeAsync(10);
-    expect(callCount).toBe(2);
-
-    // Second retry after 10000ms (BASE_RETRY_MS * 2^1)
-    await vi.advanceTimersByTimeAsync(10000);
-    await vi.advanceTimersByTimeAsync(10);
-    expect(callCount).toBe(3);
+    // No retry scheduled — wait and confirm
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(callCount).toBe(1);
   });
 
   // --- Shutdown prevents new enqueues ---
@@ -180,9 +173,9 @@ describe('GroupQueue', () => {
     expect(processMessages).not.toHaveBeenCalled();
   });
 
-  // --- Max retries exceeded ---
+  // --- Circuit breaker resets on new user message ---
 
-  it('stops retrying after MAX_RETRIES and resets', async () => {
+  it('circuit breaker resets consecutiveFailures on new message', async () => {
     let callCount = 0;
 
     const processMessages = vi.fn(async () => {
@@ -191,24 +184,18 @@ describe('GroupQueue', () => {
     });
 
     queue.setProcessMessagesFn(processMessages);
-    queue.enqueueMessageCheck('group1@g.us');
 
-    // Run through all 5 retries (MAX_RETRIES = 5)
-    // Initial call
-    await vi.advanceTimersByTimeAsync(10);
-    expect(callCount).toBe(1);
-
-    // Retry 1: 5000ms, Retry 2: 10000ms, Retry 3: 20000ms, Retry 4: 40000ms, Retry 5: 80000ms
-    const retryDelays = [5000, 10000, 20000, 40000, 80000];
-    for (let i = 0; i < retryDelays.length; i++) {
-      await vi.advanceTimersByTimeAsync(retryDelays[i] + 10);
-      expect(callCount).toBe(i + 2);
+    // Fail 3 times (threshold)
+    for (let i = 0; i < 3; i++) {
+      queue.enqueueMessageCheck('group1@g.us');
+      await vi.advanceTimersByTimeAsync(10);
     }
+    expect(callCount).toBe(3);
 
-    // After 5 retries (6 total calls), should stop — no more retries
-    const countAfterMaxRetries = callCount;
-    await vi.advanceTimersByTimeAsync(200000); // Wait a long time
-    expect(callCount).toBe(countAfterMaxRetries);
+    // Next message resets breaker and processes again
+    queue.enqueueMessageCheck('group1@g.us');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(callCount).toBe(4);
   });
 
   // --- Waiting groups get drained when slots free up ---

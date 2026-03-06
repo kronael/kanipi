@@ -11,8 +11,7 @@ interface QueuedTask {
   fn: () => Promise<void>;
 }
 
-const MAX_RETRIES = 5;
-const BASE_RETRY_MS = 5000;
+const CIRCUIT_BREAKER_THRESHOLD = 3;
 
 interface GroupState {
   active: boolean;
@@ -23,7 +22,7 @@ interface GroupState {
   process: ChildProcess | null;
   containerName: string | null;
   groupFolder: string | null;
-  retryCount: number;
+  consecutiveFailures: number;
 }
 
 export class GroupQueue {
@@ -46,7 +45,7 @@ export class GroupQueue {
         process: null,
         containerName: null,
         groupFolder: null,
-        retryCount: 0,
+        consecutiveFailures: 0,
       };
       this.groups.set(groupJid, state);
     }
@@ -61,6 +60,15 @@ export class GroupQueue {
     if (this.shuttingDown) return;
 
     const state = this.getGroup(groupJid);
+
+    if (state.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+      // Reset on new user message — they're explicitly retrying
+      logger.info(
+        { groupJid, failures: state.consecutiveFailures },
+        'Circuit breaker reset by new message',
+      );
+      state.consecutiveFailures = 0;
+    }
 
     if (state.active) {
       state.pendingMessages = true;
@@ -217,14 +225,20 @@ export class GroupQueue {
       if (this.processMessagesFn) {
         const success = await this.processMessagesFn(groupJid);
         if (success) {
-          state.retryCount = 0;
+          state.consecutiveFailures = 0;
         } else {
-          this.scheduleRetry(groupJid, state);
+          state.consecutiveFailures++;
+          if (state.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+            logger.error(
+              { groupJid, failures: state.consecutiveFailures },
+              'Circuit breaker open — too many consecutive failures',
+            );
+          }
         }
       }
     } catch (err) {
+      state.consecutiveFailures++;
       logger.error({ groupJid, err }, 'Error processing messages for group');
-      this.scheduleRetry(groupJid, state);
     } finally {
       state.active = false;
       state.process = null;
@@ -260,29 +274,6 @@ export class GroupQueue {
       this.activeCount--;
       this.drainGroup(groupJid);
     }
-  }
-
-  private scheduleRetry(groupJid: string, state: GroupState): void {
-    state.retryCount++;
-    if (state.retryCount > MAX_RETRIES) {
-      logger.error(
-        { groupJid, retryCount: state.retryCount },
-        'Max retries exceeded, dropping messages (will retry on next incoming message)',
-      );
-      state.retryCount = 0;
-      return;
-    }
-
-    const delayMs = BASE_RETRY_MS * Math.pow(2, state.retryCount - 1);
-    logger.info(
-      { groupJid, retryCount: state.retryCount, delayMs },
-      'Scheduling retry with backoff',
-    );
-    setTimeout(() => {
-      if (!this.shuttingDown) {
-        this.enqueueMessageCheck(groupJid);
-      }
-    }, delayMs);
   }
 
   private drainGroup(groupJid: string): void {
