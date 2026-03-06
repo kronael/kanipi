@@ -307,6 +307,17 @@ export class TelegramChannel implements Channel {
       logger.error({ err: err.message }, 'Telegram bot error');
     });
 
+    // Register slash commands in Telegram menu
+    this.bot.api
+      .setMyCommands([
+        { command: 'new', description: 'Start a fresh session' },
+        { command: 'ping', description: 'Check bot status' },
+        { command: 'chatid', description: 'Show chat JID for registration' },
+      ])
+      .catch((err) =>
+        logger.warn({ err }, 'Failed to set Telegram bot commands'),
+      );
+
     // Start polling — returns a Promise that resolves when started
     return new Promise<void>((resolve) => {
       this.bot!.start({
