@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import {
   _initTestDatabase,
@@ -52,6 +52,8 @@ beforeEach(() => {
 
   deps = {
     sendMessage: async () => {},
+    clearSession: vi.fn(),
+    sendDocument: async () => {},
     registeredGroups: () => groups,
     registerGroup: (jid, group) => {
       groups[jid] = group;
@@ -669,5 +671,15 @@ describe('register_group success', () => {
     );
 
     expect(getRegisteredGroup('partial@g.us')).toBeUndefined();
+  });
+});
+
+// --- reset_session IPC ---
+
+describe('reset_session IPC', () => {
+  it('calls clearSession with the sourceGroup', async () => {
+    await processTaskIpc({ type: 'reset_session' }, 'main', true, deps);
+
+    expect(deps.clearSession).toHaveBeenCalledWith('main');
   });
 });

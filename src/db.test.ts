@@ -4,15 +4,20 @@ import {
   _initTestDatabase,
   createTask,
   deleteTask,
+  enqueueSystemMessage,
+  flushSystemMessages,
   getAllChats,
   getDueTasks,
   getMessagesSince,
   getNewMessages,
+  getRecentSessions,
   getTaskById,
   pruneExpiredSessions,
+  recordSessionStart,
   setRegisteredGroup,
   storeChatMetadata,
   storeMessage,
+  updateSessionEnd,
   updateTask,
   updateTaskAfterRun,
 } from './db.js';
@@ -489,5 +494,127 @@ describe('setRegisteredGroup', () => {
 describe('pruneExpiredSessions', () => {
   it('runs without error on empty db', () => {
     expect(() => pruneExpiredSessions()).not.toThrow();
+  });
+});
+
+// --- enqueueSystemMessage + flushSystemMessages ---
+
+describe('system_messages', () => {
+  it('enqueue inserts; flush returns XML containing body and clears queue', () => {
+    enqueueSystemMessage('grp-a', { origin: 'gateway', body: 'hello world' });
+    const xml = flushSystemMessages('grp-a');
+    expect(xml).toContain('hello world');
+    expect(xml).toContain('origin="gateway"');
+    const xml2 = flushSystemMessages('grp-a');
+    expect(xml2).toBe('');
+  });
+
+  it('flush is atomic: returns XML and deletes in same transaction', () => {
+    enqueueSystemMessage('grp-a', { origin: 'gw', body: 'msg' });
+    const xml = flushSystemMessages('grp-a');
+    expect(xml).not.toBe('');
+    expect(flushSystemMessages('grp-a')).toBe('');
+  });
+
+  it('returns empty string when no messages exist', () => {
+    expect(flushSystemMessages('grp-empty')).toBe('');
+  });
+
+  it('scoping: messages for group A do not appear in group B flush', () => {
+    enqueueSystemMessage('grp-a', { origin: 'gw', body: 'for A' });
+    const xml = flushSystemMessages('grp-b');
+    expect(xml).toBe('');
+    const xmlA = flushSystemMessages('grp-a');
+    expect(xmlA).toContain('for A');
+  });
+
+  it('includes event and attrs in XML when provided', () => {
+    enqueueSystemMessage('grp-a', {
+      origin: 'gw',
+      event: 'new-session',
+      attrs: { sessionId: 'abc123' },
+      body: 'session started',
+    });
+    const xml = flushSystemMessages('grp-a');
+    expect(xml).toContain('event="new-session"');
+    expect(xml).toContain('sessionId="abc123"');
+  });
+});
+
+// --- session_history ---
+
+describe('session_history', () => {
+  it('recordSessionStart + updateSessionEnd row appears in getRecentSessions', () => {
+    recordSessionStart('row-1', 'grp-s', '2024-01-01T10:00:00.000Z');
+    updateSessionEnd(
+      'row-1',
+      'sess-abc',
+      '2024-01-01T10:05:00.000Z',
+      'ok',
+      undefined,
+      3,
+    );
+    const rows = getRecentSessions('grp-s', 10);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].session_id).toBe('sess-abc');
+    expect(rows[0].result).toBe('ok');
+    expect(rows[0].message_count).toBe(3);
+    expect(rows[0].ended_at).toBe('2024-01-01T10:05:00.000Z');
+  });
+
+  it('bare recordSessionStart row does not appear (session_id IS NULL)', () => {
+    recordSessionStart('row-bare', 'grp-s', '2024-01-01T09:00:00.000Z');
+    const rows = getRecentSessions('grp-s', 10);
+    expect(rows.find((r) => r.id === 'row-bare')).toBeUndefined();
+  });
+
+  it('updateSessionEnd stores error field', () => {
+    recordSessionStart('row-err', 'grp-s', '2024-01-01T11:00:00.000Z');
+    updateSessionEnd(
+      'row-err',
+      'sess-err',
+      '2024-01-01T11:01:00.000Z',
+      'error',
+      'timeout',
+      0,
+    );
+    const rows = getRecentSessions('grp-s', 10);
+    const r = rows.find((x) => x.session_id === 'sess-err');
+    expect(r).toBeDefined();
+    expect(r!.result).toBe('error');
+    expect(r!.error).toBe('timeout');
+  });
+
+  it('getRecentSessions respects limit', () => {
+    for (let i = 0; i < 5; i++) {
+      const ts = `2024-01-0${i + 1}T00:00:00.000Z`;
+      recordSessionStart(`row-lim-${i}`, 'grp-lim', ts);
+      updateSessionEnd(`row-lim-${i}`, `sess-lim-${i}`, ts, 'ok', undefined, 1);
+    }
+    expect(getRecentSessions('grp-lim', 3)).toHaveLength(3);
+  });
+
+  it('getRecentSessions orders most-recent-first', () => {
+    recordSessionStart('row-o1', 'grp-ord', '2024-01-01T00:00:00.000Z');
+    updateSessionEnd(
+      'row-o1',
+      'sess-o1',
+      '2024-01-01T00:01:00.000Z',
+      'ok',
+      undefined,
+      1,
+    );
+    recordSessionStart('row-o2', 'grp-ord', '2024-01-02T00:00:00.000Z');
+    updateSessionEnd(
+      'row-o2',
+      'sess-o2',
+      '2024-01-02T00:01:00.000Z',
+      'ok',
+      undefined,
+      1,
+    );
+    const rows = getRecentSessions('grp-ord', 10);
+    expect(rows[0].session_id).toBe('sess-o2');
+    expect(rows[1].session_id).toBe('sess-o1');
   });
 });
