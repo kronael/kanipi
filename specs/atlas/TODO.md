@@ -29,11 +29,8 @@ Define how facts look. Start concrete for marinade, abstract later.
 Agent personality and tooling for the evangelist role.
 
 - [x] CLAUDE.md personality (high energy, evidence-based)
-- [x] character.json (bio, topics, adjectives, style)
-- [ ] `/facts <query>` skill — grep facts/, return matches
-      with file paths. Simple keyword search. The agent already
-      has grep — this skill is the prompt that tells it how to
-      search facts effectively
+- [x] SOUL.md persona (replaces character.json)
+- [x] Agentic search (CLAUDE.md instructs: grep facts/ before answering)
 - [ ] `/research <question>` skill — spawn subagent with:
   - read access to facts/, refs/codebase/
   - web search tools
@@ -52,14 +49,10 @@ Subagent workflow for growing the knowledge base.
 - [ ] Delivery: parent agent summarizes findings to user
 - [ ] Scheduled research: cron task for knowledge gap filling
 
-### 1d. Agentic search
+### 1d. Agentic search — done
 
-Agent finds facts by searching, not injection. Pull model.
-
-- [ ] Agent CLAUDE.md instructs: search facts/ before answering
-- [ ] `/facts` skill provides structured search workflow
-- [ ] Agent learns which facts exist via grep, reads relevant ones
-- [ ] No gateway code needed — agent searches natively
+CLAUDE.md instructs agent to grep facts/ before answering.
+No skill needed — agent has Grep/Read natively.
 
 ## Phase 2: Semantic + Injection
 
@@ -138,7 +131,8 @@ Abstract the pattern across diary, facts, episodes, user context.
 
 - [x] Facts files seeded (50+ marinade docs)
 - [x] Codebase symlink (8 repos)
-- [x] CLAUDE.md instructions + soul skill (replaces character.json)
+- [x] CLAUDE.md instructions + SOUL.md persona (replaces character.json)
+- [x] Agentic search (CLAUDE.md → grep facts/)
 - [x] Forward metadata extraction
 - [x] Reply-to threading
 - [x] Diary memory + gateway injection

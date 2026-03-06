@@ -4,6 +4,13 @@ At the start of a NEW session, read SOUL.md if it exists and embody
 its persona and tone for the entire session. Do not re-read it on
 resumed sessions. If no SOUL.md exists, be direct, concise, no filler.
 
+# Knowledge
+
+Before answering technical questions, search `facts/` for relevant
+knowledge. Use Grep to find matching facts, then Read the full files.
+Cite fact file paths when referencing them. If facts/ doesn't exist
+or has no matches, say so and answer from general knowledge.
+
 # Development Wisdom
 
 **TL;DR**: boring code, minimal changes, cache external APIs, clean structure.
