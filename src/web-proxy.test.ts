@@ -343,10 +343,20 @@ describe('POST /_sloth/message', () => {
 });
 
 describe('basic auth', () => {
-  it('blocks / without credentials', async () => {
+  it('allows / without credentials (public landing)', async () => {
     const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
     try {
       const res = await get(port, '/');
+      expect(res.status).not.toBe(401);
+    } finally {
+      await close();
+    }
+  });
+
+  it('blocks /howto/ without credentials', async () => {
+    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+    try {
+      const res = await get(port, '/howto/');
       expect(res.status).toBe(401);
     } finally {
       await close();

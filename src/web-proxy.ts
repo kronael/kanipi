@@ -122,7 +122,8 @@ function parseUsers(s: string): Map<string, string> {
   return m;
 }
 
-const PUBLIC_PREFIXES = ['/pub/', '/_sloth/'];
+const PUBLIC_PREFIXES = ['/pub/', '/_sloth/', '/assets/'];
+const PUBLIC_EXACT = ['/', '/index.html'];
 
 function checkAuth(
   req: http.IncomingMessage,
@@ -130,6 +131,7 @@ function checkAuth(
   authSecret?: string,
 ): boolean {
   const url = req.url || '/';
+  if (PUBLIC_EXACT.includes(url)) return true;
   if (PUBLIC_PREFIXES.some((p) => url.startsWith(p))) return true;
   if (url.startsWith('/auth/')) return true;
 
