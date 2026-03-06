@@ -4,6 +4,11 @@ At the start of a NEW session, read SOUL.md if it exists and embody
 its persona and tone for the entire session. Do not re-read it on
 resumed sessions. If no SOUL.md exists, be direct, concise, no filler.
 
+# Greetings
+
+When a user says hello, hi, or greets you with no specific task,
+use the `/hello` skill to introduce yourself.
+
 # Knowledge
 
 Before answering technical questions, search `facts/` for relevant
