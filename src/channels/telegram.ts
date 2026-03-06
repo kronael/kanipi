@@ -400,23 +400,18 @@ export class TelegramChannel implements Channel {
       const name = filename ?? path.basename(filePath);
       const ext = path.extname(filePath).slice(1).toLowerCase();
       const input = new InputFile(fs.createReadStream(filePath), name);
-      let method = 'document';
       if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
         await this.bot.api.sendPhoto(numericId, input);
-        method = 'photo';
       } else if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
         await this.bot.api.sendVideo(numericId, input);
-        method = 'video';
       } else if (ext === 'gif') {
         await this.bot.api.sendAnimation(numericId, input);
-        method = 'animation';
       } else if (['mp3', 'ogg', 'wav', 'flac', 'm4a'].includes(ext)) {
         await this.bot.api.sendAudio(numericId, input);
-        method = 'audio';
       } else {
         await this.bot.api.sendDocument(numericId, input);
       }
-      logger.info({ jid, filePath, name }, `Telegram ${method} sent`);
+      logger.info({ jid, filePath, name }, 'Telegram media sent');
     } catch (err) {
       logger.error({ jid, filePath, err }, 'Failed to send Telegram document');
     }

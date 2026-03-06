@@ -35,9 +35,10 @@ auth: provider TBD. New task — ipc: file sending broken,
 ENOENT on sendDocument.
 ```
 
-- `summary:` — YAML block scalar. First line: project context
-  and who the agent works with. Then up to 5 bullet points:
-  key tasks and their current status. Gateway reads only this
+- `summary:` — YAML block scalar. Keep it short. First line:
+  project and who you work with. Then up to 5 bullet points
+  of clearly important tasks only — if you're unsure whether
+  something belongs, leave it out. Gateway reads only this
   field for session-start injection.
 - `## HH:MM` entries — 250 chars max each. Entries naturally
   introduce and update tasks (e.g., "New task — auth: OAuth
@@ -84,7 +85,7 @@ if (messageCount >= 100 && !input.stop_hook_active) {
   (same text as PreCompact — single source of truth)
 - `stop_hook_active` guard prevents infinite loops (the
   Stop hook fires again after the nudge-triggered response)
-- Counter resets on nudge and on PreCompact
+- Counter resets on nudge; PreCompact also resets it
 - No gateway involvement — entirely in agent-runner
 
 ## Gateway: session-start injection
