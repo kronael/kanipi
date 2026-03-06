@@ -141,11 +141,11 @@ Task: `{ "type": "schedule_task", "targetJid": "...", ... }`
 
 ## System context injection -- shipped
 
-Soul + CLAUDE.md via `systemPrompt.append`:
+System context via `systemPrompt.append`:
 
-- Soul loaded from `/workspace/group/SOUL.md` or
-  `/workspace/share/SOUL.md` (fallback: empty, soul skill provides default)
 - `/workspace/share/CLAUDE.md` appended for non-root only
+- Soul personality via skill (`soul/SKILL.md`), not code injection
+- Group-level `SOUL.md` override read by agent per CLAUDE.md instruction
 
 Group CLAUDE.md at `/home/node/.claude/CLAUDE.md`, loaded
 by SDK project-memory.

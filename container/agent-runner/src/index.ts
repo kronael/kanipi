@@ -44,16 +44,6 @@ function isRoot(folder: string): boolean {
   return !folder.includes('/');
 }
 
-function loadSoul(): string {
-  // Group-level SOUL.md overrides; fallback to empty (soul skill provides default)
-  const paths = ['/workspace/group/SOUL.md', '/workspace/share/SOUL.md'];
-  for (const p of paths) {
-    try {
-      if (fs.existsSync(p)) return fs.readFileSync(p, 'utf-8');
-    } catch { /* skip */ }
-  }
-  return '';
-}
 
 type McpServerConfig = {
   command: string;
@@ -415,8 +405,6 @@ async function runQuery(
   let resultCount = 0;
   let maxTurnsHit = false;
 
-  const soulContent = loadSoul();
-
   // Load global CLAUDE.md as additional system context (shared across all groups)
   const globalClaudeMdPath = '/workspace/share/CLAUDE.md';
   let globalClaudeMd: string | undefined;
@@ -451,7 +439,7 @@ async function runQuery(
         systemPrompt: {
           type: 'preset' as const,
           preset: 'claude_code' as const,
-          append: soulContent + (globalClaudeMd ? '\n' + globalClaudeMd : ''),
+          append: globalClaudeMd,
         },
         allowedTools: [
           'Bash',
