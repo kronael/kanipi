@@ -52,11 +52,11 @@ No skill needed — agent has Grep/Read natively.
 
 ### 2b. Per-channel output styles
 
-Different voice per channel. SDK supports output styles natively
-(`~/.claude/output-styles/*.md`). Gateway writes the style file
-before spawning the container based on channel.
+SDK output styles: markdown files in `~/.claude/output-styles/`,
+activated via `.claude/settings.local.json`. Gateway writes the
+style file + settings before spawning the container.
 
-- [ ] Channel-aware style selection in container-runner
+- [ ] Gateway: write channel style file + activate in settings
 - [ ] Telegram style (concise, no markdown tables, 4096 char limit)
 - [ ] Discord style (markdown ok, embeds, longer responses)
 - [ ] Email style (formal, structured, signature)
