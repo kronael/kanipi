@@ -286,6 +286,28 @@ export class WhatsAppChannel implements Channel {
             return buf;
           };
 
+          // Extract forward/reply metadata from contextInfo
+          const ctxInfo =
+            m.extendedTextMessage?.contextInfo ||
+            m.imageMessage?.contextInfo ||
+            m.videoMessage?.contextInfo ||
+            m.audioMessage?.contextInfo ||
+            m.documentMessage?.contextInfo;
+          let forwarded_from: string | undefined;
+          let reply_to_text: string | undefined;
+          let reply_to_sender: string | undefined;
+          if (ctxInfo?.isForwarded) {
+            forwarded_from = '(forwarded)';
+          }
+          if (ctxInfo?.quotedMessage) {
+            const qText =
+              ctxInfo.quotedMessage.conversation ||
+              ctxInfo.quotedMessage.extendedTextMessage?.text;
+            if (qText) reply_to_text = qText.slice(0, 100);
+            if (ctxInfo.participant)
+              reply_to_sender = ctxInfo.participant.split('@')[0];
+          }
+
           this.opts.onMessage(
             chatJid,
             {
@@ -297,6 +319,9 @@ export class WhatsAppChannel implements Channel {
               timestamp,
               is_from_me: fromMe,
               is_bot_message: isBotMessage,
+              forwarded_from,
+              reply_to_text,
+              reply_to_sender,
             },
             attachments.length > 0 ? attachments : undefined,
             attachments.length > 0 ? waDownload : undefined,

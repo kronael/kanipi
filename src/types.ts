@@ -131,6 +131,9 @@ export interface NewMessage {
   is_from_me?: boolean;
   is_bot_message?: boolean;
   replyTo?: string;
+  forwarded_from?: string;
+  reply_to_text?: string;
+  reply_to_sender?: string;
 }
 
 export interface ScheduledTask {

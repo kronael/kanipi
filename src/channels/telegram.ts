@@ -116,6 +116,29 @@ export class TelegramChannel implements Channel {
         return;
       }
 
+      // Extract forward metadata
+      let forwarded_from: string | undefined;
+      const fwd = ctx.message.forward_origin;
+      if (fwd) {
+        if (fwd.type === 'user') forwarded_from = fwd.sender_user.first_name;
+        else if (fwd.type === 'hidden_user')
+          forwarded_from = fwd.sender_user_name || '(hidden)';
+        else if (fwd.type === 'chat')
+          forwarded_from = (fwd as any).sender_chat.title;
+        else if (fwd.type === 'channel')
+          forwarded_from = (fwd as any).chat.title;
+      }
+
+      // Extract reply-to metadata
+      let reply_to_text: string | undefined;
+      let reply_to_sender: string | undefined;
+      const reply = ctx.message.reply_to_message;
+      if (reply) {
+        reply_to_sender = reply.from?.first_name;
+        const rText = reply.text || reply.caption;
+        if (rText) reply_to_text = rText.slice(0, 100);
+      }
+
       // Deliver message — startMessageLoop() will pick it up
       this.opts.onMessage(chatJid, {
         id: msgId,
@@ -125,6 +148,9 @@ export class TelegramChannel implements Channel {
         content,
         timestamp,
         is_from_me: false,
+        forwarded_from,
+        reply_to_text,
+        reply_to_sender,
       });
 
       logger.info(
@@ -182,6 +208,29 @@ export class TelegramChannel implements Channel {
         'telegram',
         isGroup,
       );
+      // Extract forward metadata
+      let forwarded_from: string | undefined;
+      const fwd = ctx.message.forward_origin;
+      if (fwd) {
+        if (fwd.type === 'user') forwarded_from = fwd.sender_user.first_name;
+        else if (fwd.type === 'hidden_user')
+          forwarded_from = fwd.sender_user_name || '(hidden)';
+        else if (fwd.type === 'chat')
+          forwarded_from = (fwd as any).sender_chat.title;
+        else if (fwd.type === 'channel')
+          forwarded_from = (fwd as any).chat.title;
+      }
+
+      // Extract reply-to metadata
+      let reply_to_text: string | undefined;
+      let reply_to_sender: string | undefined;
+      const reply = ctx.message.reply_to_message;
+      if (reply) {
+        reply_to_sender = reply.from?.first_name;
+        const rText = reply.text || reply.caption;
+        if (rText) reply_to_text = rText.slice(0, 100);
+      }
+
       this.opts.onMessage(
         chatJid,
         {
@@ -192,6 +241,9 @@ export class TelegramChannel implements Channel {
           content: `${placeholder}${caption}`,
           timestamp,
           is_from_me: false,
+          forwarded_from,
+          reply_to_text,
+          reply_to_sender,
         },
         attachments.length > 0 ? attachments : undefined,
         attachments.length > 0 ? tgDownload : undefined,

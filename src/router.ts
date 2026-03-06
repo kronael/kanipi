@@ -10,10 +10,22 @@ export function escapeXml(s: string): string {
 }
 
 export function formatMessages(messages: NewMessage[]): string {
-  const lines = messages.map(
-    (m) =>
-      `<message sender="${escapeXml(m.sender_name ?? m.sender)}" time="${m.timestamp}">${escapeXml(m.content)}</message>`,
-  );
+  const lines = messages.map((m) => {
+    const parts: string[] = [];
+    if (m.forwarded_from) {
+      parts.push(`<forwarded_from sender="${escapeXml(m.forwarded_from)}"/>`);
+    }
+    if (m.reply_to_text && m.reply_to_sender) {
+      parts.push(
+        `<reply_to sender="${escapeXml(m.reply_to_sender)}">${escapeXml(m.reply_to_text)}</reply_to>`,
+      );
+    }
+    parts.push(escapeXml(m.content));
+    const inner = parts.join('\n');
+    const tag = `<message sender="${escapeXml(m.sender_name ?? m.sender)}" time="${m.timestamp}">`;
+    if (parts.length === 1) return `${tag}${inner}</message>`;
+    return `${tag}\n${inner}\n</message>`;
+  });
   return `<messages>\n${lines.join('\n')}\n</messages>`;
 }
 

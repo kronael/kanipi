@@ -169,6 +169,23 @@ function createSchema(database: Database.Database): void {
     /* column already exists */
   }
 
+  // Add forward/reply metadata columns (migration for existing DBs)
+  try {
+    database.exec(`ALTER TABLE messages ADD COLUMN forwarded_from TEXT`);
+  } catch {
+    /* column already exists */
+  }
+  try {
+    database.exec(`ALTER TABLE messages ADD COLUMN reply_to_text TEXT`);
+  } catch {
+    /* column already exists */
+  }
+  try {
+    database.exec(`ALTER TABLE messages ADD COLUMN reply_to_sender TEXT`);
+  } catch {
+    /* column already exists */
+  }
+
   // Add is_bot_message column if it doesn't exist (migration for existing DBs)
   try {
     database.exec(
@@ -338,7 +355,7 @@ export function appendMessageContent(id: string, suffix: string): void {
 
 export function storeMessage(msg: NewMessage): void {
   db.prepare(
-    `INSERT OR REPLACE INTO messages (id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO messages (id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message, forwarded_from, reply_to_text, reply_to_sender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     msg.id,
     msg.chat_jid,
@@ -348,6 +365,9 @@ export function storeMessage(msg: NewMessage): void {
     msg.timestamp,
     msg.is_from_me ? 1 : 0,
     msg.is_bot_message ? 1 : 0,
+    msg.forwarded_from ?? null,
+    msg.reply_to_text ?? null,
+    msg.reply_to_sender ?? null,
   );
 }
 
@@ -362,7 +382,7 @@ export function getNewMessages(
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
   const sql = `
-    SELECT id, chat_jid, sender, sender_name, content, timestamp
+    SELECT id, chat_jid, sender, sender_name, content, timestamp, forwarded_from, reply_to_text, reply_to_sender
     FROM messages
     WHERE timestamp > ? AND chat_jid IN (${placeholders})
       AND is_bot_message = 0 AND content NOT LIKE ?
@@ -393,7 +413,7 @@ export function getMessagesSince(
   // prefix as a backstop for messages written before the migration ran.
   const since = sinceTimestamp || '';
   const sql = `
-    SELECT id, chat_jid, sender, sender_name, content, timestamp
+    SELECT id, chat_jid, sender, sender_name, content, timestamp, forwarded_from, reply_to_text, reply_to_sender
     FROM messages
     WHERE chat_jid = ? AND timestamp > ?
       AND is_bot_message = 0 AND content NOT LIKE ?

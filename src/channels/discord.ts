@@ -6,6 +6,7 @@ import {
   Client,
   GatewayIntentBits,
   Message,
+  MessageReferenceType,
   TextChannel,
 } from 'discord.js';
 
@@ -57,7 +58,7 @@ export class DiscordChannel implements Channel {
     });
   }
 
-  private handleMessage(msg: Message): void {
+  private async handleMessage(msg: Message): Promise<void> {
     if (msg.author.bot) return;
 
     const chatJid = `discord:${msg.channelId}`;
@@ -124,6 +125,24 @@ export class DiscordChannel implements Channel {
       return Buffer.from(await res.arrayBuffer());
     };
 
+    // Extract forward/reply metadata
+    let forwarded_from: string | undefined;
+    let reply_to_text: string | undefined;
+    let reply_to_sender: string | undefined;
+    if (msg.reference) {
+      if (msg.reference.type === MessageReferenceType.Forward) {
+        forwarded_from = '(forwarded)';
+      } else {
+        try {
+          const ref = await msg.fetchReference();
+          reply_to_sender = ref.member?.displayName || ref.author.displayName;
+          if (ref.content) reply_to_text = ref.content.slice(0, 100);
+        } catch {
+          /* referenced message may be deleted */
+        }
+      }
+    }
+
     this.opts.onMessage(
       chatJid,
       {
@@ -134,6 +153,9 @@ export class DiscordChannel implements Channel {
         content,
         timestamp,
         is_from_me: false,
+        forwarded_from,
+        reply_to_text,
+        reply_to_sender,
       },
       attachments.length > 0 ? attachments : undefined,
       attachments.length > 0 ? discordDownload : undefined,
