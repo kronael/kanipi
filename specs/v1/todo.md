@@ -2,11 +2,12 @@
 
 ## Specs complete, pending implementation
 
-- **message-threading / channels** (~5%) — `NewMessage.replyTo`, `SendOpts`,
-  channel impls (telegram/whatsapp/discord), `<in_reply_to sender time ago>` in
-  `formatMessages()`, `messages.raw` column for WAMessage
-- **jid-hierarchy** (0%) — glob matching in group lookup, multi-segment JID
-  construction in Discord and Telegram
+- **worlds** (0%) — JID separator migration, prefix expansion,
+  isMain→isRoot, global/→share/, folder validation, glob router
+- **message-threading** (~5%) — `NewMessage.replyTo`, `SendOpts`,
+  channel impls (telegram/whatsapp/discord), `<in_reply_to>` in
+  `formatMessages()`, `messages.raw` column for WAMessage.
+  Specced in channels.md.
 
 ## Specs still open
 
