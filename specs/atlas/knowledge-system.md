@@ -1,9 +1,15 @@
 # Knowledge System
 
-The underlying mechanism that diary, facts, episodes, and user
-context are all built on. Each is a configured instance of this system.
+The pattern underlying diary, facts, episodes, and user context.
+Each is an instance of: markdown files in a directory, with
+summaries selected and injected into agent context.
 
-## What it does
+**Status**: Pattern identified, no implementation yet. Diary has
+agent-side skills (write/read) but no gateway-side injection.
+This spec is forward-looking design, not generalization of
+working code.
+
+## The pattern
 
 Given a directory of markdown files:
 
@@ -12,44 +18,41 @@ Given a directory of markdown files:
 3. **Inject** — insert selected summaries into agent prompt context
 4. **Nudge** — at defined moments, prompt the agent to write/update files
 
-## Existing implementation (diary, hardcoded)
+## What fits this pattern
 
-Diary is the first knowledge layer, built directly into the gateway:
+**Push layers** — small corpus, gateway injects automatically:
 
-- Index: reads `diary/*.md`, parses YAML frontmatter
-- Select: 2 most recent files
-- Inject: on session start, as `<diary>` block with relative time
-- Nudge: PreCompact hook, Stop hook at 100 turns, `/diary` skill
+- **Diary** (`diary/*.md`) — date-keyed, 2 most recent, inject on
+  session start. Agent writes via `/diary` skill. NOT YET INJECTED
+  BY GATEWAY — agent reads files manually today.
+- **User context** (`users/*.md`) — sender-keyed, match by message
+  sender, inject on every message. Agent writes on first encounter.
+- **Episodes** (`episodes/*.md`) — event-keyed, all or recent,
+  inject on session start. Agent writes on notable events.
 
-This works but is not reusable. Adding facts or user context
-would require duplicating the same logic with different parameters.
+**Pull layers** — large corpus, agent searches on demand:
 
-## What the system needs to provide
+- **Facts** (`facts/*.md`) — topic-keyed, too many to inject all.
+  Agent uses search tool (RAG/grep) to find relevant files.
+  Researcher subagent writes; verifier reviews before merge.
 
-### Index
+Push and pull are fundamentally different. Push layers need gateway
+code (read files, format XML, inject into prompt). Pull layers need
+a search tool (MCP server or skill) and a write process (researcher).
+Don't try to unify them into one mechanism.
 
-Read a directory of `.md` files. For each file:
+## What does NOT fit this pattern
 
-- Parse YAML frontmatter (if present)
-- Extract summary: frontmatter fields, or first N lines, or both
-- Cache index in memory, refresh on file change (inotify or poll)
+- **Messages** — DB rows queried by SQL in router.ts. Not files.
+- **Sessions** — SDK state managed by container-runner.ts. Not files.
+- **MEMORY.md** — Claude Code native feature, not gateway-managed.
 
-### Select
+These have their own working implementations and shouldn't be
+forced into the knowledge system abstraction.
 
-Given a trigger context (session start, incoming message, query),
-choose which summaries to inject:
+## Injection format
 
-- **All** — inject every summary (small corpus: diary, episodes)
-- **By key match** — match a field against trigger context
-  (e.g., sender ID matches user file key)
-- **By recency** — N most recent by date field or mtime
-- **By relevance** — search query against summaries
-  (needs search tool for large corpora)
-
-### Inject
-
-Format selected summaries as XML block, insert into agent prompt.
-Tag with layer name for agent awareness:
+Push layers format selected summaries as XML, inserted into prompt:
 
 ```xml
 <knowledge layer="diary" count="2">
@@ -62,71 +65,68 @@ Tag with layer name for agent awareness:
 </knowledge>
 ```
 
-### Nudge
+## Nudges
 
-At defined moments, append a nudge to the agent prompt:
+Prompt the agent to write/update knowledge files:
 
 - Hook-based: PreCompact, Stop, session start
-- Message-based: on every message, or on first message from a user
-- Scheduled: cron task triggers agent with nudge prompt
-- Skill-based: agent invokes `/diary`, `/research`, etc.
+- Message-based: first message from unknown user
+- Skill-based: `/diary`, `/research`
+- Scheduled: cron triggers researcher
 
-Nudge text comes from skill/config, not hardcoded in gateway.
+Nudge text comes from skill config, not hardcoded in gateway.
 
-## Configuration
+## Push layer implementation (first to build)
 
-Per-group or per-instance. Could be in group DB, CLAUDE.md,
-or a dedicated config file.
+The gateway needs a minimal knowledge injector:
 
-```
-Layer: diary
-  dir: diary/
-  summary: frontmatter
-  select: 2 most recent
-  inject_on: session_start
-  nudge_on: precompact, stop
-  nudge_text: (from skill description)
+1. Read configured directories of `.md` files
+2. Parse YAML frontmatter or first N lines as summary
+3. Select entries (by recency, by key match)
+4. Format as XML block, prepend to agent prompt
 
-Layer: facts
-  dir: facts/
-  summary: frontmatter
-  select: by relevance (needs search)
-  inject_on: session_start
-  nudge_on: (none — researcher writes)
+This is ~100 lines of code. Start with diary injection (already
+has agent-side skills), then user context.
 
-Layer: users
-  dir: users/
-  summary: first 5 lines
-  select: key matches message sender
-  inject_on: every message
-  nudge_on: first message from unknown user
-```
+## Pull layer implementation
+
+Facts are too numerous to inject. The agent needs:
+
+1. A search tool — MCP server with `search_knowledge(query)`
+   backed by embeddings (Ollama at 10.0.5.1:11434) or grep
+2. A write process — researcher subagent triggered by knowledge
+   gaps or explicit request
+3. A quality gate — verifier reviews researcher output before
+   facts are committed
+
+See `specs/atlas/researcher.md` for the write process.
 
 ## Open questions
 
-- Config format? YAML in group dir? DB rows? CLAUDE.md section?
-- Should the gateway own all injection or can the agent self-inject
-  by reading files? (Agent can always read — injection is optimization)
-- How does relevance selection work without embeddings?
-  Grep over summaries? TF-IDF? Or just inject the index and let
-  agent decide what to read?
-- Should layers be declarative (config) or imperative (code per layer)?
-  Diary works fine as code. Is the abstraction worth it?
-- Performance: scanning 500 fact files on every session start?
-  Index cache solves this but adds complexity.
+- Should push layers be declarative (config) or imperative (code
+  per layer)? Start with code — abstract only if a third layer
+  looks identical to the first two.
+- Performance: scanning 500 fact files for search index?
+  Cache index in memory, refresh on file change.
+- Researcher quality: auto-commit facts or require review?
+  Unreviewed auto-injection is a misinformation pipeline.
+- Can the agent self-inject by reading files instead of gateway
+  injection? (Agent can always read — injection is optimization
+  for consistent context.)
 
 ## Relationship to existing specs
 
-This system is what the following specs describe instances of:
+These specs describe specific layers built on this pattern:
 
-- `specs/v1/memory-diary.md` — diary layer (shipped)
-- `specs/v1/memory-session.md` — session continuity (shipped)
-- `specs/v1/memory-messages.md` — message history (shipped)
-- `specs/v3/memory-managed.md` — MEMORY.md (shipped, Claude Code native)
+- `specs/v1/memory-diary.md` — diary layer (agent skills shipped,
+  gateway injection not built)
 - `specs/v3/memory-facts.md` — facts layer (designed, not built)
 - `specs/v3/memory-episodic.md` — episodes layer (designed, not built)
 - `specs/atlas/user-context.md` — user layer (designed, not built)
 - `specs/atlas/researcher.md` — writes to facts layer (designed, not built)
 
-Those specs are not subsumed — they describe WHAT each layer does.
-This spec describes the system they'd all be built on.
+These specs describe different systems, NOT instances of this pattern:
+
+- `specs/v1/memory-session.md` — SDK state (container-runner.ts)
+- `specs/v1/memory-messages.md` — DB rows (router.ts SQL)
+- `specs/v3/memory-managed.md` — MEMORY.md (Claude Code native)
