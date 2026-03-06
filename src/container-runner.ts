@@ -131,6 +131,10 @@ function buildVolumeMounts(
     readonly: false,
   });
 
+  // Diary dir — agent-written daily notes, persists across sessions.
+  // Already accessible via /workspace/group mount; just ensure it exists.
+  fs.mkdirSync(path.join(groupDir, 'diary'), { recursive: true });
+
   // All groups get kanipi source read-only as /workspace/self
   mounts.push({
     hostPath: HOST_APP_DIR,

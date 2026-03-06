@@ -56,6 +56,7 @@ import {
 } from './db.js';
 import { AttachmentDownloader, RawAttachment } from './mime.js';
 import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
+import { formatDiaryXml, readDiaryEntries } from './diary.js';
 import chatidCommand from './commands/chatid.js';
 import newCommand, { pendingCommandArgs } from './commands/new.js';
 import pingCommand from './commands/ping.js';
@@ -506,6 +507,13 @@ async function runAgent(
   // Write action manifest for agent-side tool discovery
   writeActionManifest(group.folder);
 
+  // Inject diary summaries on session start (no existing session)
+  const annotations: string[] = [];
+  if (!sessionId) {
+    const diary = formatDiaryXml(readDiaryEntries(group.folder));
+    if (diary) annotations.push(diary);
+  }
+
   try {
     const output = await runContainerAgent(
       group,
@@ -516,6 +524,7 @@ async function runAgent(
         chatJid,
         assistantName: ASSISTANT_NAME,
         messageCount,
+        _annotations: annotations.length > 0 ? annotations : undefined,
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
