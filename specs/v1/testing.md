@@ -149,6 +149,72 @@ Build: `make mock-agent-image`
 2. Verify mock agent can read `/workspace/share/test.txt`
 3. Verify non-root agent gets it read-only
 
+#### Multi-group routing
+
+1. Register two groups with different JIDs
+2. POST message to each JID via slink
+3. Verify each routed to correct group folder
+4. Verify agent prompt contains correct group context
+
+#### IPC file send
+
+1. Send message triggering agent to write file IPC
+2. Verify `sendDocument` called with correct path
+3. Verify path safety: file must be under GROUPS_DIR
+
+#### IPC auth (non-root blocked)
+
+1. Register root group + child group
+2. Child agent writes IPC targeting root's JID
+3. Verify blocked with "unauthorized" log
+4. Root agent writes IPC targeting child's JID → allowed
+
+#### IPC group registration
+
+1. Root agent writes `register_group` IPC with new JID
+2. Verify group appears in registered_groups
+3. Non-root agent writes `register_group` → blocked
+
+#### IPC refresh groups
+
+1. Root agent writes `refresh_groups` IPC
+2. Verify group metadata synced
+3. Non-root → blocked
+
+#### Trigger mode
+
+1. Register group with `requiresTrigger: true`
+2. POST message without trigger word → not dispatched
+3. POST message with trigger word → dispatched to agent
+4. Root group ignores trigger (always dispatches)
+
+#### Container lifecycle
+
+1. Send message → container spawns
+2. Wait for idle timeout → container stopped
+3. Send another → new container spawns
+4. Verify session recorded in DB (start/end/duration)
+
+#### Concurrent containers
+
+1. Send messages to N different groups simultaneously
+2. Verify MAX_CONCURRENT_CONTAINERS respected
+3. Excess groups queued, not dropped
+
+#### Mime enrichment
+
+1. POST slink message with `media_url` pointing to audio
+2. Verify whisper transcription annotation in agent prompt
+3. POST with image → verify image annotation
+
+#### IPC task CRUD
+
+1. Agent creates task via IPC → verify in DB
+2. Agent pauses task → status changes
+3. Agent resumes task → status changes
+4. Agent cancels task → deleted from DB
+5. Non-root agent can only CRUD own tasks
+
 ### Smoke (`make smoke`)
 
 Runs against a real instance. Tests only SDK wiring —
