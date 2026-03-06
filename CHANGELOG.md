@@ -7,6 +7,22 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.0] — 2026-03-06
+
+V1 release. All planned features shipped: 5 channels, group routing,
+action registry, MCP sidecars, diary memory, forward metadata, file
+commands, capability introspection, security hardening. 40 source files,
+9,278 LOC + 27 test files, 7,809 LOC.
+
+### Changes
+
+- Version bump to 1.0.0 (no code changes from v0.7.0)
+- Spec hardening: memory-messages, isolation, actions, testing,
+  prompt-format, mime specs updated for accuracy
+- Updated docs and product page
+
+---
+
 ## [v0.7.0] — 2026-03-06
 
 ### Features

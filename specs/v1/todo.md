@@ -35,19 +35,21 @@
 - **reference-systems** — brainpro, takopi, eliza-atlas analysis
 - **testing** — test infrastructure and conventions
 
+## Shipped (continued)
+
+| Spec          | Version | Summary                                                |
+| ------------- | ------- | ------------------------------------------------------ |
+| memory-diary  | v0.7.0  | Agent daily notes, PreCompact nudge, gateway injection |
+| files         | v0.7.0  | /put, /get, /ls bidirectional file transfer            |
+| introspection | v0.7.0  | .gateway-caps TOML manifest, .whisper-language config  |
+| forward-meta  | v0.7.0  | Forward origin + reply-to context per channel          |
+
 ## Open (not shipped)
 
-- **memory-diary** — agent-written daily notes, PreCompact
-  flush, session-end flush. Fully specced, no code yet.
-  Primary open v1 feature.
 - **db-bootstrap** — versioned migrations (src/migrations.ts
   - .sql files). Currently inline try/catch ALTER TABLE.
-- **files** — /file put, /file get gateway commands for
-  bidirectional file transfer. No code yet.
 - **plugins** — agent-proposed, operator-approved plugin flow.
   Trust boundary designed. No code yet.
-- **introspection** — .gateway-caps manifest, agent-writable
-  config files. Only .whisper-language partially exists.
 
 ## Not in scope for v1
 

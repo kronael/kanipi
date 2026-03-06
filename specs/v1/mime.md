@@ -32,7 +32,7 @@ interface InboundMessage {
   timestamp: string;
   channel: 'telegram' | 'whatsapp' | 'discord';
   groupFolder: string;
-  isMain: boolean;
+  isMain: boolean; // enricher-only context (not in ContainerInput)
   attachments?: RawAttachment[];
   replyToText?: string;
   replyToSender?: string;

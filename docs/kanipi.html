@@ -11,11 +11,11 @@
   <button class="theme-toggle" aria-label="Toggle theme"></button>
 
   <div class="hub-container">
-    <h1>Kanipi <span style="color: var(--warn); font-size: 0.5em; vertical-align: middle;">v1</span></h1>
+    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.0</span></h1>
     <p class="hub-subtitle">modular agent deployment on NanoClaw</p>
 
     <div class="caveat" style="margin-bottom: 1.5em;">
-      <strong>Status: v0.7.0 released.</strong> Kanipi is a NanoClaw fork — a multi-tenant, multi-channel Claude agent gateway.
+      <strong>Status: v1.0.0 released.</strong> Kanipi is a NanoClaw fork — a multi-tenant, multi-channel Claude agent gateway.
       Five channels in production: Telegram, Discord, WhatsApp, Email, Web. Runtime tested with real bots and users.
     </div>
 
@@ -23,12 +23,12 @@
       <div class="tldr-label">TL;DR</div>
       <div class="tldr-text">
         The <a href="/agents/architecture-comparison/">ideal agent exists in pieces</a>: NanoClaw's container isolation, OpenClaw's routing brain, nobody's credential injection.
-        Kanipi assembles them. Started as ~500 LOC on NanoClaw's ~2,600 foundation, now grown to 9,200+ LOC with 5 channels,
+        Kanipi assembles them. Started as ~500 LOC on NanoClaw's ~2,600 foundation, now grown to 9,278 LOC with 5 channels,
         voice transcription, MCP sidecars, diary memory, forward metadata, file commands, action registry,
         and a comprehensive test suite.
         <a href="#v2">V2</a> adds audience agents and knowledge systems.
         <a href="#v3">V3 (Arizuka)</a> adds cross-agent collaboration.
-        <strong>40 source files, 9,272 LOC (+27 test files, 7,809 LOC).</strong>
+        <strong>40 source files, 9,278 LOC (+27 test files, 7,809 LOC).</strong>
       </div>
     </div>
 
@@ -414,7 +414,7 @@
         <table>
           <tr><th>Metric</th><th>Value</th></tr>
           <tr><td>Source files</td><td><span class="metric">40 TypeScript</span></td></tr>
-          <tr><td>Source LOC</td><td><span class="metric">9,272</span></td></tr>
+          <tr><td>Source LOC</td><td><span class="metric">9,278</span></td></tr>
           <tr><td>Test files</td><td>27 files &middot; 7,809 LOC</td></tr>
           <tr><td>Test:code ratio</td><td>0.84:1</td></tr>
           <tr><td>Channel deps</td><td>grammy, discord.js, baileys, imapflow + nodemailer</td></tr>
@@ -422,7 +422,7 @@
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
           <tr><td>Deploy</td><td>systemd per instance + <code>kanipi create</code> CLI</td></tr>
           <tr><td>V1 specs</td><td>31 specification documents</td></tr>
-          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v0.7.0)</span></td></tr>
+          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.0.0)</span></td></tr>
         </table>
       </div>
     </section>
@@ -699,7 +699,7 @@
       <a href="https://github.com/kronael/kanipi">github.com/kronael/kanipi</a> &middot;
       <a href="https://github.com/kronael">kronael</a>
       <br>
-      <span style="color: var(--green, #4caf50);">v0.7.0 &middot; telegram &middot; discord &middot; whatsapp &middot; email &middot; web</span>
+      <span style="color: var(--green, #4caf50);">v1.0.0 &middot; telegram &middot; discord &middot; whatsapp &middot; email &middot; web</span>
 
       <details class="llm-info">
         <summary>Agent context</summary>
@@ -707,7 +707,7 @@
           Kanipi is a NanoClaw fork — a multi-tenant, multi-channel Claude agent gateway. V1 (v0.7.0)
           ships 5 channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
           Web/Slink (authenticated HTTP with HMAC JWT auth, SSE streaming, rate limiting).
-          40 source files, 9,272 LOC + 27 test files, 7,809 LOC.
+          40 source files, 9,278 LOC + 27 test files, 7,809 LOC.
           Config: .env + env vars (no YAML). Channels enabled by token/config presence.
           Group routing: pre-registration via CLI, hierarchical delegation, trigger mode for non-main groups.
           Action registry: Zod-validated actions (messaging, tasks, groups, session) with per-action authorization.
@@ -736,10 +736,10 @@ type: product
 name: kanipi
 repo: github.com/kronael/kanipi
 base: nanoclaw
-status: v0.7.0
+status: v1.0.0
 channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
 config: .env + env vars, sqlite group state
-source: 40 files 9272 LOC, 27 test files 7809 LOC
+source: 40 files 9278 LOC, 27 test files 7809 LOC
 workspace: self(ro), group(rw), global(ro), web(rw), ipc(rw), diary(rw), extra(ro)
 web-layout: web/pub/ (public), web/priv/ (auth-gated)
 skills: container/skills/ seeded to ~/.claude/skills/ per group; includes kanipi + kronael/tools dev skills

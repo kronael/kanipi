@@ -40,26 +40,28 @@ Each sidecar exposes a single MCP server over a unix socket.
 The agent connects via `settings.json` using the `mcp-server-sdk`
 socket transport. No HTTP ports, no port allocation.
 
-## Socket path
+## Socket paths
+
+Each sidecar gets its own unix socket, named by sidecar name:
 
 ```
 data/sessions/<group>/.claude/sidecars/<name>.sock
 ```
 
 Host path translated through `hostPath()` as with other mounts.
-Inside agent container:
+Inside the agent container, all sidecar sockets appear under:
 
 ```
 /workspace/ipc/sidecars/<name>.sock
 ```
 
-Inside sidecar container:
+Inside each sidecar container:
 
 ```
 /run/socks/<name>.sock
 ```
 
-Both containers mount the same host socket directory. The sidecar
+Both containers mount the same host socket directory. Each sidecar
 binds on `/run/socks/<name>.sock` (via `$MCP_SOCK` env); the
 agent connects to `/workspace/ipc/sidecars/<name>.sock`.
 

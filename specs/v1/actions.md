@@ -220,11 +220,16 @@ command → pattern → keyword → sender → default.
 
 ### Sidecars (specced, not yet implemented)
 
-| Action            | MCP | Input                                  |
-| ----------------- | --- | -------------------------------------- |
-| `request_sidecar` | yes | `{ name, image, env?, allowedTools? }` |
-| `stop_sidecar`    | yes | `{ name }`                             |
-| `list_sidecars`   | yes | --                                     |
+| Action              | MCP | Input                                            |
+| ------------------- | --- | ------------------------------------------------ |
+| `configure_sidecar` | yes | `{ name, image, env?, allowedTools?, network? }` |
+| `request_sidecar`   | yes | `{ name, image, env?, allowedTools? }`           |
+| `stop_sidecar`      | yes | `{ name }`                                       |
+| `list_sidecars`     | yes | --                                               |
+
+`configure_sidecar` persists sidecar config to `registered_groups.container_config`;
+takes effect on next agent spawn. `request_sidecar` starts a sidecar immediately
+for the current session. Both require root.
 
 See `mcp-sidecar.md` for lifecycle and socket transport details.
 
