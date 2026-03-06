@@ -10,8 +10,8 @@ generalized memory.
   (instructions). Zero code in agent-runner. SDK auto-loads group
   CLAUDE.md; SOUL.md read by agent per CLAUDE.md instruction on
   new sessions only
-- **No `/facts` skill** — agent has Grep/Read natively. CLAUDE.md
-  instructs: search facts/ before answering. No skill wrapper needed
+- **`/facts` skill** — research + verify pipeline via subagents.
+  CLAUDE.md auto-triggers when facts/ search has no matches
 - **Facts are binary** — verified or deleted. No confidence tiers on
   facts themselves. `confidence` and `findings_count` are eliza
   artifacts to strip. Search relevance (similarity) is separate
@@ -35,7 +35,7 @@ for search). Strip: `confidence`, `findings_count` (eliza artifacts).
 ### 1c. Researcher — done
 
 `/facts` skill: research subagent → write facts → verifier
-subagent (batches of 5) → delete bad facts → summarize.
+subagent (batches of 5) → delete bad facts → answer user.
 CLAUDE.md auto-triggers when facts/ has no matches.
 Scheduled research (cron) deferred to phase 2.
 
@@ -119,6 +119,9 @@ Abstract the pattern across diary, facts, episodes, user context.
 - [x] Codebase symlink (8 repos)
 - [x] CLAUDE.md instructions + SOUL.md persona (replaces character.json)
 - [x] Agentic search (CLAUDE.md → grep facts/)
+- [x] /facts skill (research + verify subagent pipeline)
+- [x] Group add bug fixed (folder ownership check)
+- [x] Phase 1 shipped + redeployed
 - [x] Forward metadata extraction
 - [x] Reply-to threading
 - [x] Diary memory + gateway injection
