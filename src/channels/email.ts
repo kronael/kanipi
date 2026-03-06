@@ -16,7 +16,7 @@ import {
   storeEmailThread,
 } from '../db.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts } from '../types.js';
+import { Channel, ChannelOpts, SendOpts } from '../types.js';
 
 function threadId(rootMsgId: string): string {
   return crypto
@@ -182,7 +182,11 @@ export class EmailChannel implements Channel {
     }
   }
 
-  async sendMessage(jid: string, text: string): Promise<void> {
+  async sendMessage(
+    jid: string,
+    text: string,
+    _opts?: SendOpts,
+  ): Promise<void> {
     if (!this.transport) {
       logger.warn('email transport not initialized');
       return;

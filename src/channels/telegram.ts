@@ -10,7 +10,7 @@ import {
   RawAttachment,
 } from '../mime.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts } from '../types.js';
+import { Channel, ChannelOpts, SendOpts } from '../types.js';
 
 function mdToHtml(text: string): string {
   // Extract fenced code blocks before any other processing
@@ -325,7 +325,11 @@ export class TelegramChannel implements Channel {
     });
   }
 
-  async sendMessage(jid: string, text: string): Promise<void> {
+  async sendMessage(
+    jid: string,
+    text: string,
+    _opts?: SendOpts,
+  ): Promise<void> {
     if (!this.bot) {
       logger.warn('Telegram bot not initialized');
       return;

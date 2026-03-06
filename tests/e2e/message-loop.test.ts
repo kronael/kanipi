@@ -118,6 +118,7 @@ const { mockRunContainerAgent } = vi.hoisted(() => ({
 
 vi.mock('../../src/container-runner.js', () => ({
   runContainerAgent: mockRunContainerAgent,
+  writeActionManifest: vi.fn(),
   writeGroupsSnapshot: vi.fn(),
   writeTasksSnapshot: vi.fn(),
 }));

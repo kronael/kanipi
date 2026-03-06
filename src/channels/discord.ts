@@ -16,7 +16,7 @@ import {
   RawAttachment,
 } from '../mime.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts } from '../types.js';
+import { Channel, ChannelOpts, SendOpts } from '../types.js';
 
 export class DiscordChannel implements Channel {
   name = 'discord';
@@ -145,7 +145,11 @@ export class DiscordChannel implements Channel {
     );
   }
 
-  async sendMessage(jid: string, text: string): Promise<void> {
+  async sendMessage(
+    jid: string,
+    text: string,
+    _opts?: SendOpts,
+  ): Promise<void> {
     if (!this.client) {
       logger.warn('Discord client not initialized');
       return;

@@ -1,7 +1,7 @@
 import type { ServerResponse } from 'http';
 
 import { logger } from '../logger.js';
-import type { Channel } from '../types.js';
+import type { Channel, SendOpts } from '../types.js';
 
 // SSE listeners keyed by group folder
 const listeners = new Map<string, Set<ServerResponse>>();
@@ -28,7 +28,11 @@ export class WebChannel implements Channel {
     return jid.startsWith('web:');
   }
 
-  async sendMessage(jid: string, text: string): Promise<void> {
+  async sendMessage(
+    jid: string,
+    text: string,
+    _opts?: SendOpts,
+  ): Promise<void> {
     // jid format: "web:<group>"
     const group = jid.slice(4);
     const set = listeners.get(group);

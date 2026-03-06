@@ -1,0 +1,167 @@
+/**
+ * Action registry integration tests.
+ *
+ * Tests action registration, manifest generation, and the request-response
+ * IPC flow (drainRequests) in-process. No docker required.
+ */
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import { _initTestDatabase, setRegisteredGroup } from '../../src/db.js';
+// Import ipc.ts to trigger action registration side-effect
+import '../../src/ipc.js';
+import {
+  getAction,
+  getAllActions,
+  getManifest,
+} from '../../src/action-registry.js';
+import type { RegisteredGroup } from '../../src/types.js';
+import type { IpcDeps } from '../../src/ipc-compat.js';
+
+const EXPECTED_ACTIONS = [
+  'send_message',
+  'send_file',
+  'schedule_task',
+  'pause_task',
+  'resume_task',
+  'cancel_task',
+  'refresh_groups',
+  'register_group',
+  'reset_session',
+];
+
+const MAIN_GROUP: RegisteredGroup = {
+  name: 'Main',
+  folder: 'main',
+  trigger: 'always',
+  added_at: '2024-01-01T00:00:00.000Z',
+};
+
+let tmpDir: string;
+let deps: IpcDeps;
+
+beforeEach(() => {
+  _initTestDatabase();
+  setRegisteredGroup('main@g.us', MAIN_GROUP);
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kanipi-action-test-'));
+
+  deps = {
+    sendMessage: vi.fn().mockResolvedValue(undefined),
+    sendDocument: vi.fn().mockResolvedValue(undefined),
+    registeredGroups: () => ({ 'main@g.us': MAIN_GROUP }),
+    registerGroup: vi.fn(),
+    syncGroupMetadata: vi.fn().mockResolvedValue(undefined),
+    getAvailableGroups: () => [],
+    writeGroupsSnapshot: vi.fn(),
+    clearSession: vi.fn(),
+  };
+});
+
+afterEach(() => {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+// -- Registration --
+
+describe('action registration', () => {
+  it('all expected actions are registered', () => {
+    for (const name of EXPECTED_ACTIONS) {
+      expect(getAction(name)).toBeDefined();
+    }
+  });
+
+  it('getAction returns undefined for unknown action', () => {
+    expect(getAction('nonexistent_action')).toBeUndefined();
+  });
+
+  it('getAllActions returns correct count', () => {
+    const all = getAllActions();
+    expect(all.length).toBeGreaterThanOrEqual(EXPECTED_ACTIONS.length);
+    const names = all.map((a) => a.name);
+    for (const name of EXPECTED_ACTIONS) {
+      expect(names).toContain(name);
+    }
+  });
+});
+
+// -- Manifest --
+
+describe('getManifest', () => {
+  it('returns array with expected action names', () => {
+    const manifest = getManifest();
+    expect(Array.isArray(manifest)).toBe(true);
+    const names = manifest.map((m) => m.name);
+    for (const name of EXPECTED_ACTIONS) {
+      expect(names).toContain(name);
+    }
+  });
+
+  it('each manifest entry has name, description, and input schema', () => {
+    const manifest = getManifest();
+    for (const entry of manifest) {
+      expect(typeof entry.name).toBe('string');
+      expect(typeof entry.description).toBe('string');
+      expect(entry.input).toBeDefined();
+    }
+  });
+});
+
+// -- Request/reply IPC flow --
+
+describe('drainRequests flow', () => {
+  // We test the file-based request/reply protocol by writing a request
+  // JSON file and calling the internal drainRequests logic via
+  // processTaskIpc (which exercises the same action dispatch).
+  // For the full file-based flow we write request files and invoke
+  // drainRequests indirectly through the exported startIpcWatcher
+  // drain path — but since that requires fs.watch, we test the
+  // request-reply contract at the action handler level instead.
+
+  it('reset_session action returns result via handler', async () => {
+    const action = getAction('reset_session')!;
+    const result = await action.handler(
+      {},
+      {
+        sourceGroup: 'main',
+        isRoot: true,
+        sendMessage: deps.sendMessage,
+        sendDocument: deps.sendDocument,
+        registeredGroups: deps.registeredGroups,
+        registerGroup: deps.registerGroup,
+        syncGroupMetadata: deps.syncGroupMetadata,
+        getAvailableGroups: deps.getAvailableGroups,
+        writeGroupsSnapshot: deps.writeGroupsSnapshot,
+        clearSession: deps.clearSession,
+      },
+    );
+    expect(result).toEqual({ reset: true });
+    expect(deps.clearSession).toHaveBeenCalledWith('main');
+  });
+
+  it('send_message action dispatches to sendMessage dep', async () => {
+    const action = getAction('send_message')!;
+    const result = await action.handler(
+      { chatJid: 'main@g.us', text: 'hello' },
+      {
+        sourceGroup: 'main',
+        isRoot: true,
+        sendMessage: deps.sendMessage,
+        sendDocument: deps.sendDocument,
+        registeredGroups: deps.registeredGroups,
+        registerGroup: deps.registerGroup,
+        syncGroupMetadata: deps.syncGroupMetadata,
+        getAvailableGroups: deps.getAvailableGroups,
+        writeGroupsSnapshot: deps.writeGroupsSnapshot,
+        clearSession: deps.clearSession,
+      },
+    );
+    expect(result).toEqual({ sent: true });
+    expect(deps.sendMessage).toHaveBeenCalledWith('main@g.us', 'hello');
+  });
+
+  it('unknown action name returns undefined from getAction', () => {
+    expect(getAction('bogus_action')).toBeUndefined();
+  });
+});
