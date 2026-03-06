@@ -15,9 +15,10 @@ export function formatMessages(messages: NewMessage[]): string {
     if (m.forwarded_from) {
       parts.push(`<forwarded_from sender="${escapeXml(m.forwarded_from)}"/>`);
     }
-    if (m.reply_to_text && m.reply_to_sender) {
+    if (m.reply_to_text) {
+      const rSender = m.reply_to_sender || '(unknown)';
       parts.push(
-        `<reply_to sender="${escapeXml(m.reply_to_sender)}">${escapeXml(m.reply_to_text)}</reply_to>`,
+        `<reply_to sender="${escapeXml(rSender)}">${escapeXml(m.reply_to_text)}</reply_to>`,
       );
     }
     parts.push(escapeXml(m.content));

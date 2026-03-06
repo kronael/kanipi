@@ -124,9 +124,9 @@ export class TelegramChannel implements Channel {
         else if (fwd.type === 'hidden_user')
           forwarded_from = fwd.sender_user_name || '(hidden)';
         else if (fwd.type === 'chat')
-          forwarded_from = (fwd as any).sender_chat.title;
+          forwarded_from = (fwd as any).sender_chat?.title || '(chat)';
         else if (fwd.type === 'channel')
-          forwarded_from = (fwd as any).chat.title;
+          forwarded_from = (fwd as any).chat?.title || '(channel)';
       }
 
       // Extract reply-to metadata
@@ -216,9 +216,9 @@ export class TelegramChannel implements Channel {
         else if (fwd.type === 'hidden_user')
           forwarded_from = fwd.sender_user_name || '(hidden)';
         else if (fwd.type === 'chat')
-          forwarded_from = (fwd as any).sender_chat.title;
+          forwarded_from = (fwd as any).sender_chat?.title || '(chat)';
         else if (fwd.type === 'channel')
-          forwarded_from = (fwd as any).chat.title;
+          forwarded_from = (fwd as any).chat?.title || '(channel)';
       }
 
       // Extract reply-to metadata
