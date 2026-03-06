@@ -20,24 +20,30 @@ summary: |
   Working on kanipi gateway. Alice is the main user.
   - auth: OAuth flow design, provider TBD
   - deploy: hel1v5 Ansible config done
-  - open: two bugs in IPC file sending
+  - ipc: two file-sending bugs open
 ---
 
 ## 10:32
 
 Helped Alice configure Ansible for hel1v5. Vault password
-path was wrong — fixed.
+path was wrong — fixed. deploy: done.
 
 ## 14:07
 
 Auth flow discussion. Alice wants OAuth not passwords.
-Open: which provider.
+auth: provider TBD. New task — ipc: file sending broken,
+ENOENT on sendDocument.
 ```
 
-- `summary:` — YAML block scalar: one line of project context,
-  then up to 5 bullet points of high-level tasks/status.
-  Gateway reads only this field for session-start injection.
-- `## HH:MM` entries — 250 chars max each
+- `summary:` — YAML block scalar. First line: project context
+  and who the agent works with. Then up to 5 bullet points:
+  key tasks and their current status. Gateway reads only this
+  field for session-start injection.
+- `## HH:MM` entries — 250 chars max each. Entries naturally
+  introduce and update tasks (e.g., "New task — auth: OAuth
+  flow design", "auth: decided on GitHub provider",
+  "deploy: done"). Tasks appear and change state through
+  entries — no separate tracking. The diary IS the task log.
 - Agent may rewrite/compress old entries to save space
 - Truthful, summarizing — only what matters
 - If nothing noteworthy, skip
@@ -51,21 +57,35 @@ instructs the agent to append to `/workspace/group/diary/YYYYMMDD.md`.
 
 ### 2. PreCompact hook (automatic)
 
-On compaction, the hook injects a system message:
+On compaction, return `{ systemMessage: nudge }` where nudge
+is the skill's `description` frontmatter field:
 
 ```
 If anything worth noting happened since your last diary
-entry, run /diary.
+entry, record it in /workspace/group/diary/YYYYMMDD.md.
 ```
 
 Agent decides whether to act. Not a command — a nudge.
 Replaces the current `createPreCompactHook` transcript dump.
+Resets the turn counter (see below).
 
-### 3. Gateway turn nudge (automatic, every 100 turns)
+### 3. Stop hook turn nudge (automatic, every 100 turns)
 
-Gateway counts agent responses per group. Every 100 turns,
-injects the same nudge text as a system message via stdin
-piping. Resets counter after nudge. PreCompact resets it too.
+Agent-runner already tracks `messageCount`. On Stop hook:
+
+```ts
+if (messageCount >= 100 && !input.stop_hook_active) {
+  messageCount = 0;
+  return { systemMessage: nudgeText };
+}
+```
+
+- `nudgeText` is the skill's `description` frontmatter
+  (same text as PreCompact — single source of truth)
+- `stop_hook_active` guard prevents infinite loops (the
+  Stop hook fires again after the nudge-triggered response)
+- Counter resets on nudge and on PreCompact
+- No gateway involvement — entirely in agent-runner
 
 ## Gateway: session-start injection
 
@@ -103,14 +123,14 @@ Create dir if missing (`mkdirSync recursive`).
 
 ## Implementation
 
-| Component  | File                                   | Change                              |
-| ---------- | -------------------------------------- | ----------------------------------- |
-| Mount      | `src/container-runner.ts`              | Add diary dir mount                 |
-| Injection  | `src/index.ts`                         | Read frontmatter, inject system msg |
-| PreCompact | `container/agent-runner/src/index.ts`  | Replace transcript dump with nudge  |
-| Turn nudge | `src/index.ts`                         | Counter per group, nudge at 100     |
-| Skill      | `container/skills/self/diary/SKILL.md` | Writing rules                       |
-| Migration  | `container/skills/self/migrations/`    | Skill file delivery                 |
+| Component  | File                                  | Change                              |
+| ---------- | ------------------------------------- | ----------------------------------- |
+| Mount      | `src/container-runner.ts`             | Add diary dir mount                 |
+| Injection  | `src/index.ts`                        | Read frontmatter, inject system msg |
+| PreCompact | `container/agent-runner/src/index.ts` | Replace transcript dump with nudge  |
+| Stop hook  | `container/agent-runner/src/index.ts` | Turn counter nudge at 100           |
+| Skill      | `container/skills/diary/SKILL.md`     | Writing rules + nudge text          |
+| Migration  | `container/skills/self/migrations/`   | Skill file delivery                 |
 
 ## Relationship to other memory layers
 
