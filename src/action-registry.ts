@@ -54,7 +54,7 @@ export function getManifest(): Array<{
   description: string;
   input: unknown;
 }> {
-  return getAllActions()
+  return [...actions.values()]
     .filter((a) => a.mcp !== false)
     .map((a) => ({
       name: a.name,

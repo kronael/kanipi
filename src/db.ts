@@ -253,31 +253,18 @@ export function storeChatMetadata(
 ): void {
   const ch = channel ?? null;
   const group = isGroup === undefined ? null : isGroup ? 1 : 0;
+  const n = name || chatJid;
 
-  if (name) {
-    // Update with name, preserving existing timestamp if newer
-    db.prepare(
-      `
-      INSERT INTO chats (jid, name, last_message_time, channel, is_group) VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(jid) DO UPDATE SET
-        name = excluded.name,
-        last_message_time = MAX(last_message_time, excluded.last_message_time),
-        channel = COALESCE(excluded.channel, channel),
-        is_group = COALESCE(excluded.is_group, is_group)
-    `,
-    ).run(chatJid, name, timestamp, ch, group);
-  } else {
-    // Update timestamp only, preserve existing name if any
-    db.prepare(
-      `
-      INSERT INTO chats (jid, name, last_message_time, channel, is_group) VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(jid) DO UPDATE SET
-        last_message_time = MAX(last_message_time, excluded.last_message_time),
-        channel = COALESCE(excluded.channel, channel),
-        is_group = COALESCE(excluded.is_group, is_group)
-    `,
-    ).run(chatJid, chatJid, timestamp, ch, group);
-  }
+  db.prepare(
+    `
+    INSERT INTO chats (jid, name, last_message_time, channel, is_group) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(jid) DO UPDATE SET
+      name = CASE WHEN ? THEN excluded.name ELSE name END,
+      last_message_time = MAX(last_message_time, excluded.last_message_time),
+      channel = COALESCE(excluded.channel, channel),
+      is_group = COALESCE(excluded.is_group, is_group)
+  `,
+  ).run(chatJid, n, timestamp, ch, group, name ? 1 : 0);
 }
 
 /**

@@ -198,7 +198,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   const channel = findChannel(channels, chatJid);
   if (!channel) {
-    console.log(`Warning: no channel owns JID ${chatJid}, skipping messages`);
+    logger.warn({ chatJid }, 'no channel owns JID, skipping messages');
     return true;
   }
 
@@ -449,10 +449,8 @@ async function delegateToChild(
             typeof result.result === 'string'
               ? result.result
               : JSON.stringify(result.result);
-          const text = raw
-            .replace(/<internal>[\s\S]*?<\/internal>/g, '')
-            .trim();
-          if (text) await channel.sendMessage(originJid, formatOutbound(text));
+          const text = formatOutbound(raw);
+          if (text) await channel.sendMessage(originJid, text);
         }
       },
     );
@@ -595,9 +593,7 @@ async function startMessageLoop(): Promise<void> {
 
           const channel = findChannel(channels, chatJid);
           if (!channel) {
-            console.log(
-              `Warning: no channel owns JID ${chatJid}, skipping messages`,
-            );
+            logger.warn({ chatJid }, 'no channel owns JID, skipping messages');
             continue;
           }
 
@@ -858,7 +854,7 @@ async function main(): Promise<void> {
     sendMessage: async (jid, rawText) => {
       const channel = findChannel(channels, jid);
       if (!channel) {
-        console.log(`Warning: no channel owns JID ${jid}, cannot send message`);
+        logger.warn({ jid }, 'no channel owns JID, cannot send message');
         return;
       }
       const text = formatOutbound(rawText);
