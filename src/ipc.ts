@@ -17,6 +17,7 @@ import {
   scheduleTask,
 } from './actions/tasks.js';
 import {
+  delegateGroup,
   refreshGroups,
   registerGroup,
   setRoutingRules,
@@ -49,6 +50,12 @@ export interface IpcDeps {
     registeredJids: Set<string>,
   ) => void;
   clearSession: (groupFolder: string) => void;
+  delegateToChild: (
+    childFolder: string,
+    prompt: string,
+    originJid: string,
+    depth: number,
+  ) => Promise<void>;
 }
 
 const allActions: Action[] = [
@@ -61,6 +68,7 @@ const allActions: Action[] = [
   refreshGroups,
   registerGroup,
   setRoutingRules,
+  delegateGroup,
   resetSession,
 ];
 for (const a of allActions) registerAction(a);

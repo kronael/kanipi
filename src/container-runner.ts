@@ -5,6 +5,7 @@ import {
   spawn,
 } from 'child_process';
 import fs from 'fs';
+import net from 'net';
 import path from 'path';
 
 import crypto from 'crypto';
@@ -35,7 +36,7 @@ import {
   stopContainer,
 } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
-import { RegisteredGroup } from './types.js';
+import { RegisteredGroup, SidecarHandle, SidecarSpec } from './types.js';
 
 export let _spawnProcess: (
   cmd: string,
@@ -55,6 +56,7 @@ export interface ContainerInput {
   assistantName?: string;
   secrets?: Record<string, string>;
   messageCount?: number;
+  delegateDepth?: number;
   // Enricher annotations prepended to prompt before container sees it.
   // Populated by runEnrichers() in index.ts — not sent as a separate field.
   _annotations?: string[];
@@ -106,7 +108,10 @@ function hostPath(localPath: string): string {
   return localPath.replace(GATEWAY_ROOT, HOST_PROJECT_ROOT_PATH);
 }
 
-function buildVolumeMounts(group: RegisteredGroup): VolumeMount[] {
+function buildVolumeMounts(
+  group: RegisteredGroup,
+  delegateDepth?: number,
+): VolumeMount[] {
   const root = isRoot(group.folder);
   const mounts: VolumeMount[] = [];
   const groupDir = resolveGroupFolderPath(group.folder);
@@ -178,6 +183,7 @@ function buildVolumeMounts(group: RegisteredGroup): VolumeMount[] {
     settings.env.WEB_HOST = WEB_HOST;
     settings.env.NANOCLAW_ASSISTANT_NAME = ASSISTANT_NAME;
     settings.env.NANOCLAW_IS_ROOT = root ? '1' : '';
+    settings.env.NANOCLAW_DELEGATE_DEPTH = String(delegateDepth ?? 0);
     if (group.slinkToken) settings.env.SLINK_TOKEN = group.slinkToken;
     fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
   }
@@ -316,6 +322,197 @@ function buildContainerArgs(
   return args;
 }
 
+// --- Sidecar lifecycle ---
+
+function execCmd(cmd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
+async function waitForSocket(
+  sockPath: string,
+  timeoutMs: number,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (fs.existsSync(sockPath)) return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(`timed out waiting for socket: ${sockPath}`);
+}
+
+function probeSidecar(sockPath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const sock = net.createConnection(sockPath);
+    const timer = setTimeout(() => {
+      sock.destroy();
+      resolve(false);
+    }, 1000);
+    sock.on('connect', () => {
+      clearTimeout(timer);
+      sock.destroy();
+      resolve(true);
+    });
+    sock.on('error', () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+  });
+}
+
+function resolveSidecars(
+  group: RegisteredGroup,
+): Array<SidecarSpec & { name: string }> {
+  const specs: Record<string, SidecarSpec> = {};
+
+  for (const [key, val] of Object.entries(process.env)) {
+    const m = key.match(/^SIDECAR_([A-Z0-9]+(?:_[A-Z0-9]+)*)_IMAGE$/);
+    if (m && val) {
+      const name = m[1].toLowerCase().replace(/_/g, '-');
+      specs[name] = { image: val };
+    }
+  }
+
+  if (group.containerConfig?.sidecars) {
+    for (const [name, spec] of Object.entries(group.containerConfig.sidecars)) {
+      if (spec.image) {
+        specs[name] = { ...specs[name], ...spec };
+      } else {
+        delete specs[name]; // empty image = disabled
+      }
+    }
+  }
+
+  return Object.entries(specs).map(([name, spec]) => ({ name, ...spec }));
+}
+
+async function startSidecar(
+  name: string,
+  spec: SidecarSpec,
+  sockDir: string,
+  groupFolder: string,
+): Promise<SidecarHandle | null> {
+  const safeName = groupFolder.replace(/[^a-zA-Z0-9-]/g, '-');
+  const containerName = `nanoclaw-sidecar-${name}-${safeName}`;
+  const sockPath = path.join(sockDir, `${name}.sock`);
+
+  if (fs.existsSync(sockPath)) {
+    try {
+      fs.unlinkSync(sockPath);
+    } catch {}
+  }
+
+  const args = [
+    'run',
+    '-d',
+    '--rm',
+    '--name',
+    containerName,
+    `--memory=${spec.memoryMb ?? 256}m`,
+    `--cpus=${spec.cpus ?? 0.5}`,
+    `--network=${spec.network ?? 'none'}`,
+    '-v',
+    `${hostPath(sockDir)}:/run/socks`,
+    '-e',
+    `MCP_SOCK=/run/socks/${name}.sock`,
+  ];
+
+  if (spec.env) {
+    for (const [k, v] of Object.entries(spec.env)) {
+      args.push('-e', `${k}=${v}`);
+    }
+  }
+
+  args.push(spec.image);
+
+  try {
+    await execCmd(`${CONTAINER_RUNTIME_BIN} ${args.join(' ')}`);
+    await waitForSocket(sockPath, 5000);
+    const ok = await probeSidecar(sockPath);
+    if (!ok) {
+      logger.warn(
+        { name, containerName },
+        'sidecar probe failed, excluding from settings',
+      );
+      execCmd(`${CONTAINER_RUNTIME_BIN} stop ${containerName}`).catch(() => {});
+      return null;
+    }
+    logger.info({ name, containerName }, 'sidecar ready');
+    return {
+      containerName,
+      specName: name,
+      sockPath,
+      allowedTools: spec.allowedTools,
+    };
+  } catch (err) {
+    logger.warn({ name, containerName, err }, 'sidecar start failed, skipping');
+    return null;
+  }
+}
+
+async function startSidecars(
+  group: RegisteredGroup,
+  sockDir: string,
+): Promise<SidecarHandle[]> {
+  const specs = resolveSidecars(group);
+  if (specs.length === 0) return [];
+
+  const results = await Promise.all(
+    specs.map((s) => startSidecar(s.name, s, sockDir, group.folder)),
+  );
+  return results.filter((h): h is SidecarHandle => h !== null);
+}
+
+function injectSidecarsIntoSettings(
+  settingsFile: string,
+  handles: SidecarHandle[],
+): void {
+  if (handles.length === 0) return;
+
+  const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+  settings.mcpServers = settings.mcpServers ?? {};
+
+  const allowedTools: string[] = [];
+  for (const h of handles) {
+    settings.mcpServers[h.specName] = {
+      command: 'socat',
+      args: [
+        `UNIX-CONNECT:/workspace/ipc/sidecars/${h.specName}.sock`,
+        'STDIO',
+      ],
+    };
+    if (!h.allowedTools || h.allowedTools.includes('*')) {
+      allowedTools.push(`mcp__${h.specName}__*`);
+    } else {
+      for (const t of h.allowedTools) {
+        allowedTools.push(`mcp__${h.specName}__${t}`);
+      }
+    }
+  }
+
+  if (settings.allowedTools && Array.isArray(settings.allowedTools)) {
+    settings.allowedTools = [...settings.allowedTools, ...allowedTools];
+  }
+
+  fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
+}
+
+async function stopSidecars(handles: SidecarHandle[]): Promise<void> {
+  await Promise.all(
+    handles.map((h) =>
+      execCmd(`${CONTAINER_RUNTIME_BIN} stop ${h.containerName}`).catch(
+        () => {},
+      ),
+    ),
+  );
+}
+
+// --- Agent runner ---
+
 export async function runContainerAgent(
   group: RegisteredGroup,
   input: ContainerInput,
@@ -329,6 +526,21 @@ export async function runContainerAgent(
   chownRecursive(groupDir, 1000, 1000);
 
   const mounts = buildVolumeMounts(group);
+
+  // Start sidecars before agent; socket dir lives under IPC dir (already mounted)
+  const sockDir = path.join(resolveGroupIpcPath(group.folder), 'sidecars');
+  fs.mkdirSync(sockDir, { recursive: true });
+  chownRecursive(sockDir, 1000, 1000);
+  const sidecarHandles = await startSidecars(group, sockDir);
+
+  const settingsFile = path.join(
+    DATA_DIR,
+    'sessions',
+    group.folder,
+    '.claude',
+    'settings.json',
+  );
+  injectSidecarsIntoSettings(settingsFile, sidecarHandles);
 
   const agentVersionFile = path.join(
     DATA_DIR,
@@ -539,6 +751,7 @@ export async function runContainerAgent(
 
     container.on('close', (code) => {
       clearTimeout(timeout);
+      stopSidecars(sidecarHandles).catch(() => {});
       const duration = Date.now() - startTime;
 
       if (timedOut) {

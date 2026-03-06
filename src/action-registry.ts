@@ -18,6 +18,12 @@ export interface ActionContext {
     jids: Set<string>,
   ): void;
   clearSession(folder: string): void;
+  delegateToChild(
+    childFolder: string,
+    prompt: string,
+    originJid: string,
+    depth: number,
+  ): Promise<void>;
 }
 
 export interface Action {

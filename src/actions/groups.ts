@@ -2,8 +2,11 @@ import { z } from 'zod';
 
 import { Action } from '../action-registry.js';
 import { writeCommandsXml } from '../commands/index.js';
+import { isRoot } from '../config.js';
 import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
+
+const MAX_DELEGATE_DEPTH = 3;
 
 const RoutingRuleSchema = z.discriminatedUnion('type', [
   z.object({
@@ -107,6 +110,55 @@ export const registerGroup: Action = {
     });
     writeCommandsXml(input.folder);
     return { registered: true };
+  },
+};
+
+export const delegateGroup: Action = {
+  name: 'delegate_group',
+  description: 'Delegate a prompt to a registered child group agent',
+  input: z.object({
+    group: z.string().min(1),
+    prompt: z.string().min(1),
+    chatJid: z.string().min(1),
+    depth: z.number().int().min(0).optional(),
+  }),
+  async handler(raw, ctx) {
+    const input = raw as {
+      group: string;
+      prompt: string;
+      chatJid: string;
+      depth?: number;
+    };
+    const depth = input.depth ?? 0;
+
+    if (depth >= MAX_DELEGATE_DEPTH) {
+      throw new Error(
+        `delegation depth ${depth} exceeds limit ${MAX_DELEGATE_DEPTH}`,
+      );
+    }
+
+    // Only root or a direct parent may delegate to a child.
+    // isRoot() already checks the sourceGroup folder string.
+    const sourceIsParent =
+      isRoot(ctx.sourceGroup) || input.group.startsWith(ctx.sourceGroup + '/');
+    if (!sourceIsParent) {
+      throw new Error(
+        `unauthorized: ${ctx.sourceGroup} cannot delegate to ${input.group}`,
+      );
+    }
+
+    logger.info(
+      { sourceGroup: ctx.sourceGroup, child: input.group, depth },
+      'delegating to child group',
+    );
+
+    await ctx.delegateToChild(
+      input.group,
+      input.prompt,
+      input.chatJid,
+      depth + 1,
+    );
+    return { queued: true };
   },
 };
 

@@ -67,7 +67,12 @@ import {
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
-import { findChannel, formatMessages, formatOutbound } from './router.js';
+import {
+  findChannel,
+  formatMessages,
+  formatOutbound,
+  resolveRoutingTarget,
+} from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
 import { logger } from './logger.js';
@@ -208,6 +213,28 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       TRIGGER_PATTERN.test(m.content.trim()),
     );
     if (!hasTrigger) return true;
+  }
+
+  // Apply routing rules on the latest message before spawning parent agent.
+  const rules = group.routingRules ?? [];
+  if (rules.length > 0) {
+    const lastMsg = missedMessages[missedMessages.length - 1];
+    const target = resolveRoutingTarget(lastMsg, rules);
+    if (target) {
+      const formatted = formatMessages(missedMessages);
+      const prevCursor = lastAgentTimestamp[chatJid] || '';
+      lastAgentTimestamp[chatJid] = lastMsg.timestamp;
+      saveState();
+      delegateToChild(target, formatted, chatJid, 0).catch((err) => {
+        lastAgentTimestamp[chatJid] = prevCursor;
+        saveState();
+        logger.error(
+          { chatJid, target, err },
+          'processGroupMessages delegate error',
+        );
+      });
+      return true;
+    }
   }
 
   if (!sessions[group.folder]) {
@@ -371,6 +398,67 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   }
 
   return true;
+}
+
+async function delegateToChild(
+  childFolder: string,
+  prompt: string,
+  originJid: string,
+  depth: number,
+): Promise<void> {
+  const child = Object.values(registeredGroups).find(
+    (g) => g.folder === childFolder,
+  );
+  if (!child) throw new Error(`unknown child group: ${childFolder}`);
+
+  const channel = findChannel(channels, originJid);
+  if (!channel) throw new Error(`no channel for origin JID: ${originJid}`);
+
+  const taskId = `delegate-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  queue.enqueueTask(childFolder, taskId, async () => {
+    writeActionManifest(child.folder);
+    const output = await runContainerAgent(
+      child,
+      {
+        prompt,
+        sessionId: sessions[child.folder],
+        groupFolder: child.folder,
+        chatJid: originJid,
+        messageCount: 1,
+        delegateDepth: depth,
+      },
+      (proc, containerName) =>
+        queue.registerProcess(childFolder, proc, containerName, child.folder),
+      async (result) => {
+        if (result.newSessionId) {
+          sessions[child.folder] = result.newSessionId;
+          setSession(child.folder, result.newSessionId);
+        }
+        if (result.result) {
+          const raw =
+            typeof result.result === 'string'
+              ? result.result
+              : JSON.stringify(result.result);
+          const text = raw
+            .replace(/<internal>[\s\S]*?<\/internal>/g, '')
+            .trim();
+          if (text) await channel.sendMessage(originJid, formatOutbound(text));
+        }
+      },
+    );
+
+    if (output.newSessionId) {
+      sessions[child.folder] = output.newSessionId;
+      setSession(child.folder, output.newSessionId);
+    }
+    if (output.status === 'error') {
+      logger.warn(
+        { childFolder, error: output.error },
+        'delegate child agent error',
+      );
+    }
+  });
 }
 
 async function runAgent(
@@ -556,6 +644,35 @@ async function startMessageLoop(): Promise<void> {
               TRIGGER_PATTERN.test(m.content.trim()),
             );
             if (!hasTrigger) continue;
+          }
+
+          // Apply routing rules on the latest message.
+          // First match routes to child group; parent skips.
+          const rules = group.routingRules ?? [];
+          if (rules.length > 0) {
+            const lastMsg = nonCommandMessages[nonCommandMessages.length - 1];
+            const target = resolveRoutingTarget(lastMsg, rules);
+            if (target) {
+              await waitForEnrichments(nonCommandMessages.map((m) => m.id));
+              const allForRoute = getMessagesSince(
+                chatJid,
+                lastAgentTimestamp[chatJid] || '',
+                ASSISTANT_NAME,
+              );
+              const toDelegate =
+                allForRoute.length > 0 ? allForRoute : nonCommandMessages;
+              const routedPrompt = formatMessages(toDelegate);
+              lastAgentTimestamp[chatJid] =
+                toDelegate[toDelegate.length - 1].timestamp;
+              saveState();
+              delegateToChild(target, routedPrompt, chatJid, 0).catch((err) =>
+                logger.error(
+                  { chatJid, target, err },
+                  'routing delegate error',
+                ),
+              );
+              continue;
+            }
           }
 
           // Pull all messages since lastAgentTimestamp so non-trigger
@@ -759,6 +876,7 @@ async function main(): Promise<void> {
     },
     getAvailableGroups,
     writeGroupsSnapshot,
+    delegateToChild,
   });
   queue.setProcessMessagesFn(processGroupMessages);
   recoverPendingMessages();

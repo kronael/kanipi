@@ -27,9 +27,26 @@ export interface AllowedRoot {
   description?: string;
 }
 
+export interface SidecarSpec {
+  image: string;
+  env?: Record<string, string>;
+  memoryMb?: number; // --memory (default: 256)
+  cpus?: number; // --cpus (default: 0.5)
+  network?: 'bridge' | 'none'; // default: none
+  allowedTools?: string[]; // ["search", "fetch"] or ["*"]
+}
+
+export interface SidecarHandle {
+  containerName: string;
+  specName: string;
+  sockPath: string;
+  allowedTools?: string[];
+}
+
 export interface ContainerConfig {
   additionalMounts?: AdditionalMount[];
   timeout?: number; // Default: 300000 (5 minutes)
+  sidecars?: Record<string, SidecarSpec>;
 }
 
 export type RoutingRule =
