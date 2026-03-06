@@ -258,12 +258,10 @@ kanipi-specific skills plus development skills bundled from
 kronael/tools (bash, go, python, typescript, etc.). A `CLAUDE.md`
 is also seeded alongside.
 
-**character.json**: agent identity is defined in
-`container/character.json` (ElizaOS-style: bio, topics, adjectives,
-style, messageExamples). Fields are randomized per query at runtime
-to vary personality. Per-instance overrides via
-`/workspace/share/character.json` are merged at load time.
-Replaces the old `SOUL.md` approach.
+**Soul skill**: agent personality is defined by the `soul` skill
+(`container/skills/soul/SKILL.md`). Groups can override with
+`/workspace/group/SOUL.md`. Soul content is appended to the
+system prompt via `systemPrompt.append`.
 
 **Migration system**: `container/skills/self/MIGRATION_VERSION`
 tracks the applied version number. `container/skills/self/migrations/`

@@ -107,7 +107,19 @@ Auto-trigger research when facts are insufficient.
 - [ ] Auto-spawn researcher (or queue for next scheduled run)
 - [ ] Prevent duplicate research on same topic
 
-### 2f. Generalized memory
+### 2f. Per-channel output styles
+
+Different voice per channel. SDK supports output styles natively
+(`~/.claude/output-styles/*.md`). Gateway writes the style file
+before spawning the container based on channel.
+
+- [ ] Channel-aware style selection in container-runner
+- [ ] Telegram style (concise, no markdown tables, 4096 char limit)
+- [ ] Discord style (markdown ok, embeds, longer responses)
+- [ ] Email style (formal, structured, signature)
+- [ ] Web style (rich formatting, links)
+
+### 2g. Generalized memory
 
 Abstract the pattern across diary, facts, episodes, user context.
 
@@ -126,7 +138,7 @@ Abstract the pattern across diary, facts, episodes, user context.
 
 - [x] Facts files seeded (50+ marinade docs)
 - [x] Codebase symlink (8 repos)
-- [x] Character + CLAUDE.md personality
+- [x] CLAUDE.md instructions + soul skill (replaces character.json)
 - [x] Forward metadata extraction
 - [x] Reply-to threading
 - [x] Diary memory + gateway injection

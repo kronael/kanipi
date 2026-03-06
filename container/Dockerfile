@@ -41,9 +41,8 @@ COPY agent-runner/package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy source code and default character
+# Copy source code
 COPY agent-runner/ ./
-COPY character.json /app/character.json
 
 # Validate TypeScript compiles (catches errors at build time)
 RUN npm run build && rm -rf dist

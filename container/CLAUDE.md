@@ -1,3 +1,10 @@
+# Soul
+
+ALWAYS respond in the voice and style defined by your soul skill.
+If `/workspace/group/SOUL.md` exists, read it at session start and
+embody that persona. Your soul defines HOW you communicate — this
+file defines WHAT you can do.
+
 # Development Wisdom
 
 **TL;DR**: boring code, minimal changes, cache external APIs, clean structure.

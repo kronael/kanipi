@@ -7,6 +7,20 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Changes
+
+- Replaced character.json with soul skill (`container/skills/soul/SKILL.md`)
+- Agent personality now via SOUL.md (group-level override) instead of
+  ElizaOS-style character.json with bio/topics/adjectives randomization
+- Removed ~90 lines from agent-runner (Character interface, shuffle,
+  assembleCharacter, loadCharacter) replaced with 10-line loadSoul()
+- Removed `container/character.json` from Docker image
+- Added per-channel output styles spec for v2 (`specs/atlas/TODO.md` §2f)
+
+---
+
 ## [v1.0.0] — 2026-03-06
 
 V1 release. All planned features shipped: 5 channels, group routing,
