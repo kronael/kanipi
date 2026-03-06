@@ -58,6 +58,7 @@ import { AttachmentDownloader, RawAttachment } from './mime.js';
 import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
 import { formatDiaryXml, readDiaryEntries } from './diary.js';
 import chatidCommand from './commands/chatid.js';
+import fileCommand from './commands/file.js';
 import newCommand, { pendingCommandArgs } from './commands/new.js';
 import pingCommand from './commands/ping.js';
 import {
@@ -88,6 +89,20 @@ const lastMessageDate: Record<string, string> = {};
 
 const channels: Channel[] = [];
 const queue = new GroupQueue();
+
+// Cache attachment data for /file put — keyed by message ID, TTL 60s
+const attachmentCache = new Map<
+  string,
+  { attachments: RawAttachment[]; download: AttachmentDownloader; ts: number }
+>();
+const ATTACHMENT_CACHE_TTL = 60_000;
+
+function pruneAttachmentCache(): void {
+  const now = Date.now();
+  for (const [k, v] of attachmentCache) {
+    if (now - v.ts > ATTACHMENT_CACHE_TTL) attachmentCache.delete(k);
+  }
+}
 
 function loadState(): void {
   lastTimestamp = getRouterState('last_timestamp') || '';
@@ -616,10 +631,15 @@ async function startMessageLoop(): Promise<void> {
           const nonCommandMessages: NewMessage[] = [];
           for (const msg of groupMessages) {
             const m = msg.content.trim();
-            if (m.startsWith('/')) {
-              const [word, ...rest] = m.slice(1).split(/\s+/);
+            // Strip leading media placeholder (e.g. "[Document: file.txt] /file put")
+            const cmdText = m.startsWith('[')
+              ? m.replace(/^\[[^\]]*\]\s*/, '')
+              : m;
+            if (cmdText.startsWith('/')) {
+              const [word, ...rest] = cmdText.slice(1).split(/\s+/);
               const handler = findCommand(word.toLowerCase());
               if (handler) {
+                const cached = attachmentCache.get(msg.id);
                 try {
                   await handler.handle({
                     group,
@@ -631,10 +651,13 @@ async function startMessageLoop(): Promise<void> {
                       delete sessions[folder];
                       deleteSession(folder);
                     },
+                    attachments: cached?.attachments,
+                    download: cached?.download,
                   });
                 } catch (err) {
                   logger.error({ command: word, err }, 'Command handler error');
                 }
+                if (cached) attachmentCache.delete(msg.id);
                 // Advance cursor past the command message
                 if (msg.timestamp > (lastAgentTimestamp[chatJid] || '')) {
                   lastAgentTimestamp[chatJid] = msg.timestamp;
@@ -770,6 +793,7 @@ function initCommands(): void {
   registerCommand(newCommand);
   registerCommand(pingCommand);
   registerCommand(chatidCommand);
+  registerCommand(fileCommand);
 }
 
 async function main(): Promise<void> {
@@ -805,6 +829,13 @@ async function main(): Promise<void> {
       const group = registeredGroups[msg.chat_jid];
       if (attachments && download && group) {
         enqueueEnrichment(msg.id, group.folder, attachments, download);
+        // Cache for /file put command — command interception reads from DB later
+        attachmentCache.set(msg.id, {
+          attachments,
+          download,
+          ts: Date.now(),
+        });
+        pruneAttachmentCache();
       }
     },
     onChatMetadata: (

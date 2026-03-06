@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { DATA_DIR } from '../config.js';
+import { AttachmentDownloader, RawAttachment } from '../mime.js';
 import { Channel, NewMessage, RegisteredGroup } from '../types.js';
 
 export interface CommandContext {
@@ -11,6 +12,8 @@ export interface CommandContext {
   channel: Channel;
   args: string;
   clearSession: (groupFolder: string) => void;
+  attachments?: RawAttachment[];
+  download?: AttachmentDownloader;
 }
 
 export interface CommandHandler {

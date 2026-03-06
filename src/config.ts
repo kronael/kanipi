@@ -223,3 +223,18 @@ export const EMAIL_ACCOUNT =
   process.env.EMAIL_ACCOUNT || envConfig.EMAIL_ACCOUNT || '';
 export const EMAIL_PASSWORD =
   process.env.EMAIL_PASSWORD || envConfig.EMAIL_PASSWORD || '';
+
+// File transfer commands (/file put, /file get, /file list)
+export const FILE_TRANSFER_ENABLED =
+  (process.env.FILE_TRANSFER_ENABLED || 'false') === 'true';
+export const FILE_DENY_GLOBS = (
+  process.env.FILE_DENY_GLOBS || '.git/**,.env,.envrc,**/*.pem'
+).split(',');
+export const FILE_MAX_UPLOAD_BYTES = parseInt(
+  process.env.FILE_MAX_UPLOAD_BYTES || '20971520',
+  10,
+);
+export const FILE_MAX_DOWNLOAD_BYTES = parseInt(
+  process.env.FILE_MAX_DOWNLOAD_BYTES || '52428800',
+  10,
+);
