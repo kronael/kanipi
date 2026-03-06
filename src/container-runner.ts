@@ -787,11 +787,9 @@ export function writeTasksSnapshot(
   }>,
 ): void {
   const root = isRoot(groupFolder);
-  // Write filtered tasks to the group's IPC directory
   const groupIpcDir = resolveGroupIpcPath(groupFolder);
   fs.mkdirSync(groupIpcDir, { recursive: true });
 
-  // Root sees all tasks, others only see their own
   const filteredTasks = root
     ? tasks
     : tasks.filter((t) => t.groupFolder === groupFolder);
@@ -814,11 +812,6 @@ export interface AvailableGroup {
   isRegistered: boolean;
 }
 
-/**
- * Write available groups snapshot for the container to read.
- * Only root group can see all available groups (for activation).
- * Non-root groups only see their own registration status.
- */
 export function writeGroupsSnapshot(
   groupFolder: string,
   groups: AvailableGroup[],
@@ -828,7 +821,6 @@ export function writeGroupsSnapshot(
   const groupIpcDir = resolveGroupIpcPath(groupFolder);
   fs.mkdirSync(groupIpcDir, { recursive: true });
 
-  // Root sees all groups; others see nothing (they can't activate groups)
   const visibleGroups = root ? groups : [];
 
   const groupsFile = path.join(groupIpcDir, 'available_groups.json');

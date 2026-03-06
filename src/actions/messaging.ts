@@ -1,7 +1,22 @@
 import { z } from 'zod';
 
-import { Action } from '../action-registry.js';
+import { Action, ActionContext } from '../action-registry.js';
 import { logger } from '../logger.js';
+
+function assertAuthorized(
+  chatJid: string,
+  ctx: ActionContext,
+  action: string,
+): void {
+  const target = ctx.registeredGroups()[chatJid];
+  if (chatJid && (ctx.isRoot || (target && target.folder === ctx.sourceGroup)))
+    return;
+  logger.warn(
+    { chatJid, sourceGroup: ctx.sourceGroup },
+    `unauthorized ${action} blocked`,
+  );
+  throw new Error('unauthorized');
+}
 
 export const sendMessage: Action = {
   name: 'send_message',
@@ -13,18 +28,7 @@ export const sendMessage: Action = {
   }),
   async handler(raw, ctx) {
     const input = raw as { chatJid: string; text: string };
-    const groups = ctx.registeredGroups();
-    const target = groups[input.chatJid];
-    const ok =
-      input.chatJid &&
-      (ctx.isRoot || (target && target.folder === ctx.sourceGroup));
-    if (!ok) {
-      logger.warn(
-        { chatJid: input.chatJid, sourceGroup: ctx.sourceGroup },
-        'unauthorized send_message blocked',
-      );
-      throw new Error('unauthorized');
-    }
+    assertAuthorized(input.chatJid, ctx, 'send_message');
     await ctx.sendMessage(input.chatJid, input.text);
     logger.info(
       { chatJid: input.chatJid, sourceGroup: ctx.sourceGroup },
@@ -48,19 +52,7 @@ export const sendFile: Action = {
       filepath: string;
       filename?: string;
     };
-    const groups = ctx.registeredGroups();
-    const target = groups[input.chatJid];
-    const ok =
-      input.chatJid &&
-      (ctx.isRoot || (target && target.folder === ctx.sourceGroup));
-    if (!ok) {
-      logger.warn(
-        { chatJid: input.chatJid, sourceGroup: ctx.sourceGroup },
-        'unauthorized send_file blocked',
-      );
-      throw new Error('unauthorized');
-    }
-    // Path translation happens in ipc.ts caller
+    assertAuthorized(input.chatJid, ctx, 'send_file');
     await ctx.sendDocument(input.chatJid, input.filepath, input.filename);
     logger.info(
       { chatJid: input.chatJid, sourceGroup: ctx.sourceGroup },
