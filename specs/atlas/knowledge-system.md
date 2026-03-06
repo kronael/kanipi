@@ -4,10 +4,10 @@ The pattern underlying diary, facts, episodes, and user context.
 Each is an instance of: markdown files in a directory, with
 summaries selected and injected into agent context.
 
-**Status**: Pattern identified, no implementation yet. Diary has
-agent-side skills (write/read) but no gateway-side injection.
-This spec is forward-looking design, not generalization of
-working code.
+**Status**: Pattern identified, partial implementation. Diary has
+agent-side skills (write/read) and gateway-side injection (shipped
+v0.7.0). Other push layers (user context, episodes) not yet built.
+Pull layers (facts search) not yet built.
 
 ## The pattern
 
@@ -22,9 +22,9 @@ Given a directory of markdown files:
 
 **Push layers** — small corpus, gateway injects automatically:
 
-- **Diary** (`diary/*.md`) — date-keyed, 2 most recent, inject on
-  session start. Agent writes via `/diary` skill. NOT YET INJECTED
-  BY GATEWAY — agent reads files manually today.
+- **Diary** (`diary/*.md`) — date-keyed, 2 most recent, injected on
+  session start via `formatDiaryXml()` in `index.ts` (shipped v0.7.0).
+  Agent writes via `/diary` skill.
 - **User context** (`users/*.md`) — sender-keyed, match by message
   sender, inject on every message. Agent writes on first encounter.
 - **Episodes** (`episodes/*.md`) — event-keyed, all or recent,
@@ -118,8 +118,8 @@ See `specs/atlas/researcher.md` for the write process.
 
 These specs describe specific layers built on this pattern:
 
-- `specs/v1/memory-diary.md` — diary layer (agent skills shipped,
-  gateway injection not built)
+- `specs/v1/memory-diary.md` — diary layer (agent skills + gateway
+  injection shipped)
 - `specs/v3/memory-facts.md` — facts layer (designed, not built)
 - `specs/v3/memory-episodic.md` — episodes layer (designed, not built)
 - `specs/atlas/user-context.md` — user layer (designed, not built)

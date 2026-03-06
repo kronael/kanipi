@@ -3,12 +3,13 @@
 ## Test tiers
 
 ```
-make test                 unit, mocked, <5s
-vitest run tests/e2e      e2e (real fs + in-memory DB), ~10s
+make test                 unit + e2e (vitest run src tests/e2e), <15s
+vitest run src            unit only (mocked deps), <5s
+vitest run tests/e2e      e2e only (real fs + in-memory DB), ~10s
 make smoke                real instance, real API (SDK wiring only)
 ```
 
-### Unit (`make test`)
+### Unit (`vitest run src`)
 
 Vitest, mocked deps, no docker. Covers: message formatting,
 DB ops (in-memory SQLite), IPC auth, command dispatch,

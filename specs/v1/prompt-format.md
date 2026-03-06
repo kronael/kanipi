@@ -55,6 +55,24 @@ system messages (flushSystemMessages)
 system messages and message history so the agent sees it as
 the most recent instruction before the conversation.
 
+### pendingArgs injection order
+
+In `src/index.ts`, the prompt string is assembled as:
+
+```
+sysXml + '\n' + pendingArgs + '\n' + formatted
+```
+
+1. `sysXml` — flushed system messages (new-session, new-day)
+2. `pendingArgs` — command context text, consumed once from
+   `pendingCommandArgs` map (keyed by chatJid), deleted after read
+3. `formatted` — `formatMessages()` output (XML `<messages>` block)
+
+`pendingArgs` is stashed by `/new` (and similar commands) before
+the message loop picks up the batch. It appears after system
+messages but before conversation history, giving the agent a
+one-shot instruction without polluting the message log.
+
 ## Message history format -- shipped
 
 `formatMessages()` in `src/router.ts`:
@@ -68,7 +86,8 @@ the most recent instruction before the conversation.
 ```
 
 Attributes: `sender` (name or raw ID), `time` (ISO 8601).
-Content XML-escaped. `reply_to` not yet included.
+Content XML-escaped. `forwarded_from` and `reply_to` metadata
+included when present (see `formatMessages()` in `router.ts`).
 
 ## Scheduled task header -- shipped
 
@@ -133,10 +152,12 @@ by SDK project-memory.
 
 ## Open
 
-### reply_to threading
+### reply_to threading -- shipped
 
-Described in `channels.md`, not yet emitted by
-`formatMessages()`.
+`formatMessages()` emits `<forwarded_from>` and `<reply_to>`
+XML elements when metadata is present. Channels (telegram,
+whatsapp) extract forward origin and reply context and store
+them on the message row.
 
 ### XML throughout -- closed, won't do
 

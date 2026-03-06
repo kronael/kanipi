@@ -127,6 +127,6 @@ Less relevant now (kanipi agents run Claude Code natively).
 - [ ] Deep research via subagent spawning (replaces evangelist RESEARCH_NEEDED)
 - [ ] Git clone MCP sidecar (refresh codebase repos)
 - [ ] Vector search over facts (currently text-match only)
-- [ ] Multiple groups (e.g. separate Discord channel)
+- [x] Multiple groups — shipped (kanipi group add/rm/list)
 - [ ] Scheduled codebase refresh task
 - [ ] Port factsService similarity search as a skill or MCP sidecar
