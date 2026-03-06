@@ -1,7 +1,7 @@
 {
   "name": "kanipi",
   "version": "0.4.0",
-  "description": "NanoClaw with telegram. Multitenant Claude agents.",
+  "description": "Multitenant Claude agent gateway with multi-channel support.",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
