@@ -75,7 +75,8 @@ interface SidecarSpec {
   // docker resource limits
   memoryMb?: number; // --memory
   cpus?: number; // --cpus
-  network?: 'bridge' | 'none'; // default: none
+  network?: 'bridge' | 'none'; // default: none (→ see isolation modes)
+  mode?: 'privileged' | 'offline' | 'web'; // default: offline
   // which MCP tools to expose to the agent (allowlist)
   allowedTools?: string[]; // ["search", "fetch"] or ["*"]
 }
@@ -340,6 +341,31 @@ New sidecars follow this spec.
 | `config.ts`           | `SIDECAR_*_IMAGE` env vars                               |
 | `types.ts`            | `SidecarSpec`, `SidecarHandle` types                     |
 | `db.ts`               | No schema change — `container_config` JSON column exists |
+
+## Isolation modes
+
+Same three modes as agent-driven sidecars (`mcp-sidecar.md`):
+
+| Mode           | Files | Network | IPC | Example                    |
+| -------------- | ----- | ------- | --- | -------------------------- |
+| **privileged** | yes   | yes     | yes | full-access trusted tool   |
+| **offline**    | yes   | no      | no  | code exec, file processing |
+| **web**        | no    | yes     | no  | search, API fetching       |
+
+Gateway-configured sidecars set mode in `SidecarSpec`:
+
+```typescript
+interface SidecarSpec {
+  // ... existing fields ...
+  mode?: 'privileged' | 'offline' | 'web'; // default: offline
+}
+```
+
+Gateway translates mode to docker flags (network, mounts).
+See `mcp-sidecar.md` for flag mapping.
+
+> **Status**: to spec and resolve. Needs validation against
+> real sidecar use cases before implementation.
 
 ## Future: Firecracker / gVisor
 
