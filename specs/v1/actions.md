@@ -23,7 +23,7 @@ interface Action {
   name: string;
   description: string;
   input: ZodSchema;
-  handler(input: any, ctx: ActionContext): Promise<any>;
+  handler(input: unknown, ctx: ActionContext): Promise<unknown>;
   command?: string; // registers as /command
   mcp?: boolean; // auto-exposed as MCP tool (default: true)
 }
@@ -31,8 +31,24 @@ interface Action {
 interface ActionContext {
   sourceGroup: string;
   isRoot: boolean;
-  sendMessage: (jid: string, text: string) => Promise<void>;
-  sendDocument: (jid: string, path: string, filename?: string) => Promise<void>;
+  sendMessage(jid: string, text: string): Promise<void>;
+  sendDocument(jid: string, path: string, name?: string): Promise<void>;
+  registeredGroups(): Record<string, RegisteredGroup>;
+  registerGroup(jid: string, group: RegisteredGroup): void;
+  syncGroupMetadata(force: boolean): Promise<void>;
+  getAvailableGroups(): AvailableGroup[];
+  writeGroupsSnapshot(
+    folder: string,
+    groups: AvailableGroup[],
+    jids: Set<string>,
+  ): void;
+  clearSession(folder: string): void;
+  delegateToChild(
+    childFolder: string,
+    prompt: string,
+    originJid: string,
+    depth: number,
+  ): Promise<void>;
 }
 ```
 
@@ -156,11 +172,11 @@ on next drain.
 
 ### Session
 
-| Action          | Cmd       | MCP | Input             |
-| --------------- | --------- | --- | ----------------- |
-| `reset_session` | `/new`    | yes | `{ groupFolder }` |
-| `ping`          | `/ping`   | --  | --                |
-| `chatid`        | `/chatid` | --  | --                |
+| Action          | Cmd       | MCP | Input |
+| --------------- | --------- | --- | ----- |
+| `reset_session` | `/new`    | yes | --    |
+| `ping`          | `/ping`   | --  | --    |
+| `chatid`        | `/chatid` | --  | --    |
 
 ### Tasks
 
