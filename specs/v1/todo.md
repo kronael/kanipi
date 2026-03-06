@@ -17,10 +17,6 @@
 
 ## Specs still open
 
-- **agents & topics routing** — route telegram forum topics and
-  discord threads to correct agent containers. Topic/thread ID
-  as JID segment, glob patterns match topic families.
-  Builds on worlds router.
 - **cli.md** — partial
 - **integration tests** — testcontainers harness, mock agent image,
   slink scenarios. Specced in testing.md.
@@ -55,3 +51,8 @@
 
 - `get_history` → `specs/v2/message-mcp.md`
 - Agent-side media processing via MCP → `specs/v2/workflows.md`
+- IPC → MCP proxy → `specs/v2/ipc-mcp-proxy.md`
+- Systems decomposition → `specs/v2/systems.md`
+  - #topics — route by topic/thread to agents
+  - @agents — multi-agent personas/configs
+  - Workflows — multi-step processing pipelines
