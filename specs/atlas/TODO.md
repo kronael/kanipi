@@ -8,9 +8,11 @@ generalized memory.
 
 ### 1a. Fact format — done
 
-60+ marinade facts already have YAML frontmatter from eliza-atlas
-migration: path, category, topic, confidence, verified_at, header,
-findings_count.
+60+ marinade facts have YAML frontmatter from eliza-atlas migration.
+Frontmatter: path, category, topic, verified_at, header (summary
+for search). Strip eliza artifacts: `confidence` and `findings_count`
+are meaningless outside the vector search system. If a fact isn't
+verified, delete it — don't tag it low confidence.
 
 ### 1b. Character + skills
 
@@ -52,7 +54,7 @@ Embeddings-based similarity search replaces grep.
   - `search_facts(query) → [fact, similarity, path]`
   - Header-level ranking (one embedding per file)
   - Paragraph-level retrieval from top files
-- [ ] Confidence tiers: high (>80%), medium (40-80%), low (<40%)
+- [ ] Relevance ranking by similarity score
 - [ ] Fallback to keyword search if embeddings unavailable
 
 ### 2b. Gateway injection
@@ -61,8 +63,7 @@ Push relevant facts into agent context automatically.
 
 - [ ] Top-N facts injected per message (like diary injection)
 - [ ] XML format: `<knowledge layer="facts" count="N">`
-- [ ] Confidence attribute per fact
-- [ ] Cap: 3 high, 5 medium, 5 low (per eliza pattern)
+- [ ] Cap: top-N most relevant facts
 
 ### 2c. User context injection
 
