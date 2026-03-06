@@ -494,9 +494,10 @@ function injectSidecarsIntoSettings(
     }
   }
 
-  if (settings.allowedTools && Array.isArray(settings.allowedTools)) {
-    settings.allowedTools = [...settings.allowedTools, ...allowedTools];
+  if (!Array.isArray(settings.allowedTools)) {
+    settings.allowedTools = [];
   }
+  settings.allowedTools = [...settings.allowedTools, ...allowedTools];
 
   fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
 }

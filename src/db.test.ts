@@ -7,10 +7,12 @@ import {
   enqueueSystemMessage,
   flushSystemMessages,
   getAllChats,
+  getAllRegisteredGroups,
   getDueTasks,
   getMessagesSince,
   getNewMessages,
   getRecentSessions,
+  getRegisteredGroup,
   getTaskById,
   pruneExpiredSessions,
   recordSessionStart,
@@ -486,6 +488,93 @@ describe('setRegisteredGroup', () => {
         requiresTrigger: false,
       }),
     ).toThrow();
+  });
+
+  it('stores and retrieves containerConfig', () => {
+    setRegisteredGroup('tg:cc', {
+      name: 'cfg',
+      folder: 'cfg',
+      trigger: '',
+      added_at: '2024-01-01T00:00:00.000Z',
+      containerConfig: { timeout: 60000 },
+    });
+    const g = getRegisteredGroup('tg:cc');
+    expect(g?.containerConfig?.timeout).toBe(60000);
+  });
+
+  it('stores and retrieves routingRules', () => {
+    setRegisteredGroup('tg:rr', {
+      name: 'rr',
+      folder: 'rr',
+      trigger: '',
+      added_at: '2024-01-01T00:00:00.000Z',
+      routingRules: [{ type: 'command', trigger: '/code', target: 'code' }],
+    });
+    const g = getRegisteredGroup('tg:rr');
+    expect(g?.routingRules).toHaveLength(1);
+    expect(g?.routingRules?.[0]).toMatchObject({
+      type: 'command',
+      trigger: '/code',
+      target: 'code',
+    });
+  });
+
+  it('throws on invalid containerConfig schema', () => {
+    expect(() =>
+      setRegisteredGroup('tg:bad-cc', {
+        name: 'bad',
+        folder: 'bad',
+        trigger: '',
+        added_at: '2024-01-01T00:00:00.000Z',
+        // @ts-expect-error intentional bad data
+        containerConfig: { timeout: 'not-a-number' },
+      }),
+    ).toThrow();
+  });
+
+  it('throws on invalid routingRules schema', () => {
+    expect(() =>
+      setRegisteredGroup('tg:bad-rr', {
+        name: 'bad',
+        folder: 'bad2',
+        trigger: '',
+        added_at: '2024-01-01T00:00:00.000Z',
+        // @ts-expect-error intentional bad data
+        routingRules: [{ type: 'unknown', target: 'x' }],
+      }),
+    ).toThrow();
+  });
+});
+
+// --- registered_groups round-trip ---
+
+describe('registered_groups round-trip', () => {
+  it('preserves all JSON fields through set/get', () => {
+    setRegisteredGroup('tg:full', {
+      name: 'full',
+      folder: 'full',
+      trigger: '/go',
+      added_at: '2024-01-01T00:00:00.000Z',
+      containerConfig: {
+        timeout: 120000,
+        additionalMounts: [{ hostPath: '/srv/data', readonly: true }],
+      },
+      routingRules: [
+        { type: 'command', trigger: '/code', target: 'code' },
+        { type: 'default', target: 'main' },
+      ],
+    });
+    const all = getAllRegisteredGroups();
+    const g = all['tg:full'];
+    expect(g?.containerConfig?.timeout).toBe(120000);
+    expect(g?.containerConfig?.additionalMounts?.[0].hostPath).toBe(
+      '/srv/data',
+    );
+    expect(g?.routingRules).toHaveLength(2);
+    expect(g?.routingRules?.[1]).toMatchObject({
+      type: 'default',
+      target: 'main',
+    });
   });
 });
 
