@@ -28,6 +28,14 @@ function normalizeRelPath(value: string): string | null {
 function resolveWithinRoot(root: string, rel: string): string | null {
   const resolved = path.resolve(root, rel);
   if (!resolved.startsWith(root + '/') && resolved !== root) return null;
+  // If path exists, resolve symlinks and re-check containment
+  try {
+    const real = fs.realpathSync(resolved);
+    const realRoot = fs.realpathSync(root);
+    if (!real.startsWith(realRoot + '/') && real !== realRoot) return null;
+  } catch {
+    // path doesn't exist yet (e.g. /put to new file) — ok
+  }
   return resolved;
 }
 
@@ -111,8 +119,12 @@ const putCommand: CommandHandler = {
     const rawPath = ctx.args;
 
     let relTarget: string;
-    const stripped = rawPath.replace(/^--force\s*/, '').trim();
-    const force = rawPath.includes('--force');
+    const argParts = rawPath.split(/\s+/);
+    const force = argParts.includes('--force');
+    const stripped = argParts
+      .filter((p) => p !== '--force')
+      .join(' ')
+      .trim();
 
     if (!stripped) {
       relTarget = `incoming/${originalName}`;
@@ -340,8 +352,13 @@ const lsCommand: CommandHandler = {
       return;
     }
 
+    const maxEntries = 100;
+    const sorted = visible.sort((a, b) => a.name.localeCompare(b.name));
+    const truncated = sorted.length > maxEntries;
+    const shown = truncated ? sorted.slice(0, maxEntries) : sorted;
+
     const lines: string[] = [];
-    for (const e of visible.sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const e of shown) {
       if (e.isDirectory()) {
         lines.push(`  ${e.name}/`);
       } else {
@@ -352,6 +369,10 @@ const lsCommand: CommandHandler = {
           lines.push(`  ${e.name}`);
         }
       }
+    }
+
+    if (truncated) {
+      lines.push(`  ... and ${sorted.length - maxEntries} more`);
     }
 
     const header = rel === '.' ? 'workspace root' : rel;
