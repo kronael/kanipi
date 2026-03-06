@@ -30,7 +30,7 @@ IPC command).
 
 ---
 
-See `specs/v1/skills.md` for how skills are seeded and updated.
+See `specs/v1/extend-skills.md` for how skills are seeded and updated.
 
 ## Plugin Types
 

@@ -18,7 +18,7 @@ Changes take effect on next session spawn.
 ### Skill seeding
 
 Gateway seeds `container/skills/` → `~/.claude/skills/` on first
-spawn. `/migrate` skill propagates updates. See `specs/v1/skills.md`.
+spawn. `/migrate` skill propagates updates. See `specs/v1/extend-skills.md`.
 
 ## Agent-registered MCP servers (v1 — to ship)
 
