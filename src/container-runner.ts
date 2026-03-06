@@ -27,6 +27,7 @@ import {
   TIMEZONE,
   WEB_DIR,
   WEB_HOST,
+  isRoot,
 } from './config.js';
 import { readEnvFile } from './env.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
@@ -55,7 +56,6 @@ export interface ContainerInput {
   sessionId?: string;
   groupFolder: string;
   chatJid: string;
-  isMain: boolean;
   isScheduledTask?: boolean;
   assistantName?: string;
   secrets?: Record<string, string>;
@@ -111,10 +111,8 @@ function hostPath(localPath: string): string {
   return localPath.replace(GATEWAY_ROOT, HOST_PROJECT_ROOT_PATH);
 }
 
-function buildVolumeMounts(
-  group: RegisteredGroup,
-  isMain: boolean,
-): VolumeMount[] {
+function buildVolumeMounts(group: RegisteredGroup): VolumeMount[] {
+  const root = isRoot(group.folder);
   const mounts: VolumeMount[] = [];
   const groupDir = resolveGroupFolderPath(group.folder);
 
@@ -141,17 +139,14 @@ function buildVolumeMounts(
     readonly: true,
   });
 
-  if (!isMain) {
-    // Non-main groups additionally get global memory directory read-only
-    const globalDir = path.join(GROUPS_DIR, 'global');
-    if (fs.existsSync(globalDir)) {
-      mounts.push({
-        hostPath: hostPath(globalDir),
-        containerPath: '/workspace/global',
-        readonly: true,
-      });
-    }
-  }
+  const world = group.folder.split('/')[0];
+  const shareDir = path.join(GROUPS_DIR, world, 'share');
+  fs.mkdirSync(shareDir, { recursive: true });
+  mounts.push({
+    hostPath: hostPath(shareDir),
+    containerPath: '/workspace/share',
+    readonly: !root,
+  });
 
   const groupSessionsDir = path.join(
     DATA_DIR,
@@ -187,7 +182,7 @@ function buildVolumeMounts(
     settings.env = settings.env ?? {};
     settings.env.WEB_HOST = WEB_HOST;
     settings.env.NANOCLAW_ASSISTANT_NAME = ASSISTANT_NAME;
-    settings.env.NANOCLAW_IS_MAIN = isMain ? '1' : '';
+    settings.env.NANOCLAW_IS_ROOT = root ? '1' : '';
     if (group.slinkToken) settings.env.SLINK_TOKEN = group.slinkToken;
     fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
   }
@@ -197,6 +192,10 @@ function buildVolumeMounts(
   const skillsDst = path.join(groupSessionsDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
     for (const skillDir of fs.readdirSync(skillsSrc)) {
+      if (!/^[a-z0-9\-]+$/.test(skillDir)) {
+        logger.warn(`skipping skill with invalid name: ${skillDir}`);
+        continue;
+      }
       const srcDir = path.join(skillsSrc, skillDir);
       if (!fs.statSync(srcDir).isDirectory()) continue;
       const dstDir = path.join(skillsDst, skillDir);
@@ -249,7 +248,7 @@ function buildVolumeMounts(
     const validatedMounts = validateAdditionalMounts(
       group.containerConfig.additionalMounts,
       group.name,
-      isMain,
+      root,
     );
     mounts.push(...validatedMounts);
   }
@@ -263,8 +262,8 @@ function buildVolumeMounts(
     });
   }
 
-  // Main group gets data/sessions/ rw so migrate skill can sync across groups
-  if (isMain) {
+  // Root group gets data/sessions/ rw so migrate skill can sync across groups
+  if (root) {
     const sessionsDir = path.join(DATA_DIR, 'sessions');
     fs.mkdirSync(sessionsDir, { recursive: true });
     mounts.push({
@@ -332,7 +331,7 @@ export async function runContainerAgent(
   fs.mkdirSync(groupDir, { recursive: true });
   chownRecursive(groupDir, 1000, 1000);
 
-  const mounts = buildVolumeMounts(group, input.isMain);
+  const mounts = buildVolumeMounts(group);
 
   const agentVersionFile = path.join(
     DATA_DIR,
@@ -376,7 +375,7 @@ export async function runContainerAgent(
       group: group.name,
       containerName,
       mountCount: mounts.length,
-      isMain: input.isMain,
+      root: isRoot(group.folder),
     },
     'Spawning container agent',
   );
@@ -607,7 +606,7 @@ export async function runContainerAgent(
         `=== Container Run Log ===`,
         `Timestamp: ${new Date().toISOString()}`,
         `Group: ${group.name}`,
-        `IsMain: ${input.isMain}`,
+        `IsRoot: ${isRoot(input.groupFolder)}`,
         `Duration: ${duration}ms`,
         `Exit Code: ${code}`,
         `Stdout Truncated: ${stdoutTruncated}`,
@@ -774,7 +773,6 @@ export async function runContainerAgent(
 
 export function writeTasksSnapshot(
   groupFolder: string,
-  isMain: boolean,
   tasks: Array<{
     id: string;
     groupFolder: string;
@@ -785,12 +783,13 @@ export function writeTasksSnapshot(
     next_run: string | null;
   }>,
 ): void {
+  const root = isRoot(groupFolder);
   // Write filtered tasks to the group's IPC directory
   const groupIpcDir = resolveGroupIpcPath(groupFolder);
   fs.mkdirSync(groupIpcDir, { recursive: true });
 
-  // Main sees all tasks, others only see their own
-  const filteredTasks = isMain
+  // Root sees all tasks, others only see their own
+  const filteredTasks = root
     ? tasks
     : tasks.filter((t) => t.groupFolder === groupFolder);
 
@@ -807,20 +806,20 @@ export interface AvailableGroup {
 
 /**
  * Write available groups snapshot for the container to read.
- * Only main group can see all available groups (for activation).
- * Non-main groups only see their own registration status.
+ * Only root group can see all available groups (for activation).
+ * Non-root groups only see their own registration status.
  */
 export function writeGroupsSnapshot(
   groupFolder: string,
-  isMain: boolean,
   groups: AvailableGroup[],
   registeredJids: Set<string>,
 ): void {
+  const root = isRoot(groupFolder);
   const groupIpcDir = resolveGroupIpcPath(groupFolder);
   fs.mkdirSync(groupIpcDir, { recursive: true });
 
-  // Main sees all groups; others see nothing (they can't activate groups)
-  const visibleGroups = isMain ? groups : [];
+  // Root sees all groups; others see nothing (they can't activate groups)
+  const visibleGroups = root ? groups : [];
 
   const groupsFile = path.join(groupIpcDir, 'available_groups.json');
   fs.writeFileSync(

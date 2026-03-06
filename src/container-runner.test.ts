@@ -20,7 +20,7 @@ vi.mock('./config.js', () => ({
   TIMEZONE: 'America/Los_Angeles',
   WEB_DIR: '/tmp/nanoclaw-test-web',
   WEB_HOST: '',
-  MAIN_GROUP_FOLDER: 'main',
+  isRoot: (f: string) => !f.includes('/'),
 }));
 
 // Mock db (container-runner now calls recordSessionStart/updateSessionEnd)
@@ -111,7 +111,6 @@ const testInput = {
   prompt: 'Hello',
   groupFolder: 'test-group',
   chatJid: 'test@g.us',
-  isMain: false,
 };
 
 function emitOutputMarker(

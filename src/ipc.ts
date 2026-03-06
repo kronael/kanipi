@@ -8,8 +8,8 @@ import {
   GROUPS_DIR,
   HOST_GROUPS_DIR,
   IPC_POLL_INTERVAL,
-  MAIN_GROUP_FOLDER,
   TIMEZONE,
+  isRoot,
 } from './config.js';
 import { AvailableGroup } from './container-runner.js';
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
@@ -31,7 +31,6 @@ export interface IpcDeps {
   getAvailableGroups: () => AvailableGroup[];
   writeGroupsSnapshot: (
     groupFolder: string,
-    isMain: boolean,
     availableGroups: AvailableGroup[],
     registeredJids: Set<string>,
   ) => void;
@@ -68,7 +67,7 @@ async function drainGroupMessagesInner(
   sourceGroup: string,
   deps: IpcDeps,
 ): Promise<void> {
-  const isMain = sourceGroup === MAIN_GROUP_FOLDER;
+  const root = isRoot(sourceGroup);
   const messagesDir = path.join(ipcBaseDir, sourceGroup, 'messages');
   const tasksDir = path.join(ipcBaseDir, sourceGroup, 'tasks');
   const registeredGroups = deps.registeredGroups();
@@ -86,7 +85,7 @@ async function drainGroupMessagesInner(
           const targetGroup = registeredGroups[data.chatJid];
           const authorized =
             data.chatJid &&
-            (isMain || (targetGroup && targetGroup.folder === sourceGroup));
+            (root || (targetGroup && targetGroup.folder === sourceGroup));
           if (data.type === 'message' && data.text) {
             if (!authorized) {
               logger.warn(
@@ -173,7 +172,7 @@ async function drainGroupMessagesInner(
         const filePath = path.join(tasksDir, file);
         try {
           const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-          await processTaskIpc(data, sourceGroup, isMain, deps);
+          await processTaskIpc(data, sourceGroup, deps);
           fs.unlinkSync(filePath);
         } catch (err) {
           logger.error({ file, sourceGroup, err }, 'Error processing IPC task');
@@ -315,9 +314,9 @@ export async function processTaskIpc(
     containerConfig?: RegisteredGroup['containerConfig'];
   },
   sourceGroup: string, // Verified identity from IPC directory
-  isMain: boolean, // Verified from directory path
   deps: IpcDeps,
 ): Promise<void> {
+  const root = isRoot(sourceGroup);
   const registeredGroups = deps.registeredGroups();
 
   switch (data.type) {
@@ -343,7 +342,7 @@ export async function processTaskIpc(
         const targetFolder = targetGroupEntry.folder;
 
         // Authorization: non-main groups can only schedule for themselves
-        if (!isMain && targetFolder !== sourceGroup) {
+        if (!root && targetFolder !== sourceGroup) {
           logger.warn(
             { sourceGroup, targetFolder },
             'Unauthorized schedule_task attempt blocked',
@@ -416,7 +415,7 @@ export async function processTaskIpc(
     case 'pause_task':
       if (data.taskId) {
         const task = getTaskById(data.taskId);
-        if (task && (isMain || task.group_folder === sourceGroup)) {
+        if (task && (root || task.group_folder === sourceGroup)) {
           updateTask(data.taskId, { status: 'paused' });
           logger.info(
             { taskId: data.taskId, sourceGroup },
@@ -434,7 +433,7 @@ export async function processTaskIpc(
     case 'resume_task':
       if (data.taskId) {
         const task = getTaskById(data.taskId);
-        if (task && (isMain || task.group_folder === sourceGroup)) {
+        if (task && (root || task.group_folder === sourceGroup)) {
           updateTask(data.taskId, { status: 'active' });
           logger.info(
             { taskId: data.taskId, sourceGroup },
@@ -452,7 +451,7 @@ export async function processTaskIpc(
     case 'cancel_task':
       if (data.taskId) {
         const task = getTaskById(data.taskId);
-        if (task && (isMain || task.group_folder === sourceGroup)) {
+        if (task && (root || task.group_folder === sourceGroup)) {
           deleteTask(data.taskId);
           logger.info(
             { taskId: data.taskId, sourceGroup },
@@ -469,7 +468,7 @@ export async function processTaskIpc(
 
     case 'refresh_groups':
       // Only main group can request a refresh
-      if (isMain) {
+      if (root) {
         logger.info(
           { sourceGroup },
           'Group metadata refresh requested via IPC',
@@ -479,7 +478,6 @@ export async function processTaskIpc(
         const availableGroups = deps.getAvailableGroups();
         deps.writeGroupsSnapshot(
           sourceGroup,
-          true,
           availableGroups,
           new Set(Object.keys(registeredGroups)),
         );
@@ -493,7 +491,7 @@ export async function processTaskIpc(
 
     case 'register_group':
       // Only main group can register new groups
-      if (!isMain) {
+      if (!root) {
         logger.warn(
           { sourceGroup },
           'Unauthorized register_group attempt blocked',

@@ -15,10 +15,15 @@ describe('group folder validation', () => {
     expect(isValidGroupFolder('Team_42')).toBe(true);
   });
 
+  it('accepts hierarchical folder names with /', () => {
+    expect(isValidGroupFolder('a/b')).toBe(true);
+    expect(isValidGroupFolder('a/b/c')).toBe(true);
+  });
+
   it('rejects traversal and reserved names', () => {
-    expect(isValidGroupFolder('../../etc')).toBe(false);
+    expect(isValidGroupFolder('a/../b')).toBe(false);
     expect(isValidGroupFolder('/tmp')).toBe(false);
-    expect(isValidGroupFolder('global')).toBe(false);
+    expect(isValidGroupFolder('share')).toBe(false);
     expect(isValidGroupFolder('')).toBe(false);
   });
 

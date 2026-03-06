@@ -8,7 +8,6 @@ import {
   EMAIL_IMAP_HOST,
   GROUPS_DIR,
   IDLE_TIMEOUT,
-  MAIN_GROUP_FOLDER,
   POLL_INTERVAL,
   SLOTH_USERS,
   TELEGRAM_BOT_TOKEN,
@@ -16,6 +15,7 @@ import {
   VITE_PORT_INTERNAL,
   WEB_DIR,
   WEB_PORT,
+  isRoot,
   whatsappEnabled,
 } from './config.js';
 import { DiscordChannel } from './channels/discord.js';
@@ -192,8 +192,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     return true;
   }
 
-  const isMainGroup = group.folder === MAIN_GROUP_FOLDER;
-
   const sinceTimestamp = lastAgentTimestamp[chatJid] || '';
   const missedMessages = getMessagesSince(
     chatJid,
@@ -203,8 +201,8 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   if (missedMessages.length === 0) return true;
 
-  // For non-main groups, check if trigger is required and present
-  if (!isMainGroup && group.requiresTrigger !== false) {
+  // For non-root groups, check if trigger is required and present
+  if (!isRoot(group.folder) && group.requiresTrigger !== false) {
     const hasTrigger = missedMessages.some((m) =>
       TRIGGER_PATTERN.test(m.content.trim()),
     );
@@ -381,14 +379,12 @@ async function runAgent(
   messageCount: number,
   onOutput?: (output: ContainerOutput) => Promise<void>,
 ): Promise<'success' | 'error'> {
-  const isMain = group.folder === MAIN_GROUP_FOLDER;
   const sessionId = sessions[group.folder];
 
   // Update tasks snapshot for container to read (filtered by group)
   const tasks = getAllTasks();
   writeTasksSnapshot(
     group.folder,
-    isMain,
     tasks.map((t) => ({
       id: t.id,
       groupFolder: t.group_folder,
@@ -400,11 +396,10 @@ async function runAgent(
     })),
   );
 
-  // Update available groups snapshot (main group only can see all groups)
+  // Update available groups snapshot (root group only can see all groups)
   const availableGroups = getAvailableGroups();
   writeGroupsSnapshot(
     group.folder,
-    isMain,
     availableGroups,
     new Set(Object.keys(registeredGroups)),
   );
@@ -417,7 +412,6 @@ async function runAgent(
         sessionId,
         groupFolder: group.folder,
         chatJid,
-        isMain,
         assistantName: ASSISTANT_NAME,
         messageCount,
       },
@@ -506,8 +500,8 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          const isMainGroup = group.folder === MAIN_GROUP_FOLDER;
-          const needsTrigger = !isMainGroup && group.requiresTrigger !== false;
+          const needsTrigger =
+            !isRoot(group.folder) && group.requiresTrigger !== false;
 
           // Intercept command messages before routing to agent
           const nonCommandMessages: NewMessage[] = [];

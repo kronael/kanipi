@@ -18,7 +18,7 @@ const TASKS_DIR = path.join(IPC_DIR, 'tasks');
 // Context from environment variables (set by the agent runner)
 const chatJid = process.env.NANOCLAW_CHAT_JID!;
 const groupFolder = process.env.NANOCLAW_GROUP_FOLDER!;
-const isMain = process.env.NANOCLAW_IS_MAIN === '1';
+const isRoot = process.env.NANOCLAW_IS_ROOT === '1';
 
 function writeIpcFile(dir: string, data: object): string {
   fs.mkdirSync(dir, { recursive: true });
@@ -150,7 +150,7 @@ SCHEDULE VALUE FORMAT (all times are LOCAL timezone):
     }
 
     // Non-main groups can only schedule for themselves
-    const targetJid = isMain && args.target_group_jid ? args.target_group_jid : chatJid;
+    const targetJid = isRoot && args.target_group_jid ? args.target_group_jid : chatJid;
 
     const data = {
       type: 'schedule_task',
@@ -185,7 +185,7 @@ server.tool(
 
       const allTasks = JSON.parse(fs.readFileSync(tasksFile, 'utf-8'));
 
-      const tasks = isMain
+      const tasks = isRoot
         ? allTasks
         : allTasks.filter((t: { groupFolder: string }) => t.groupFolder === groupFolder);
 
@@ -218,7 +218,7 @@ server.tool(
       type: 'pause_task',
       taskId: args.task_id,
       groupFolder,
-      isMain,
+      isRoot,
       timestamp: new Date().toISOString(),
     };
 
@@ -237,7 +237,7 @@ server.tool(
       type: 'resume_task',
       taskId: args.task_id,
       groupFolder,
-      isMain,
+      isRoot,
       timestamp: new Date().toISOString(),
     };
 
@@ -256,7 +256,7 @@ server.tool(
       type: 'cancel_task',
       taskId: args.task_id,
       groupFolder,
-      isMain,
+      isRoot,
       timestamp: new Date().toISOString(),
     };
 
@@ -278,7 +278,7 @@ Use available_groups.json to find the JID for a group. The folder name should be
     trigger: z.string().describe('Trigger word (e.g., "@Andy")'),
   },
   async (args) => {
-    if (!isMain) {
+    if (!isRoot) {
       return {
         content: [{ type: 'text' as const, text: 'Only the main group can register new groups.' }],
         isError: true,

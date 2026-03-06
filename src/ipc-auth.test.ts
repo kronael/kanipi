@@ -21,14 +21,14 @@ const MAIN_GROUP: RegisteredGroup = {
 
 const OTHER_GROUP: RegisteredGroup = {
   name: 'Other',
-  folder: 'other-group',
+  folder: 'discord/other-group',
   trigger: '@Andy',
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
 const THIRD_GROUP: RegisteredGroup = {
   name: 'Third',
-  folder: 'third-group',
+  folder: 'discord/third-group',
   trigger: '@Andy',
   added_at: '2024-01-01T00:00:00.000Z',
 };
@@ -69,7 +69,7 @@ beforeEach(() => {
 // --- schedule_task authorization ---
 
 describe('schedule_task authorization', () => {
-  it('main group can schedule for another group', async () => {
+  it('root group can schedule for another group', async () => {
     await processTaskIpc(
       {
         type: 'schedule_task',
@@ -79,17 +79,16 @@ describe('schedule_task authorization', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
     // Verify task was created in DB for the other group
     const allTasks = getAllTasks();
     expect(allTasks.length).toBe(1);
-    expect(allTasks[0].group_folder).toBe('other-group');
+    expect(allTasks[0].group_folder).toBe('discord/other-group');
   });
 
-  it('non-main group can schedule for itself', async () => {
+  it('non-root group can schedule for itself', async () => {
     await processTaskIpc(
       {
         type: 'schedule_task',
@@ -98,17 +97,16 @@ describe('schedule_task authorization', () => {
         schedule_value: '2025-06-01T00:00:00.000Z',
         targetJid: 'other@g.us',
       },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
 
     const allTasks = getAllTasks();
     expect(allTasks.length).toBe(1);
-    expect(allTasks[0].group_folder).toBe('other-group');
+    expect(allTasks[0].group_folder).toBe('discord/other-group');
   });
 
-  it('non-main group cannot schedule for another group', async () => {
+  it('non-root group cannot schedule for another group', async () => {
     await processTaskIpc(
       {
         type: 'schedule_task',
@@ -117,8 +115,7 @@ describe('schedule_task authorization', () => {
         schedule_value: '2025-06-01T00:00:00.000Z',
         targetJid: 'main@g.us',
       },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
 
@@ -136,7 +133,6 @@ describe('schedule_task authorization', () => {
         targetJid: 'unknown@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -163,7 +159,7 @@ describe('pause_task authorization', () => {
     });
     createTask({
       id: 'task-other',
-      group_folder: 'other-group',
+      group_folder: 'discord/other-group',
       chat_jid: 'other@g.us',
       prompt: 'other task',
       schedule_type: 'once',
@@ -175,31 +171,28 @@ describe('pause_task authorization', () => {
     });
   });
 
-  it('main group can pause any task', async () => {
+  it('root group can pause any task', async () => {
     await processTaskIpc(
       { type: 'pause_task', taskId: 'task-other' },
       'main',
-      true,
       deps,
     );
     expect(getTaskById('task-other')!.status).toBe('paused');
   });
 
-  it('non-main group can pause its own task', async () => {
+  it('non-root group can pause its own task', async () => {
     await processTaskIpc(
       { type: 'pause_task', taskId: 'task-other' },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
     expect(getTaskById('task-other')!.status).toBe('paused');
   });
 
-  it('non-main group cannot pause another groups task', async () => {
+  it('non-root group cannot pause another groups task', async () => {
     await processTaskIpc(
       { type: 'pause_task', taskId: 'task-main' },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
     expect(getTaskById('task-main')!.status).toBe('active');
@@ -212,7 +205,7 @@ describe('resume_task authorization', () => {
   beforeEach(() => {
     createTask({
       id: 'task-paused',
-      group_folder: 'other-group',
+      group_folder: 'discord/other-group',
       chat_jid: 'other@g.us',
       prompt: 'paused task',
       schedule_type: 'once',
@@ -224,31 +217,28 @@ describe('resume_task authorization', () => {
     });
   });
 
-  it('main group can resume any task', async () => {
+  it('root group can resume any task', async () => {
     await processTaskIpc(
       { type: 'resume_task', taskId: 'task-paused' },
       'main',
-      true,
       deps,
     );
     expect(getTaskById('task-paused')!.status).toBe('active');
   });
 
-  it('non-main group can resume its own task', async () => {
+  it('non-root group can resume its own task', async () => {
     await processTaskIpc(
       { type: 'resume_task', taskId: 'task-paused' },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
     expect(getTaskById('task-paused')!.status).toBe('active');
   });
 
-  it('non-main group cannot resume another groups task', async () => {
+  it('non-root group cannot resume another groups task', async () => {
     await processTaskIpc(
       { type: 'resume_task', taskId: 'task-paused' },
-      'third-group',
-      false,
+      'discord/third-group',
       deps,
     );
     expect(getTaskById('task-paused')!.status).toBe('paused');
@@ -258,10 +248,10 @@ describe('resume_task authorization', () => {
 // --- cancel_task authorization ---
 
 describe('cancel_task authorization', () => {
-  it('main group can cancel any task', async () => {
+  it('root group can cancel any task', async () => {
     createTask({
       id: 'task-to-cancel',
-      group_folder: 'other-group',
+      group_folder: 'discord/other-group',
       chat_jid: 'other@g.us',
       prompt: 'cancel me',
       schedule_type: 'once',
@@ -275,16 +265,15 @@ describe('cancel_task authorization', () => {
     await processTaskIpc(
       { type: 'cancel_task', taskId: 'task-to-cancel' },
       'main',
-      true,
       deps,
     );
     expect(getTaskById('task-to-cancel')).toBeUndefined();
   });
 
-  it('non-main group can cancel its own task', async () => {
+  it('non-root group can cancel its own task', async () => {
     createTask({
       id: 'task-own',
-      group_folder: 'other-group',
+      group_folder: 'discord/other-group',
       chat_jid: 'other@g.us',
       prompt: 'my task',
       schedule_type: 'once',
@@ -297,14 +286,13 @@ describe('cancel_task authorization', () => {
 
     await processTaskIpc(
       { type: 'cancel_task', taskId: 'task-own' },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
     expect(getTaskById('task-own')).toBeUndefined();
   });
 
-  it('non-main group cannot cancel another groups task', async () => {
+  it('non-root group cannot cancel another groups task', async () => {
     createTask({
       id: 'task-foreign',
       group_folder: 'main',
@@ -320,8 +308,7 @@ describe('cancel_task authorization', () => {
 
     await processTaskIpc(
       { type: 'cancel_task', taskId: 'task-foreign' },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
     expect(getTaskById('task-foreign')).toBeDefined();
@@ -331,7 +318,7 @@ describe('cancel_task authorization', () => {
 // --- register_group authorization ---
 
 describe('register_group authorization', () => {
-  it('non-main group cannot register a group', async () => {
+  it('non-root group cannot register a group', async () => {
     await processTaskIpc(
       {
         type: 'register_group',
@@ -340,8 +327,7 @@ describe('register_group authorization', () => {
         folder: 'new-group',
         trigger: '@Andy',
       },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
 
@@ -349,7 +335,7 @@ describe('register_group authorization', () => {
     expect(groups['new@g.us']).toBeUndefined();
   });
 
-  it('main group cannot register with unsafe folder path', async () => {
+  it('root group cannot register with unsafe folder path', async () => {
     await processTaskIpc(
       {
         type: 'register_group',
@@ -359,7 +345,6 @@ describe('register_group authorization', () => {
         trigger: '@Andy',
       },
       'main',
-      true,
       deps,
     );
 
@@ -370,12 +355,11 @@ describe('register_group authorization', () => {
 // --- refresh_groups authorization ---
 
 describe('refresh_groups authorization', () => {
-  it('non-main group cannot trigger refresh', async () => {
+  it('non-root group cannot trigger refresh', async () => {
     // This should be silently blocked (no crash, no effect)
     await processTaskIpc(
       { type: 'refresh_groups' },
-      'other-group',
-      false,
+      'discord/other-group',
       deps,
     );
     // If we got here without error, the auth gate worked
@@ -384,51 +368,55 @@ describe('refresh_groups authorization', () => {
 
 // --- IPC message authorization ---
 // Tests the authorization pattern from startIpcWatcher (ipc.ts).
-// The logic: isMain || (targetGroup && targetGroup.folder === sourceGroup)
+// The logic: isRoot(sourceGroup) || (targetGroup && targetGroup.folder === sourceGroup)
 
 describe('IPC message authorization', () => {
   // Replicate the exact check from the IPC watcher
+  function isRoot(folder: string): boolean {
+    return !folder.includes('/');
+  }
+
   function isMessageAuthorized(
     sourceGroup: string,
-    isMain: boolean,
     targetChatJid: string,
     registeredGroups: Record<string, RegisteredGroup>,
   ): boolean {
     const targetGroup = registeredGroups[targetChatJid];
-    return isMain || (!!targetGroup && targetGroup.folder === sourceGroup);
+    return (
+      isRoot(sourceGroup) ||
+      (!!targetGroup && targetGroup.folder === sourceGroup)
+    );
   }
 
-  it('main group can send to any group', () => {
-    expect(isMessageAuthorized('main', true, 'other@g.us', groups)).toBe(true);
-    expect(isMessageAuthorized('main', true, 'third@g.us', groups)).toBe(true);
+  it('root group can send to any group', () => {
+    expect(isMessageAuthorized('main', 'other@g.us', groups)).toBe(true);
+    expect(isMessageAuthorized('main', 'third@g.us', groups)).toBe(true);
   });
 
-  it('non-main group can send to its own chat', () => {
+  it('non-root group can send to its own chat', () => {
     expect(
-      isMessageAuthorized('other-group', false, 'other@g.us', groups),
+      isMessageAuthorized('discord/other-group', 'other@g.us', groups),
     ).toBe(true);
   });
 
-  it('non-main group cannot send to another groups chat', () => {
-    expect(isMessageAuthorized('other-group', false, 'main@g.us', groups)).toBe(
-      false,
-    );
+  it('non-root group cannot send to another groups chat', () => {
     expect(
-      isMessageAuthorized('other-group', false, 'third@g.us', groups),
+      isMessageAuthorized('discord/other-group', 'main@g.us', groups),
+    ).toBe(false);
+    expect(
+      isMessageAuthorized('discord/other-group', 'third@g.us', groups),
     ).toBe(false);
   });
 
-  it('non-main group cannot send to unregistered JID', () => {
+  it('non-root group cannot send to unregistered JID', () => {
     expect(
-      isMessageAuthorized('other-group', false, 'unknown@g.us', groups),
+      isMessageAuthorized('discord/other-group', 'unknown@g.us', groups),
     ).toBe(false);
   });
 
-  it('main group can send to unregistered JID', () => {
-    // Main is always authorized regardless of target
-    expect(isMessageAuthorized('main', true, 'unknown@g.us', groups)).toBe(
-      true,
-    );
+  it('root group can send to unregistered JID', () => {
+    // Root is always authorized regardless of target
+    expect(isMessageAuthorized('main', 'unknown@g.us', groups)).toBe(true);
   });
 });
 
@@ -445,7 +433,6 @@ describe('schedule_task schedule types', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -469,7 +456,6 @@ describe('schedule_task schedule types', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -488,7 +474,6 @@ describe('schedule_task schedule types', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -511,7 +496,6 @@ describe('schedule_task schedule types', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -528,7 +512,6 @@ describe('schedule_task schedule types', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -545,7 +528,6 @@ describe('schedule_task schedule types', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -567,7 +549,6 @@ describe('schedule_task context_mode', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -586,7 +567,6 @@ describe('schedule_task context_mode', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -605,7 +585,6 @@ describe('schedule_task context_mode', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -623,7 +602,6 @@ describe('schedule_task context_mode', () => {
         targetJid: 'other@g.us',
       },
       'main',
-      true,
       deps,
     );
 
@@ -635,7 +613,7 @@ describe('schedule_task context_mode', () => {
 // --- register_group success path ---
 
 describe('register_group success', () => {
-  it('main group can register a new group', async () => {
+  it('root group can register a new group', async () => {
     await processTaskIpc(
       {
         type: 'register_group',
@@ -645,7 +623,6 @@ describe('register_group success', () => {
         trigger: '@Andy',
       },
       'main',
-      true,
       deps,
     );
 
@@ -666,7 +643,6 @@ describe('register_group success', () => {
         // missing folder and trigger
       },
       'main',
-      true,
       deps,
     );
 
@@ -678,7 +654,7 @@ describe('register_group success', () => {
 
 describe('reset_session IPC', () => {
   it('calls clearSession with the sourceGroup', async () => {
-    await processTaskIpc({ type: 'reset_session' }, 'main', true, deps);
+    await processTaskIpc({ type: 'reset_session' }, 'main', deps);
 
     expect(deps.clearSession).toHaveBeenCalledWith('main');
   });

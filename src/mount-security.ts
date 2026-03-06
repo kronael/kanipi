@@ -232,7 +232,7 @@ export interface MountValidationResult {
  */
 export function validateMount(
   mount: AdditionalMount,
-  isMain: boolean,
+  root: boolean,
 ): MountValidationResult {
   const allowlist = loadMountAllowlist();
 
@@ -294,7 +294,7 @@ export function validateMount(
   let effectiveReadonly = true; // Default to readonly
 
   if (requestedReadWrite) {
-    if (!isMain && allowlist.nonMainReadOnly) {
+    if (!root && allowlist.nonMainReadOnly) {
       // Non-main groups forced to read-only
       effectiveReadonly = true;
       logger.info(
@@ -336,7 +336,7 @@ export function validateMount(
 export function validateAdditionalMounts(
   mounts: AdditionalMount[],
   groupName: string,
-  isMain: boolean,
+  root: boolean,
 ): Array<{
   hostPath: string;
   containerPath: string;
@@ -349,7 +349,7 @@ export function validateAdditionalMounts(
   }> = [];
 
   for (const mount of mounts) {
-    const result = validateMount(mount, isMain);
+    const result = validateMount(mount, root);
 
     if (result.allowed) {
       validatedMounts.push({

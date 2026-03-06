@@ -192,20 +192,20 @@ describe('formatOutbound', () => {
 
 describe('trigger gating (requiresTrigger interaction)', () => {
   // Replicates the exact logic from processGroupMessages and startMessageLoop:
-  //   if (!isMainGroup && group.requiresTrigger !== false) { check trigger }
+  //   if (!isRootGroup && group.requiresTrigger !== false) { check trigger }
   function shouldRequireTrigger(
-    isMainGroup: boolean,
+    isRootGroup: boolean,
     requiresTrigger: boolean | undefined,
   ): boolean {
-    return !isMainGroup && requiresTrigger !== false;
+    return !isRootGroup && requiresTrigger !== false;
   }
 
   function shouldProcess(
-    isMainGroup: boolean,
+    isRootGroup: boolean,
     requiresTrigger: boolean | undefined,
     messages: NewMessage[],
   ): boolean {
-    if (!shouldRequireTrigger(isMainGroup, requiresTrigger)) return true;
+    if (!shouldRequireTrigger(isRootGroup, requiresTrigger)) return true;
     return messages.some((m) => TRIGGER_PATTERN.test(m.content.trim()));
   }
 

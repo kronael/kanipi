@@ -55,7 +55,9 @@ export const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
 export const HOST_PROJECT_ROOT_PATH = HOST_PROJECT_ROOT;
 export const HOST_GROUPS_DIR = path.resolve(HOST_PROJECT_ROOT, 'groups');
 export const HOST_APP_DIR = process.env.HOST_APP_DIR || APP_DIR;
-export const MAIN_GROUP_FOLDER = 'main';
+export function isRoot(folder: string): boolean {
+  return !folder.includes('/');
+}
 
 export const CONTAINER_IMAGE =
   process.env.CONTAINER_IMAGE ||
