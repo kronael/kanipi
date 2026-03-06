@@ -61,6 +61,7 @@ import chatidCommand from './commands/chatid.js';
 import { putCommand, getCommand, lsCommand } from './commands/file.js';
 import newCommand, { pendingCommandArgs } from './commands/new.js';
 import pingCommand from './commands/ping.js';
+import stopCommand, { setStopDeps } from './commands/stop.js';
 import {
   findCommand,
   registerCommand,
@@ -792,10 +793,12 @@ function recoverPendingMessages(): void {
 function initCommands(): void {
   registerCommand(newCommand);
   registerCommand(pingCommand);
+  registerCommand(stopCommand);
   registerCommand(chatidCommand);
   registerCommand(putCommand);
   registerCommand(getCommand);
   registerCommand(lsCommand);
+  setStopDeps({ closeStdin: (jid) => queue.closeStdin(jid) });
 }
 
 async function main(): Promise<void> {

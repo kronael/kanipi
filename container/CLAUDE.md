@@ -84,8 +84,9 @@ objects leak. Minimize state, make it explicit.
 - Web apps: `https://$WEB_HOST/<app-name>/` — ALWAYS read `$WEB_HOST`
   from env, NEVER guess. If empty, say "web host not configured".
 - Gateway commands (handled before reaching you — don't reimplement):
-  `/new [message]` — fresh session, `/ping` — status check,
-  `/chatid` — show chat JID. When asked for help, mention these.
+  `/new [message]` — fresh session, `/stop` — stop agent,
+  `/ping` — status check, `/chatid` — show chat JID.
+  When asked for help, mention these.
 
 ## Delivering files to users
 
