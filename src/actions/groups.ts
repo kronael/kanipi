@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 import { Action } from '../action-registry.js';
 import { writeCommandsXml } from '../commands/index.js';
-import { isRoot } from '../config.js';
 import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
 
@@ -137,11 +136,13 @@ export const delegateGroup: Action = {
       );
     }
 
-    // Only root or a direct parent may delegate to a child.
-    // isRoot() already checks the sourceGroup folder string.
-    const sourceIsParent =
-      isRoot(ctx.sourceGroup) || input.group.startsWith(ctx.sourceGroup + '/');
-    if (!sourceIsParent) {
+    // Direct parent → child only: target must be exactly one
+    // segment deeper than source (same world, no level-skipping).
+    const suffix = input.group.startsWith(ctx.sourceGroup + '/')
+      ? input.group.slice(ctx.sourceGroup.length + 1)
+      : null;
+    const isDirectChild = suffix !== null && !suffix.includes('/');
+    if (!isDirectChild) {
       throw new Error(
         `unauthorized: ${ctx.sourceGroup} cannot delegate to ${input.group}`,
       );

@@ -104,9 +104,13 @@ JID via `sendMessage`. Delegation is fire-and-queue: the
 parent's current container does not wait for the child to
 finish. The child runs in its own GroupQueue slot.
 
-Authorization: same rules as `send_message` — only root
-or parent groups can delegate to their own children. A
-child cannot delegate to siblings or ancestors.
+Authorization: direct parent → child only. Source group
+must be the immediate parent of the target (exactly one
+segment deeper, same world prefix). Root groups may
+delegate to their own direct children only — not to
+grandchildren or cross-world groups. A child cannot
+delegate to siblings, ancestors, or groups in other
+worlds.
 
 ---
 
@@ -318,5 +322,5 @@ defined here can also drive `agent-routing.md` delegation.
   validate patterns on insert, reject malformed.
 - Broadcast mode: send to multiple children (no winner).
   Out of scope for v1.
-- Phase 4 (worlds.md): tree-scoped IPC auth. `main/code`
-  can target `main/code/py` but not `team/alice`. Deferred.
+- Phase 4 (worlds.md): tree-scoped IPC auth — shipped.
+  Direct parent→child enforced; cross-world blocked.
