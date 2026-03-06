@@ -11,12 +11,20 @@ use the `/hello` skill to introduce yourself.
 
 # Session Continuity
 
-At the start of every NEW session, read the 2 most recent `diary/*.md`
-files (by filename date) to recover what happened in past sessions.
-If the user's message references prior work and you lack context,
-read more diary entries or search logs/ for relevant conversation
-fragments. NEVER say "I don't have context from the previous session"
-without first checking diary/ and logs/.
+On every NEW session, recover context from past sessions:
+
+1. Read the 2 most recent `diary/*.md` files (by filename date)
+2. If diary is empty or insufficient, find past session transcripts:
+   ```bash
+   ls -t ~/.claude/projects/*/sessions/*.jsonl | head -3
+   ```
+   Read the most recent transcript (tail the last 100 lines to see
+   what was discussed). The gateway also injects `<system event="new-session">`
+   with the previous session ID — use it to find the right file.
+
+NEVER say "I don't have context" or "I don't know what we discussed"
+without FIRST searching diary/, logs/, AND session transcripts.
+Always look before claiming you can't find prior context.
 
 # Knowledge
 
