@@ -90,20 +90,25 @@ if (messageCount >= 100 && !input.stop_hook_active) {
 
 ## Gateway: session-start injection
 
-On session reset, gateway reads the most recent diary file's
-YAML frontmatter and injects a system message:
+On session reset, gateway reads the two most recent diary
+files' YAML frontmatter and injects system messages with
+relative time ("today", "yesterday", "3 days ago"):
 
 ```
-[diary] <summary text> — see /workspace/group/diary/
+[diary, today] <summary text>
+[diary, 3 days ago] <summary text>
 ```
 
 Construction (no API call):
 
-1. List `groups/<folder>/diary/*.md`, sort descending
-2. Read `summary:` from frontmatter of most recent file
-3. Inject as system message before conversation XML
+1. List `groups/<folder>/diary/*.md`, sort descending, take 2
+2. Read `summary:` from frontmatter of each file
+3. Compute age from filename date vs now (e.g. "today",
+   "yesterday", "3 days ago")
+4. Inject as system messages before conversation XML
 
 No diary = no injection (cold start with MEMORY.md only).
+Single file = one message. Two files = two messages.
 
 ## Gateway: mount
 
