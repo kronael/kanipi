@@ -467,41 +467,53 @@ async function startSidecars(
   return results.filter((h): h is SidecarHandle => h !== null);
 }
 
-function injectSidecarsIntoSettings(
+export function reconcileSidecarSettings(
   settingsFile: string,
   handles: SidecarHandle[],
 ): void {
-  if (handles.length === 0) return;
-
   const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
-  settings.mcpServers = settings.mcpServers ?? {};
 
-  const allowedTools: string[] = [];
-  for (const h of handles) {
-    settings.mcpServers[h.specName] = {
-      command: 'socat',
-      args: [
-        `UNIX-CONNECT:/workspace/ipc/sidecars/${h.specName}.sock`,
-        'STDIO',
-      ],
-    };
-    if (!h.allowedTools || h.allowedTools.includes('*')) {
-      allowedTools.push(`mcp__${h.specName}__*`);
-    } else {
-      for (const t of h.allowedTools) {
-        allowedTools.push(`mcp__${h.specName}__${t}`);
-      }
+  // Purge entries for previously managed sidecars (covers remove/disable).
+  const prev: string[] = settings._managedSidecars ?? [];
+  if (prev.length > 0) {
+    settings.mcpServers = settings.mcpServers ?? {};
+    for (const name of prev) {
+      delete settings.mcpServers[name];
+    }
+    if (Array.isArray(settings.allowedTools)) {
+      settings.allowedTools = settings.allowedTools.filter(
+        (t: string) => !prev.some((name) => t.startsWith(`mcp__${name}__`)),
+      );
     }
   }
 
-  if (!Array.isArray(settings.allowedTools)) {
-    settings.allowedTools = [];
+  // Inject active handles.
+  if (handles.length > 0) {
+    settings.mcpServers = settings.mcpServers ?? {};
+    if (!Array.isArray(settings.allowedTools)) {
+      settings.allowedTools = [];
+    }
+    for (const h of handles) {
+      settings.mcpServers[h.specName] = {
+        command: 'socat',
+        args: [
+          `UNIX-CONNECT:/workspace/ipc/sidecars/${h.specName}.sock`,
+          'STDIO',
+        ],
+      };
+      if (!h.allowedTools || h.allowedTools.includes('*')) {
+        settings.allowedTools.push(`mcp__${h.specName}__*`);
+      } else {
+        for (const t of h.allowedTools) {
+          settings.allowedTools.push(`mcp__${h.specName}__${t}`);
+        }
+      }
+    }
+    settings.allowedTools = [...new Set(settings.allowedTools)];
   }
-  const sidecarPrefixes = handles.map((h) => `mcp__${h.specName}__`);
-  const existing = settings.allowedTools.filter(
-    (t: string) => !sidecarPrefixes.some((p) => t.startsWith(p)),
-  );
-  settings.allowedTools = [...new Set([...existing, ...allowedTools])];
+
+  // Track managed names so next reconcile can purge removed sidecars.
+  settings._managedSidecars = handles.map((h) => h.specName);
 
   fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
 }
@@ -545,7 +557,7 @@ export async function runContainerAgent(
     '.claude',
     'settings.json',
   );
-  injectSidecarsIntoSettings(settingsFile, sidecarHandles);
+  reconcileSidecarSettings(settingsFile, sidecarHandles);
 
   const agentVersionFile = path.join(
     DATA_DIR,

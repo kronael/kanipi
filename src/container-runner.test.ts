@@ -122,8 +122,12 @@ vi.mock('net', async () => {
   };
 });
 
-import { runContainerAgent, ContainerOutput } from './container-runner.js';
-import type { RegisteredGroup } from './types.js';
+import {
+  runContainerAgent,
+  reconcileSidecarSettings,
+  ContainerOutput,
+} from './container-runner.js';
+import type { RegisteredGroup, SidecarHandle } from './types.js';
 
 const testGroup: RegisteredGroup = {
   name: 'Test Group',
@@ -460,5 +464,144 @@ describe('sidecar cleanup behavior', () => {
     expect(
       stopCalls.some((c) => c.includes('stop') && c.includes('sidecar')),
     ).toBe(true);
+  });
+});
+
+// --- reconcileSidecarSettings unit tests ---
+
+const SETTINGS_PATH = '/fake/settings.json';
+
+function makeHandle(specName: string, allowedTools?: string[]): SidecarHandle {
+  return {
+    containerName: `nanoclaw-sidecar-${specName}-grp`,
+    specName,
+    sockPath: `/run/socks/${specName}.sock`,
+    allowedTools,
+  };
+}
+
+describe('reconcileSidecarSettings', () => {
+  let store: Record<string, string>;
+
+  beforeEach(async () => {
+    store = {};
+    const fs = await import('fs');
+    vi.mocked(fs.default.readFileSync).mockImplementation((p: unknown) => {
+      const key = String(p);
+      return store[key] ?? '{}';
+    });
+    vi.mocked(fs.default.writeFileSync).mockImplementation(
+      (p: unknown, data: unknown) => {
+        store[String(p)] = String(data);
+      },
+    );
+  });
+
+  function read(): Record<string, unknown> {
+    return JSON.parse(store[SETTINGS_PATH] ?? '{}');
+  }
+
+  it('add: injects mcpServers and allowedTools for active handles', () => {
+    reconcileSidecarSettings(SETTINGS_PATH, [makeHandle('websearch')]);
+
+    const s = read();
+    expect(s.mcpServers).toHaveProperty('websearch');
+    expect(s.allowedTools).toContain('mcp__websearch__*');
+    expect(s._managedSidecars).toEqual(['websearch']);
+  });
+
+  it('add with restricted tools: injects per-tool allowedTools entries', () => {
+    reconcileSidecarSettings(SETTINGS_PATH, [
+      makeHandle('code', ['run', 'lint']),
+    ]);
+
+    const s = read();
+    expect(s.allowedTools).toContain('mcp__code__run');
+    expect(s.allowedTools).toContain('mcp__code__lint');
+    expect(s.allowedTools).not.toContain('mcp__code__*');
+  });
+
+  it('update: replaces mcpServers entry and refreshes allowedTools', () => {
+    // First run: websearch with wildcard tools
+    reconcileSidecarSettings(SETTINGS_PATH, [makeHandle('websearch')]);
+
+    // Second run: websearch with restricted tools
+    reconcileSidecarSettings(SETTINGS_PATH, [
+      makeHandle('websearch', ['search']),
+    ]);
+
+    const s = read();
+    expect(s.allowedTools).toContain('mcp__websearch__search');
+    expect(s.allowedTools).not.toContain('mcp__websearch__*');
+    // No duplicates
+    const entries = (s.allowedTools as string[]).filter((t) =>
+      t.startsWith('mcp__websearch__'),
+    );
+    expect(entries.length).toBe(1);
+  });
+
+  it('remove: purges mcpServers and allowedTools when sidecar is removed', () => {
+    // First run: sidecar present
+    reconcileSidecarSettings(SETTINGS_PATH, [makeHandle('websearch')]);
+    expect(read().mcpServers).toHaveProperty('websearch');
+
+    // Second run: sidecar removed (empty handles)
+    reconcileSidecarSettings(SETTINGS_PATH, []);
+
+    const s = read();
+    expect(s.mcpServers).not.toHaveProperty('websearch');
+    const tools = (s.allowedTools ?? []) as string[];
+    expect(tools.filter((t) => t.startsWith('mcp__websearch__'))).toHaveLength(
+      0,
+    );
+    expect(s._managedSidecars).toEqual([]);
+  });
+
+  it('idempotent: running twice with same config produces identical settings', () => {
+    const h = makeHandle('websearch');
+    reconcileSidecarSettings(SETTINGS_PATH, [h]);
+    const first = store[SETTINGS_PATH];
+
+    reconcileSidecarSettings(SETTINGS_PATH, [h]);
+    const second = store[SETTINGS_PATH];
+
+    expect(second).toBe(first);
+  });
+
+  it('preserves non-sidecar mcpServers and allowedTools entries', () => {
+    store[SETTINGS_PATH] = JSON.stringify({
+      mcpServers: { myTool: { command: 'mytool', args: [] } },
+      allowedTools: ['Bash', 'Read'],
+    });
+
+    reconcileSidecarSettings(SETTINGS_PATH, [makeHandle('websearch')]);
+
+    const s = read();
+    expect(s.mcpServers).toHaveProperty('myTool');
+    expect(s.allowedTools).toContain('Bash');
+    expect(s.allowedTools).toContain('Read');
+    expect(s.allowedTools).toContain('mcp__websearch__*');
+  });
+
+  it('remove: does not affect non-sidecar entries', () => {
+    store[SETTINGS_PATH] = JSON.stringify({
+      mcpServers: {
+        myTool: { command: 'mytool', args: [] },
+        websearch: { command: 'socat', args: [] },
+      },
+      allowedTools: ['Bash', 'mcp__websearch__*'],
+      _managedSidecars: ['websearch'],
+    });
+
+    reconcileSidecarSettings(SETTINGS_PATH, []);
+
+    const s = read();
+    expect(s.mcpServers).toHaveProperty('myTool');
+    expect(s.mcpServers).not.toHaveProperty('websearch');
+    expect(s.allowedTools).toContain('Bash');
+    const tools = (s.allowedTools as string[]).filter((t) =>
+      t.startsWith('mcp__websearch__'),
+    );
+    expect(tools).toHaveLength(0);
   });
 });
