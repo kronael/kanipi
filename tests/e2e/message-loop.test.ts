@@ -480,3 +480,130 @@ describe('processGroupMessages — agent error handling', () => {
     expect(_getLastAgentTimestamp(TEST_JID)).not.toBe('');
   });
 });
+
+// ── Routing delegate dispatch ─────────────────────────────────────────────────
+
+const ROUTED_JID = 'parent@g.us';
+const CHILD_FOLDER = 'main/code';
+const CHILD_JID = 'child@g.us';
+const ROUTED_MSG_TS = '2024-02-01T00:01:00.000Z';
+
+function setupRoutedGroup(registerChild: boolean): Channel & {
+  sendMessage: ReturnType<typeof vi.fn>;
+} {
+  storeChatMetadata(
+    ROUTED_JID,
+    '2024-02-01T00:00:00.000Z',
+    'Parent',
+    'test',
+    true,
+  );
+  storeMessage({
+    id: 'route-msg-1',
+    chat_jid: ROUTED_JID,
+    sender: 'user@s.us',
+    sender_name: 'Alice',
+    content: '/code fix the bug',
+    timestamp: ROUTED_MSG_TS,
+  });
+
+  const groups: Record<string, RegisteredGroup> = {
+    [ROUTED_JID]: {
+      name: 'Main',
+      folder: 'main',
+      trigger: '@Andy',
+      added_at: '2024-02-01T00:00:00.000Z',
+      requiresTrigger: false,
+      routingRules: [
+        { type: 'command', trigger: '/code', target: CHILD_FOLDER },
+      ],
+    },
+  };
+
+  if (registerChild) {
+    groups[CHILD_JID] = {
+      name: 'Code',
+      folder: CHILD_FOLDER,
+      trigger: '@Andy',
+      added_at: '2024-02-01T00:00:00.000Z',
+    };
+  }
+
+  _setRegisteredGroups(groups);
+
+  const ch = makeChannel(ROUTED_JID);
+  _pushChannel(ch);
+  return ch;
+}
+
+describe('processGroupMessages — routing delegate', () => {
+  it('advances cursor and returns true when routing rule matches', async () => {
+    setupRoutedGroup(true);
+
+    const result = await _processGroupMessages(ROUTED_JID);
+
+    expect(result).toBe(true);
+    expect(_getLastAgentTimestamp(ROUTED_JID)).toBe(ROUTED_MSG_TS);
+  });
+
+  it('calls runContainerAgent for child group (not parent)', async () => {
+    setupRoutedGroup(true);
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+      newSessionId: 'sess-child-1',
+    });
+
+    await _processGroupMessages(ROUTED_JID);
+
+    // runContainerAgent is called synchronously inside delegateToChild's task
+    // (enqueueTask → runTask → task.fn() runs sync up to first await)
+    expect(mockRunContainerAgent).toHaveBeenCalled();
+    const [calledGroup] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ...unknown[],
+    ];
+    expect(calledGroup.folder).toBe(CHILD_FOLDER);
+  });
+
+  it('does NOT call runContainerAgent for parent group when routing matches', async () => {
+    setupRoutedGroup(true);
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+    });
+
+    await _processGroupMessages(ROUTED_JID);
+
+    for (const call of mockRunContainerAgent.mock.calls) {
+      const [g] = call as [RegisteredGroup, ...unknown[]];
+      expect(g.folder).not.toBe('main');
+    }
+  });
+});
+
+// ── Routed-failure rollback ────────────────────────────────────────────────────
+
+describe('processGroupMessages — routed-failure cursor rollback', () => {
+  it('rolls back cursor when delegate fails because child is not registered', async () => {
+    setupRoutedGroup(false /* no child group */);
+
+    await _processGroupMessages(ROUTED_JID);
+
+    // The cursor was advanced synchronously before delegateToChild was called.
+    // delegateToChild rejects immediately (child not found) → .catch rolls it back.
+    // Flush the pending .catch() microtask:
+    await Promise.resolve();
+
+    expect(_getLastAgentTimestamp(ROUTED_JID)).toBe('');
+  });
+
+  it('does not call runContainerAgent when child is not registered', async () => {
+    setupRoutedGroup(false);
+
+    await _processGroupMessages(ROUTED_JID);
+    await Promise.resolve();
+
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+  });
+});
