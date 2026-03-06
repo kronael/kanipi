@@ -143,4 +143,4 @@ Gateway-side code — always requires developer changes:
 - **Volume mounts** — container filesystem layout
 - **Inbound pipeline** — message processing steps
 
-See `specs/v1/extend.md` for the gateway registry reference.
+See `specs/v1/extend-gateway.md` for the gateway registry reference.

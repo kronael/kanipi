@@ -28,7 +28,7 @@
 ## Reference specs (no code changes)
 
 - **router** — router.md. Current flow, mounts, prompt assembly.
-- **extend** — extend.md. Gateway registry reference for developers.
+- **extend-gateway** — extend-gateway.md. Gateway registry reference.
 - **extend-agent** — extend-agent.md. Agent self-extension via SDK.
 - **channels** — channels.md. Full interface spec, coverage matrix.
 - **mime** — mime.md. Pipeline spec, mostly shipped.
