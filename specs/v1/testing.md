@@ -1,294 +1,234 @@
-# Testing Spec — shipped (testability gaps deferred)
+# Testing
 
-Files to create or extend. Use vitest patterns from existing tests.
+## Test tiers
 
----
-
-## 1. src/web-proxy.test.ts (new file)
-
-Test `startWebProxy` via a real `http.createServer`. Start the server on a
-random port in `beforeAll`, close in `afterAll`. Mock `getGroupBySlink`,
-`handleSlinkPost`, `addSseListener`, `removeSseListener`, and the `onMessage`
-callback. Use `node:http` or `fetch` to make requests.
-
-Mock setup:
-
-```ts
-vi.mock('./db.js', () => ({ getGroupBySlink: vi.fn() }));
-vi.mock('./slink.js', () => ({ handleSlinkPost: vi.fn() }));
-vi.mock('./channels/web.js', () => ({
-  addSseListener: vi.fn(),
-  removeSseListener: vi.fn(),
-}));
-vi.mock('./logger.js', () => ({
-  logger: { info: vi.fn(), warn: vi.fn() },
-}));
+```
+make test         unit tests, mocked, <5s
+make integration  full gateway + mock agent in docker, ~30s
+make smoke        real instance, real API calls (SDK wiring only)
 ```
 
-Start server helper:
+### Unit (`make test`)
 
-```ts
-function startServer(opts?: Partial<Parameters<typeof startWebProxy>[0]>) {
-  // pick ephemeral port by passing port 0, capture actual port from
-  // server.address() inside startWebProxy — or wrap startWebProxy to return
-  // the server. Either refactor startWebProxy to return the server instance,
-  // or use net.createServer trick to find a free port first.
-  // Simplest: refactor startWebProxy to return http.Server (one-line change).
+Vitest, mocked deps, no docker, no network. Covers:
+
+- Message formatting, XML generation
+- DB operations (in-memory SQLite)
+- IPC auth, command dispatch
+- Router glob matching
+- Config parsing, folder validation
+
+### Integration (`make integration`)
+
+Full gateway in docker with mock agent. Tests the complete
+pipeline without real platform APIs.
+
+**Setup**: `docker compose -f docker-compose.test.yml up`
+
+```yaml
+# docker-compose.test.yml
+services:
+  gateway:
+    image: kanipi:latest
+    environment:
+      CONTAINER_IMAGE: kanipi-mock-agent:latest
+      SLINK_ENABLED: '1'
+      # no TELEGRAM_BOT_TOKEN, DISCORD_BOT_TOKEN etc.
+    volumes:
+      - ./tmp/test-data:/srv/data/kanipi_test
+    ports:
+      - '0:3000' # slink HTTP
+
+
+  # gateway spawns mock-agent containers via docker socket
+```
+
+**Mock agent image**: minimal container that reads stdin JSON,
+pattern-matches prompt, returns canned output.
+
+```bash
+#!/bin/sh
+# container/mock-agent/entrypoint.sh
+read input
+prompt=$(echo "$input" | jq -r .prompt)
+cat <<EOF
+---NANOCLAW_OUTPUT_START---
+EOF
+case "$prompt" in
+  *reply-test*)
+    echo '{"result":"reply to this","replyTo":"msg-123"}';;
+  *error-test*)
+    echo 'error';;
+  *ipc-test*)
+    # write IPC message, then respond
+    echo '{"type":"message","chatJid":"web/test","text":"from agent"}' \
+      > /workspace/ipc/messages/out.json
+    echo '{"result":"sent ipc"}';;
+  *)
+    echo '{"result":"ok"}';;
+esac
+cat <<EOF
+---NANOCLAW_OUTPUT_END---
+EOF
+```
+
+Build: `make mock-agent-image`
+
+**Test runner**: vitest (or standalone script) that:
+
+1. Starts gateway via docker compose
+2. Waits for slink HTTP to be ready
+3. Runs scenarios via HTTP + DB queries
+4. Tears down
+
+```typescript
+// tests/integration/setup.ts
+import { execSync } from 'child_process';
+
+export async function setup() {
+  execSync('docker compose -f docker-compose.test.yml up -d');
+  await waitForHttp('http://localhost:3000/health');
+}
+
+export async function teardown() {
+  execSync('docker compose -f docker-compose.test.yml down -v');
 }
 ```
 
-### Tests
+**Scenarios**:
 
-**GET /pub/sloth.js**
+#### Message round-trip
 
-- Input: `GET /pub/sloth.js`
-- Expected: status 200, `Content-Type: text/javascript`, body contains `pub/s/`
-- Mock: none
+1. POST message via slink
+2. Wait for agent response
+3. Verify response delivered back via slink SSE
+4. Query DB: message stored, cursor advanced
 
-**POST /pub/s/:token — known token → 200**
+#### Threading (inbound + outbound)
 
-- Input: `POST /pub/s/tok123`, body `{"text":"hi"}`, no auth
-- Mock: `getGroupBySlink('tok123')` returns a group object;
-  `handleSlinkPost` returns `{ status: 200, body: '{"ok":true}' }`
-- Expected: status 200, body `{"ok":true}`
+1. POST message A via slink
+2. POST message B with `replyTo: A.id`
+3. Verify agent prompt contains `<in_reply_to>`
+4. Verify agent response carries replyTo back
 
-**POST /pub/s/:token — unknown token → 404**
+#### System messages
 
-- Input: `POST /pub/s/unknown`, body `{"text":"hi"}`
-- Mock: `getGroupBySlink('unknown')` returns `undefined`;
-  `handleSlinkPost` returns `{ status: 404, body: '{"error":"not found"}' }`
-- Expected: status 404
+1. First message to a group → verify `new-session` injected
+2. Advance clock past midnight → verify `new-day` injected
 
-**POST /pub/s/:token — rate limited → 429**
+#### Commands
 
-- Mock: `handleSlinkPost` returns `{ status: 429, body: '{"error":"rate limited"}' }`
-- Expected: status 429
+1. POST `/new` via slink → verify session cleared, response sent
+2. POST `/ping` → verify bot name in response
+3. POST `/chatid` → verify JID in response
 
-**POST /pub/s/:token — valid signed JWT + authSecret → 200**
+#### Error retry
 
-- Input: `POST /pub/s/tok`, `Authorization: Bearer <valid-hs256-jwt>`, body `{"text":"x"}`
-- Mock: `handleSlinkPost` returns `{ status: 200, body: '{"ok":true}' }`
-- Assert: `handleSlinkPost` called with `authHeader` containing the Bearer token
-  and `authSecret` matching the value passed to `startWebProxy`
+1. Send message that triggers `error-test` prompt pattern
+2. Verify error notification sent to user
+3. Verify cursor rolled back (message re-queued)
 
-**POST /pub/s/:token — invalid JWT + authSecret → 401**
+#### IPC message send
 
-- Mock: `handleSlinkPost` returns `{ status: 401, body: '{"error":"unauthorized"}' }`
-- Expected: status 401
+1. Send message triggering `ipc-test` pattern
+2. Verify agent's IPC message delivered to target JID
 
-**POST /pub/s/:token — x-forwarded-for header used as IP**
+#### IPC reset_session
 
-- Input: request with `X-Forwarded-For: 203.0.113.5, 10.0.0.1`
-- Assert: `handleSlinkPost` called with `ip === '203.0.113.5'`
+1. Write `{"type":"reset_session"}` to IPC dir
+2. Send SIGUSR1 to gateway
+3. Verify session cleared
 
-**POST /pub/s/:token with media_url — attachment fields set**
+#### Task scheduling
 
-- Input: body `{"text":"look","media_url":"https://example.com/clip.mp4"}`
-- Mock: `handleSlinkPost` returns `{ status: 200, body: '{"ok":true}' }`
-- Assert: `handleSlinkPost` called with the correct body string containing `media_url`
-  (actual attachment construction is slink.ts's responsibility, already unit-tested)
+1. Agent writes schedule_task IPC
+2. Verify task created in DB
+3. Fast-forward time → verify task executes
 
-**GET /\_sloth/stream — registers SSE listener**
+#### Glob routing
 
-- Input: `GET /_sloth/stream?group=mygroup`
-- Expected: status 200, `Content-Type: text/event-stream`
-- Assert: `addSseListener` called with `'mygroup'`
+1. Register group with glob JID `web/*`
+2. POST message to `web/anything`
+3. Verify routed to the glob group
 
-**POST /\_sloth/message — dispatches to onMessage**
+#### Share mount
 
-- Input: `POST /_sloth/message`, body `{"group":"main","msg":"hello"}`
-- Assert: `onMessage` called with jid `'web:main'`, content includes `'hello'`
-- Expected: status 200
+1. Write file to `groups/<world>/share/test.txt`
+2. Verify mock agent can read `/workspace/share/test.txt`
+3. Verify non-root agent gets it read-only
 
-**Basic auth — protected route blocked without credentials**
+### Smoke (`make smoke`)
 
-- `startWebProxy` with `slothUsers: 'alice:secret'`
-- `GET /` without auth header → 401
-- `GET /pub/sloth.js` without auth header → 200 (public prefix bypass)
+Runs against a real instance. Tests only SDK wiring —
+can the bot actually connect and send?
 
----
+```bash
+# smoke/telegram.sh
+TOKEN=$TELEGRAM_BOT_TOKEN
+CHAT=$TELEGRAM_TEST_CHAT
+curl -s "https://api.telegram.org/bot$TOKEN/sendMessage" \
+  -d chat_id=$CHAT -d text="smoke $(date +%s)" \
+  | jq -e '.ok == true'
 
-## 2. src/mime-handlers/whisper.test.ts (extend)
-
-Add to existing test file.
-
-**AbortController fires at 30s**
-
-- Use `vi.useFakeTimers()` / `vi.advanceTimersByTimeAsync(30_000)`
-- Mock `fetch` to return a promise that never resolves
-- After advancing 30s, assert the fetch rejects with abort error
-- Cleanup: `vi.useRealTimers()`
-
-```ts
-it('aborts fetch after 30s', async () => {
-  vi.useFakeTimers();
-  let aborted = false;
-  global.fetch = vi.fn().mockImplementation((_url, opts) => {
-    opts.signal.addEventListener('abort', () => {
-      aborted = true;
-    });
-    return new Promise(() => {}); // never resolves
-  });
-  const p = whisperTranscribe('/path/audio.ogg');
-  await vi.advanceTimersByTimeAsync(30_000);
-  expect(aborted).toBe(true);
-  vi.useRealTimers();
-});
+# smoke/discord.sh  — similar via Discord REST API
+# smoke/slink.sh    — POST to real slink endpoint
 ```
 
----
-
-## 3. src/mime-handlers/video.test.ts (extend)
-
-Add to existing test file.
-
-**ffmpeg timeout kills process at 60s**
-
-- Use `vi.useFakeTimers()`
-- Mock spawn to return a process that never emits `close`
-- Attach a `kill` spy to the fake process
-- After advancing 60s, assert `proc.kill()` was called and handler returns `[]`
-
-```ts
-it('kills ffmpeg and returns [] after 60s timeout', async () => {
-  vi.useFakeTimers();
-  const proc = new EventEmitter() as any;
-  proc.stderr = new EventEmitter();
-  proc.kill = vi.fn();
-  mockSpawn.mockReturnValue(proc);
-  mockWhisper.mockResolvedValue('irrelevant');
-
-  const p = videoHandler.handle({ mediaType: 'video' }, '/path/0.mp4');
-  await vi.advanceTimersByTimeAsync(60_000);
-  const lines = await p;
-  expect(proc.kill).toHaveBeenCalled();
-  expect(lines).toEqual([]);
-  vi.useRealTimers();
-});
-```
+Smoke tests are optional, manual, not in CI. They verify
+the SDKs actually work with real credentials. No agent
+involvement — just send a message, check it arrives.
 
 ---
 
-## 4. src/slink.test.ts (extend)
+## Existing unit test specs
 
-Add to existing test file.
+### web-proxy.test.ts
 
-**media_url sets attachments and download**
+Test `startWebProxy` via real `http.createServer` on random
+port. Mock `getGroupBySlink`, `handleSlinkPost`,
+`addSseListener`, `removeSseListener`.
 
-- Input: body `{"text":"look","media_url":"https://cdn.example.com/clip.mp4"}`
-- Capture args passed to `onMessage`
-- Assert fourth arg (download) is a function
-- Assert third arg (attachments) has length 1 with `type: 'video'` and
-  `source.url === 'https://cdn.example.com/clip.mp4'`
+Tests:
 
-```ts
-it('media_url produces video attachment with download fn', () => {
-  let captured: Parameters<OnInboundMessage> | null = null;
-  const onMessage: OnInboundMessage = (...args) => {
-    captured = args;
-  };
-  handleSlinkPost({
-    token: 'tok-media',
-    body: '{"text":"look","media_url":"https://cdn.example.com/clip.mp4"}',
-    ip: '1.2.3.4',
-    group: makeGroup('web:m', 'tok-media'),
-    onMessage,
-  });
-  expect(captured).not.toBeNull();
-  const [, , attachments, download] = captured!;
-  expect(attachments).toHaveLength(1);
-  expect(attachments![0].type).toBe('video');
-  expect((attachments![0].source as { url: string }).url).toContain('clip.mp4');
-  expect(typeof download).toBe('function');
-});
-```
+- GET /pub/sloth.js → 200, javascript
+- POST /pub/s/:token known → 200
+- POST /pub/s/:token unknown → 404
+- POST /pub/s/:token rate limited → 429
+- POST /pub/s/:token valid JWT → 200
+- POST /pub/s/:token invalid JWT → 401
+- X-Forwarded-For used as IP
+- POST with media_url → attachment fields
+- GET /\_sloth/stream → SSE listener registered
+- POST /\_sloth/message → onMessage dispatched
+- Basic auth blocks protected routes, allows /pub/
 
-**media_url guessType — audio URL → type audio**
+### whisper.test.ts (extend)
 
-- Input: `media_url: "https://cdn.example.com/song.mp3"`
-- Assert `attachments![0].type === 'audio'`
+- AbortController fires at 30s (fake timers)
 
-**media_url guessType — image URL → type image**
+### video.test.ts (extend)
 
-- Input: `media_url: "https://cdn.example.com/photo.jpg"`
-- Assert `attachments![0].type === 'image'`
+- ffmpeg timeout kills process at 60s (fake timers)
 
-**media_url guessType — unknown extension → type document**
+### slink.test.ts (extend)
 
-- Input: `media_url: "https://cdn.example.com/file.pdf"`
-- Assert `attachments![0].type === 'document'`
+- media_url → video/audio/image/document attachment
+- download fn fetches, rejects on !ok, rejects on too large
 
-**download fn fetches from url**
+### voice.test.ts (extend)
 
-- After capturing `download`, mock `global.fetch` to return a 200 with
-  `arrayBuffer` returning `Buffer.from('bytes')`
-- Call `download!(attachments![0], 1_000_000)`
-- Assert `fetch` called with the media URL
-- Assert returned buffer equals `Buffer.from('bytes')`
+- voiceHandler does not match video mimeType
 
-**download fn throws when response not ok**
+### web.test.ts (extend)
 
-- Mock `fetch` to return `{ ok: false, status: 403 }`
-- Assert `download!(...)` rejects with message containing `'HTTP 403'`
-
-**download fn throws when content-length exceeds maxBytes**
-
-- Mock `fetch` to return `{ ok: true, headers: { get: () => '999999' } }`
-  where `maxBytes` passed is 100
-- Assert rejects with message containing `'too large'`
+- Multiple groups isolated
+- Concurrent writes to same group
 
 ---
 
-## 5. src/mime-handlers/voice.test.ts (extend)
+## Testability seams (shipped)
 
-**voiceHandler does not match video mimeType**
-
-- Assert `voiceHandler.match({ mediaType: 'document', mimeType: 'video/mp4' }) === false`
-- Assert `voiceHandler.match({ mediaType: 'video' }) === false`
-
-These two cases confirm voice and video handlers don't overlap.
-
----
-
-## 6. src/channels/web.test.ts (extend)
-
-**multiple groups are isolated**
-
-- Add listener to `'group-a'` and `'group-b'`
-- Send to `'web:group-a'`
-- Assert only the `group-a` res received a write; `group-b` res did not
-
-**concurrent writes to same group**
-
-- Add two listeners to the same group (`res1`, `res2`)
-- `sendMessage` once
-- Assert both received exactly one write with identical payload
-
----
-
-## 7. Testability gaps — shipped
-
-### db.ts — module-level singleton ✓ shipped
-
-`setDatabase(d: Database)` exists. Tests call it in `beforeEach` with a
-fresh `:memory:` instance.
-
-### config.ts — constants read at import time ✓ shipped
-
-`SLINK_ANON_RPM`, `SLINK_AUTH_RPM`, `WHISPER_BASE_URL`,
-`VOICE_TRANSCRIPTION_ENABLED`, `VIDEO_TRANSCRIPTION_ENABLED`,
-`MEDIA_ENABLED`, `MEDIA_MAX_FILE_BYTES` are `export let` (ESM live
-bindings). `_overrideConfig(patch)` reassigns them directly.
-`_resetConfig()` restores defaults from `process.env`. Both gated behind
-`NODE_ENV === 'test'`.
-
-### container-runner.ts — docker spawn injectable ✓ shipped
-
-`export let _spawnProcess = spawn` at top of module. The one
-`spawn(...)` call uses `_spawnProcess`. Tests mock via assignment:
-`mod._spawnProcess = vi.fn().mockReturnValue(fakeChildProcess)`.
-
-### channels — SDK clients constructed in constructor — skipped
-
-Integration tests cover channel dispatch. Constructor injection deferred
-indefinitely.
+- `db.ts`: `setDatabase()` for in-memory SQLite
+- `config.ts`: `_overrideConfig()` / `_resetConfig()` (test only)
+- `container-runner.ts`: `_spawnProcess` injectable spawn
+- Channels: constructor injection deferred, integration tests cover
