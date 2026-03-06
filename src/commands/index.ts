@@ -26,10 +26,6 @@ export function registerCommand(handler: CommandHandler): void {
   registry.push(handler);
 }
 
-export function getCommands(): CommandHandler[] {
-  return registry;
-}
-
 export function findCommand(name: string): CommandHandler | undefined {
   return registry.find((h) => h.name === name);
 }

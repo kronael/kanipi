@@ -185,10 +185,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     if (!hasTrigger) return true;
   }
 
-  const isNewSession = !sessions[group.folder];
-  if (isNewSession) {
+  if (!sessions[group.folder]) {
     const prev = getRecentSessions(group.folder, 10);
-    const children = prev
+    const body = prev
       .map((s) => {
         let el =
           `  <previous_session id="${s.session_id}"` +
@@ -198,14 +197,13 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
         el += ` result="${s.result ?? 'unknown'}"`;
         if (s.error)
           el += ` error="${s.error.replace(/"/g, '&quot;').slice(0, 200)}"`;
-        el += '/>';
-        return el;
+        return el + '/>';
       })
       .join('\n');
     enqueueSystemMessage(group.folder, {
       origin: 'gateway',
       event: 'new-session',
-      body: prev.length > 0 ? `\n${children}\n` : '',
+      body: prev.length > 0 ? `\n${body}\n` : '',
     });
   }
 
@@ -523,19 +521,17 @@ async function startMessageLoop(): Promise<void> {
             }
             nonCommandMessages.push(msg);
           }
-          const effectiveMessages =
-            nonCommandMessages.length > 0 ? nonCommandMessages : [];
+
+          if (nonCommandMessages.length === 0) continue;
 
           // For non-main groups, only act on trigger messages.
           // Non-trigger messages accumulate in DB and get pulled as
           // context when a trigger eventually arrives.
-          if (needsTrigger && effectiveMessages.length > 0) {
-            const hasTrigger = effectiveMessages.some((m) =>
+          if (needsTrigger) {
+            const hasTrigger = nonCommandMessages.some((m) =>
               TRIGGER_PATTERN.test(m.content.trim()),
             );
             if (!hasTrigger) continue;
-          } else if (effectiveMessages.length === 0) {
-            continue;
           }
 
           // Pull all messages since lastAgentTimestamp so non-trigger
