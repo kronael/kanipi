@@ -52,15 +52,85 @@ No skill needed — agent has Grep/Read natively.
 
 ### 2b. Per-channel output styles
 
-SDK output styles: markdown files in `~/.claude/output-styles/`,
-activated via `.claude/settings.local.json`. Gateway writes the
-style file + settings before spawning the container.
+SDK output styles are markdown files with YAML frontmatter that
+replace the default system prompt's coding instructions. Activated
+by setting `outputStyle` in a settings JSON file. The gateway
+already writes `data/sessions/<folder>/.claude/settings.json`
+per spawn — it just needs to add the `outputStyle` field and
+seed the style files.
 
-- [ ] Gateway: write channel style file + activate in settings
-- [ ] Telegram style (concise, no markdown tables, 4096 char limit)
-- [ ] Discord style (markdown ok, embeds, longer responses)
-- [ ] Email style (formal, structured, signature)
-- [ ] Web style (rich formatting, links)
+**File format** (`container/output-styles/<channel>.md`):
+
+```markdown
+---
+name: Telegram
+description: Concise responses for Telegram chat
+keep-coding-instructions: true
+---
+
+# Channel: Telegram
+
+[style instructions here]
+```
+
+Frontmatter fields:
+
+- `name` — display name (inherits from filename if omitted)
+- `description` — shown in /output-style menu
+- `keep-coding-instructions` — `true` to keep coding system prompt
+  (we want this — agents still write code). Default is `false`
+  which strips coding instructions entirely
+
+**Where they live**:
+
+Style files baked into agent image at build time:
+`container/output-styles/` -> `/home/node/.claude/output-styles/`
+in the Dockerfile. The gateway does NOT write style files per
+spawn — they ship with the image. Only the activation changes.
+
+**How gateway activates**:
+
+In `container-runner.ts`, the settings.json write already happens
+per spawn (lines ~167-196). Add `outputStyle` to the settings
+object based on channel name:
+
+```
+channel = findChannel(channels, chatJid)
+settings.outputStyle = channel.name  // "telegram", "discord", etc.
+```
+
+This requires threading `channel.name` (or a `channelName` string)
+through `ContainerInput` -> `runContainerAgent` -> settings write.
+The `Channel.name` field already exists on all channels.
+
+If no matching style file exists for a channel, omit `outputStyle`
+(SDK falls back to default).
+
+**Implementation tasks**:
+
+- [ ] Style files: `container/output-styles/telegram.md`
+- [ ] Style files: `container/output-styles/discord.md`
+- [ ] Style files: `container/output-styles/email.md`
+- [ ] Style files: `container/output-styles/web.md`
+- [ ] Dockerfile: COPY output-styles to `/home/node/.claude/output-styles/`
+- [ ] `ContainerInput`: add optional `channelName?: string`
+- [ ] `index.ts`: pass `channel.name` into `runContainerAgent` input
+- [ ] `container-runner.ts`: write `outputStyle` into settings.json
+- [ ] Fallback: tasks/scheduled runs omit `channelName` (no style)
+
+**Style guidelines per channel**:
+
+- **Telegram**: concise, no markdown tables (unsupported), no
+  headers (render as bold in some clients), 4096 char limit per
+  message, use bold/italic/code only. Prefer short paragraphs.
+- **Discord**: markdown ok (bold, italic, code blocks, lists),
+  no tables, 2000 char limit per message, headers render well.
+  Can be slightly longer than telegram.
+- **Email**: formal tone, structured with sections, greeting and
+  sign-off, full markdown supported by most clients, no char limit
+  concern. Include signature line.
+- **Web**: rich formatting, full markdown, links, tables ok,
+  code blocks with syntax highlighting, no length constraint.
 
 ### 2c. Verifier — done (in research flow)
 
