@@ -108,15 +108,15 @@ If no matching style file exists for a channel, omit `outputStyle`
 
 **Implementation tasks**:
 
-- [ ] Style files: `container/output-styles/telegram.md`
-- [ ] Style files: `container/output-styles/discord.md`
-- [ ] Style files: `container/output-styles/email.md`
-- [ ] Style files: `container/output-styles/web.md`
-- [ ] Dockerfile: COPY output-styles to `/home/node/.claude/output-styles/`
-- [ ] `ContainerInput`: add optional `channelName?: string`
-- [ ] `index.ts`: pass `channel.name` into `runContainerAgent` input
-- [ ] `container-runner.ts`: write `outputStyle` into settings.json
-- [ ] Fallback: tasks/scheduled runs omit `channelName` (no style)
+- [x] Style files: `container/output-styles/telegram.md`
+- [x] Style files: `container/output-styles/discord.md`
+- [x] Style files: `container/output-styles/email.md`
+- [x] Style files: `container/output-styles/web.md`
+- [x] Dockerfile: COPY output-styles to `/home/node/.claude/output-styles/`
+- [x] `ContainerInput`: add optional `channelName?: string`
+- [x] `index.ts`: pass `channel.name` into `runContainerAgent` input
+- [x] `container-runner.ts`: write `outputStyle` into settings.json
+- [x] Fallback: tasks/scheduled runs omit `channelName` (no style)
 
 **Style guidelines per channel**:
 
