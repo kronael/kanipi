@@ -1,25 +1,20 @@
 # Gateway Actions
 
-Gateway actions are the atomic operations kanipi can perform. Each action is
-a typed function with input/output. The action registry is the single source
-of truth — MCP tools, commands, and IPC dispatch all reference it.
+Atomic operations. Action registry is the single source of
+truth — MCP tools, commands, and IPC dispatch all reference it.
 
 ## Model
 
 ```
-                   ┌─────────────────────┐
-  /new command ───▶│                     │
-                   │   Action Registry   │
-  MCP tool ──bus──▶│   (gateway-side)    │
-                   │                     │
-  IPC file ──bus──▶│  action(input) → output
-                   └─────────────────────┘
+  /new command ──▶ Action Registry ◀── MCP tool (via IPC)
+                   (gateway-side)
+                   action(input) → output
 ```
 
-- **Commands** — call actions directly (in-process, no bus)
-- **MCP tools** — auto-generated from registry; agent calls via MCP,
-  posted to bus (IPC file), gateway dispatches
-- **IPC dispatch** — reads `type` from file, looks up action, calls it
+- **Commands** — call actions directly (in-process)
+- **MCP tools** — agent calls MCP tool in container, which
+  writes IPC request, gateway dispatches, writes reply
+- **IPC dispatch** — request-response over files
 
 ## Action interface
 
@@ -27,128 +22,194 @@ of truth — MCP tools, commands, and IPC dispatch all reference it.
 interface Action {
   name: string;
   description: string;
-  input: ZodSchema; // validates input from any caller
+  input: ZodSchema;
   handler(input: any, ctx: ActionContext): Promise<any>;
-  command?: string; // if set, gateway registers as /command
-  mcp?: boolean; // if true, auto-exposed as MCP tool (default: true)
+  command?: string; // registers as /command
+  mcp?: boolean; // auto-exposed as MCP tool (default: true)
 }
 
 interface ActionContext {
-  sourceGroup: string; // who is calling
-  isRoot: boolean; // root group has elevated permissions
+  sourceGroup: string;
+  isRoot: boolean;
   sendMessage: (jid: string, text: string) => Promise<void>;
   sendDocument: (jid: string, path: string, filename?: string) => Promise<void>;
 }
 ```
 
+## IPC: request-response over files
+
+Current IPC is fire-and-forget (agent writes file, gateway
+picks it up, no response). New model: request-response.
+
+### Flow
+
+```
+Agent MCP tool call
+  → ipc-mcp-stdio writes /workspace/ipc/requests/<id>.json
+  → polls /workspace/ipc/replies/<id>.json
+  → reads reply, returns to agent
+
+Gateway
+  → fs.watch requests/
+  → looks up action by type
+  → validates input (Zod)
+  → calls handler
+  → writes /workspace/ipc/replies/<id>.json
+```
+
+### Request format
+
+```json
+{
+  "id": "1709693200000-abc123",
+  "type": "send_message",
+  "chatJid": "tg:-100123456",
+  "text": "hello"
+}
+```
+
+### Reply format
+
+```json
+{
+  "id": "1709693200000-abc123",
+  "ok": true,
+  "result": { ... }
+}
+```
+
+```json
+{
+  "id": "1709693200000-abc123",
+  "ok": false,
+  "error": "unauthorized"
+}
+```
+
+### Tool discovery
+
+Agent requests available actions at startup:
+
+```json
+{ "id": "...", "type": "list_actions" }
+```
+
+Gateway replies with action manifest:
+
+```json
+{
+  "id": "...",
+  "ok": true,
+  "result": [
+    {
+      "name": "send_message",
+      "description": "Send text to a channel",
+      "input": { ... }
+    }
+  ]
+}
+```
+
+Agent-runner reads the manifest and auto-registers MCP tools.
+Each tool writes a request file and waits for the reply.
+
+### Agent-side MCP stub (generic)
+
+`ipc-mcp-stdio.ts` becomes a generic proxy — no per-action
+code. One loop generates all tools from the manifest:
+
+```typescript
+for (const action of manifest) {
+  server.tool(action.name, action.description, action.input, async (args) => {
+    const id = `${Date.now()}-${rand()}`;
+    writeIpcFile(REQUESTS_DIR, { id, type: action.name, ...args });
+    const reply = await waitForReply(id, REPLIES_DIR);
+    if (!reply.ok)
+      return { content: [{ type: 'text', text: reply.error }], isError: true };
+    return { content: [{ type: 'text', text: JSON.stringify(reply.result) }] };
+  });
+}
+```
+
+### Timeout
+
+Agent-side polls with 100ms interval, 30s timeout. If no
+reply, return error to agent. Gateway cleans stale replies
+on next drain.
+
+### Migration from fire-and-forget
+
+1. Gateway adds request watcher + reply writer alongside
+   existing message/task watchers
+2. Agent-runner checks for manifest, falls back to hardcoded
+   tools if missing (backwards compat during rollout)
+3. Remove hardcoded tools once stable
+
 ## Current actions
 
 ### Messaging
 
-| Action         | Command | MCP | Input                              | Description            |
-| -------------- | ------- | --- | ---------------------------------- | ---------------------- |
-| `send_message` | —       | ✓   | `{ chatJid, text, sender? }`       | Send text to a channel |
-| `send_file`    | —       | ✓   | `{ chatJid, filepath, filename? }` | Send file attachment   |
+| Action         | Cmd | MCP | Input                              |
+| -------------- | --- | --- | ---------------------------------- |
+| `send_message` | --  | yes | `{ chatJid, text, sender? }`       |
+| `send_file`    | --  | yes | `{ chatJid, filepath, filename? }` |
 
 ### Session
 
-| Action          | Command   | MCP | Input             | Description                   |
-| --------------- | --------- | --- | ----------------- | ----------------------------- |
-| `reset_session` | `/new`    | ✓   | `{ groupFolder }` | Clear session ID, start fresh |
-| `ping`          | `/ping`   | —   | —                 | Reply with uptime/status      |
-| `chatid`        | `/chatid` | —   | —                 | Reply with current JID        |
+| Action          | Cmd       | MCP | Input             |
+| --------------- | --------- | --- | ----------------- |
+| `reset_session` | `/new`    | yes | `{ groupFolder }` |
+| `ping`          | `/ping`   | --  | --                |
+| `chatid`        | `/chatid` | --  | --                |
 
 ### Tasks
 
-| Action          | Command | MCP | Input                                                                | Description           |
-| --------------- | ------- | --- | -------------------------------------------------------------------- | --------------------- |
-| `schedule_task` | —       | ✓   | `{ targetJid, prompt, schedule_type, schedule_value, context_mode }` | Create scheduled task |
-| `list_tasks`    | —       | ✓   | —                                                                    | List scheduled tasks  |
-| `pause_task`    | —       | ✓   | `{ taskId }`                                                         | Pause a task          |
-| `resume_task`   | —       | ✓   | `{ taskId }`                                                         | Resume a task         |
-| `cancel_task`   | —       | ✓   | `{ taskId }`                                                         | Cancel a task         |
+| Action          | MCP | Input                                             |
+| --------------- | --- | ------------------------------------------------- |
+| `schedule_task` | yes | `{ targetJid, prompt, schedule_type/value, ... }` |
+| `list_tasks`    | yes | --                                                |
+| `pause_task`    | yes | `{ taskId }`                                      |
+| `resume_task`   | yes | `{ taskId }`                                      |
+| `cancel_task`   | yes | `{ taskId }`                                      |
 
 ### Groups
 
-| Action           | Command | MCP | Input                      | Description           |
-| ---------------- | ------- | --- | -------------------------- | --------------------- |
-| `refresh_groups` | —       | ✓   | —                          | Resync group metadata |
-| `register_group` | —       | ✓   | `{ chatJid, folder, ... }` | Register new group    |
+| Action           | MCP | Input                      |
+| ---------------- | --- | -------------------------- |
+| `refresh_groups` | yes | --                         |
+| `register_group` | yes | `{ chatJid, folder, ... }` |
 
 ### Future
 
-| Action           | Command | MCP | Input                       | Description             |
-| ---------------- | ------- | --- | --------------------------- | ----------------------- |
-| `edit_message`   | —       | ✓   | `{ chatJid, msgId, text }`  | Edit a sent message     |
-| `react`          | —       | ✓   | `{ chatJid, msgId, emoji }` | React to a message      |
-| `delete_message` | —       | ✓   | `{ chatJid, msgId }`        | Delete a sent message   |
-| `pin_message`    | —       | ✓   | `{ chatJid, msgId }`        | Pin a message           |
-| `help`           | `/help` | —   | —                           | List available commands |
-
-## MCP auto-generation
-
-Each action with `mcp: true` (default) is auto-registered as an MCP tool:
-
-```typescript
-for (const action of actions) {
-  if (action.mcp !== false) {
-    server.tool(
-      action.name,
-      action.description,
-      action.input,
-      async (input) => {
-        return action.handler(input, ctx);
-      },
-    );
-  }
-}
-```
-
-No manual MCP wiring needed. Add an action, it appears as an MCP tool.
-
-## IPC dispatch
-
-IPC files use `type` field matching the action name:
-
-```json
-{ "type": "send_message", "chatJid": "tg/123", "text": "hello" }
-```
-
-Gateway reads the file, validates input against the action's schema,
-calls the handler. Unknown types are logged and dropped.
+| Action           | Cmd     | MCP | Input                       |
+| ---------------- | ------- | --- | --------------------------- |
+| `edit_message`   | --      | yes | `{ chatJid, msgId, text }`  |
+| `react`          | --      | yes | `{ chatJid, msgId, emoji }` |
+| `delete_message` | --      | yes | `{ chatJid, msgId }`        |
+| `pin_message`    | --      | yes | `{ chatJid, msgId }`        |
+| `help`           | `/help` | --  | --                          |
 
 ## Command dispatch
 
-Commands call actions directly — no IPC file, no bus:
-
-```typescript
-// /new command handler
-async handle(ctx) {
-  await actions.get('reset_session').handler({ groupFolder: ctx.group.folder }, actionCtx);
-  ctx.reply('Session reset.');
-}
-```
-
-Commands are thin wrappers that parse user input and call the action.
+Commands call actions directly — no IPC, no bus. Thin
+wrappers that parse user input and call the action.
 
 ## Authorization
 
-Actions check `ctx.sourceGroup` and `ctx.isRoot`:
-
-- Root group can call any action on any target JID
-- Non-root groups can only target their own JID
-- Already enforced in current IPC dispatch (`ipc.ts`)
+- Root group can target any JID
+- Non-root can only target their own
+- Enforced in action handlers
 
 ## Implementation
 
-- `src/actions/` — one file per action or grouped by domain
-- `src/action-registry.ts` — registry, schema validation, MCP generation
-- `src/ipc.ts` — dispatch rewired to call registry
+- `src/action-registry.ts` — registry, validation
+- `src/actions/` — one file per action or by domain
+- `src/ipc.ts` — request watcher, reply writer
 - `src/commands/` — thin wrappers calling actions
-- `container/agent-runner/src/ipc-mcp-stdio.ts` — auto-generated from registry
+- `container/agent-runner/src/ipc-mcp-stdio.ts` — generic
+  proxy from manifest
 
 ## Open
 
-- Migrate existing IPC types and MCP tools to action registry
-- Auto-generate `commands.xml` from actions with `command` field
-- Action middleware (logging, rate limiting) — v2
+- Action middleware (logging, rate limiting) — v2 via
+  MCP proxy hooks (see `v2/ipc-mcp-proxy.md`)
