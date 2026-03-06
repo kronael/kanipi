@@ -1,6 +1,6 @@
 {
   "name": "kanipi",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Multitenant Claude agent gateway with multi-channel support.",
   "type": "module",
   "main": "dist/index.js",
