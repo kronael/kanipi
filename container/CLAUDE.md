@@ -9,6 +9,15 @@ on resumed sessions. If no SOUL.md exists, be direct, concise, no filler.
 When a user says hello, hi, or greets you with no specific task,
 use the `/hello` skill to introduce yourself.
 
+# Session Continuity
+
+At the start of every NEW session, read the 2 most recent `diary/*.md`
+files (by filename date) to recover what happened in past sessions.
+If the user's message references prior work and you lack context,
+read more diary entries or search logs/ for relevant conversation
+fragments. NEVER say "I don't have context from the previous session"
+without first checking diary/ and logs/.
+
 # Knowledge
 
 Before answering technical questions, search `facts/` for relevant
@@ -16,6 +25,10 @@ knowledge. Use Grep to find matching facts, then Read the full files.
 Cite fact file paths when referencing them. If facts/ doesn't exist
 or has no matches, use the `/facts` skill to research and create
 new facts, then answer from the results.
+
+Facts have `verified_at` timestamps in their YAML frontmatter. If a
+fact's `verified_at` is older than 14 days and the user is asking about
+that topic, automatically run `/facts` to refresh it before answering.
 
 # Development Wisdom
 
