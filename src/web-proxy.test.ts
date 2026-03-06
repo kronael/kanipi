@@ -343,11 +343,11 @@ describe('POST /_sloth/message', () => {
 });
 
 describe('basic auth', () => {
-  it('allows / without credentials (public landing)', async () => {
+  it('redirects / to /pub/ without credentials', async () => {
     const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
     try {
       const res = await get(port, '/');
-      expect(res.status).not.toBe(401);
+      expect(res.status).toBe(302);
     } finally {
       await close();
     }

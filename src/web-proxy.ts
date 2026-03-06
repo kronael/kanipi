@@ -122,8 +122,7 @@ function parseUsers(s: string): Map<string, string> {
   return m;
 }
 
-const PUBLIC_PREFIXES = ['/pub/', '/_sloth/', '/assets/'];
-const PUBLIC_EXACT = ['/', '/index.html'];
+const PUBLIC_PREFIXES = ['/pub/', '/_sloth/'];
 
 function checkAuth(
   req: http.IncomingMessage,
@@ -131,7 +130,6 @@ function checkAuth(
   authSecret?: string,
 ): boolean {
   const url = req.url || '/';
-  if (PUBLIC_EXACT.includes(url)) return true;
   if (PUBLIC_PREFIXES.some((p) => url.startsWith(p))) return true;
   if (url.startsWith('/auth/')) return true;
 
@@ -160,6 +158,13 @@ export function startWebProxy(opts: {
 
   const server = http.createServer((req, res) => {
     const url = req.url || '/';
+
+    // Landing page redirects to /pub/ (public, no auth)
+    if (url === '/' || url === '/index.html') {
+      res.writeHead(302, { Location: '/pub/' });
+      res.end();
+      return;
+    }
 
     // Auth check
     if (!checkAuth(req, users, authSecret)) {
