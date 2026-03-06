@@ -44,6 +44,20 @@ export function findChannel(
   return channels.find((c) => c.ownsJid(jid));
 }
 
+// Returns true if source group may statically route to target:
+// same world (same root segment) and direct parent→child only
+// (target has exactly one more path segment than source).
+export function isAuthorizedRoutingTarget(
+  sourceFolder: string,
+  targetFolder: string,
+): boolean {
+  const sourceRoot = sourceFolder.split('/')[0];
+  const targetRoot = targetFolder.split('/')[0];
+  if (sourceRoot !== targetRoot) return false;
+  const suffix = targetFolder.slice(sourceFolder.length);
+  return suffix.startsWith('/') && suffix.indexOf('/', 1) === -1;
+}
+
 // Evaluate routing rules against a message. Returns target folder or null.
 // Evaluation order: command → pattern → keyword → sender → default.
 // First match within each tier wins; tiers evaluated in order.

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import { _initTestDatabase, getAllChats, storeChatMetadata } from './db.js';
 import { getAvailableGroups, _setRegisteredGroups } from './index.js';
-import { resolveRoutingTarget } from './router.js';
+import { isAuthorizedRoutingTarget, resolveRoutingTarget } from './router.js';
 import type { NewMessage, RoutingRule } from './types.js';
 
 beforeEach(() => {
@@ -368,5 +368,41 @@ describe('resolveRoutingTarget — sender routing', () => {
         rules,
       ),
     ).toBe('team/alice');
+  });
+});
+
+// --- isAuthorizedRoutingTarget ---
+
+describe('isAuthorizedRoutingTarget', () => {
+  it('allows direct parent→child', () => {
+    expect(isAuthorizedRoutingTarget('main', 'main/code')).toBe(true);
+  });
+
+  it('allows non-root parent→child', () => {
+    expect(isAuthorizedRoutingTarget('main/code', 'main/code/py')).toBe(true);
+  });
+
+  it('blocks grandchild (two levels down)', () => {
+    expect(isAuthorizedRoutingTarget('main', 'main/code/py')).toBe(false);
+  });
+
+  it('blocks sibling routing', () => {
+    expect(isAuthorizedRoutingTarget('main/code', 'main/ops')).toBe(false);
+  });
+
+  it('blocks cross-world routing', () => {
+    expect(isAuthorizedRoutingTarget('main', 'team/alice')).toBe(false);
+  });
+
+  it('blocks ancestor routing (target is parent)', () => {
+    expect(isAuthorizedRoutingTarget('main/code', 'main')).toBe(false);
+  });
+
+  it('blocks same folder', () => {
+    expect(isAuthorizedRoutingTarget('main', 'main')).toBe(false);
+  });
+
+  it('blocks cross-world non-root', () => {
+    expect(isAuthorizedRoutingTarget('main/code', 'team/alice')).toBe(false);
   });
 });
