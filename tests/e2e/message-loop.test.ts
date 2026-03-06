@@ -142,9 +142,11 @@ import {
   _setLastMessageDate,
   _getLastAgentTimestamp,
   _clearTestState,
+  _delegateToChild,
 } from '../../src/index.js';
 import type { RegisteredGroup } from '../../src/types.js';
 import type { Channel } from '../../src/types.js';
+import type { ContainerInput } from '../../src/container-runner.js';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -559,11 +561,14 @@ describe('processGroupMessages — routing delegate', () => {
     // runContainerAgent is called synchronously inside delegateToChild's task
     // (enqueueTask → runTask → task.fn() runs sync up to first await)
     expect(mockRunContainerAgent).toHaveBeenCalled();
-    const [calledGroup] = mockRunContainerAgent.mock.calls[0] as [
+    const [calledGroup, calledInput] = mockRunContainerAgent.mock.calls[0] as [
       RegisteredGroup,
+      ContainerInput,
       ...unknown[],
     ];
     expect(calledGroup.folder).toBe(CHILD_FOLDER);
+    // Routing dispatch always initiates at depth 0 — agent receives delegateDepth: 0
+    expect(calledInput.delegateDepth).toBe(0);
   });
 
   it('does NOT call runContainerAgent for parent group when routing matches', async () => {
@@ -579,6 +584,57 @@ describe('processGroupMessages — routing delegate', () => {
       const [g] = call as [RegisteredGroup, ...unknown[]];
       expect(g.folder).not.toBe('main');
     }
+  });
+});
+
+// ── Delegation depth monotonicity ─────────────────────────────────────────────
+
+describe('delegateToChild — depth propagation', () => {
+  it('passes delegateDepth to runContainerAgent unchanged', async () => {
+    setupRoutedGroup(true);
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+    });
+    const ch = makeChannel(ROUTED_JID);
+    _pushChannel(ch);
+
+    // Simulate IPC delegate_group that already incremented depth to 1
+    await _delegateToChild(CHILD_FOLDER, 'do it', ROUTED_JID, 1);
+
+    expect(mockRunContainerAgent).toHaveBeenCalled();
+    const [, input] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ContainerInput,
+      ...unknown[],
+    ];
+    expect(input.delegateDepth).toBe(1);
+  });
+
+  it('child depth is strictly greater than routing-dispatch depth (0 → 0, IPC increments to 1)', async () => {
+    // Routing dispatch (depth arg = 0) passes delegateDepth: 0 to agent.
+    // When that agent uses IPC delegate_group, groups.ts passes depth+1=1 to
+    // delegateToChild. Verify the child agent receives delegateDepth: 1 here.
+    setupRoutedGroup(true);
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+    });
+    const ch = makeChannel(ROUTED_JID);
+    _pushChannel(ch);
+
+    const routingDepth = 0;
+    const ipcDepth = routingDepth + 1; // as groups.ts does: depth + 1
+
+    await _delegateToChild(CHILD_FOLDER, 'task', ROUTED_JID, ipcDepth);
+
+    const [, input] = mockRunContainerAgent.mock.calls[0] as [
+      RegisteredGroup,
+      ContainerInput,
+      ...unknown[],
+    ];
+    expect(input.delegateDepth).toBeGreaterThan(routingDepth);
+    expect(input.delegateDepth).toBe(ipcDepth);
   });
 });
 

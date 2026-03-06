@@ -526,7 +526,7 @@ export async function runContainerAgent(
   fs.mkdirSync(groupDir, { recursive: true });
   chownRecursive(groupDir, 1000, 1000);
 
-  const mounts = buildVolumeMounts(group);
+  const mounts = buildVolumeMounts(group, input.delegateDepth);
 
   // Start sidecars before agent; socket dir lives under IPC dir (already mounted)
   const sockDir = path.join(resolveGroupIpcPath(group.folder), 'sidecars');

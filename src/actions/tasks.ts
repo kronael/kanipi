@@ -7,24 +7,20 @@ import { TIMEZONE } from '../config.js';
 import { createTask, deleteTask, getTaskById, updateTask } from '../db.js';
 import { logger } from '../logger.js';
 
+const ScheduleTaskInput = z.object({
+  targetJid: z.string(),
+  prompt: z.string(),
+  schedule_type: z.enum(['cron', 'interval', 'once']),
+  schedule_value: z.string(),
+  context_mode: z.enum(['group', 'isolated']).optional(),
+});
+
 export const scheduleTask: Action = {
   name: 'schedule_task',
   description: 'Schedule a recurring or one-time task',
-  input: z.object({
-    targetJid: z.string(),
-    prompt: z.string(),
-    schedule_type: z.enum(['cron', 'interval', 'once']),
-    schedule_value: z.string(),
-    context_mode: z.enum(['group', 'isolated']).optional(),
-  }),
+  input: ScheduleTaskInput,
   async handler(raw, ctx) {
-    const input = raw as {
-      targetJid: string;
-      prompt: string;
-      schedule_type: 'cron' | 'interval' | 'once';
-      schedule_value: string;
-      context_mode?: string;
-    };
+    const input = ScheduleTaskInput.parse(raw);
     const groups = ctx.registeredGroups();
     const targetGroup = groups[input.targetJid];
     if (!targetGroup) {
@@ -73,6 +69,8 @@ export const scheduleTask: Action = {
   },
 };
 
+const TaskIdInput = z.object({ taskId: z.string() });
+
 function taskAction(
   name: string,
   description: string,
@@ -81,9 +79,9 @@ function taskAction(
   return {
     name,
     description,
-    input: z.object({ taskId: z.string() }),
+    input: TaskIdInput,
     async handler(raw, ctx) {
-      const { taskId } = raw as { taskId: string };
+      const { taskId } = TaskIdInput.parse(raw);
       const task = getTaskById(taskId);
       if (!task || (!ctx.isRoot && task.group_folder !== ctx.sourceGroup)) {
         throw new Error('unauthorized');

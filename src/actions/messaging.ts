@@ -18,16 +18,18 @@ function assertAuthorized(
   throw new Error('unauthorized');
 }
 
+const SendMessageInput = z.object({
+  chatJid: z.string(),
+  text: z.string(),
+  sender: z.string().optional(),
+});
+
 export const sendMessage: Action = {
   name: 'send_message',
   description: 'Send text to a channel',
-  input: z.object({
-    chatJid: z.string(),
-    text: z.string(),
-    sender: z.string().optional(),
-  }),
+  input: SendMessageInput,
   async handler(raw, ctx) {
-    const input = raw as { chatJid: string; text: string };
+    const input = SendMessageInput.parse(raw);
     assertAuthorized(input.chatJid, ctx, 'send_message');
     await ctx.sendMessage(input.chatJid, input.text);
     logger.info(
@@ -38,20 +40,18 @@ export const sendMessage: Action = {
   },
 };
 
+const SendFileInput = z.object({
+  chatJid: z.string(),
+  filepath: z.string(),
+  filename: z.string().optional(),
+});
+
 export const sendFile: Action = {
   name: 'send_file',
   description: 'Send a file to a channel',
-  input: z.object({
-    chatJid: z.string(),
-    filepath: z.string(),
-    filename: z.string().optional(),
-  }),
+  input: SendFileInput,
   async handler(raw, ctx) {
-    const input = raw as {
-      chatJid: string;
-      filepath: string;
-      filename?: string;
-    };
+    const input = SendFileInput.parse(raw);
     assertAuthorized(input.chatJid, ctx, 'send_file');
     await ctx.sendDocument(input.chatJid, input.filepath, input.filename);
     logger.info(

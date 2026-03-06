@@ -140,9 +140,14 @@ async function drainRequests(
               }
             }
 
-            const ctx = buildContext(sourceGroup, deps);
-            const result = await action.handler(data, ctx);
-            reply = { id, ok: true, result };
+            const parsed = action.input.safeParse(data);
+            if (!parsed.success) {
+              reply = { id, ok: false, error: parsed.error.message };
+            } else {
+              const ctx = buildContext(sourceGroup, deps);
+              const result = await action.handler(parsed.data, ctx);
+              reply = { id, ok: true, result };
+            }
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             reply = { id, ok: false, error: msg };
@@ -280,13 +285,21 @@ async function drainLegacyTasks(
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       const action = getAction(data.type);
       if (action) {
-        try {
-          await action.handler(data, buildContext(sourceGroup, deps));
-        } catch (err) {
+        const parsed = action.input.safeParse(data);
+        if (!parsed.success) {
           logger.warn(
-            { type: data.type, err, sourceGroup },
-            'legacy task action failed',
+            { type: data.type, error: parsed.error.message, sourceGroup },
+            'invalid legacy task input',
           );
+        } else {
+          try {
+            await action.handler(parsed.data, buildContext(sourceGroup, deps));
+          } catch (err) {
+            logger.warn(
+              { type: data.type, err, sourceGroup },
+              'legacy task action failed',
+            );
+          }
         }
       } else {
         logger.warn({ type: data.type }, 'Unknown IPC task type');
