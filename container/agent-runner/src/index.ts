@@ -44,7 +44,6 @@ function isRoot(folder: string): boolean {
   return !folder.includes('/');
 }
 
-
 type McpServerConfig = {
   command: string;
   args?: string[];
@@ -405,27 +404,17 @@ async function runQuery(
   let resultCount = 0;
   let maxTurnsHit = false;
 
-  // Load global CLAUDE.md as additional system context (shared across all groups)
-  const globalClaudeMdPath = '/workspace/share/CLAUDE.md';
-  let globalClaudeMd: string | undefined;
-  if (!isRoot(containerInput.groupFolder) && fs.existsSync(globalClaudeMdPath)) {
-    globalClaudeMd = fs.readFileSync(globalClaudeMdPath, 'utf-8');
-  }
-
-  // Discover additional directories mounted at /workspace/extra/*
-  // These are passed to the SDK so their CLAUDE.md files are loaded automatically
+  // Additional dirs: their CLAUDE.md files are auto-loaded by the SDK
   const extraDirs: string[] = [];
+  if (!isRoot(containerInput.groupFolder) && fs.existsSync('/workspace/share')) {
+    extraDirs.push('/workspace/share');
+  }
   const extraBase = '/workspace/extra';
   if (fs.existsSync(extraBase)) {
-    for (const entry of fs.readdirSync(extraBase)) {
-      const fullPath = path.join(extraBase, entry);
-      if (fs.statSync(fullPath).isDirectory()) {
-        extraDirs.push(fullPath);
-      }
+    for (const e of fs.readdirSync(extraBase)) {
+      const p = path.join(extraBase, e);
+      if (fs.statSync(p).isDirectory()) extraDirs.push(p);
     }
-  }
-  if (extraDirs.length > 0) {
-    log(`Additional directories: ${extraDirs.join(', ')}`);
   }
 
   try {
@@ -436,11 +425,7 @@ async function runQuery(
         additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
         resume: sessionId,
         resumeSessionAt: resumeAt,
-        systemPrompt: {
-          type: 'preset' as const,
-          preset: 'claude_code' as const,
-          append: globalClaudeMd,
-        },
+        systemPrompt: { type: 'preset', preset: 'claude_code' },
         allowedTools: [
           'Bash',
           'Read', 'Write', 'Edit', 'Glob', 'Grep',
