@@ -180,22 +180,43 @@ on next drain.
 
 ### Tasks
 
-| Action          | MCP | Input                                             |
-| --------------- | --- | ------------------------------------------------- |
-| `schedule_task` | yes | `{ targetJid, prompt, schedule_type/value, ... }` |
-| `list_tasks`    | yes | --                                                |
-| `pause_task`    | yes | `{ taskId }`                                      |
-| `resume_task`   | yes | `{ taskId }`                                      |
-| `cancel_task`   | yes | `{ taskId }`                                      |
+| Action          | MCP | Input                                                                 |
+| --------------- | --- | --------------------------------------------------------------------- |
+| `schedule_task` | yes | `{ targetJid, prompt, schedule_type, schedule_value, context_mode? }` |
+| `pause_task`    | yes | `{ taskId }`                                                          |
+| `resume_task`   | yes | `{ taskId }`                                                          |
+| `cancel_task`   | yes | `{ taskId }`                                                          |
+
+`schedule_type`: `'cron' | 'interval' | 'once'`.
+`context_mode`: `'group' | 'isolated'` (default `'isolated'`).
+`list_tasks` is not yet implemented.
 
 ### Groups
 
-| Action              | MCP | Input                        |
-| ------------------- | --- | ---------------------------- |
-| `refresh_groups`    | yes | --                           |
-| `register_group`    | yes | `{ chatJid, folder, ... }`   |
-| `delegate_group`    | yes | `{ group, prompt, chatJid }` |
-| `set_routing_rules` | yes | `{ group, rules }`           |
+| Action              | MCP | Input                                                                                        |
+| ------------------- | --- | -------------------------------------------------------------------------------------------- |
+| `refresh_groups`    | yes | --                                                                                           |
+| `register_group`    | yes | `{ jid, name, folder, trigger, requiresTrigger?, containerConfig?, parent?, routingRules? }` |
+| `delegate_group`    | yes | `{ group, prompt, chatJid, depth? }`                                                         |
+| `set_routing_rules` | yes | `{ folder, rules }`                                                                          |
+
+`register_group` requires root. `delegate_group` is authorized
+by `isAuthorizedRoutingTarget(sourceGroup, group)`; `depth` is
+injected by the gateway on recursive delegation (max 3).
+
+`rules` is an array of `RoutingRule`:
+
+```typescript
+type RoutingRule =
+  | { type: 'command'; trigger: string; target: string }
+  | { type: 'pattern'; pattern: string; target: string } // regex
+  | { type: 'keyword'; keyword: string; target: string }
+  | { type: 'sender'; pattern: string; target: string } // regex on sender JID
+  | { type: 'default'; target: string };
+```
+
+`target` is a group folder name. Evaluation order:
+command → pattern → keyword → sender → default.
 
 ### Future
 
