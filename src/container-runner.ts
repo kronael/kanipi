@@ -60,6 +60,7 @@ export interface ContainerInput {
   assistantName?: string;
   secrets?: Record<string, string>;
   messageCount?: number;
+  channelName?: string;
   delegateDepth?: number;
   // Enricher annotations prepended to prompt before container sees it.
   // Populated by runEnrichers() in index.ts — not sent as a separate field.
@@ -216,7 +217,7 @@ function buildVolumeMounts(
   }
   const claudeMdSrc = path.join(APP_DIR, 'container', 'CLAUDE.md');
   const claudeMdDst = path.join(groupSessionsDir, 'CLAUDE.md');
-  if (fs.existsSync(claudeMdSrc) && !fs.existsSync(claudeMdDst)) {
+  if (fs.existsSync(claudeMdSrc)) {
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
   mounts.push({
@@ -615,6 +616,18 @@ export async function runContainerAgent(
     'settings.json',
   );
   reconcileSidecarSettings(settingsFile, sidecarHandles);
+
+  // Activate per-channel output style if the channel has a matching style file.
+  // Style files are baked into the agent image at /home/node/.claude/output-styles/.
+  {
+    const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+    if (input.channelName) {
+      settings.outputStyle = input.channelName;
+    } else {
+      delete settings.outputStyle;
+    }
+    fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
+  }
 
   const agentVersionFile = path.join(
     DATA_DIR,
