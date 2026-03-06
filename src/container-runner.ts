@@ -497,7 +497,11 @@ function injectSidecarsIntoSettings(
   if (!Array.isArray(settings.allowedTools)) {
     settings.allowedTools = [];
   }
-  settings.allowedTools = [...settings.allowedTools, ...allowedTools];
+  const sidecarPrefixes = handles.map((h) => `mcp__${h.specName}__`);
+  const existing = settings.allowedTools.filter(
+    (t: string) => !sidecarPrefixes.some((p) => t.startsWith(p)),
+  );
+  settings.allowedTools = [...new Set([...existing, ...allowedTools])];
 
   fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
 }
