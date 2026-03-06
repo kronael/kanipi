@@ -398,11 +398,23 @@ export class TelegramChannel implements Channel {
     try {
       const numericId = jid.replace(/^tg:/, '');
       const name = filename ?? path.basename(filePath);
-      await this.bot.api.sendDocument(
-        numericId,
-        new InputFile(fs.createReadStream(filePath), name),
+      const ext = path.extname(filePath).slice(1).toLowerCase();
+      const photo = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
+      if (photo) {
+        await this.bot.api.sendPhoto(
+          numericId,
+          new InputFile(fs.createReadStream(filePath), name),
+        );
+      } else {
+        await this.bot.api.sendDocument(
+          numericId,
+          new InputFile(fs.createReadStream(filePath), name),
+        );
+      }
+      logger.info(
+        { jid, filePath, name },
+        photo ? 'Telegram photo sent' : 'Telegram document sent',
       );
-      logger.info({ jid, filePath, name }, 'Telegram document sent');
     } catch (err) {
       logger.error({ jid, filePath, err }, 'Failed to send Telegram document');
     }
