@@ -17,6 +17,9 @@
   discord threads to correct agent containers. Topic/thread ID
   as JID segment, glob patterns match topic families.
   Builds on worlds router.
+- **extensibility** — specced in extend.md. All registries documented,
+  extension directory convention, agent self-modification model.
+  Actions registry is v1, other drop-in registries are v2.
 - **router** — specced in router.md. Current flow documented,
   open items (glob routing, formatMessages improvements) depend on
   worlds and channels specs shipping first.
