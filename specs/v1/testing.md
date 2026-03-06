@@ -58,34 +58,169 @@ export async function teardown() {
 ```
 
 **Mock agent image**: minimal container that reads stdin JSON,
-pattern-matches prompt, returns canned output.
+pattern-matches prompt, returns canned responses. Each test
+scenario sends a message containing a keyword that triggers
+a specific mock behavior.
 
 ```bash
 #!/bin/sh
 # container/mock-agent/entrypoint.sh
 read input
 prompt=$(echo "$input" | jq -r .prompt)
-cat <<EOF
----NANOCLAW_OUTPUT_START---
-EOF
+OUT_START="---NANOCLAW_OUTPUT_START---"
+OUT_END="---NANOCLAW_OUTPUT_END---"
+IPC="/workspace/ipc/messages"
+
+emit() { echo "$OUT_START"; echo "$1"; echo "$OUT_END"; }
+
 case "$prompt" in
+  # --- basic ---
+  *echo-test*)
+    emit '{"result":"echo ok"}';;
+
+  # --- threading ---
   *reply-test*)
-    echo '{"result":"reply to this","replyTo":"msg-123"}';;
+    emit '{"result":"reply to this","replyTo":"msg-123"}';;
+
+  # --- multi-message output (split across chunks) ---
+  *long-test*)
+    emit '{"result":"line one\nline two\nline three"}';;
+
+  # --- error scenarios ---
   *error-test*)
-    echo 'error';;
-  *ipc-test*)
-    echo '{"type":"message","chatJid":"web/test","text":"from agent"}' \
-      > /workspace/ipc/messages/out.json
-    echo '{"result":"sent ipc"}';;
+    emit 'error';;
+  *crash-test*)
+    exit 1;;
+  *timeout-test*)
+    sleep 999;;
+  *empty-test*)
+    emit '{"result":""}';;
+  *null-test*)
+    emit '{"result":null}';;
+
+  # --- IPC: send message to another JID ---
+  *ipc-msg-test*)
+    echo '{"type":"message","chatJid":"web/other","text":"cross-group hello"}' \
+      > "$IPC/msg-$(date +%s).json"
+    emit '{"result":"sent ipc msg"}';;
+
+  # --- IPC: send message to unauthorized JID (non-root) ---
+  *ipc-unauth-test*)
+    echo '{"type":"message","chatJid":"web/forbidden","text":"should block"}' \
+      > "$IPC/unauth-$(date +%s).json"
+    emit '{"result":"tried unauth"}';;
+
+  # --- IPC: send file ---
+  *ipc-file-test*)
+    echo "file content" > /workspace/group/out.txt
+    echo '{"type":"file","chatJid":"web/test","filepath":"/workspace/group/out.txt","filename":"out.txt"}' \
+      > "$IPC/file-$(date +%s).json"
+    emit '{"result":"sent file"}';;
+
+  # --- IPC: send file with path escape attempt ---
+  *ipc-file-escape-test*)
+    echo '{"type":"file","chatJid":"web/test","filepath":"/etc/passwd","filename":"passwd"}' \
+      > "$IPC/escape-$(date +%s).json"
+    emit '{"result":"tried escape"}';;
+
+  # --- IPC: reset session ---
+  *ipc-reset-test*)
+    echo '{"type":"reset_session"}' > "$IPC/reset-$(date +%s).json"
+    emit '{"result":"reset requested"}';;
+
+  # --- IPC: schedule task ---
+  *ipc-schedule-test*)
+    mkdir -p /workspace/ipc/tasks
+    echo '{"type":"schedule_task","prompt":"scheduled job","schedule_type":"once","schedule_value":"2099-01-01T00:00:00Z","targetJid":"web/test"}' \
+      > /workspace/ipc/tasks/sched-$(date +%s).json
+    emit '{"result":"scheduled"}';;
+
+  # --- IPC: pause/resume/cancel task ---
+  *ipc-task-pause-test*)
+    mkdir -p /workspace/ipc/tasks
+    echo '{"type":"pause_task","taskId":"TASK_ID_PLACEHOLDER"}' \
+      > /workspace/ipc/tasks/pause-$(date +%s).json
+    emit '{"result":"paused"}';;
+
+  # --- IPC: register group (root only) ---
+  *ipc-register-test*)
+    mkdir -p /workspace/ipc/tasks
+    echo '{"type":"register_group","jid":"web/newgroup","name":"New","folder":"newgroup","trigger":"!new"}' \
+      > /workspace/ipc/tasks/reg-$(date +%s).json
+    emit '{"result":"registered"}';;
+
+  # --- file output: write to group dir ---
+  *write-file-test*)
+    mkdir -p /workspace/group/output
+    echo "agent wrote this" > /workspace/group/output/result.txt
+    emit '{"result":"file written"}';;
+
+  # --- share mount: read shared config ---
+  *read-share-test*)
+    if [ -f /workspace/share/config.txt ]; then
+      content=$(cat /workspace/share/config.txt)
+      emit "{\"result\":\"share: $content\"}"
+    else
+      emit '{"result":"share: not found"}'
+    fi;;
+
+  # --- share mount: attempt write (should fail for non-root) ---
+  *write-share-test*)
+    if echo "hack" > /workspace/share/evil.txt 2>/dev/null; then
+      emit '{"result":"share: write succeeded"}'
+    else
+      emit '{"result":"share: write blocked"}'
+    fi;;
+
+  # --- session: read previous sessions from system message ---
+  *session-check-test*)
+    # system messages are prepended to prompt by gateway
+    if echo "$prompt" | grep -q "previous_session"; then
+      emit '{"result":"has session history"}'
+    else
+      emit '{"result":"no session history"}'
+    fi;;
+
+  # --- system message: check new-day ---
+  *day-check-test*)
+    if echo "$prompt" | grep -q "new-day"; then
+      emit '{"result":"has new-day"}'
+    else
+      emit '{"result":"no new-day"}'
+    fi;;
+
+  # --- enrichment: check if voice annotation present ---
+  *voice-check-test*)
+    if echo "$prompt" | grep -q "transcription"; then
+      emit '{"result":"has transcription"}'
+    else
+      emit '{"result":"no transcription"}'
+    fi;;
+
+  # --- stdin piping: simulate slow read ---
+  *stdin-pipe-test*)
+    # read additional lines from stdin (group queue pipes new messages)
+    while IFS= read -r -t 2 line; do
+      : # consume
+    done
+    emit '{"result":"stdin consumed"}';;
+
+  # --- large output ---
+  *large-output-test*)
+    big=$(python3 -c "print('x' * 50000)" 2>/dev/null || printf '%0.sx' $(seq 1 50000))
+    emit "{\"result\":\"$big\"}";;
+
+  # --- default ---
   *)
-    echo '{"result":"ok"}';;
+    emit '{"result":"ok"}';;
 esac
-cat <<EOF
----NANOCLAW_OUTPUT_END---
-EOF
 ```
 
 Build: `make mock-agent-image`
+
+Each test sends a message containing the keyword (e.g.,
+"please echo-test this") and verifies the expected behavior.
+The mock agent is deterministic — same keyword, same response.
 
 **Scenarios**:
 
@@ -214,6 +349,145 @@ Build: `make mock-agent-image`
 3. Agent resumes task → status changes
 4. Agent cancels task → deleted from DB
 5. Non-root agent can only CRUD own tasks
+
+#### Agent crash (exit code != 0)
+
+1. Send `crash-test` → agent exits 1
+2. Verify error notification sent to user
+3. Verify session recorded with `result: 'error'`
+4. Verify next message spawns fresh container
+
+#### Agent timeout
+
+1. Send `timeout-test` → agent hangs
+2. Wait for CONTAINER_TIMEOUT
+3. Verify container killed
+4. Verify timeout error sent to user
+5. Verify session recorded with error
+
+#### Empty / null output
+
+1. Send `empty-test` → agent returns `{"result":""}`
+2. Verify no message sent to channel (empty = no response)
+3. Send `null-test` → agent returns `{"result":null}`
+4. Same — no response sent
+
+#### Large output
+
+1. Send `large-output-test` → agent returns 50KB
+2. Verify output truncated at CONTAINER_MAX_OUTPUT_SIZE
+3. Verify truncated response still delivered
+
+#### File output from agent
+
+1. Send `write-file-test` → agent writes to group dir
+2. Verify file exists on host at `groups/<folder>/output/result.txt`
+3. Verify file persists across container restarts
+
+#### IPC file path escape
+
+1. Send `ipc-file-escape-test` → agent tries `/etc/passwd`
+2. Verify blocked — file not under GROUPS_DIR
+3. No document sent to channel
+
+#### Session recording
+
+1. Send message → container spawns
+2. Verify `sessions` table: row with `started_at`, no `ended_at`
+3. Agent completes → verify `ended_at`, `result`, `message_count`
+4. Send second message → verify `new-session` system message
+   contains `<previous_session>` with first session data
+
+#### Session history across restarts
+
+1. Send messages, agent completes (session recorded)
+2. Restart gateway container
+3. Send new message → verify `new-session` includes previous
+   sessions from before restart (DB survives)
+
+#### Group queue ordering
+
+1. POST 3 messages rapidly to same group
+2. Verify agent receives all 3 in order in single prompt
+3. Verify cursor advances past all 3
+
+#### Group queue isolation
+
+1. POST message to group A and group B simultaneously
+2. Verify separate agent containers spawned
+3. Each gets only its own group's messages
+
+#### Stdin piping (mid-session messages)
+
+1. Send message, agent spawns (long-running)
+2. Send second message while agent running
+3. Verify second message piped to agent stdin
+4. Agent reads it (`stdin-pipe-test`)
+
+#### Bot message filtering
+
+1. POST message with `is_from_me: true`
+2. Verify NOT dispatched to agent (bot's own messages skipped)
+
+#### Message formatting
+
+1. POST message with XML-unsafe chars (`<`, `>`, `&`, `"`)
+2. Verify agent prompt has properly escaped XML
+3. Response with `<internal>` tags → verify stripped before send
+
+#### Command not found
+
+1. POST `/nonexistent` → verify not intercepted as command
+2. Message dispatched to agent as normal text
+
+#### Slink rate limiting
+
+1. POST many messages rapidly from same IP
+2. Verify 429 after exceeding SLINK_ANON_RPM
+3. With auth token → higher limit (SLINK_AUTH_RPM)
+
+#### Slink auth
+
+1. POST without token to authenticated endpoint → 401
+2. POST with valid JWT → 200
+3. POST with expired/invalid JWT → 401
+
+#### Chat metadata
+
+1. First message from new JID → verify `chats` table updated
+2. Verify chat name stored if available
+3. Second message → verify metadata not re-stored unnecessarily
+
+#### Whisper language config
+
+1. Write `.whisper-language` file to group dir (`en`)
+2. POST audio message
+3. Verify whisper called with `language=en` param
+
+#### SDK hookings (smoke-level, in integration)
+
+These test that the channel SDKs wire correctly into the
+gateway's callback system. Uses slink (the only channel
+available without real tokens) as the canonical test channel.
+
+1. Slink inbound → `onMessage` fires → DB stores message
+2. Slink `onChatMetadata` → DB stores chat metadata
+3. Slink outbound → `sendMessage` delivers via SSE
+4. Slink `sendDocument` → file delivered via SSE
+5. Slink SSE connection → `addSseListener` registered
+6. Slink SSE disconnect → `removeSseListener` called
+
+For telegram/discord/whatsapp: unit tests mock the SDK
+objects and verify the gateway callbacks fire correctly.
+Integration doesn't test real SDK connections — that's smoke.
+
+#### Compaction / diary (future, when implemented)
+
+1. Send many messages → conversation grows
+2. Trigger compaction threshold
+3. Verify compacted summary written to diary
+4. Verify original messages still in DB
+5. Verify next agent session gets compacted context
 
 ### Smoke (`make smoke`)
 
