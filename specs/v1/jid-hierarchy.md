@@ -15,9 +15,9 @@ domain); "room" is a single conversation space; "thread" is a sub-conversation.
 
 | Channel  | Flat (current)      | With world                  | With thread                          |
 | -------- | ------------------- | --------------------------- | ------------------------------------ |
-| telegram | `tg/chatid`         | —                           | `tg/chatid/threadid`                 |
+| telegram | `telegram/chatid`   | —                           | `telegram/chatid/threadid`           |
 | discord  | `discord/channelid` | `discord/guildid/channelid` | `discord/guildid/channelid/threadid` |
-| whatsapp | `wa/groupjid`       | —                           | (flat for now)                       |
+| whatsapp | `whatsapp/groupjid` | —                           | (flat for now)                       |
 | email    | `email/threadid`    | `email/domain/threadid`     | (flat for now)                       |
 | web      | `web/slinkid`       | —                           | (flat for now)                       |
 
@@ -25,8 +25,9 @@ The JID path IS the hierarchy — no separate World/Room entities needed.
 A world-scoped query is just a glob or prefix match on the JID:
 `discord/guildid/*` matches all channels and threads in that guild.
 
-Flat JIDs (`tg/-100123456`, `discord/987654321`) remain valid — they are
-the shortest form. Channels add segments as hierarchy becomes available.
+Flat JIDs (`telegram/-100123456`, `discord/987654321`) remain valid —
+they are the shortest form. Channels add segments as hierarchy becomes
+available.
 No migration needed for channels that don't use sub-hierarchy.
 
 ## Why `/` not `:`
@@ -46,7 +47,7 @@ No migration needed for channels that don't use sub-hierarchy.
 ```
 discord/serverid/channelid/*   — all threads under a channel
 discord/serverid/*             — all channels in a server
-tg/-100123456/*                — all forum topics in a group
+telegram/-100123456/*          — all forum topics in a group
 ```
 
 Group lookup becomes a glob match against inbound JID. Most specific
@@ -92,16 +93,24 @@ Tables affected:
 - `scheduled_tasks.chat_jid`
 
 ```sql
-UPDATE chats SET jid = REPLACE(jid, ':', '/');
-UPDATE messages SET chat_jid = REPLACE(chat_jid, ':', '/');
-UPDATE registered_groups SET jid = REPLACE(jid, ':', '/');
-UPDATE scheduled_tasks SET chat_jid = REPLACE(chat_jid, ':', '/');
+-- Expand short prefixes and switch separator in one pass
+-- Order matters: replace prefix first, then remaining ':'
+UPDATE chats SET jid =
+  REPLACE(REPLACE(REPLACE(jid, 'tg:', 'telegram/'), 'wa:', 'whatsapp/'), ':', '/');
+UPDATE messages SET chat_jid =
+  REPLACE(REPLACE(REPLACE(chat_jid, 'tg:', 'telegram/'), 'wa:', 'whatsapp/'), ':', '/');
+UPDATE registered_groups SET jid =
+  REPLACE(REPLACE(REPLACE(jid, 'tg:', 'telegram/'), 'wa:', 'whatsapp/'), ':', '/');
+UPDATE scheduled_tasks SET chat_jid =
+  REPLACE(REPLACE(REPLACE(chat_jid, 'tg:', 'telegram/'), 'wa:', 'whatsapp/'), ':', '/');
 ```
 
-`REPLACE(jid, ':', '/')` works because no channel ID contains `:`.
-WhatsApp JIDs contain `@` but not `:`. Run in a transaction.
+The nested REPLACE handles both prefix expansion (`tg:` → `telegram/`,
+`wa:` → `whatsapp/`) and separator change (`discord:` → `discord/`,
+`email:` → `email/`, `web:` → `web/`). Channel IDs never contain `:`.
+Run in a transaction.
 
-Code changes: search-replace `startsWith('tg:')` → `startsWith('tg/')`
+Code changes: search-replace `startsWith('tg:')` → `startsWith('telegram/')`
 etc. in all channel files. Systematic — one sed command worth of changes.
 
 The `kanipi` CLI `group add` also needs updating (constructs JIDs).
@@ -116,13 +125,15 @@ matches against registered groups via exact lookup or glob.
   `discord/<guildId>/<channelId>/<threadId>` for threads.
   `msg.guildId` and `msg.channel.parentId` available at runtime.
   DMs (no guild): `discord/dm/<channelId>`.
-- **Telegram** — `tg/<chatId>` for plain chats;
-  `tg/<chatId>/<messageThreadId>` for forum topics.
+- **Telegram** — `telegram/<chatId>` for plain chats;
+  `telegram/<chatId>/<messageThreadId>` for forum topics.
   `ctx.message.message_thread_id` available on inbound.
   No world segment — Telegram has no server/guild concept.
 - **Email** — `email/<domain>/<threadId>` when domain extraction
   is trivial; `email/<threadId>` as fallback. Domain = world.
-- **WhatsApp**, **web** — flat for now; extend when needed.
+- **WhatsApp** — `whatsapp/<groupJid>` for groups;
+  `whatsapp/<phoneJid>` for DMs. Flat for now.
+- **Web** — `web/<slinkId>`. Flat for now.
 
 ## `ownsJid()` update
 
@@ -131,7 +142,7 @@ Each channel matches its prefix:
 ```typescript
 // before: jid.startsWith('tg:')
 // after:
-ownsJid(jid: string) { return jid.startsWith('tg/'); }
+ownsJid(jid: string) { return jid.startsWith('telegram/'); }
 ```
 
 ## Implementation plan
@@ -139,8 +150,8 @@ ownsJid(jid: string) { return jid.startsWith('tg/'); }
 ### Phase 1: separator migration (breaking, do first)
 
 1. Add DB migration function — `REPLACE(':','/')` across all JID columns
-2. Update all `ownsJid()` in channels — `startsWith('prefix/')`
-3. Update JID construction in channels — `tg/${chatId}` etc.
+2. Update all `ownsJid()` in channels — `startsWith('telegram/')` etc.
+3. Update JID construction — `telegram/${chatId}`, `whatsapp/${jid}` etc.
 4. Update `kanipi` CLI — `group add` JID validation
 5. Update `email:` references in email.ts
 6. Run migration on all instances, rebuild images
@@ -160,7 +171,7 @@ ownsJid(jid: string) { return jid.startsWith('tg/'); }
 2. Replace exact `registeredGroups[chatJid]` lookup with `findGroup()`
 3. Pre-compile glob patterns at group registration
 4. Discord threads: `discord/<guildId>/<channelId>/<threadId>`
-5. Telegram forum topics: `tg/<chatId>/<threadId>`
+5. Telegram forum topics: `telegram/<chatId>/<threadId>`
 6. Document JID format in agent SKILL.md
 
 ## Open

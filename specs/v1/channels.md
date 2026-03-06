@@ -6,12 +6,12 @@ No token → channel never loads. No explicit enable flags.
 
 ## Activation
 
-| Channel  | Enabled when                               | JID prefix |
-| -------- | ------------------------------------------ | ---------- |
-| telegram | `TELEGRAM_BOT_TOKEN` set                   | `tg:`      |
-| whatsapp | `store/auth/creds.json` exists (QR paired) | `wa:`      |
-| discord  | `DISCORD_BOT_TOKEN` set                    | `discord:` |
-| email    | `EMAIL_IMAP_HOST` set                      | `email:`   |
+| Channel  | Enabled when                               | JID prefix  |
+| -------- | ------------------------------------------ | ----------- |
+| telegram | `TELEGRAM_BOT_TOKEN` set                   | `telegram/` |
+| whatsapp | `store/auth/creds.json` exists (QR paired) | `whatsapp/` |
+| discord  | `DISCORD_BOT_TOKEN` set                    | `discord/`  |
+| email    | `EMAIL_IMAP_HOST` set                      | `email/`    |
 
 ## Channel interface
 
