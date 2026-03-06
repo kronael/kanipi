@@ -401,3 +401,12 @@ and the agent's `settings.json` socat command change.
   file, or `.env` interpolation at start time.
 - **Sidecar-to-gateway IPC**: sidecars cannot call gateway actions
   today. If needed, mount gateway unix socket into sidecar too.
+- **Mount allowlist UX**: `~/.config/nanoclaw/mount-allowlist.json`
+  is a separate file from the DB, requires manual JSON editing,
+  and lives at a hardcoded path outside the project. Problems:
+  (1) not discoverable — no CLI for managing it,
+  (2) not per-instance — one allowlist for all instances,
+  (3) format is verbose (AllowedRoot objects with description).
+  Consider: move to per-instance `.env` var (`MOUNT_ROOTS=/srv/data`),
+  or store in DB alongside container_config, or at minimum add a
+  `kanipi config <inst> mount allow <path>` CLI command.

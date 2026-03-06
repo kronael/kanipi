@@ -131,6 +131,92 @@ group_cmd() {
   esac
 }
 
+mount_cmd() {
+  local INST="$1" ACTION="$2" FOLDER="$3" HOST_PATH="$4"
+  local DATA="/srv/data/kanipi_${INST}"
+  local DB="$DATA/store/messages.db"
+
+  if [ ! -f "$DB" ]; then
+    echo "error: db not found: $DB"
+    exit 1
+  fi
+
+  case "$ACTION" in
+    list)
+      node -e "
+        const db = require('better-sqlite3')('$DB', { readonly: true });
+        const rows = db.prepare('SELECT folder, container_config FROM registered_groups WHERE container_config IS NOT NULL').all();
+        let any = false;
+        for (const r of rows) {
+          try {
+            const cfg = JSON.parse(r.container_config);
+            if (cfg.additionalMounts && cfg.additionalMounts.length) {
+              for (const m of cfg.additionalMounts) {
+                any = true;
+                const ro = m.readonly !== false ? 'ro' : 'rw';
+                console.log(r.folder + '  ' + m.hostPath + '  → /workspace/extra/' + (m.containerPath || require('path').basename(m.hostPath)) + '  ' + ro);
+              }
+            }
+          } catch {}
+        }
+        if (!any) console.log('(no mounts)');
+        db.close();
+      "
+      ;;
+    add)
+      if [ -z "$FOLDER" ] || [ -z "$HOST_PATH" ]; then
+        echo "usage: kanipi config <instance> mount add <folder> <host-path> [container-name] [rw]"
+        exit 1
+      fi
+      local CNAME="${5:-}"
+      local RW="${6:-}"
+      node -e "
+        const path = require('path');
+        const db = require('better-sqlite3')('$DB');
+        const row = db.prepare('SELECT container_config FROM registered_groups WHERE folder = ?').get('$FOLDER');
+        if (!row) { console.error('group not found: $FOLDER'); process.exit(1); }
+        const cfg = row.container_config ? JSON.parse(row.container_config) : {};
+        cfg.additionalMounts = cfg.additionalMounts || [];
+        const cname = '$CNAME' || path.basename('$HOST_PATH');
+        const dup = cfg.additionalMounts.find(m => (m.containerPath || path.basename(m.hostPath)) === cname);
+        if (dup) { console.error('mount already exists: ' + cname); process.exit(1); }
+        const readonly = '$RW' !== 'rw';
+        cfg.additionalMounts.push({ hostPath: '$HOST_PATH', containerPath: cname, readonly });
+        db.prepare('UPDATE registered_groups SET container_config = ? WHERE folder = ?')
+          .run(JSON.stringify(cfg), '$FOLDER');
+        console.log('added: $HOST_PATH → /workspace/extra/' + cname + '  ' + (readonly ? 'ro' : 'rw'));
+        db.close();
+      "
+      ;;
+    rm)
+      if [ -z "$FOLDER" ] || [ -z "$HOST_PATH" ]; then
+        echo "usage: kanipi config <instance> mount rm <folder> <container-name>"
+        exit 1
+      fi
+      local CNAME="$HOST_PATH"
+      node -e "
+        const path = require('path');
+        const db = require('better-sqlite3')('$DB');
+        const row = db.prepare('SELECT container_config FROM registered_groups WHERE folder = ?').get('$FOLDER');
+        if (!row) { console.error('group not found: $FOLDER'); process.exit(1); }
+        const cfg = row.container_config ? JSON.parse(row.container_config) : {};
+        if (!cfg.additionalMounts || !cfg.additionalMounts.length) { console.error('no mounts'); process.exit(1); }
+        const before = cfg.additionalMounts.length;
+        cfg.additionalMounts = cfg.additionalMounts.filter(m => (m.containerPath || path.basename(m.hostPath)) !== '$CNAME');
+        if (cfg.additionalMounts.length === before) { console.error('mount not found: $CNAME'); process.exit(1); }
+        const val = cfg.additionalMounts.length ? JSON.stringify(cfg) : null;
+        db.prepare('UPDATE registered_groups SET container_config = ? WHERE folder = ?').run(val, '$FOLDER');
+        console.log('removed: $CNAME');
+        db.close();
+      "
+      ;;
+    *)
+      echo "usage: kanipi config <instance> mount {list|add|rm} ..."
+      exit 1
+      ;;
+  esac
+}
+
 user_cmd() {
   local INST="$1" ACTION="$2" USERNAME="$3" PASSWORD="$4"
   local DATA="/srv/data/kanipi_${INST}"
@@ -211,14 +297,15 @@ user_cmd() {
 if [ "${1:-}" = "config" ]; then
   INST="${2:-}"
   if [ -z "$INST" ]; then
-    echo "usage: kanipi config <instance> {group|user} ..."
+    echo "usage: kanipi config <instance> {group|user|mount} ..."
     exit 1
   fi
   case "${3:-}" in
     group) group_cmd "$INST" "${4:-}" "${5:-}" "${6:-}" ;;
     user)  user_cmd  "$INST" "${4:-}" "${5:-}" "${6:-}" ;;
+    mount) mount_cmd "$INST" "${4:-}" "${5:-}" "${6:-}" ;;
     *)
-      echo "usage: kanipi config <instance> {group|user} ..."
+      echo "usage: kanipi config <instance> {group|user|mount} ..."
       exit 1
       ;;
   esac
