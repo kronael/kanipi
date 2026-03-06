@@ -1,9 +1,13 @@
-# Enricher Pipeline
+# MIME Pipeline
 
-A composable, pre-dispatch enrichment stage that runs on every inbound message
-before the container is spawned. Enrichers may read message content, resolve
-attachments, fetch external data, or annotate context. All matching enrichers
-run; the message is not dispatched until all complete.
+Media attachment processing pipeline. Runs on every inbound message
+before the container is spawned — downloads, transcribes, annotates.
+
+**Status**: ~60% shipped. Voice + video handlers work. Full
+`MessageEnricher` interface (parallel execution, `ContextAnnotation`,
+`matches()` predicates) is aspirational — current code uses a simpler
+handler array in `mime-enricher.ts`. Formalize when a third handler
+is needed.
 
 ---
 

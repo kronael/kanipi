@@ -1,4 +1,7 @@
-# kanipi channel strategy — shipped
+# Channels
+
+The channel abstraction — interface, callbacks, activation, per-channel
+coverage, threading, and implementation notes. Single source of truth.
 
 ## Principle
 
@@ -12,8 +15,11 @@ No token → channel never loads. No explicit enable flags.
 | whatsapp | `store/auth/creds.json` exists (QR paired) | `whatsapp/` |
 | discord  | `DISCORD_BOT_TOKEN` set                    | `discord/`  |
 | email    | `EMAIL_IMAP_HOST` set                      | `email/`    |
+| web      | always (slink HTTP)                        | `web:`      |
 
 ## Channel interface
+
+Defined in `src/types.ts`:
 
 ```typescript
 interface Channel {
@@ -36,14 +42,28 @@ interface SendOpts {
 }
 ```
 
-`ownsJid()` returns true for JIDs with the channel's prefix. Router iterates
-channels to find the owner for each outbound message.
+`ownsJid()` returns true for JIDs with the channel's prefix. Router
+iterates channels to find the owner for each outbound message.
+
+### Command support (open)
+
+Channels that support native command registration declare it via
+optional methods (see `specs/v1/commands.md`):
+
+```typescript
+interface Channel {
+  // ...existing...
+  supportsNativeCommands?: boolean;
+  registerCommands?(handlers: CommandHandler[]): Promise<void>;
+}
+```
+
+Telegram and Discord register natively; WhatsApp, email, web use
+text prefix matching only.
 
 ## Inbound callbacks
 
 ```typescript
-// Delivers an inbound message to the gateway.
-// attachments + download are set for media entering the enricher pipeline.
 type OnInboundMessage = (
   chatJid: string,
   message: NewMessage,
@@ -51,9 +71,6 @@ type OnInboundMessage = (
   download?: AttachmentDownloader,
 ) => void;
 
-// Reports chat metadata (name, channel, group flag).
-// Channels that deliver names inline (Telegram) pass name here.
-// Channels that sync separately (WhatsApp) omit it.
 type OnChatMetadata = (
   chatJid: string,
   timestamp: string,
@@ -69,13 +86,64 @@ interface ChannelOpts {
 }
 ```
 
+## NewMessage
+
+```typescript
+interface NewMessage {
+  id: string;
+  chat_jid: string;
+  sender: string;
+  sender_name?: string;
+  content: string;
+  timestamp: string;
+  is_from_me?: boolean;
+  is_bot_message?: boolean;
+  replyTo?: string; // channel-native reply handle (open — not yet in code)
+}
+```
+
+## Implementations
+
+| Channel  | File                       | Library    | Notes                                          |
+| -------- | -------------------------- | ---------- | ---------------------------------------------- |
+| telegram | `src/channels/telegram.ts` | grammy     | long-poll, @mention translation                |
+| whatsapp | `src/channels/whatsapp.ts` | baileys    | QR auth, LID translation, offline queue        |
+| discord  | `src/channels/discord.ts`  | discord.js | @mention translation, 2000-char split          |
+| email    | `src/channels/email.ts`    | imapflow   | IMAP IDLE + SMTP, threading via email_threads  |
+| web      | `src/channels/web.ts`      | built-in   | SSE push to slink frontend, no inbound parsing |
+
+Full email channel spec: `specs/v1/email.md`.
+
+## Inbound event handlers
+
+| Channel  | Events                                                                             |
+| -------- | ---------------------------------------------------------------------------------- |
+| telegram | text, photo, video, voice, audio, document, sticker, location, contact (9 `.on()`) |
+| whatsapp | connection.update, creds.update, messages.upsert (3 `.ev.on()`)                    |
+| discord  | messageCreate (1 `.on()`)                                                          |
+| email    | IMAP IDLE loop → fetchUnseen                                                       |
+| web      | HTTP POST from slink frontend (handled in `src/slink.ts`)                          |
+
+## Interface coverage
+
+| Method             | telegram | whatsapp | discord | email | web |
+| ------------------ | -------- | -------- | ------- | ----- | --- |
+| `sendMessage`      | yes      | yes      | yes     | yes   | yes |
+| `setTyping`        | yes      | yes      | no      | no    | no  |
+| `sendDocument`     | yes      | yes      | yes     | no    | no  |
+| `sendMessage` opts | no       | no       | no      | no    | no  |
+| threading inbound  | no       | no       | no      | yes   | n/a |
+| threading outbound | no       | no       | no      | yes   | n/a |
+| native commands    | no       | no       | no      | no    | no  |
+
 ## Threading
 
-Threading is a first-class channel concern. When a user messages inside a
-thread or replies to a specific message, the channel should:
+Threading is a first-class channel concern. When a user messages inside
+a thread or replies to a specific message, the channel should:
 
 1. Populate `NewMessage.replyTo` with the channel-native handle.
-2. Pass `opts.replyTo` to `sendMessage` so the response lands in the same thread.
+2. Pass `opts.replyTo` to `sendMessage` so the response lands in
+   the same thread.
 
 Channel-native handles:
 
@@ -86,136 +154,76 @@ Channel-native handles:
 | whatsapp | quoted message key              | `quoted` field in Baileys    |
 | email    | root `Message-ID` header value  | `In-Reply-To` + `References` |
 
+### Prompt format
+
+Reply context is injected into the `<messages>` block by
+`formatMessages()` as a child element of `<message>`:
+
+```xml
+<message sender="Alice" time="2026-03-05T10:34Z" ago="2m">
+  <in_reply_to sender="Bob" time="2026-03-05T10:32Z" ago="4m">sure, what do you need</in_reply_to>
+  hey follow up on that
+</message>
+```
+
+`time` and `ago` on both elements — agent cannot infer elapsed time
+from ISO timestamps alone. `ago` computed at inject time. `in_reply_to`
+body is the quoted message text, truncated to 120 chars. Always
+available — looked up from DB at inject time.
+
+### WhatsApp raw storage
+
+Baileys requires the full `WAMessage` object for `quoted` on outbound.
+Store the raw object as JSON in `messages.raw` (nullable TEXT column)
+on inbound. Look up by stanza ID at send time. Survives restarts.
+
+### Forum topics and threads
+
+Telegram `message_thread_id` and Discord thread channels are room
+partitions, not reply chains. Handled separately from `replyTo` —
+see `specs/v1/worlds.md` for topic/thread routing.
+
 ### Prior art
 
-**OpenClaw** (separate project, not our upstream — for reference only):
+**OpenClaw**: annotates reply context inline, `replyToMode` config
+(`off`/`first`/`all`) for outbound reply targeting. Sensible default:
+`first`. Telegram forum topic insight — thread ID partitions room.
 
-- Inbound: extracts reply context and **annotates the message body inline**
-  so the agent sees it without a lookup. We use XML consistent with prompt
-  format, as a child element of `<message>`:
+**ElizaOS**: internal UUID `content.inReplyTo` hashed from platform
+message ID. WhatsApp threading not implemented.
 
-  ```xml
-  <message sender="Alice" time="2026-03-05T10:34Z" ago="2m">
-    <in_reply_to sender="Bob" time="2026-03-05T10:32Z" ago="4m">sure, what do you need</in_reply_to>
-    hey follow up on that
-  </message>
-  ```
+### Email threading
 
-  `time` and `ago` on both elements — agent cannot infer elapsed time from
-  ISO timestamps alone. `ago` computed at inject time from message timestamp.
-  `in_reply_to` body is the quoted message text, truncated to 120 chars.
-  Always available — message is looked up from DB at inject time.
+Implemented. `email_threads` table maps `message_id → thread_id →
+root_msg_id`. See `specs/v1/email.md` for full details. Generalise
+to `channel_threads` only when a second channel needs it.
 
-- OpenClaw uses a `replyToMode` config (`off` / `first` / `all`) for
-  outbound — controls whether only the first response chunk carries
-  `reply_to_message_id` or all of them. Sensible default: `first`.
+## To ship (message-threading)
 
-- **Telegram forum topics**: `message_thread_id` must be handled separately
-  from `replyTo` — setting it on DMs causes a 400 error. Forum topic ID
-  partitions the room, not the reply chain.
+1. **`src/types.ts`** — add `replyTo` to `NewMessage`
 
-- **WhatsApp outbound**: Baileys `sock.sendMessage(jid, { text }, { quoted: originalMsg })`
-  requires the full `WAMessage` object, not just the stanza ID string. Need
-  an in-memory cache of recent messages (keyed by stanza ID) to reconstruct
-  the quoted object at send time.
+2. **`src/types.ts`** — add `SendOpts` to `sendMessage` signature
 
-**ElizaOS**: uses an internal UUID (`content.inReplyTo`) hashed from the
-platform message ID. Same Telegram forum topic insight — thread ID → room
-partition, not `inReplyTo`. WhatsApp threading also not implemented there.
+3. **Telegram** — populate `replyTo` from
+   `ctx.message.reply_to_message?.message_id?.toString()`.
+   On outbound: `reply_parameters: { message_id: parseInt(opts.replyTo) }`
 
-**Prompt format note**: OpenClaw may use "moded XML" (XML with mode or type
-attributes on the wrapper element). Review `specs/v1/prompt-format.md` when
-implementing to decide how `<reply_to>` fits into the `<message>` element —
-likely as a child element or `reply_to` attribute with body as nested content.
+4. **WhatsApp** — populate `replyTo` from
+   `msg.message?.extendedTextMessage?.contextInfo?.stanzaId`.
+   On outbound: pass `quoted` from `messages.raw` lookup.
 
-### Current state
+5. **Discord** — populate `replyTo` from
+   `message.reference?.messageId`. On outbound:
+   `channel.send({ content, reply: { messageReference: replyTo } })`
 
-Email is the only channel with threading implemented, via `email_threads` in
-`db.ts` (`message_id → thread_id → root_msg_id`). All other channels drop
-reply context — inbound replies in group chats arrive as plain messages with
-no `replyTo` set.
+6. **`messages.raw` column** — `ALTER TABLE messages ADD COLUMN
+raw TEXT`. WhatsApp populates on inbound, others leave null.
 
-### To ship
-
-**1. `src/types.ts`** — add `replyTo` to `NewMessage`:
-
-```typescript
-export interface NewMessage {
-  // ...existing fields...
-  replyTo?: string; // channel-native reply handle; omit if not a reply
-}
-```
-
-**2. Telegram** (`src/channels/telegram.ts`) — grammy exposes
-`ctx.message.reply_to_message?.message_id`. Populate on inbound:
-
-```typescript
-replyTo: ctx.message.reply_to_message?.message_id?.toString(),
-```
-
-On outbound `sendMessage` with `opts?.replyTo`:
-
-```typescript
-await ctx.api.sendMessage(chatId, text, {
-  reply_parameters: { message_id: parseInt(opts.replyTo) },
-});
-```
-
-**3. WhatsApp** (`src/channels/whatsapp.ts`) — baileys exposes
-`msg.message?.extendedTextMessage?.contextInfo?.stanzaId` as the quoted
-message ID. Populate on inbound:
-
-```typescript
-replyTo: msg.message?.extendedTextMessage?.contextInfo?.stanzaId,
-```
-
-On outbound with `opts?.replyTo`, pass as `quoted` to baileys `sendMessage`.
-Baileys requires the full `WAMessage` object (raw protobuf), not just the
-stanza ID. Store the raw object as JSON in `messages.raw` (nullable column)
-on inbound — look it up by stanza ID at send time. Survives restarts, no
-in-memory cache needed. Without it, fall back to plain send (no quote bubble).
-
-**4. Discord** — two distinct concepts:
-
-- **Thread channel**: has its own Discord channel ID → unique
-  `discord:<threadChannelId>` JID. Works with current flat JIDs. Parent
-  channel available via `msg.channel.parentId` at runtime but not in JID
-  (v3 concern — see `specs/v3/jid-hierarchy.md`).
-- **Message reply**: `message.reference?.messageId` on inbound. On outbound:
-  `channel.send({ content: text, reply: { messageReference: replyTo } })`.
-
-**5. `messages.raw` column** — add nullable `raw TEXT` to the `messages`
-table via migration (`ALTER TABLE messages ADD COLUMN raw TEXT`). WhatsApp
-populates with `JSON.stringify(msg)` on inbound. Other channels leave null.
-On outbound reply: `JSON.parse(raw)` and pass as `quoted` to Baileys.
-
-**6. `email_threads`** — generalise to `channel_threads` only when a second
-channel needs it. Email threading stays on `email_threads` for now.
-
-**7. `formatMessages()`** — emit `<in_reply_to sender time ago>` as child
-element of `<message>` when `NewMessage.replyTo` is set. Add `time` and `ago`
-attributes to `<message>` itself. `ago` = human-readable elapsed ("2m", "1h",
-"3d") computed from message timestamp at format time.
-
-## Implementations
-
-| Channel  | File                       | Notes                                                        |
-| -------- | -------------------------- | ------------------------------------------------------------ |
-| telegram | `src/channels/telegram.ts` | grammy, long-poll, /chatid + /ping, @mention translation     |
-| whatsapp | `src/channels/whatsapp.ts` | baileys, QR auth, LID translation, offline queue, group sync |
-| discord  | `src/channels/discord.ts`  | discord.js, !chatid, @mention translation, 2000-char split   |
-| email    | `src/channels/email.ts`    | IMAP IDLE + SMTP, threading via email_threads table          |
-
-## Optional interface coverage
-
-| Method          | telegram | whatsapp | discord | email                                                       |
-| --------------- | -------- | -------- | ------- | ----------------------------------------------------------- |
-| `setTyping`     | ✓        | ✓        | ✗       | ✗                                                           |
-| `sendDocument`  | ✓        | ✓        | ✓       | ✗                                                           |
-| threading       | ✗ open   | ✗ open   | ✗ open  | ✓                                                           |
-| email `replyTo` | n/a      | n/a      | n/a     | = `Message-ID` of parent; `thread_id` is separate (routing) |
+7. **`formatMessages()`** — emit `<in_reply_to>` child element
+   when `replyTo` is set. Add `time` and `ago` attributes to
+   `<message>` elements.
 
 ## v2: plugin loading
 
 Currently all channels are compiled in and conditionally instantiated.
-Future: dynamic import so unused channel dependencies aren't loaded at all.
+Future: dynamic import so unused channel dependencies aren't loaded.

@@ -11,13 +11,12 @@
 
 ## Specs still open
 
+- **actions** (~80%) — action registry unifying IPC dispatch,
+  MCP tools, and commands. Spec complete, pending implementation.
 - **agents & topics routing** — route telegram forum topics and
   discord threads to correct agent containers. Topic/thread ID
   as JID segment, glob patterns match topic families.
   Builds on worlds router.
-- **pipelines** — enricher pipeline formalization. Ordered stages
-  (download → detect mime → transcribe → annotate), per-group
-  config, pipeline status/retry, timeout per stage.
 - **cli.md** — partial
 - **integration tests** — testcontainers harness, mock agent image,
   slink scenarios. Specced in testing.md.
@@ -27,6 +26,10 @@
 - **memory-diary** — silent PreCompact flush, periodic flush, SIGTERM hook
 - **plugins.md** — plugin proposal/approval/deploy flow
 - **db-bootstrap.md** — sessions history table expansion not yet reflected
+- **mime pipeline** — `specs/v1/mime.md` describes full
+  `MessageEnricher` interface, parallel execution, `ContextAnnotation`.
+  Current code (`mime-enricher.ts` + handler array) works fine for v1.
+  Formalize when a third handler is needed.
 
 ## Shipped
 
