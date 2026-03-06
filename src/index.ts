@@ -662,15 +662,18 @@ async function startMessageLoop(): Promise<void> {
               const toDelegate =
                 allForRoute.length > 0 ? allForRoute : nonCommandMessages;
               const routedPrompt = formatMessages(toDelegate);
+              const prevCursor = lastAgentTimestamp[chatJid] || '';
               lastAgentTimestamp[chatJid] =
                 toDelegate[toDelegate.length - 1].timestamp;
               saveState();
-              delegateToChild(target, routedPrompt, chatJid, 0).catch((err) =>
+              delegateToChild(target, routedPrompt, chatJid, 0).catch((err) => {
+                lastAgentTimestamp[chatJid] = prevCursor;
+                saveState();
                 logger.error(
                   { chatJid, target, err },
                   'routing delegate error',
-                ),
-              );
+                );
+              });
               continue;
             }
           }

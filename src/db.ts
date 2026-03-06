@@ -6,8 +6,10 @@ import { ASSISTANT_NAME, DATA_DIR, STORE_DIR } from './config.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
 import {
+  ContainerConfigSchema,
   NewMessage,
   RegisteredGroup,
+  RoutingRuleSchema,
   ScheduledTask,
   TaskRunLog,
 } from './types.js';
@@ -700,6 +702,40 @@ type GroupRow = {
   routing_rules: string | null;
 };
 
+function parseContainerConfig(raw: string, jid: string) {
+  try {
+    const r = ContainerConfigSchema.safeParse(JSON.parse(raw));
+    if (!r.success) {
+      logger.warn(
+        { jid, errors: r.error.issues },
+        'container_config schema invalid, ignoring',
+      );
+      return undefined;
+    }
+    return r.data;
+  } catch {
+    logger.warn({ jid }, 'container_config is not valid JSON, ignoring');
+    return undefined;
+  }
+}
+
+function parseRoutingRules(raw: string, jid: string) {
+  try {
+    const r = RoutingRuleSchema.array().safeParse(JSON.parse(raw));
+    if (!r.success) {
+      logger.warn(
+        { jid, errors: r.error.issues },
+        'routing_rules schema invalid, ignoring',
+      );
+      return undefined;
+    }
+    return r.data;
+  } catch {
+    logger.warn({ jid }, 'routing_rules is not valid JSON, ignoring');
+    return undefined;
+  }
+}
+
 function rowToGroup(row: GroupRow): RegisteredGroup & { jid: string } {
   return {
     jid: row.jid,
@@ -708,13 +744,15 @@ function rowToGroup(row: GroupRow): RegisteredGroup & { jid: string } {
     trigger: row.trigger_pattern,
     added_at: row.added_at,
     containerConfig: row.container_config
-      ? JSON.parse(row.container_config)
+      ? parseContainerConfig(row.container_config, row.jid)
       : undefined,
     requiresTrigger:
       row.requires_trigger === null ? undefined : row.requires_trigger === 1,
     slinkToken: row.slink_token ?? undefined,
     parent: row.parent ?? undefined,
-    routingRules: row.routing_rules ? JSON.parse(row.routing_rules) : undefined,
+    routingRules: row.routing_rules
+      ? parseRoutingRules(row.routing_rules, row.jid)
+      : undefined,
   };
 }
 
@@ -748,6 +786,12 @@ export function getGroupBySlink(
 export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
   if (!isValidGroupFolder(group.folder)) {
     throw new Error(`Invalid group folder "${group.folder}" for JID ${jid}`);
+  }
+  if (group.containerConfig !== undefined) {
+    ContainerConfigSchema.parse(group.containerConfig);
+  }
+  if (group.routingRules !== undefined) {
+    RoutingRuleSchema.array().parse(group.routingRules);
   }
   db.prepare(
     `INSERT OR REPLACE INTO registered_groups

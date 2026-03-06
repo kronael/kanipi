@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface AdditionalMount {
   hostPath: string; // Absolute path on host (supports ~ for home)
   containerPath?: string; // Optional — defaults to basename of hostPath. Mounted at /workspace/extra/{value}
@@ -55,6 +57,53 @@ export type RoutingRule =
   | { type: 'keyword'; keyword: string; target: string }
   | { type: 'sender'; pattern: string; target: string }
   | { type: 'default'; target: string };
+
+// Zod schemas for DB JSON field validation
+
+export const AdditionalMountSchema = z.object({
+  hostPath: z.string(),
+  containerPath: z.string().optional(),
+  readonly: z.boolean().optional(),
+});
+
+export const SidecarSpecSchema = z.object({
+  image: z.string(),
+  env: z.record(z.string(), z.string()).optional(),
+  memoryMb: z.number().optional(),
+  cpus: z.number().optional(),
+  network: z.enum(['bridge', 'none']).optional(),
+  allowedTools: z.array(z.string()).optional(),
+});
+
+export const ContainerConfigSchema = z.object({
+  additionalMounts: z.array(AdditionalMountSchema).optional(),
+  timeout: z.number().optional(),
+  sidecars: z.record(z.string(), SidecarSpecSchema).optional(),
+});
+
+export const RoutingRuleSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('command'),
+    trigger: z.string(),
+    target: z.string(),
+  }),
+  z.object({
+    type: z.literal('pattern'),
+    pattern: z.string(),
+    target: z.string(),
+  }),
+  z.object({
+    type: z.literal('keyword'),
+    keyword: z.string(),
+    target: z.string(),
+  }),
+  z.object({
+    type: z.literal('sender'),
+    pattern: z.string(),
+    target: z.string(),
+  }),
+  z.object({ type: z.literal('default'), target: z.string() }),
+]);
 
 export interface RegisteredGroup {
   name: string;
