@@ -11,18 +11,40 @@ agent doesn't see what was being replied to.
 
 ## Solution
 
-Store forward/reply metadata in the message DB. Render as XML
-attributes on `<message>` tags in the prompt (router.ts).
+Store forward/reply metadata in the message DB. Render as nested
+XML tags inside `<message>` in the prompt (router.ts).
 
 ### Prompt format
 
 ```xml
-<message sender="Alice" time="..." forwarded_from="Bob">text</message>
-<message sender="Alice" time="..." forwarded_from="(hidden)">text</message>
-<message sender="Alice" time="..." reply_to="Bob: how does SAM work?">my answer</message>
+<message sender="Alice" time="...">
+  <forwarded_from sender="Bob"/>
+  the forwarded text
+</message>
+
+<message sender="Alice" time="...">
+  <forwarded_from sender="(hidden)"/>
+  the forwarded text
+</message>
+
+<message sender="Alice" time="...">
+  <reply_to sender="Bob">how does SAM work?</reply_to>
+  my answer about SAM
+</message>
 ```
 
-Consistent with existing XML: `<message>`, `<system>`, `<messages>`.
+Nested tags, not attributes — these will later sit alongside
+other context tags like `<user>` (v2 user context):
+
+```xml
+<message sender="Alice" time="...">
+  <user>Backend dev, works on validator-bonds</user>
+  <reply_to sender="Bob">how does SAM work?</reply_to>
+  my answer about SAM
+</message>
+```
+
+The `<message>` tag becomes a container for context + content.
 
 ## Schema
 
@@ -72,5 +94,5 @@ No forwarding or reply-to concept.
 
 1. Channel adapters: extract metadata, pass to `storeMessage()`
 2. DB: add nullable `forwarded_from`, `reply_to_text`, `reply_to_sender`
-3. router.ts `formatMessages()`: render as XML attributes
+3. router.ts `formatMessages()`: render as nested XML tags
 4. No agent-side changes — it just sees richer XML
