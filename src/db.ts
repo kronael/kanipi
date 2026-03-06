@@ -214,10 +214,31 @@ function createSchema(database: Database.Database): void {
       `UPDATE chats SET channel = 'discord', is_group = 1 WHERE jid LIKE 'dc:%'`,
     );
     database.exec(
-      `UPDATE chats SET channel = 'telegram', is_group = 1 WHERE jid LIKE 'tg:%'`,
+      `UPDATE chats SET channel = 'telegram', is_group = 1 WHERE jid LIKE 'telegram:%'`,
     );
   } catch {
     /* columns already exist */
+  }
+
+  // Migrate JID prefixes: tg: → telegram:, bare whatsapp → whatsapp:
+  const { user_version: ver } = database
+    .prepare('PRAGMA user_version')
+    .get() as { user_version: number };
+  if (ver < 1) {
+    database.exec(`
+      UPDATE messages SET chat_jid = 'telegram:' || SUBSTR(chat_jid, 4) WHERE chat_jid LIKE 'tg:%';
+      UPDATE registered_groups SET jid = 'telegram:' || SUBSTR(jid, 4) WHERE jid LIKE 'tg:%';
+      UPDATE chats SET jid = 'telegram:' || SUBSTR(jid, 4) WHERE jid LIKE 'tg:%';
+      UPDATE scheduled_tasks SET chat_jid = 'telegram:' || SUBSTR(chat_jid, 4) WHERE chat_jid LIKE 'tg:%';
+
+      UPDATE messages SET chat_jid = 'whatsapp:' || chat_jid WHERE chat_jid LIKE '%@g.us' OR chat_jid LIKE '%@s.whatsapp.net';
+      UPDATE registered_groups SET jid = 'whatsapp:' || jid WHERE jid LIKE '%@g.us' OR jid LIKE '%@s.whatsapp.net';
+      UPDATE chats SET jid = 'whatsapp:' || jid WHERE jid LIKE '%@g.us' OR jid LIKE '%@s.whatsapp.net';
+      UPDATE scheduled_tasks SET chat_jid = 'whatsapp:' || chat_jid WHERE (chat_jid LIKE '%@g.us' OR chat_jid LIKE '%@s.whatsapp.net') AND chat_jid NOT LIKE 'whatsapp:%';
+
+      PRAGMA user_version = 1;
+    `);
+    logger.info('Migrated JID prefixes (tg: → telegram:, bare → whatsapp:)');
   }
 }
 

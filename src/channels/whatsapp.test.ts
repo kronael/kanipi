@@ -110,7 +110,7 @@ function createTestOpts(
     onMessage: vi.fn(),
     onChatMetadata: vi.fn(),
     registeredGroups: vi.fn(() => ({
-      'registered@g.us': {
+      'whatsapp:registered@g.us': {
         name: 'Test Group',
         folder: 'test-group',
         trigger: '@Andy',
@@ -226,7 +226,7 @@ describe('WhatsAppChannel', () => {
       (channel as any).connected = false;
 
       // Queue a message while disconnected
-      await channel.sendMessage('test@g.us', 'Queued message');
+      await channel.sendMessage('whatsapp:test@g.us', 'Queued message');
       expect(fakeSocket.sendMessage).not.toHaveBeenCalled();
 
       // Reconnect
@@ -355,14 +355,14 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'registered@g.us',
+        'whatsapp:registered@g.us',
         expect.any(String),
         undefined,
         'whatsapp',
         true,
       );
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'registered@g.us',
+        'whatsapp:registered@g.us',
         expect.objectContaining({
           id: 'msg-1',
           content: 'Hello Andy',
@@ -395,7 +395,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'unregistered@g.us',
+        'whatsapp:unregistered@g.us',
         expect.any(String),
         undefined,
         'whatsapp',
@@ -470,7 +470,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'registered@g.us',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ content: 'A reply message' }),
         undefined,
         undefined,
@@ -503,7 +503,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'registered@g.us',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ content: 'Check this photo' }),
         expect.arrayContaining([expect.objectContaining({ type: 'image' })]),
         expect.any(Function),
@@ -533,7 +533,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'registered@g.us',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ content: 'Watch this' }),
         expect.arrayContaining([expect.objectContaining({ type: 'video' })]),
         expect.any(Function),
@@ -564,7 +564,7 @@ describe('WhatsAppChannel', () => {
 
       // Voice note with no caption — content falls back to '[voice]', attachments passed
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'registered@g.us',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ content: '[voice]' }),
         expect.arrayContaining([expect.objectContaining({ type: 'voice' })]),
         expect.any(Function),
@@ -592,7 +592,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'registered@g.us',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ sender_name: '5551234' }),
         undefined,
         undefined,
@@ -606,7 +606,7 @@ describe('WhatsAppChannel', () => {
     it('translates known LID to phone JID', async () => {
       const opts = createTestOpts({
         registeredGroups: vi.fn(() => ({
-          '1234567890@s.whatsapp.net': {
+          'whatsapp:1234567890@s.whatsapp.net': {
             name: 'Self Chat',
             folder: 'self-chat',
             trigger: '@Andy',
@@ -635,7 +635,7 @@ describe('WhatsAppChannel', () => {
 
       // Should be translated to phone JID
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        '1234567890@s.whatsapp.net',
+        'whatsapp:1234567890@s.whatsapp.net',
         expect.any(String),
         undefined,
         'whatsapp',
@@ -664,7 +664,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'registered@g.us',
+        'whatsapp:registered@g.us',
         expect.any(String),
         undefined,
         'whatsapp',
@@ -691,9 +691,9 @@ describe('WhatsAppChannel', () => {
         },
       ]);
 
-      // Unknown LID passes through unchanged
+      // Unknown LID passes through with whatsapp: prefix
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        '0000000000@lid',
+        'whatsapp:0000000000@lid',
         expect.any(String),
         undefined,
         'whatsapp',
@@ -711,7 +711,7 @@ describe('WhatsAppChannel', () => {
 
       await connectChannel(channel);
 
-      await channel.sendMessage('test@g.us', 'Hello');
+      await channel.sendMessage('whatsapp:test@g.us', 'Hello');
       // Group messages get prefixed with assistant name
       expect(fakeSocket.sendMessage).toHaveBeenCalledWith('test@g.us', {
         text: 'Andy: Hello',
@@ -724,7 +724,7 @@ describe('WhatsAppChannel', () => {
 
       await connectChannel(channel);
 
-      await channel.sendMessage('123@s.whatsapp.net', 'Hello');
+      await channel.sendMessage('whatsapp:123@s.whatsapp.net', 'Hello');
       // Shared number: DMs also get prefixed (needed for self-chat distinction)
       expect(fakeSocket.sendMessage).toHaveBeenCalledWith(
         '123@s.whatsapp.net',
@@ -737,7 +737,7 @@ describe('WhatsAppChannel', () => {
       const channel = new WhatsAppChannel(opts);
 
       // Don't connect — channel starts disconnected
-      await channel.sendMessage('test@g.us', 'Queued');
+      await channel.sendMessage('whatsapp:test@g.us', 'Queued');
       expect(fakeSocket.sendMessage).not.toHaveBeenCalled();
     });
 
@@ -750,7 +750,7 @@ describe('WhatsAppChannel', () => {
       // Make sendMessage fail
       fakeSocket.sendMessage.mockRejectedValueOnce(new Error('Network error'));
 
-      await channel.sendMessage('test@g.us', 'Will fail');
+      await channel.sendMessage('whatsapp:test@g.us', 'Will fail');
 
       // Should not throw, message queued for retry
       // The queue should have the message
@@ -761,9 +761,9 @@ describe('WhatsAppChannel', () => {
       const channel = new WhatsAppChannel(opts);
 
       // Queue messages while disconnected
-      await channel.sendMessage('test@g.us', 'First');
-      await channel.sendMessage('test@g.us', 'Second');
-      await channel.sendMessage('test@g.us', 'Third');
+      await channel.sendMessage('whatsapp:test@g.us', 'First');
+      await channel.sendMessage('whatsapp:test@g.us', 'Second');
+      await channel.sendMessage('whatsapp:test@g.us', 'Third');
 
       // Connect — flush happens automatically on open
       await connectChannel(channel);
@@ -803,8 +803,14 @@ describe('WhatsAppChannel', () => {
       await new Promise((r) => setTimeout(r, 50));
 
       expect(fakeSocket.groupFetchAllParticipating).toHaveBeenCalled();
-      expect(updateChatName).toHaveBeenCalledWith('group1@g.us', 'Group One');
-      expect(updateChatName).toHaveBeenCalledWith('group2@g.us', 'Group Two');
+      expect(updateChatName).toHaveBeenCalledWith(
+        'whatsapp:group1@g.us',
+        'Group One',
+      );
+      expect(updateChatName).toHaveBeenCalledWith(
+        'whatsapp:group2@g.us',
+        'Group Two',
+      );
       expect(setLastGroupSync).toHaveBeenCalled();
     });
 
@@ -841,7 +847,10 @@ describe('WhatsAppChannel', () => {
       await channel.syncGroupMetadata(true);
 
       expect(fakeSocket.groupFetchAllParticipating).toHaveBeenCalled();
-      expect(updateChatName).toHaveBeenCalledWith('group@g.us', 'Forced Group');
+      expect(updateChatName).toHaveBeenCalledWith(
+        'whatsapp:group@g.us',
+        'Forced Group',
+      );
     });
 
     it('handles group sync failure gracefully', async () => {
@@ -876,26 +885,34 @@ describe('WhatsAppChannel', () => {
       await channel.syncGroupMetadata(true);
 
       expect(updateChatName).toHaveBeenCalledTimes(1);
-      expect(updateChatName).toHaveBeenCalledWith('group1@g.us', 'Has Subject');
+      expect(updateChatName).toHaveBeenCalledWith(
+        'whatsapp:group1@g.us',
+        'Has Subject',
+      );
     });
   });
 
   // --- JID ownership ---
 
   describe('ownsJid', () => {
-    it('owns @g.us JIDs (WhatsApp groups)', () => {
+    it('owns whatsapp: prefixed group JIDs', () => {
       const channel = new WhatsAppChannel(createTestOpts());
-      expect(channel.ownsJid('12345@g.us')).toBe(true);
+      expect(channel.ownsJid('whatsapp:12345@g.us')).toBe(true);
     });
 
-    it('owns @s.whatsapp.net JIDs (WhatsApp DMs)', () => {
+    it('owns whatsapp: prefixed DM JIDs', () => {
       const channel = new WhatsAppChannel(createTestOpts());
-      expect(channel.ownsJid('12345@s.whatsapp.net')).toBe(true);
+      expect(channel.ownsJid('whatsapp:12345@s.whatsapp.net')).toBe(true);
+    });
+
+    it('does not own bare @g.us JIDs (no prefix)', () => {
+      const channel = new WhatsAppChannel(createTestOpts());
+      expect(channel.ownsJid('12345@g.us')).toBe(false);
     });
 
     it('does not own Telegram JIDs', () => {
       const channel = new WhatsAppChannel(createTestOpts());
-      expect(channel.ownsJid('tg:12345')).toBe(false);
+      expect(channel.ownsJid('telegram:12345')).toBe(false);
     });
 
     it('does not own unknown JID formats', () => {
@@ -913,7 +930,7 @@ describe('WhatsAppChannel', () => {
 
       await connectChannel(channel);
 
-      await channel.setTyping('test@g.us', true);
+      await channel.setTyping('whatsapp:test@g.us', true);
       expect(fakeSocket.sendPresenceUpdate).toHaveBeenCalledWith(
         'composing',
         'test@g.us',
@@ -926,7 +943,7 @@ describe('WhatsAppChannel', () => {
 
       await connectChannel(channel);
 
-      await channel.setTyping('test@g.us', false);
+      await channel.setTyping('whatsapp:test@g.us', false);
       expect(fakeSocket.sendPresenceUpdate).toHaveBeenCalledWith(
         'paused',
         'test@g.us',
@@ -943,7 +960,7 @@ describe('WhatsAppChannel', () => {
 
       // Should not throw
       await expect(
-        channel.setTyping('test@g.us', true),
+        channel.setTyping('whatsapp:test@g.us', true),
       ).resolves.toBeUndefined();
     });
   });

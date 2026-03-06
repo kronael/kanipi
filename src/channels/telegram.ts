@@ -58,7 +58,7 @@ export class TelegramChannel implements Channel {
     this.bot = new Bot(this.botToken);
 
     this.bot.on('message:text', async (ctx) => {
-      const chatJid = `tg:${ctx.chat.id}`;
+      const chatJid = `telegram:${ctx.chat.id}`;
       let content = ctx.message.text;
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
       const senderName =
@@ -193,7 +193,7 @@ export class TelegramChannel implements Channel {
       placeholder: string,
       attachments: RawAttachment[],
     ) => {
-      const chatJid = `tg:${ctx.chat.id}`;
+      const chatJid = `telegram:${ctx.chat.id}`;
       const group = this.opts.registeredGroups()[chatJid];
       if (!group) return;
 
@@ -405,7 +405,7 @@ export class TelegramChannel implements Channel {
     }
 
     try {
-      const numericId = jid.replace(/^tg:/, '');
+      const numericId = jid.replace(/^telegram:/, '');
 
       // Telegram has a 4096 character limit per message — split if needed
       const html = mdToHtml(text);
@@ -444,7 +444,7 @@ export class TelegramChannel implements Channel {
   }
 
   ownsJid(jid: string): boolean {
-    return jid.startsWith('tg:');
+    return jid.startsWith('telegram:');
   }
 
   async disconnect(): Promise<void> {
@@ -465,7 +465,7 @@ export class TelegramChannel implements Channel {
       return;
     }
     try {
-      const numericId = jid.replace(/^tg:/, '');
+      const numericId = jid.replace(/^telegram:/, '');
       const name = filename ?? path.basename(filePath);
       const ext = path.extname(filePath).slice(1).toLowerCase();
       const input = new InputFile(fs.createReadStream(filePath), name);
@@ -489,7 +489,7 @@ export class TelegramChannel implements Channel {
   async setTyping(jid: string, isTyping: boolean): Promise<void> {
     if (!this.bot || !isTyping) return;
     try {
-      const numericId = jid.replace(/^tg:/, '');
+      const numericId = jid.replace(/^telegram:/, '');
       await this.bot.api.sendChatAction(numericId, 'typing');
     } catch (err) {
       logger.debug({ jid, err }, 'Failed to send Telegram typing indicator');

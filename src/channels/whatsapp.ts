@@ -31,6 +31,10 @@ import { Channel, ChannelOpts, SendOpts } from '../types.js';
 
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+function bareJid(jid: string): string {
+  return jid.replace(/^whatsapp:/, '');
+}
+
 export class WhatsAppChannel implements Channel {
   name = 'whatsapp';
 
@@ -174,14 +178,14 @@ export class WhatsAppChannel implements Channel {
         if (!rawJid || rawJid === 'status@broadcast') continue;
 
         // Translate LID JID to phone JID if applicable
-        const chatJid = await this.translateJid(rawJid);
+        const chatJid = `whatsapp:${await this.translateJid(rawJid)}`;
 
         const timestamp = new Date(
           Number(msg.messageTimestamp) * 1000,
         ).toISOString();
 
         // Always notify about chat metadata for group discovery
-        const isGroup = chatJid.endsWith('@g.us');
+        const isGroup = bareJid(chatJid).endsWith('@g.us');
         this.opts.onChatMetadata(
           chatJid,
           timestamp,
@@ -353,7 +357,7 @@ export class WhatsAppChannel implements Channel {
       return;
     }
     try {
-      await this.sock.sendMessage(jid, { text: prefixed });
+      await this.sock.sendMessage(bareJid(jid), { text: prefixed });
       logger.info({ jid, length: prefixed.length }, 'Message sent');
     } catch (err) {
       // If send fails, queue it for retry on reconnect
@@ -375,29 +379,30 @@ export class WhatsAppChannel implements Channel {
       return;
     }
     try {
+      const bare = bareJid(jid);
       const name = filename ?? path.basename(filePath);
       const mimetype = await mimeFromFile(filePath);
       const buf = fs.readFileSync(filePath);
       if (mimetype.startsWith('image/')) {
-        await this.sock.sendMessage(jid, {
+        await this.sock.sendMessage(bare, {
           image: buf,
           caption: name,
           mimetype,
         });
       } else if (mimetype.startsWith('video/')) {
-        await this.sock.sendMessage(jid, {
+        await this.sock.sendMessage(bare, {
           video: buf,
           caption: name,
           mimetype,
         });
       } else if (mimetype.startsWith('audio/')) {
-        await this.sock.sendMessage(jid, {
+        await this.sock.sendMessage(bare, {
           audio: buf,
           mimetype,
           ptt: false,
         });
       } else {
-        await this.sock.sendMessage(jid, {
+        await this.sock.sendMessage(bare, {
           document: buf,
           fileName: name,
           mimetype,
@@ -414,7 +419,7 @@ export class WhatsAppChannel implements Channel {
   }
 
   ownsJid(jid: string): boolean {
-    return jid.endsWith('@g.us') || jid.endsWith('@s.whatsapp.net');
+    return jid.startsWith('whatsapp:');
   }
 
   async disconnect(): Promise<void> {
@@ -426,7 +431,7 @@ export class WhatsAppChannel implements Channel {
     try {
       const status = isTyping ? 'composing' : 'paused';
       logger.debug({ jid, status }, 'Sending presence update');
-      await this.sock.sendPresenceUpdate(status, jid);
+      await this.sock.sendPresenceUpdate(status, bareJid(jid));
     } catch (err) {
       logger.debug({ jid, err }, 'Failed to update typing status');
     }
@@ -456,7 +461,7 @@ export class WhatsAppChannel implements Channel {
       let count = 0;
       for (const [jid, metadata] of Object.entries(groups)) {
         if (metadata.subject) {
-          updateChatName(jid, metadata.subject);
+          updateChatName(`whatsapp:${jid}`, metadata.subject);
           count++;
         }
       }
@@ -512,7 +517,7 @@ export class WhatsAppChannel implements Channel {
       while (this.outgoingQueue.length > 0) {
         const item = this.outgoingQueue.shift()!;
         // Send directly — queued items are already prefixed by sendMessage
-        await this.sock.sendMessage(item.jid, { text: item.text });
+        await this.sock.sendMessage(bareJid(item.jid), { text: item.text });
         logger.info(
           { jid: item.jid, length: item.text.length },
           'Queued message sent',
