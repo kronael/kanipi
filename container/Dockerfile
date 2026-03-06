@@ -44,6 +44,9 @@ RUN npm install
 # Copy source code
 COPY agent-runner/ ./
 
+# Bake per-channel output styles into agent image
+COPY output-styles/ /home/node/.claude/output-styles/
+
 # Validate TypeScript compiles (catches errors at build time)
 RUN npm run build && rm -rf dist
 

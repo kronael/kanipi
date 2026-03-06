@@ -364,6 +364,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     prompt,
     chatJid,
     missedMessages.length,
+    channel.name,
     async (result) => {
       // Streaming output callback — called for each agent result
       if (result.result) {
@@ -454,6 +455,7 @@ async function delegateToChild(
         sessionId: sessions[child.folder],
         groupFolder: child.folder,
         chatJid: originJid,
+        channelName: channel.name,
         messageCount: 1,
         delegateDepth: depth,
       },
@@ -493,6 +495,7 @@ async function runAgent(
   prompt: string,
   chatJid: string,
   messageCount: number,
+  channelName?: string,
   onOutput?: (output: ContainerOutput) => Promise<void>,
 ): Promise<'success' | 'error'> {
   const sessionId = sessions[group.folder];
@@ -540,6 +543,7 @@ async function runAgent(
         chatJid,
         assistantName: ASSISTANT_NAME,
         messageCount,
+        channelName,
         _annotations: annotations.length > 0 ? annotations : undefined,
       },
       (proc, containerName) =>
