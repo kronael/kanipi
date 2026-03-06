@@ -1,162 +1,94 @@
 # v1 Spec Critique
 
 Cross-referenced against refs/takopi, refs/muaddib, refs/brainpro.
+Updated 2026-03-06.
 
 ---
 
-## memory-messages.md
+## Resolved
 
-**CRITICAL: spec/code mismatch on message injection**
-Spec says inject `<messages>` on new session only. Actual code (`index.ts:249`)
-always injects regardless of session state. Muaddib also always injects — the
-"new session only" rule may be wrong. Decide: update spec to match code, or
-add the conditional guard.
-
-**Unbounded message history (HIGH)**
-`getMessagesSince()` has no count or time limit. Muaddib defaults to 5 messages;
-brainpro truncates to 20k chars. After months of messages, every spawn replays
-thousands of rows. Add a limit (`specs/v1/memory-messages.md` open).
-
-**Message duplication on resume (MEDIUM)**
-On session resume, DB messages covering the same period as the SDK transcript
-are re-sent. No deduplication. Muaddib deduplicates by `(pid, role)`. Low risk
-now but will cause confusion in production.
+- **spec/code mismatch on message injection** — code now conditionally
+  injects `<messages>` only on new session (`index.ts:212`). Matches spec.
+- **Unbounded message history** — spec says 30 messages, 2 days limit
+  (memory-messages.md). Implemented.
+- **Message duplication on resume** — `<messages>` only on new session.
+- **`new-day` event no trigger** — implemented (`index.ts:234-245`).
+- **`:` separator** — worlds spec uses `/`. Channels guarantee
+  separator-free IDs.
+- **`jid-hierarchy.md` missing** — merged into worlds.md.
+- **Command handler loader** — `registerCommand()` exists. Actions spec
+  supersedes further loader concerns.
 
 ---
 
-## memory-session.md
+## Still open
 
-**Idle timeout + IPC interaction undefined (MEDIUM)**
-Spec describes how IPC messages kept the rhias container alive for 4 days.
-Does an inbound IPC message reset the idle timer? If yes, idle timeout never
-fires during active tasks. If no, container gets killed mid-IPC. Needs a rule.
+### memory-session.md
 
-**Auto-compact + DB messages undefined (MEDIUM)**
-When SDK compacts, gateway doesn't know it happened. Next spawn: DB messages
-are full history, SDK context is compacted. Potential duplication at compaction
-boundary. Refs don't use SDK compaction — they use explicit diary/chronicle.
+**Idle timeout + IPC interaction (MEDIUM)**
+Does an inbound IPC message reset the idle timer? If yes, idle timeout
+never fires during active tasks. If no, container killed mid-IPC.
+Needs a rule.
 
-**`previous_session` count is a guess (LOW)**
-Spec says last 10 sessions. No rationale. Brainpro injects today + yesterday's
-notes (2 entries). Could be configurable. Not blocking.
+**Auto-compact + DB messages boundary (MEDIUM)**
+When SDK compacts, gateway doesn't know. Next spawn: DB messages are
+full history, SDK context is compacted. Potential duplication at
+boundary.
 
----
-
-## system-messages.md
-
-**`new-day` event has no trigger in code (MEDIUM)**
-Spec documents `gateway:new-day` but no code path emits it. Either implement
-or remove from spec.
+### system-messages.md
 
 **Queue depth unbounded (LOW)**
-No max queue depth. Rapid enqueue + agent crash = unbounded DB growth. Add
-a soft cap (e.g. 100 per group, drop oldest).
+No max queue depth. Add soft cap (100 per group, drop oldest).
 
-**Session history reconstruction on crash (LOW)**
-If gateway crashes while writing to `sessions` table, `ended_at` may be null.
-Next session sees incomplete `<previous_session>` records. Acceptable for v1 —
-just document the fallback (null `ended_at` = session ended abnormally).
+**Session crash recovery (LOW)**
+If gateway crashes, `ended_at` may be null. Document fallback: null
+`ended_at` = session ended abnormally.
 
----
+### channels.md / worlds.md
 
-## channels.md / jid-hierarchy.md
+**Glob performance (HIGH)**
+Pre-compile and cache minimatch patterns at group registration time.
+Don't run pattern compilation per message.
 
-**Glob performance risk (HIGH)**
-Spec says "use minimatch" for JID matching. Minimatch runs per message on every
-inbound event. Pre-compile and cache patterns at group registration time.
+**Thread vs reply orthogonality (MEDIUM)**
+Threading (message concern) is orthogonal to JID hierarchy (routing).
+Spec should clarify: `replyTo` is per-message, topic/thread ID is a
+JID segment. The "leaf rule" holds but needs explicit note.
 
-**`:` separator has no escape strategy (MEDIUM)**
-If a channel ID ever contains `:`, JID parsing breaks. Muaddib uses `%2F`
-encoding. For now document that kanipi segments (discord server IDs, telegram
-chat IDs) are guaranteed to not contain `:` — or add escaping.
+**`in_reply_to` truncation not in prompt-format.md (LOW)**
+channels.md says 120 chars. prompt-format.md doesn't document it.
 
-**Thread vs reply conflation (MEDIUM)**
-Spec says "same JID leaf = reply, different JID = reference." But Telegram
-forum topics: `tg:chatid:topicid` is a partition (JID segment), and replies
-within that topic use `replyTo` (message-level). Threading is a message
-concern; JID hierarchy is a routing concern. The "leaf rule" holds but the
-spec should clarify these are orthogonal.
+### commands.md
 
-**`in_reply_to` XML truncation in prompt-format.md (LOW)**
-channels.md says "120 chars" but prompt-format.md doesn't document it or
-where XML escaping applies. Add a note.
+**`/help` implementation (MEDIUM)**
+Listed as open. Needs: list commands with description, per-channel
+format awareness.
 
----
+**`xml-vs-json-llm.md` reference (LOW)**
+Cited in commands.md but doesn't exist. Remove reference.
 
-## commands.md
+### extend-skills.md
 
-**No handler loader/discovery mechanism (HIGH)**
-Spec defines `CommandHandler` interface but never says how handlers are
-discovered at startup. Brainpro scans `src/commands/*.md` files (YAML
-frontmatter, markdown body). Consider adopting that pattern — simpler than
-interface-based registration, testable without runtime.
+**Skill naming enforcement (MEDIUM)**
+No validation on skill names. Add `^[a-z0-9\-]+$` check at seeding.
 
-**No `/help` implementation logic (MEDIUM)**
-Listed as open but no spec. Does it filter by channel? Per-group or global?
-Format? At minimum: list available commands with description, one per line.
+**Migration failure behavior (MEDIUM)**
+What if a migration fails midway? Should: stop, log, retry on next
+`/migrate`.
 
-**`xml-vs-json-llm.md` citation doesn't exist (LOW)**
-Spec references this file but it's not in `specs/`. Either create it or
-remove the reference.
+### systems.md
 
----
+**Too skeletal (HIGH)**
+No concrete interfaces, no hook composition rules. Needs work before
+implementation. May be superseded by extend-gateway.md registry
+approach.
 
-## skills.md
+### Cross-spec
 
-**No naming enforcement (MEDIUM)**
-Brainpro validates skill names as `^[a-z0-9\-]+$`. Kanipi doesn't. Without
-validation, collision or path traversal risk. Add check at seeding time.
+**Session locking (MEDIUM)**
+One agent per group enforced by `GroupQueue` but not documented as
+the concurrency contract.
 
-**Migration safety vague (MEDIUM)**
-How is `MIGRATION_VERSION` tracked per group vs globally? What if a migration
-fails midway — can it retry? Spec says "runs migrations" but doesn't define
-failure behavior. Should be: stop and log; retry on next `/migrate`.
-
-**Skills not connected to systems.md (LOW)**
-Skills are seeded to `~/.claude/skills/` and the SDK loads them. But systems.md
-doesn't reference skills as a context injection source. Clarify the link.
-
----
-
-## systems.md
-
-**Too skeletal to ship against (HIGH)**
-No concrete TypeScript interfaces, no hook composition rules, no call site in
-container-runner.ts shown. Muaddib has `ToolSet`, `MuaddibTool` with
-`persistType`, hook call order. Systems.md needs concrete interface shapes
-before implementation can start.
-
-**Hook composition rules undefined (MEDIUM)**
-If multiple contextHooks fire, are outputs concatenated? Can one veto others?
-What if a hook throws? Define: outputs concatenated with `\n`, null = skip,
-exceptions = log + skip + continue.
-
-**Tool metadata absent (MEDIUM)**
-No schema for MCP tools (name, description, inputSchema, persistType).
-Muaddib's `persistType: "none" | "summary"` controls whether tool results
-are cached for future context — important for cost. Add this to the tool
-interface.
-
----
-
-## Cross-spec
-
-**No session locking / concurrency model (MEDIUM)**
-Can two containers run for the same group simultaneously? No spec. Muaddib
-and Takopi both enforce one-agent-per-room. Gateway's `GroupQueue` serializes
-per group — but this isn't documented as the concurrency contract.
-
-**Multiple memory layers have no precedence order (LOW)**
-MEMORY.md, diary, session history, DB messages, system messages — all arrive
-in the same turn. What wins if they conflict? Brainpro defines explicit load
-order. Kanipi should document: system messages → session history → diary →
-messages (→ user text).
-
----
-
-## Not worth acting on
-
-- `previous_session` count of 10 — fine for v1, tune later
-- Queue atomicity race (gateway crash mid-flush) — extremely unlikely, fallback polling covers it
-- PID 1 assumption in IPC-signal — already true by container design
-- IPC signal coalescing — fallback polling handles it
+**Memory layer precedence (LOW)**
+Multiple context sources arrive in same turn. Document order:
+system messages → session history → diary → messages → user text.
