@@ -65,7 +65,8 @@ group_cmd() {
         exit 1
       fi
       # Normalize common JID prefix mistakes
-      JID=$(echo "$JID" | sed 's/^telegram:/tg:/' | sed 's/^whatsapp:/wa:/')
+      # Normalize short prefixes to full URI-style JIDs
+      JID=$(echo "$JID" | sed 's/^tg:/telegram:/' | sed 's/^wa:/whatsapp:/')
       local ASSISTANT
       ASSISTANT=$(grep -s '^ASSISTANT_NAME=' "$DATA/.env" | cut -d= -f2- || echo "$INST")
       F=$(node -e "
