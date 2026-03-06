@@ -91,6 +91,31 @@ const lastMessageDate: Record<string, string> = {};
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 
+// Per-group typing indicator intervals
+const typingState: Record<
+  string,
+  { interval: ReturnType<typeof setInterval>; channel: Channel }
+> = {};
+
+function startTyping(channel: Channel, jid: string): void {
+  stopTypingFor(jid);
+  channel.setTyping?.(jid, true);
+  if (channel.setTyping) {
+    typingState[jid] = {
+      interval: setInterval(() => channel.setTyping!(jid, true), 4000),
+      channel,
+    };
+  }
+}
+
+function stopTypingFor(jid: string): void {
+  const s = typingState[jid];
+  if (!s) return;
+  clearInterval(s.interval);
+  s.channel.setTyping?.(jid, false);
+  delete typingState[jid];
+}
+
 // Cache attachment data for /file put — keyed by message ID, TTL 60s
 const attachmentCache = new Map<
   string,
@@ -345,19 +370,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     }, IDLE_TIMEOUT);
   };
 
-  await channel.setTyping?.(chatJid, true);
-  let typingInterval: ReturnType<typeof setInterval> | null = channel.setTyping
-    ? setInterval(() => channel.setTyping!(chatJid, true), 4000)
-    : null;
+  startTyping(channel, chatJid);
   let hadError = false;
   let outputSentToUser = false;
-
-  const stopTyping = () => {
-    if (!typingInterval) return;
-    clearInterval(typingInterval);
-    typingInterval = null;
-    channel.setTyping?.(chatJid, false);
-  };
 
   const output = await runAgent(
     group,
@@ -388,7 +403,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       if (result.status === 'success') {
         // Agent finished responding — stop typing indicator.
         // Container stays alive (idle) but should not show as "working".
-        stopTyping();
+        stopTypingFor(chatJid);
         queue.notifyIdle(chatJid);
       }
 
@@ -398,7 +413,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     },
   );
 
-  stopTyping();
+  stopTypingFor(chatJid);
   clearTimeout(idleTimer ?? undefined);
 
   if (output === 'error' || hadError) {
@@ -758,11 +773,7 @@ async function startMessageLoop(): Promise<void> {
               messagesToSend[messagesToSend.length - 1].timestamp;
             saveState();
             // Show typing indicator while the container processes the piped message
-            channel
-              .setTyping?.(chatJid, true)
-              ?.catch((err) =>
-                logger.warn({ chatJid, err }, 'Failed to set typing indicator'),
-              );
+            startTyping(channel, chatJid);
           } else {
             // No active container — enqueue for a new one
             queue.enqueueMessageCheck(chatJid);

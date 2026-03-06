@@ -1,19 +1,22 @@
-# 013 — CLAUDE.md: add Soul, Knowledge, Greetings sections
+# 013 — CLAUDE.md + skills: Soul, Knowledge, Greetings, hello persona
 
 The seeded `~/.claude/CLAUDE.md` is missing the Soul, Knowledge,
-and Greetings sections added in v0.7. Copy the latest from the
-canonical source.
+and Greetings sections. The hello skill has a stale version that
+hardcodes "I'm a Kanipi agent" instead of reading SOUL.md.
 
 ## Check
 
 ```bash
-grep -q "^# Soul" ~/.claude/CLAUDE.md && echo "done" && exit 0
+grep -q "^# Soul" ~/.claude/CLAUDE.md && \
+  grep -q "SOUL.md" ~/.claude/skills/hello/SKILL.md && \
+  echo "done" && exit 0
 ```
 
 ## Steps
 
 ```bash
 cp /workspace/self/container/CLAUDE.md ~/.claude/CLAUDE.md
+cp /workspace/self/container/skills/hello/SKILL.md ~/.claude/skills/hello/SKILL.md
 ```
 
 ## After
