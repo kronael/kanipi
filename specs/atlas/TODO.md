@@ -46,12 +46,9 @@ No skill needed — agent has Grep/Read natively.
 
 ## Phase 2: Polish
 
-### 2a. Scheduled research
+### 2a. Keep codebase refs fresh
 
-Cron task to grow knowledge base automatically.
-
-- [ ] Scheduled task: periodic research on knowledge gaps
-- [ ] Prevent duplicate research on same topic
+- [ ] Cron git pull on symlinked repos in /workspace/extra/
 
 ### 2b. Per-channel output styles
 
