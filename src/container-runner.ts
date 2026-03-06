@@ -217,7 +217,7 @@ function buildVolumeMounts(
   }
   const claudeMdSrc = path.join(APP_DIR, 'container', 'CLAUDE.md');
   const claudeMdDst = path.join(groupSessionsDir, 'CLAUDE.md');
-  if (fs.existsSync(claudeMdSrc)) {
+  if (fs.existsSync(claudeMdSrc) && !fs.existsSync(claudeMdDst)) {
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
   mounts.push({
