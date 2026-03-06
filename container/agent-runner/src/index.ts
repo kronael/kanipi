@@ -278,7 +278,13 @@ function createPreCompactHook(assistantName?: string): HookCallback {
       log(`Failed to archive transcript: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    return {};
+    return {
+      systemMessage:
+        'Context is about to be compacted. Before compaction, update ' +
+        "today's diary entry (/workspace/group/diary/YYYYMMDD.md) with " +
+        'key decisions, progress, and context that should persist across ' +
+        'sessions. Use the /diary skill.',
+    };
   };
 }
 
