@@ -352,14 +352,35 @@ export class WhatsAppChannel implements Channel {
     try {
       const name = filename ?? path.basename(filePath);
       const mimetype = await mimeFromFile(filePath);
-      await this.sock.sendMessage(jid, {
-        document: fs.readFileSync(filePath),
-        fileName: name,
-        mimetype,
-      });
-      logger.info({ jid, filePath, name }, 'WA document sent');
+      const buf = fs.readFileSync(filePath);
+      if (mimetype.startsWith('image/')) {
+        await this.sock.sendMessage(jid, {
+          image: buf,
+          caption: name,
+          mimetype,
+        });
+      } else if (mimetype.startsWith('video/')) {
+        await this.sock.sendMessage(jid, {
+          video: buf,
+          caption: name,
+          mimetype,
+        });
+      } else if (mimetype.startsWith('audio/')) {
+        await this.sock.sendMessage(jid, {
+          audio: buf,
+          mimetype,
+          ptt: false,
+        });
+      } else {
+        await this.sock.sendMessage(jid, {
+          document: buf,
+          fileName: name,
+          mimetype,
+        });
+      }
+      logger.info({ jid, filePath, name }, 'WA media sent');
     } catch (err) {
-      logger.error({ jid, filePath, err }, 'Failed to send WA document');
+      logger.error({ jid, filePath, err }, 'Failed to send WA media');
     }
   }
 

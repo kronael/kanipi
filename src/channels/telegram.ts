@@ -399,22 +399,24 @@ export class TelegramChannel implements Channel {
       const numericId = jid.replace(/^tg:/, '');
       const name = filename ?? path.basename(filePath);
       const ext = path.extname(filePath).slice(1).toLowerCase();
-      const photo = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
-      if (photo) {
-        await this.bot.api.sendPhoto(
-          numericId,
-          new InputFile(fs.createReadStream(filePath), name),
-        );
+      const input = new InputFile(fs.createReadStream(filePath), name);
+      let method = 'document';
+      if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+        await this.bot.api.sendPhoto(numericId, input);
+        method = 'photo';
+      } else if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
+        await this.bot.api.sendVideo(numericId, input);
+        method = 'video';
+      } else if (ext === 'gif') {
+        await this.bot.api.sendAnimation(numericId, input);
+        method = 'animation';
+      } else if (['mp3', 'ogg', 'wav', 'flac', 'm4a'].includes(ext)) {
+        await this.bot.api.sendAudio(numericId, input);
+        method = 'audio';
       } else {
-        await this.bot.api.sendDocument(
-          numericId,
-          new InputFile(fs.createReadStream(filePath), name),
-        );
+        await this.bot.api.sendDocument(numericId, input);
       }
-      logger.info(
-        { jid, filePath, name },
-        photo ? 'Telegram photo sent' : 'Telegram document sent',
-      );
+      logger.info({ jid, filePath, name }, `Telegram ${method} sent`);
     } catch (err) {
       logger.error({ jid, filePath, err }, 'Failed to send Telegram document');
     }
