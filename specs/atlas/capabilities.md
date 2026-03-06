@@ -60,7 +60,28 @@ How the agent behaves, who it responds to, honesty rules.
 
 **Status:** Done. CLAUDE.md + character.json + group trigger mode.
 
-## That's it
+## Also missing (not evangelist-specific, but needed)
+
+### Forwarded messages
+
+Telegram forwards carry `forward_origin` metadata. Kanipi drops it —
+agent sees raw text with no context that it was forwarded or who said it.
+The evangelist had `handleForward` that extracted the original question.
+
+**To build:** Parse `forward_origin` in telegram.ts, prepend
+`[Forwarded from <name>]` to message text (like media placeholders).
+
+### Reply-to threading
+
+Evangelist patched grammy to send replies with `reply_to_message_id`
+so research results threaded back to the original question.
+Kanipi doesn't track or use reply-to at all.
+
+**To build:** Store message ID in gateway DB, pass to agent context.
+Agent or IPC sendMessage includes `replyTo` field. Channel sends
+with `reply_to_message_id`. Needed for research delivery threading.
+
+## Everything else
 
 Everything else the evangelist plugin did is either:
 
@@ -71,5 +92,7 @@ Everything else the evangelist plugin did is either:
 ## Build order
 
 1. **Facts search** — a `/facts` skill or gateway injection. Biggest impact.
-2. **Researcher** — subagent workflow. Write findings to facts/.
-3. **Verifier** — second pass. Can defer (single-pass is fine initially).
+2. **Forwarded messages** — simple, high usability. Few lines in telegram.ts.
+3. **Researcher** — subagent workflow. Write findings to facts/.
+4. **Reply-to threading** — needed for research delivery.
+5. **Verifier** — second pass. Can defer (single-pass is fine initially).
