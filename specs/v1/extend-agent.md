@@ -65,6 +65,21 @@ const allowedTools = [...builtinTools, ...mcpWildcards];
 Gateway writes to `settings.json` per-spawn for env
 injection. Must preserve agent-written `mcpServers`.
 
+## Agent-runner hot-patching
+
+Agent-runner source (`container/agent-runner/src/`) is mounted
+into the container at `/app/src`. The entrypoint recompiles
+with `tsc` on every spawn to pick up agent self-modifications.
+
+Gateway copies source to `data/sessions/<group>/agent-runner-src/`
+on first spawn. Agent can modify its own runner code; changes
+take effect on next spawn after recompilation.
+
+**Build pipeline**: `make build` compiles agent-runner locally.
+`make lint` and pre-commit typecheck it. The Dockerfile also
+compiles during image build. Runtime tsc is only for hot-patched
+source — the image ships pre-compiled JS as fallback.
+
 ## Known limitation: hooks
 
 Agent cannot add SDK hooks (PreCompact, PreToolUse, etc).
