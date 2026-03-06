@@ -3,9 +3,9 @@
 ## Test tiers
 
 ```
-make test         unit, mocked, <5s
-vitest run tests/e2e  gateway + mock agent, ~10s
-make smoke        real instance, real API (SDK wiring only)
+make test                 unit, mocked, <5s
+vitest run tests/e2e      e2e (real fs + in-memory DB), ~10s
+make smoke                real instance, real API (SDK wiring only)
 ```
 
 ### Unit (`make test`)
@@ -14,10 +14,17 @@ Vitest, mocked deps, no docker. Covers: message formatting,
 DB ops (in-memory SQLite), IPC auth, command dispatch,
 router glob, config parsing, folder validation.
 
-### Integration (`make integration`)
+### E2E (`vitest run tests/e2e`)
+
+Real fs + in-memory SQLite + IPC file protocol. No docker,
+no channel deps. Covers: IPC request/reply cycle, watcher-
+driven drain, action dispatch, DB-backed handlers, auth.
+
+### Integration (future — testcontainers)
 
 Full gateway with mock agent via testcontainers. One image,
-vitest manages lifecycle, no compose.
+vitest manages lifecycle, no compose. Not yet implemented;
+no Makefile target.
 
 **Setup**: testcontainers starts gateway, gateway spawns
 mock-agent containers via docker socket.

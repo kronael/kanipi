@@ -40,6 +40,21 @@
 | `assistantName`   | string?  | `NANOCLAW_ASSISTANT_NAME` env  |
 | `secrets`         | object?  | API keys; stripped, not logged |
 
+## Prompt assembly order -- shipped
+
+The `prompt` field in ContainerInput is assembled as:
+
+```
+system messages (flushSystemMessages)
+  → pendingArgs (command context, if any)
+  → message history (formatMessages)
+```
+
+`pendingArgs` is the raw text following a command trigger
+(e.g., `/ask what is X` → `"what is X"`). Inserted between
+system messages and message history so the agent sees it as
+the most recent instruction before the conversation.
+
 ## Message history format -- shipped
 
 `formatMessages()` in `src/router.ts`:

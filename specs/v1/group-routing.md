@@ -308,6 +308,17 @@ defined here can also drive `agent-routing.md` delegation.
 
 ---
 
+## Error handling: static vs dynamic
+
+**Static routing** (gateway message loop): if the target is
+unauthorized or missing, the gateway logs a warning and falls
+back to the parent agent. The message is not lost.
+
+**Dynamic routing** (`delegate_group` action): if the target
+is unauthorized, the action throws an error. The caller gets
+an error reply via IPC. This is intentional — the agent chose
+to delegate explicitly and should handle the failure.
+
 ## Open
 
 - Strip command prefix before child sees it: per-rule flag

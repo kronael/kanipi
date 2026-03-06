@@ -218,6 +218,16 @@ type RoutingRule =
 `target` is a group folder name. Evaluation order:
 command → pattern → keyword → sender → default.
 
+### Sidecars (specced, not yet implemented)
+
+| Action            | MCP | Input                                  |
+| ----------------- | --- | -------------------------------------- |
+| `request_sidecar` | yes | `{ name, image, env?, allowedTools? }` |
+| `stop_sidecar`    | yes | `{ name }`                             |
+| `list_sidecars`   | yes | --                                     |
+
+See `mcp-sidecar.md` for lifecycle and socket transport details.
+
 ### Future
 
 | Action           | Cmd     | MCP | Input                       |
