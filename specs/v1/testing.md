@@ -21,26 +21,40 @@ Vitest, mocked deps, no docker, no network. Covers:
 ### Integration (`make integration`)
 
 Full gateway in docker with mock agent. Tests the complete
-pipeline without real platform APIs.
+pipeline without real platform APIs. Uses testcontainers —
+one image, vitest manages lifecycle, no compose file.
 
-**Setup**: `docker compose -f docker-compose.test.yml up`
+**Setup**: testcontainers starts gateway, gateway spawns
+mock-agent containers via docker socket.
 
-```yaml
-# docker-compose.test.yml
-services:
-  gateway:
-    image: kanipi:latest
-    environment:
-      CONTAINER_IMAGE: kanipi-mock-agent:latest
-      SLINK_ENABLED: '1'
-      # no TELEGRAM_BOT_TOKEN, DISCORD_BOT_TOKEN etc.
-    volumes:
-      - ./tmp/test-data:/srv/data/kanipi_test
-    ports:
-      - '0:3000' # slink HTTP
+```typescript
+// tests/integration/setup.ts
+import { GenericContainer, Wait } from 'testcontainers';
 
+let gateway;
 
-  # gateway spawns mock-agent containers via docker socket
+export async function setup() {
+  gateway = await new GenericContainer('kanipi:latest')
+    .withEnvironment({
+      CONTAINER_IMAGE: 'kanipi-mock-agent:latest',
+      SLINK_ENABLED: '1',
+    })
+    .withBindMounts([
+      {
+        source: '/var/run/docker.sock',
+        target: '/var/run/docker.sock',
+      },
+    ])
+    .withExposedPorts(3000)
+    .withWaitStrategy(Wait.forHttp('/health', 3000))
+    .start();
+
+  process.env.GATEWAY_URL = `http://${gateway.getHost()}:${gateway.getMappedPort(3000)}`;
+}
+
+export async function teardown() {
+  await gateway?.stop();
+}
 ```
 
 **Mock agent image**: minimal container that reads stdin JSON,
@@ -60,7 +74,6 @@ case "$prompt" in
   *error-test*)
     echo 'error';;
   *ipc-test*)
-    # write IPC message, then respond
     echo '{"type":"message","chatJid":"web/test","text":"from agent"}' \
       > /workspace/ipc/messages/out.json
     echo '{"result":"sent ipc"}';;
@@ -73,27 +86,6 @@ EOF
 ```
 
 Build: `make mock-agent-image`
-
-**Test runner**: vitest (or standalone script) that:
-
-1. Starts gateway via docker compose
-2. Waits for slink HTTP to be ready
-3. Runs scenarios via HTTP + DB queries
-4. Tears down
-
-```typescript
-// tests/integration/setup.ts
-import { execSync } from 'child_process';
-
-export async function setup() {
-  execSync('docker compose -f docker-compose.test.yml up -d');
-  await waitForHttp('http://localhost:3000/health');
-}
-
-export async function teardown() {
-  execSync('docker compose -f docker-compose.test.yml down -v');
-}
-```
 
 **Scenarios**:
 
