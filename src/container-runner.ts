@@ -28,6 +28,7 @@ import {
   VOICE_TRANSCRIPTION_ENABLED,
   WEB_DIR,
   WEB_HOST,
+  WHISPER_MODEL,
   isRoot,
 } from './config.js';
 import { readEnvFile } from './env.js';
@@ -554,7 +555,7 @@ function writeGatewayCaps(groupDir: string): void {
     languages = fs
       .readFileSync(langFile, 'utf-8')
       .split('\n')
-      .map((l) => l.trim())
+      .map((l) => l.trim().replace(/[^a-zA-Z-]/g, ''))
       .filter(Boolean);
   } catch {}
 
@@ -565,6 +566,7 @@ function writeGatewayCaps(groupDir: string): void {
   const toml = [
     '[voice]',
     `enabled = ${voiceEnabled}`,
+    `model = "${WHISPER_MODEL}"`,
     `languages = ${langArray}`,
     '',
     '[video]',
