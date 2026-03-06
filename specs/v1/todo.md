@@ -30,7 +30,6 @@
 ## Deferred to phase II
 
 - **memory-diary** — silent PreCompact flush, periodic flush, SIGTERM hook
-- **plugins.md** — plugin proposal/approval/deploy flow
 - **db-bootstrap.md** — sessions history table expansion not yet reflected
 - **mime pipeline** — `specs/v1/mime.md` describes full
   `MessageEnricher` interface, parallel execution, `ContextAnnotation`.
