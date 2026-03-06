@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import { _initTestDatabase, getAllChats, storeChatMetadata } from './db.js';
 import { getAvailableGroups, _setRegisteredGroups } from './index.js';
+import { resolveRoutingTarget } from './router.js';
+import type { NewMessage, RoutingRule } from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
@@ -166,5 +168,205 @@ describe('getAvailableGroups', () => {
   it('returns empty array when no chats exist', () => {
     const groups = getAvailableGroups();
     expect(groups).toHaveLength(0);
+  });
+});
+
+// --- resolveRoutingTarget ---
+
+function msg(
+  content: string,
+  sender = 'user@s.whatsapp.net',
+  sender_name?: string,
+): NewMessage {
+  return {
+    id: '1',
+    chat_jid: 'group@g.us',
+    sender,
+    sender_name,
+    content,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+describe('resolveRoutingTarget — precedence', () => {
+  it('command beats keyword for same message', () => {
+    const rules: RoutingRule[] = [
+      { type: 'keyword', keyword: 'fix', target: 'main/general' },
+      { type: 'command', trigger: '/code', target: 'main/code' },
+    ];
+    expect(resolveRoutingTarget(msg('/code fix the bug'), rules)).toBe(
+      'main/code',
+    );
+  });
+
+  it('command beats default', () => {
+    const rules: RoutingRule[] = [
+      { type: 'default', target: 'main/general' },
+      { type: 'command', trigger: '/code', target: 'main/code' },
+    ];
+    expect(resolveRoutingTarget(msg('/code hello'), rules)).toBe('main/code');
+  });
+
+  it('pattern beats keyword for same message', () => {
+    const rules: RoutingRule[] = [
+      { type: 'keyword', keyword: 'deploy', target: 'main/general' },
+      { type: 'pattern', pattern: '^deploy', target: 'main/deploy' },
+    ];
+    expect(resolveRoutingTarget(msg('deploy the app'), rules)).toBe(
+      'main/deploy',
+    );
+  });
+
+  it('keyword beats sender for same message', () => {
+    const rules: RoutingRule[] = [
+      { type: 'sender', pattern: 'alice', target: 'team/alice' },
+      { type: 'keyword', keyword: 'urgent', target: 'main/ops' },
+    ];
+    const m = msg('urgent: system down', 'alice@s.whatsapp.net', 'alice');
+    expect(resolveRoutingTarget(m, rules)).toBe('main/ops');
+  });
+
+  it('sender beats default', () => {
+    const rules: RoutingRule[] = [
+      { type: 'default', target: 'team/shared' },
+      { type: 'sender', pattern: 'alice', target: 'team/alice' },
+    ];
+    expect(
+      resolveRoutingTarget(
+        msg('hello', 'alice@s.whatsapp.net', 'alice'),
+        rules,
+      ),
+    ).toBe('team/alice');
+  });
+
+  it('default catch-all when no other rule matches', () => {
+    const rules: RoutingRule[] = [
+      { type: 'command', trigger: '/code', target: 'main/code' },
+      { type: 'default', target: 'main/general' },
+    ];
+    expect(resolveRoutingTarget(msg('plain message'), rules)).toBe(
+      'main/general',
+    );
+  });
+
+  it('returns null when no rules match and no default', () => {
+    const rules: RoutingRule[] = [
+      { type: 'command', trigger: '/code', target: 'main/code' },
+    ];
+    expect(resolveRoutingTarget(msg('plain message'), rules)).toBeNull();
+  });
+
+  it('invalid regex in pattern rule is skipped', () => {
+    const rules: RoutingRule[] = [
+      { type: 'pattern', pattern: '[invalid(', target: 'main/code' },
+      { type: 'default', target: 'main/general' },
+    ];
+    expect(resolveRoutingTarget(msg('anything'), rules)).toBe('main/general');
+  });
+
+  it('invalid regex in sender rule is skipped', () => {
+    const rules: RoutingRule[] = [
+      { type: 'sender', pattern: '(bad[regex', target: 'team/alice' },
+      { type: 'default', target: 'team/shared' },
+    ];
+    expect(
+      resolveRoutingTarget(msg('hi', 'alice@s.whatsapp.net', 'alice'), rules),
+    ).toBe('team/shared');
+  });
+
+  it('command matches exact trigger (no trailing space)', () => {
+    const rules: RoutingRule[] = [
+      { type: 'command', trigger: '/help', target: 'main/help' },
+    ];
+    expect(resolveRoutingTarget(msg('/help'), rules)).toBe('main/help');
+  });
+
+  it('command matches trigger followed by space and text', () => {
+    const rules: RoutingRule[] = [
+      { type: 'command', trigger: '/code', target: 'main/code' },
+    ];
+    expect(resolveRoutingTarget(msg('/code do something'), rules)).toBe(
+      'main/code',
+    );
+  });
+
+  it('command does not match trigger that is just a prefix (no space)', () => {
+    const rules: RoutingRule[] = [
+      { type: 'command', trigger: '/code', target: 'main/code' },
+    ];
+    // '/codebase' should not match trigger '/code'
+    expect(resolveRoutingTarget(msg('/codebase review'), rules)).toBeNull();
+  });
+
+  it('first matching rule within same tier wins', () => {
+    const rules: RoutingRule[] = [
+      { type: 'keyword', keyword: 'deploy', target: 'main/deploy' },
+      { type: 'keyword', keyword: 'deploy', target: 'main/ops' },
+    ];
+    expect(resolveRoutingTarget(msg('deploy now'), rules)).toBe('main/deploy');
+  });
+
+  it('returns null for empty rules array', () => {
+    expect(resolveRoutingTarget(msg('hello'), [])).toBeNull();
+  });
+});
+
+describe('resolveRoutingTarget — sender routing', () => {
+  it('matches sender_name when present', () => {
+    const rules: RoutingRule[] = [
+      { type: 'sender', pattern: '^alice$', target: 'team/alice' },
+    ];
+    expect(
+      resolveRoutingTarget(
+        msg('hello', 'alice@s.whatsapp.net', 'alice'),
+        rules,
+      ),
+    ).toBe('team/alice');
+  });
+
+  it('falls back to sender JID when sender_name is absent', () => {
+    const rules: RoutingRule[] = [
+      {
+        type: 'sender',
+        pattern: 'alice@s.whatsapp.net',
+        target: 'team/alice',
+      },
+    ];
+    expect(
+      resolveRoutingTarget(msg('hello', 'alice@s.whatsapp.net'), rules),
+    ).toBe('team/alice');
+  });
+
+  it('routes different senders to different children', () => {
+    const rules: RoutingRule[] = [
+      { type: 'sender', pattern: 'alice', target: 'team/alice' },
+      { type: 'sender', pattern: 'bob', target: 'team/bob' },
+      { type: 'default', target: 'team/shared' },
+    ];
+    expect(
+      resolveRoutingTarget(msg('hi', 'alice@s.whatsapp.net', 'alice'), rules),
+    ).toBe('team/alice');
+    expect(
+      resolveRoutingTarget(msg('hi', 'bob@s.whatsapp.net', 'bob'), rules),
+    ).toBe('team/bob');
+    expect(
+      resolveRoutingTarget(
+        msg('hi', 'charlie@s.whatsapp.net', 'charlie'),
+        rules,
+      ),
+    ).toBe('team/shared');
+  });
+
+  it('sender pattern is a regex (partial match)', () => {
+    const rules: RoutingRule[] = [
+      { type: 'sender', pattern: 'alice', target: 'team/alice' },
+    ];
+    // 'alice_work' also matches pattern 'alice'
+    expect(
+      resolveRoutingTarget(
+        msg('hello', 'x@s.whatsapp.net', 'alice_work'),
+        rules,
+      ),
+    ).toBe('team/alice');
   });
 });
