@@ -220,6 +220,26 @@ export function _initTestDatabase(): void {
   createSchema(db);
 }
 
+export function _setRawGroupColumns(
+  jid: string,
+  cols: { container_config?: string; routing_rules?: string },
+): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO registered_groups
+       (jid, name, folder, trigger_pattern, added_at, container_config,
+        requires_trigger, slink_token, parent, routing_rules)
+     VALUES (?, ?, ?, ?, ?, ?, 1, NULL, NULL, ?)`,
+  ).run(
+    jid,
+    'test',
+    'test',
+    '',
+    '2024-01-01T00:00:00.000Z',
+    cols.container_config ?? null,
+    cols.routing_rules ?? null,
+  );
+}
+
 /**
  * Store chat metadata only (no message content).
  * Used for all chats to enable group discovery without storing sensitive content.
@@ -383,8 +403,8 @@ export function getMessagesSince(
   sinceTimestamp: string,
   botPrefix: string,
 ): NewMessage[] {
-  const cutoff = new Date(Date.now() - MSG_MAX_AGE_MS).toISOString();
-  const since = sinceTimestamp > cutoff ? sinceTimestamp : cutoff;
+  const since =
+    sinceTimestamp || new Date(Date.now() - MSG_MAX_AGE_MS).toISOString();
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
   const sql = `

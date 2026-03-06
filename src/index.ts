@@ -249,7 +249,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   }
 
   if (!sessions[group.folder]) {
-    const prev = getRecentSessions(group.folder, 10);
+    const prev = getRecentSessions(group.folder, 2);
     const body = prev
       .map((s) => {
         let el =

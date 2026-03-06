@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import {
   _initTestDatabase,
+  _setRawGroupColumns,
   createTask,
   deleteTask,
   enqueueSystemMessage,
@@ -578,6 +579,106 @@ describe('registered_groups round-trip', () => {
   });
 });
 
+// --- registered_groups malformed JSON fallback ---
+
+describe('registered_groups malformed JSON fallback', () => {
+  it('returns undefined containerConfig for invalid JSON', () => {
+    _setRawGroupColumns('tg:bad-json-cc', {
+      container_config: '{not valid json',
+    });
+    const g = getRegisteredGroup('tg:bad-json-cc');
+    expect(g).toBeDefined();
+    expect(g!.containerConfig).toBeUndefined();
+  });
+
+  it('returns undefined containerConfig for schema-invalid JSON', () => {
+    _setRawGroupColumns('tg:schema-cc', {
+      container_config: JSON.stringify({ timeout: 'not-a-number' }),
+    });
+    const g = getRegisteredGroup('tg:schema-cc');
+    expect(g).toBeDefined();
+    expect(g!.containerConfig).toBeUndefined();
+  });
+
+  it('returns undefined routingRules for invalid JSON', () => {
+    _setRawGroupColumns('tg:bad-json-rr', { routing_rules: '[{broken' });
+    const g = getRegisteredGroup('tg:bad-json-rr');
+    expect(g).toBeDefined();
+    expect(g!.routingRules).toBeUndefined();
+  });
+
+  it('returns undefined routingRules for schema-invalid JSON', () => {
+    _setRawGroupColumns('tg:schema-rr', {
+      routing_rules: JSON.stringify([{ type: 'unknown', target: 'x' }]),
+    });
+    const g = getRegisteredGroup('tg:schema-rr');
+    expect(g).toBeDefined();
+    expect(g!.routingRules).toBeUndefined();
+  });
+
+  it('getAllRegisteredGroups skips malformed fields without throwing', () => {
+    _setRawGroupColumns('tg:all-bad', {
+      container_config: '{bad',
+      routing_rules: '[bad',
+    });
+    let all: Record<string, unknown> | undefined;
+    expect(() => {
+      all = getAllRegisteredGroups();
+    }).not.toThrow();
+    expect(all!['tg:all-bad']).toBeDefined();
+  });
+});
+
+// --- registered_groups malformed JSON fallback ---
+
+describe('registered_groups malformed JSON fallback', () => {
+  it('returns undefined containerConfig for invalid JSON', () => {
+    _setRawGroupColumns('tg:bad-json-cc', {
+      container_config: '{not valid json',
+    });
+    const g = getRegisteredGroup('tg:bad-json-cc');
+    expect(g).toBeDefined();
+    expect(g!.containerConfig).toBeUndefined();
+  });
+
+  it('returns undefined containerConfig for schema-invalid JSON', () => {
+    _setRawGroupColumns('tg:schema-cc', {
+      container_config: JSON.stringify({ timeout: 'not-a-number' }),
+    });
+    const g = getRegisteredGroup('tg:schema-cc');
+    expect(g).toBeDefined();
+    expect(g!.containerConfig).toBeUndefined();
+  });
+
+  it('returns undefined routingRules for invalid JSON', () => {
+    _setRawGroupColumns('tg:bad-json-rr', { routing_rules: '[{broken' });
+    const g = getRegisteredGroup('tg:bad-json-rr');
+    expect(g).toBeDefined();
+    expect(g!.routingRules).toBeUndefined();
+  });
+
+  it('returns undefined routingRules for schema-invalid JSON', () => {
+    _setRawGroupColumns('tg:schema-rr', {
+      routing_rules: JSON.stringify([{ type: 'unknown', target: 'x' }]),
+    });
+    const g = getRegisteredGroup('tg:schema-rr');
+    expect(g).toBeDefined();
+    expect(g!.routingRules).toBeUndefined();
+  });
+
+  it('getAllRegisteredGroups skips malformed fields without throwing', () => {
+    _setRawGroupColumns('tg:all-bad', {
+      container_config: '{bad',
+      routing_rules: '[bad',
+    });
+    let all: Record<string, unknown> | undefined;
+    expect(() => {
+      all = getAllRegisteredGroups();
+    }).not.toThrow();
+    expect(all!['tg:all-bad']).toBeDefined();
+  });
+});
+
 // --- pruneExpiredSessions ---
 
 describe('pruneExpiredSessions', () => {
@@ -627,6 +728,60 @@ describe('system_messages', () => {
     const xml = flushSystemMessages('grp-a');
     expect(xml).toContain('event="new-session"');
     expect(xml).toContain('sessionId="abc123"');
+  });
+});
+
+// --- DB-boundary: malformed registered_groups JSON ---
+
+describe('registered_groups DB-boundary: malformed JSON', () => {
+  it('invalid JSON in container_config: getRegisteredGroup returns undefined for field', () => {
+    _setRawGroupColumns('tg:bad-cc-json', { container_config: 'not-json' });
+    const g = getRegisteredGroup('tg:bad-cc-json');
+    expect(g).toBeDefined();
+    expect(g!.containerConfig).toBeUndefined();
+  });
+
+  it('schema-invalid JSON in container_config: getRegisteredGroup returns undefined for field', () => {
+    _setRawGroupColumns('tg:bad-cc-schema', {
+      container_config: JSON.stringify({ timeout: 'not-a-number' }),
+    });
+    const g = getRegisteredGroup('tg:bad-cc-schema');
+    expect(g).toBeDefined();
+    expect(g!.containerConfig).toBeUndefined();
+  });
+
+  it('invalid JSON in routing_rules: getRegisteredGroup returns undefined for field', () => {
+    _setRawGroupColumns('tg:bad-rr-json', { routing_rules: '{broken' });
+    const g = getRegisteredGroup('tg:bad-rr-json');
+    expect(g).toBeDefined();
+    expect(g!.routingRules).toBeUndefined();
+  });
+
+  it('schema-invalid JSON in routing_rules: getRegisteredGroup returns undefined for field', () => {
+    _setRawGroupColumns('tg:bad-rr-schema', {
+      routing_rules: JSON.stringify([{ type: 'unknown_type', target: 'x' }]),
+    });
+    const g = getRegisteredGroup('tg:bad-rr-schema');
+    expect(g).toBeDefined();
+    expect(g!.routingRules).toBeUndefined();
+  });
+
+  it('invalid JSON in routing_rules: getAllRegisteredGroups still returns the group', () => {
+    _setRawGroupColumns('tg:bad-rr-all', { routing_rules: 'null-json!!!' });
+    const all = getAllRegisteredGroups();
+    expect(all['tg:bad-rr-all']).toBeDefined();
+    expect(all['tg:bad-rr-all'].routingRules).toBeUndefined();
+  });
+
+  it('both fields malformed: group still returned with both undefined', () => {
+    _setRawGroupColumns('tg:bad-both', {
+      container_config: '!!!',
+      routing_rules: '!!!',
+    });
+    const g = getRegisteredGroup('tg:bad-both');
+    expect(g).toBeDefined();
+    expect(g!.containerConfig).toBeUndefined();
+    expect(g!.routingRules).toBeUndefined();
   });
 });
 
