@@ -61,6 +61,14 @@ Skill instructions here...
 Agent discovers skills via `~/.claude/skills/` which the SDK loads
 automatically as project memory.
 
+## Rules
+
+**Skill naming**: `^[a-z0-9\-]+$`. Validated at seeding time — reject
+anything that doesn't match.
+
+**Migration failure**: stop on first error, log which migration failed,
+retry from that migration on next `/migrate` run.
+
 ## Open
 
 - Skills proposed by agent via plugin flow (`specs/v1/plugins.md`) —

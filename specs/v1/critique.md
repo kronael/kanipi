@@ -25,6 +25,14 @@ are out of scope — optimize only when measured.
   `specs/xml-vs-json-llm.md`. Reference in commands.md is valid.
 - **systems.md too skeletal** — removed. Superseded by
   `extend-gateway.md` flat registries approach.
+- **Skill naming enforcement** — `^[a-z0-9\-]+$` validation in
+  container-runner.ts + extend-skills.md.
+- **Migration failure behavior** — already works: MIGRATION_VERSION
+  updated per migration, retries from last on next run.
+- **Queue depth unbounded** — system messages flush every spawn,
+  no realistic accumulation scenario. Deferred.
+- **`in_reply_to` truncation** — threading not implemented yet.
+  Rule in channels.md, lands in prompt-format.md when threading ships.
 
 ---
 
@@ -44,9 +52,6 @@ boundary.
 
 ### system-messages.md
 
-**Queue depth unbounded (LOW)**
-No max queue depth. Add soft cap (100 per group, drop oldest).
-
 **Session crash recovery (LOW)**
 If gateway crashes, `ended_at` may be null. Document fallback: null
 `ended_at` = session ended abnormally.
@@ -58,23 +63,11 @@ Threading (message concern) is orthogonal to JID hierarchy (routing).
 Spec should clarify: `replyTo` is per-message, topic/thread ID is a
 JID segment. The "leaf rule" holds but needs explicit note.
 
-**`in_reply_to` truncation not in prompt-format.md (LOW)**
-channels.md says 120 chars. prompt-format.md doesn't document it.
-
 ### commands.md
 
 **`/help` implementation (MEDIUM)**
 Listed as open. Needs: list commands with description, per-channel
 format awareness.
-
-### extend-skills.md
-
-**Skill naming enforcement (MEDIUM)**
-No validation on skill names. Add `^[a-z0-9\-]+$` check at seeding.
-
-**Migration failure behavior (MEDIUM)**
-What if a migration fails midway? Should: stop, log, retry on next
-`/migrate`.
 
 ### Cross-spec
 
