@@ -77,6 +77,11 @@ group_cmd() {
         const count = db.prepare('SELECT COUNT(*) as n FROM registered_groups').get().n;
         const folder = '$FOLDER' || (count === 0 ? 'main' : '');
         if (!folder) { console.error('folder required (not first group)'); process.exit(1); }
+        const existing = db.prepare('SELECT jid FROM registered_groups WHERE folder = ?').get(folder);
+        if (existing && existing.jid !== '$JID') {
+          console.error('folder ' + folder + ' already used by ' + existing.jid);
+          process.exit(1);
+        }
         const rt = count === 0 ? 0 : 1;
         const trigger = rt ? '@$ASSISTANT' : '';
         const now = new Date().toISOString();

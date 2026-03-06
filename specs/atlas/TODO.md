@@ -123,8 +123,8 @@ Abstract the pattern across diary, facts, episodes, user context.
 
 ## Bugs
 
-- [ ] `kanipi config group add` stomps existing groups on same folder
-      (UNIQUE constraint on folder column, should error not replace)
+- [x] `kanipi config group add` stomps existing groups on same folder
+      — fixed: check folder ownership before insert, error if taken
 
 ## Already done
 
