@@ -211,7 +211,7 @@ function createSchema(database: Database.Database): void {
       `UPDATE chats SET channel = 'whatsapp', is_group = 0 WHERE jid LIKE '%@s.whatsapp.net'`,
     );
     database.exec(
-      `UPDATE chats SET channel = 'discord', is_group = 1 WHERE jid LIKE 'dc:%'`,
+      `UPDATE chats SET channel = 'discord', is_group = 1 WHERE jid LIKE 'dc:%' OR jid LIKE 'discord:%'`,
     );
     database.exec(
       `UPDATE chats SET channel = 'telegram', is_group = 1 WHERE jid LIKE 'telegram:%'`,
@@ -230,6 +230,11 @@ function createSchema(database: Database.Database): void {
       UPDATE registered_groups SET jid = 'telegram:' || SUBSTR(jid, 4) WHERE jid LIKE 'tg:%';
       UPDATE chats SET jid = 'telegram:' || SUBSTR(jid, 4) WHERE jid LIKE 'tg:%';
       UPDATE scheduled_tasks SET chat_jid = 'telegram:' || SUBSTR(chat_jid, 4) WHERE chat_jid LIKE 'tg:%';
+
+      UPDATE messages SET chat_jid = 'discord:' || SUBSTR(chat_jid, 4) WHERE chat_jid LIKE 'dc:%';
+      UPDATE registered_groups SET jid = 'discord:' || SUBSTR(jid, 4) WHERE jid LIKE 'dc:%';
+      UPDATE chats SET jid = 'discord:' || SUBSTR(jid, 4) WHERE jid LIKE 'dc:%';
+      UPDATE scheduled_tasks SET chat_jid = 'discord:' || SUBSTR(chat_jid, 4) WHERE chat_jid LIKE 'dc:%';
 
       UPDATE messages SET chat_jid = 'whatsapp:' || chat_jid WHERE (chat_jid LIKE '%@g.us' OR chat_jid LIKE '%@s.whatsapp.net') AND chat_jid NOT LIKE 'whatsapp:%';
       UPDATE registered_groups SET jid = 'whatsapp:' || jid WHERE (jid LIKE '%@g.us' OR jid LIKE '%@s.whatsapp.net') AND jid NOT LIKE 'whatsapp:%';
@@ -251,6 +256,7 @@ function createSchema(database: Database.Database): void {
         for (const [k, v] of Object.entries(parsed)) {
           let nk = k;
           if (k.startsWith('tg:')) nk = 'telegram:' + k.slice(3);
+          else if (k.startsWith('dc:')) nk = 'discord:' + k.slice(3);
           else if (
             (k.endsWith('@g.us') || k.endsWith('@s.whatsapp.net')) &&
             !k.startsWith('whatsapp:')
