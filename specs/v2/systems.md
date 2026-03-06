@@ -51,6 +51,11 @@ Code: `mime.ts`, `mime-handlers/`
 Route by topic/thread to specific agents. Topic ID as
 JID segment (builds on worlds router). Glob patterns.
 
+Session threading lives here: resume tokens (takopi pattern)
+embed session ID in reply footer, next message extracts and
+passes `--resume <id>` for explicit continuation. Thread-level
+granularity within groups (same group, different conversations).
+
 ### Agents (@agents)
 
 Different personas/configs. Currently group = agent (1:1).
