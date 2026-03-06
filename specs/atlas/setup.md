@@ -86,6 +86,42 @@ Config:   /cfg/hel1v5/eliza_atlas_marinade.toml + character.json
 Data:     /srv/data/eliza_atlas_marinade/ (preserved, not deleted)
 ```
 
+## Reference repos (in /home/onvos/app/refs/)
+
+### eliza-atlas (5.7 GB)
+
+The ElizaOS fork. Monolithic Bun runtime with plugin architecture.
+Study for: how the character.json + plugin system worked, template
+patterns that we might replicate as skills.
+
+Key files:
+
+- `cfg/hel1v5/eliza_atlas_marinade.character.json` — full character config
+- `cfg/hel1v5/eliza_atlas_marinade.toml` — server config
+- `cfg/hel1v5/eliza_mnde_bot.toml` — bot tokens + API keys
+
+### eliza-plugin-evangelist (317 MB)
+
+The facts/research/codebase service plugin. Primary reference for
+kanipi v2 memory and research features.
+
+Key files to study:
+
+- `src/services/factsService.ts` — YAML facts loading, similarity search
+- `src/services/researchService.ts` — deep research (clone, search, verify)
+- `src/services/codebaseService.ts` — repo indexing, grep across clones
+- `src/providers/knowledgeContext.ts` — fact injection into agent context
+- `src/actions/researchNeeded.ts` — triggers deep research from conversation
+- `src/actions/searchDocs.ts` — fast grep across cloned repos
+
+Research pattern: Opus researches, Sonnet cross-checks (two-phase
+verification). 40min timeout. Writes findings to facts/ as YAML md.
+
+### eliza-plugin-claude-code (20 MB)
+
+Bridge plugin that routes ElizaOS LLM calls to Claude Code CLI.
+Less relevant now (kanipi agents run Claude Code natively).
+
 ## Future improvements
 
 - [ ] Deep research via subagent spawning (replaces evangelist RESEARCH_NEEDED)
@@ -93,3 +129,4 @@ Data:     /srv/data/eliza_atlas_marinade/ (preserved, not deleted)
 - [ ] Vector search over facts (currently text-match only)
 - [ ] Multiple groups (e.g. separate Discord channel)
 - [ ] Scheduled codebase refresh task
+- [ ] Port factsService similarity search as a skill or MCP sidecar
