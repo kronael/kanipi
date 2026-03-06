@@ -106,6 +106,12 @@ export class TelegramChannel implements Channel {
         isGroup,
       );
 
+      // /chatid works from any chat (before group check)
+      if (content.trim() === '/chatid') {
+        await ctx.reply(`Chat JID: ${chatJid}`);
+        return;
+      }
+
       // Only deliver full message for registered groups
       const group = this.opts.registeredGroups()[chatJid];
       if (!group) {
