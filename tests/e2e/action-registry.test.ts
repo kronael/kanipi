@@ -29,6 +29,8 @@ const EXPECTED_ACTIONS = [
   'cancel_task',
   'refresh_groups',
   'register_group',
+  'delegate_group',
+  'set_routing_rules',
   'reset_session',
 ];
 
@@ -56,6 +58,7 @@ beforeEach(() => {
     getAvailableGroups: () => [],
     writeGroupsSnapshot: vi.fn(),
     clearSession: vi.fn(),
+    delegateToChild: vi.fn().mockResolvedValue(undefined),
   };
 });
 
