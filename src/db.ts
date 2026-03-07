@@ -199,6 +199,13 @@ function createSchema(database: Database.Database): void {
     /* column already exists */
   }
 
+  // Add errored column if it doesn't exist (migration for existing DBs)
+  try {
+    database.exec(`ALTER TABLE chats ADD COLUMN errored INTEGER DEFAULT 0`);
+  } catch {
+    /* column already exists */
+  }
+
   // Add channel and is_group columns if they don't exist (migration for existing DBs)
   try {
     database.exec(`ALTER TABLE chats ADD COLUMN channel TEXT`);
@@ -400,6 +407,23 @@ export function setLastGroupSync(): void {
   db.prepare(
     `INSERT OR REPLACE INTO chats (jid, name, last_message_time) VALUES ('__group_sync__', '__group_sync__', ?)`,
   ).run(now);
+}
+
+// --- Chat error flag accessors ---
+
+export function markChatErrored(jid: string): void {
+  db.prepare('UPDATE chats SET errored = 1 WHERE jid = ?').run(jid);
+}
+
+export function clearChatErrored(jid: string): void {
+  db.prepare('UPDATE chats SET errored = 0 WHERE jid = ?').run(jid);
+}
+
+export function isChatErrored(jid: string): boolean {
+  const row = db.prepare('SELECT errored FROM chats WHERE jid = ?').get(jid) as
+    | { errored: number }
+    | undefined;
+  return row?.errored === 1;
 }
 
 /**

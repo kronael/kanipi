@@ -36,6 +36,7 @@ import {
   ensureContainerRuntimeRunning,
 } from './container-runtime.js';
 import {
+  clearChatErrored,
   deleteSession,
   enqueueSystemMessage,
   flushSystemMessages,
@@ -48,6 +49,8 @@ import {
   getRecentSessions,
   getRouterState,
   initDatabase,
+  isChatErrored,
+  markChatErrored,
   setRegisteredGroup,
   setRouterState,
   setSession,
@@ -437,9 +440,10 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     // Data is in DB — we just need the cursor to point before them.
     lastAgentTimestamp[chatJid] = previousCursor;
     saveState();
+    markChatErrored(chatJid);
     logger.warn(
       { group: group.name },
-      'Agent error, rolled back cursor for retry',
+      'Agent error, rolled back cursor (awaiting user retry)',
     );
     channel
       .sendMessage(chatJid, 'Something went wrong. Please try again.')
@@ -691,6 +695,7 @@ async function startMessageLoop(): Promise<void> {
                   saveState();
                 }
                 // Enqueue so system messages + pending args can flush
+                clearChatErrored(chatJid);
                 queue.enqueueMessageCheck(chatJid);
                 continue;
               }
@@ -776,6 +781,7 @@ async function startMessageLoop(): Promise<void> {
               { chatJid, count: messagesToSend.length },
               'Piped messages to active container',
             );
+            clearChatErrored(chatJid);
             lastAgentTimestamp[chatJid] =
               messagesToSend[messagesToSend.length - 1].timestamp;
             saveState();
@@ -783,6 +789,7 @@ async function startMessageLoop(): Promise<void> {
             startTyping(channel, chatJid);
           } else {
             // No active container — enqueue for a new one
+            clearChatErrored(chatJid);
             queue.enqueueMessageCheck(chatJid);
           }
         }
@@ -802,7 +809,7 @@ function recoverPendingMessages(): void {
   for (const [chatJid, group] of Object.entries(registeredGroups)) {
     const sinceTimestamp = lastAgentTimestamp[chatJid] || '';
     const pending = getMessagesSince(chatJid, sinceTimestamp, ASSISTANT_NAME);
-    if (pending.length > 0) {
+    if (pending.length > 0 && !isChatErrored(chatJid)) {
       logger.info(
         { group: group.name, pendingCount: pending.length },
         'Recovery: found unprocessed messages',
