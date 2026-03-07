@@ -560,6 +560,9 @@ async function runAgent(
     if (diary) annotations.push(diary);
   }
 
+  // Preempt idle container if another JID owns this folder (cross-channel routing)
+  queue.preemptFolderIfNeeded(group.folder, chatJid);
+
   try {
     const output = await runContainerAgent(
       group,

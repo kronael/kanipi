@@ -27,6 +27,7 @@ interface GroupState {
 
 export class GroupQueue {
   private groups = new Map<string, GroupState>();
+  private folderToActiveJid = new Map<string, string>();
   private activeCount = 0;
   private waitingGroups: string[] = [];
   private processMessagesFn: ((groupJid: string) => Promise<boolean>) | null =
@@ -140,7 +141,10 @@ export class GroupQueue {
     const state = this.getGroup(groupJid);
     state.process = proc;
     state.containerName = containerName;
-    if (groupFolder) state.groupFolder = groupFolder;
+    if (groupFolder) {
+      state.groupFolder = groupFolder;
+      this.folderToActiveJid.set(groupFolder, groupJid);
+    }
   }
 
   /**
@@ -185,6 +189,24 @@ export class GroupQueue {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Preempt an idle container if another JID needs the same folder.
+   * Used to fix cross-channel routing when a folder is registered on multiple channels.
+   */
+  preemptFolderIfNeeded(folder: string, newJid: string): void {
+    const currentJid = this.folderToActiveJid.get(folder);
+    if (currentJid && currentJid !== newJid) {
+      const state = this.getGroup(currentJid);
+      if (state.idleWaiting) {
+        logger.info(
+          { folder, currentJid, newJid },
+          'Preempting idle container for cross-channel message',
+        );
+        this.closeStdin(currentJid);
+      }
     }
   }
 
@@ -243,6 +265,9 @@ export class GroupQueue {
       state.active = false;
       state.process = null;
       state.containerName = null;
+      if (state.groupFolder) {
+        this.folderToActiveJid.delete(state.groupFolder);
+      }
       state.groupFolder = null;
       this.activeCount--;
       this.drainGroup(groupJid);
@@ -270,6 +295,9 @@ export class GroupQueue {
       state.isTaskContainer = false;
       state.process = null;
       state.containerName = null;
+      if (state.groupFolder) {
+        this.folderToActiveJid.delete(state.groupFolder);
+      }
       state.groupFolder = null;
       this.activeCount--;
       this.drainGroup(groupJid);
