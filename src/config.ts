@@ -57,22 +57,14 @@ export const HOST_PROJECT_ROOT_PATH = HOST_PROJECT_ROOT;
 export const HOST_GROUPS_DIR = path.resolve(HOST_PROJECT_ROOT, 'groups');
 export const HOST_APP_DIR = process.env.HOST_APP_DIR || APP_DIR;
 export function isRoot(folder: string): boolean {
-  return !folder.includes('/');
+  return folder === 'root';
 }
 
 export type PermissionTier = 0 | 1 | 2 | 3;
 
 export function permissionTier(folder: string): PermissionTier {
-  if (!folder.includes('/')) return 0;
+  if (folder === 'root') return 0;
   return Math.min(folder.split('/').length, 3) as 1 | 2 | 3;
-}
-
-export function isInstanceRoot(folder: string): boolean {
-  return folder === 'root';
-}
-
-export function isWorld(folder: string): boolean {
-  return !folder.includes('/') && folder !== 'root';
 }
 
 export const CONTAINER_IMAGE =

@@ -238,6 +238,7 @@ export function _getLastAgentTimestamp(jid: string): string {
 
 /** @internal - exported for testing */
 export const _delegateToChild = delegateToChild;
+export const _delegateToParent = delegateToParent;
 
 /** @internal - exported for testing */
 export function _clearTestState(): void {
@@ -523,6 +524,65 @@ async function delegateToChild(
       logger.warn(
         { childFolder, error: output.error },
         'delegate child agent error',
+      );
+    }
+  });
+}
+
+async function delegateToParent(
+  parentFolder: string,
+  prompt: string,
+  originJid: string,
+  depth: number,
+): Promise<void> {
+  const parent = Object.values(registeredGroups).find(
+    (g) => g.folder === parentFolder,
+  );
+  if (!parent) throw new Error(`unknown parent group: ${parentFolder}`);
+  const channel = findChannel(channels, originJid);
+  if (!channel) throw new Error(`no channel for origin JID: ${originJid}`);
+
+  const taskId = `escalate-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  queue.enqueueTask(parentFolder, taskId, async () => {
+    writeActionManifest(parent.folder);
+    const output = await runContainerAgent(
+      parent,
+      {
+        prompt,
+        sessionId: sessions[parent.folder],
+        groupFolder: parent.folder,
+        chatJid: originJid,
+        channelName: channel.name,
+        messageCount: 1,
+        delegateDepth: depth,
+      },
+      (proc, containerName) =>
+        queue.registerProcess(parentFolder, proc, containerName, parent.folder),
+      async (result) => {
+        if (result.newSessionId) {
+          sessions[parent.folder] = result.newSessionId;
+          setSession(parent.folder, result.newSessionId);
+        }
+        if (result.result) {
+          const raw =
+            typeof result.result === 'string'
+              ? result.result
+              : JSON.stringify(result.result);
+          const text = formatOutbound(raw);
+          if (text) await channel.sendMessage(originJid, text);
+        }
+      },
+    );
+
+    if (output.newSessionId) {
+      sessions[parent.folder] = output.newSessionId;
+      setSession(parent.folder, output.newSessionId);
+    }
+    if (output.status === 'error') {
+      logger.warn(
+        { parentFolder, error: output.error },
+        'escalated parent agent error',
       );
     }
   });
@@ -989,6 +1049,7 @@ async function main(): Promise<void> {
     getAvailableGroups,
     writeGroupsSnapshot,
     delegateToChild,
+    delegateToParent,
   });
   queue.setProcessMessagesFn(processGroupMessages);
   recoverPendingMessages();

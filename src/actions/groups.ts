@@ -99,6 +99,9 @@ export const registerGroup: Action = {
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = RegisterGroupSchema.parse(raw);
+    if (ctx.tier === 0 && !input.folder.includes('/')) {
+      throw new Error('unauthorized: worlds are CLI-only');
+    }
     if (ctx.tier === 1 && !isDirectChild(ctx.sourceGroup, input.folder)) {
       throw new Error('unauthorized: can only create children in own world');
     }
@@ -117,6 +120,41 @@ export const registerGroup: Action = {
     });
     writeCommandsXml(input.folder);
     return { registered: true };
+  },
+};
+
+const EscalateGroupInput = z.object({
+  prompt: z.string().min(1),
+  chatJid: z.string().min(1),
+  depth: z.number().int().min(0).optional(),
+});
+
+export const escalateGroup: Action = {
+  name: 'escalate_group',
+  description: 'Escalate a prompt to the direct parent group agent',
+  input: EscalateGroupInput,
+  async handler(raw, ctx) {
+    if (ctx.tier < 2) {
+      throw new Error('unauthorized: only agent/worker groups can escalate');
+    }
+    const input = EscalateGroupInput.parse(raw);
+    const depth = input.depth ?? 0;
+    if (depth >= MAX_DELEGATE_DEPTH) {
+      throw new Error(
+        `delegation depth ${depth} exceeds limit ${MAX_DELEGATE_DEPTH}`,
+      );
+    }
+    const slash = ctx.sourceGroup.lastIndexOf('/');
+    if (slash === -1) {
+      throw new Error('unauthorized: no parent group');
+    }
+    const parent = ctx.sourceGroup.slice(0, slash);
+    logger.info(
+      { sourceGroup: ctx.sourceGroup, parent, depth },
+      'escalating to parent group',
+    );
+    await ctx.delegateToParent(parent, input.prompt, input.chatJid, depth + 1);
+    return { queued: true, parent };
   },
 };
 

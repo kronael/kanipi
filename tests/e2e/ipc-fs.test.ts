@@ -91,6 +91,7 @@ function makeDeps(overrides: Partial<IpcDeps> = {}): IpcDeps & {
     writeGroupsSnapshot: vi.fn(),
     clearSession: vi.fn(),
     delegateToChild: vi.fn().mockResolvedValue(undefined),
+    delegateToParent: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
   return base as IpcDeps & {

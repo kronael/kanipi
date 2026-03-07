@@ -25,6 +25,12 @@ export interface ActionContext {
     originJid: string,
     depth: number,
   ): Promise<void>;
+  delegateToParent(
+    parentFolder: string,
+    prompt: string,
+    originJid: string,
+    depth: number,
+  ): Promise<void>;
 }
 
 export interface Action {

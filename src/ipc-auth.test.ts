@@ -65,6 +65,8 @@ beforeEach(() => {
     syncGroupMetadata: async () => {},
     getAvailableGroups: () => [],
     writeGroupsSnapshot: () => {},
+    delegateToChild: async () => {},
+    delegateToParent: async () => {},
   };
 });
 
@@ -615,13 +617,13 @@ describe('schedule_task context_mode', () => {
 // --- register_group success path ---
 
 describe('register_group success', () => {
-  it('root group can register a new group', async () => {
+  it('root group can register a child group inside a world', async () => {
     await processTaskIpc(
       {
         type: 'register_group',
         jid: 'new@g.us',
         name: 'New Group',
-        folder: 'new-group',
+        folder: 'atlas/support',
         trigger: '@Andy',
       },
       'main',
@@ -632,7 +634,7 @@ describe('register_group success', () => {
     const group = getRegisteredGroup('new@g.us');
     expect(group).toBeDefined();
     expect(group!.name).toBe('New Group');
-    expect(group!.folder).toBe('new-group');
+    expect(group!.folder).toBe('atlas/support');
     expect(group!.trigger).toBe('@Andy');
   });
 
