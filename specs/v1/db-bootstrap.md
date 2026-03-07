@@ -1,4 +1,4 @@
-# DB bootstrap spec — shipping
+# DB bootstrap spec — shipped
 
 ## Problem
 

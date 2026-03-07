@@ -61,9 +61,9 @@
 
 | Spec         | Version | Summary                                              |
 | ------------ | ------- | ---------------------------------------------------- |
-| cli-ts       | v0.8.0  | TypeScript CLI rewrite (src/cli.ts, commander)       |
-| db-bootstrap | v0.8.0  | Versioned migrations (src/migrations.ts, .sql files) |
-| testcontain  | v0.8.0  | Integration tests with testcontainers, scenario mode |
+| cli-ts       | v1.0.6  | TypeScript CLI rewrite (src/cli.ts)                  |
+| db-bootstrap | v1.0.6  | Versioned migrations (src/migrations.ts, .sql files) |
+| testcontain  | v1.0.6  | Integration tests with testcontainers, scenario mode |
 
 ## Deferred to v2
 

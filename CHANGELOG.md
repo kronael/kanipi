@@ -17,6 +17,21 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.6] — 2026-03-07
+
+### Features
+
+- TypeScript CLI rewrite: `src/cli.ts` replaces bash `kanipi` entrypoint for group/user/mount commands
+- Versioned SQL migrations: `src/migrations.ts` + `src/migrations/*.sql` files, tracked in DB `migrations` table
+- Integration tests with testcontainers: `tests/integration/` runs real agent containers with scenario mode
+
+### Changes
+
+- Agent-runner scenario mode: `NANOCLAW_SCENARIO` env var returns canned responses for deterministic tests
+- `ensureDatabase()` replaces `initDatabase()` — shared by gateway and CLI, no more inline DDL in bash
+
+---
+
 ## [v1.0.5] — 2026-03-07
 
 ### Changes
