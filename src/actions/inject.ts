@@ -15,21 +15,19 @@ const InjectMessageInput = z.object({
 
 export const injectMessage: Action = {
   name: 'inject_message',
-  description:
-    'Insert a message into DB without sending to channel (root/world only)',
+  description: 'Insert a message into DB without sending to channel',
   input: InjectMessageInput,
   async handler(raw, ctx) {
     const input = InjectMessageInput.parse(raw);
     if (ctx.tier > 1) throw new Error('unauthorized: root/world only');
-    const id = `inject-${Date.now()}-${crypto.randomUUID().slice(0, 6)}`;
-    const timestamp = new Date().toISOString();
+    const id = `inject-${crypto.randomUUID()}`;
     storeMessage({
       id,
       chat_jid: input.chatJid,
       sender: input.sender,
       sender_name: input.senderName,
       content: input.content,
-      timestamp,
+      timestamp: new Date().toISOString(),
       is_from_me: false,
       is_bot_message: false,
     });
@@ -38,6 +36,6 @@ export const injectMessage: Action = {
       { id, chatJid: input.chatJid, sourceGroup: ctx.sourceGroup },
       'Message injected',
     );
-    return { injected: true, id, timestamp };
+    return { injected: true, id };
   },
 };

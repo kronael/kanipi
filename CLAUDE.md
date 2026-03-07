@@ -80,7 +80,7 @@ Key modules:
 - `group-queue.ts` — per-group message queueing, stdin piping
 - `router.ts` — message formatting, channel→JID resolution
 - `action-registry.ts` — unified action system (Zod schemas, authorization)
-- `actions/` — action handlers by domain (messaging, tasks, groups, session)
+- `actions/` — action handlers by domain (messaging, tasks, groups, session, inject)
 - `ipc.ts` — container↔gateway IPC (request-response + legacy fire-and-forget)
 - `task-scheduler.ts` — cron-based scheduled tasks
 - `mount-security.ts` — validates additional mounts against `~/.config/nanoclaw/mount-allowlist.json` (stored outside project to prevent agent tampering)
