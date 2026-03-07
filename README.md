@@ -58,10 +58,9 @@ Configuration: CLAUDE.md with support persona, facts/ for
 knowledge base, refs/ for mounted codebases, /facts skill for
 deep research.
 
-**Sloth** — research associate and knowledge mapper. Message from
+**Yonder** — research associate and knowledge mapper. Message from
 phone, agent researches topics, builds knowledge pages, maps
-connections. Vite serves results live. (naming TBD — candidates:
-delve, fumi, thoth, docent, kea)
+connections. Vite serves results live.
 
 **Evangelist** — shills own work and supports the community.
 Engages in relevant conversations, explains products, answers
