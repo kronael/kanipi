@@ -26,6 +26,7 @@ const envConfig = readEnvFile([
   'EMAIL_SMTP_HOST',
   'EMAIL_ACCOUNT',
   'EMAIL_PASSWORD',
+  'WEB_PUBLIC',
 ]);
 
 export const ASSISTANT_NAME =
@@ -135,6 +136,9 @@ export let SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
 
 // Public host for constructing slink URLs injected into agent containers
 export const WEB_HOST = process.env.WEB_HOST || '';
+
+// WEB_PUBLIC=1: no auth, no /pub/ redirect — serve everything from web root
+export const WEB_PUBLIC = !!(process.env.WEB_PUBLIC || envConfig.WEB_PUBLIC);
 
 // Auth — JWT signing secret for slink and future auth routes
 export const AUTH_SECRET =

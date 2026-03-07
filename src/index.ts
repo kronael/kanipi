@@ -15,6 +15,7 @@ import {
   VITE_PORT_INTERNAL,
   WEB_DIR,
   WEB_PORT,
+  WEB_PUBLIC,
   isRoot,
   whatsappEnabled,
 } from './config.js';
@@ -917,6 +918,7 @@ async function main(): Promise<void> {
       slothUsers: SLOTH_USERS,
       onMessage: channelOpts.onMessage,
       authSecret: process.env.AUTH_SECRET,
+      webPublic: WEB_PUBLIC,
     });
   }
 

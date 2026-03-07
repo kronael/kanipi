@@ -227,13 +227,13 @@ When making notable kanipi changes:
 ## Docs
 
 Product docs live at krons.fiu.wtf/kanipi. Source of truth:
-`/srv/data/kanipi_krons/web/pub/kanipi/index.html`. Local copy
+`/srv/data/kanipi_krons/web/kanipi/index.html`. Local copy
 kept in sync at `docs/kanipi.html`.
 
 When shipping a new version, update both:
 
 1. Edit `docs/kanipi.html` (version, stats, features, LLM context)
-2. Copy to `/srv/data/kanipi_krons/web/pub/kanipi/index.html`
+2. Copy to `/srv/data/kanipi_krons/web/kanipi/index.html`
 
 ## Tagging a new version
 

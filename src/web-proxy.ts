@@ -152,22 +152,24 @@ export function startWebProxy(opts: {
   slothUsers: string;
   onMessage: OnInboundMessage;
   authSecret?: string;
+  webPublic?: boolean;
 }): http.Server {
-  const { webPort, vitePort, slothUsers, onMessage, authSecret } = opts;
+  const { webPort, vitePort, slothUsers, onMessage, authSecret, webPublic } =
+    opts;
   const users = parseUsers(slothUsers);
 
   const server = http.createServer((req, res) => {
     const url = req.url || '/';
 
     // Landing page redirects to /pub/ (public, no auth)
-    if (url === '/' || url === '/index.html') {
+    if (!webPublic && (url === '/' || url === '/index.html')) {
       res.writeHead(302, { Location: '/pub/' });
       res.end();
       return;
     }
 
-    // Auth check
-    if (!checkAuth(req, users, authSecret)) {
+    // Auth check (skipped in public mode)
+    if (!webPublic && !checkAuth(req, users, authSecret)) {
       if (authSecret) {
         res.writeHead(302, { Location: '/auth/login' });
         res.end();

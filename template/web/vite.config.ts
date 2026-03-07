@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import { defineConfig, Plugin } from 'vite';
 
 function trailingSlash(): Plugin {
@@ -19,9 +20,25 @@ function trailingSlash(): Plugin {
   };
 }
 
+function jsViewer(): Plugin {
+  return {
+    name: 'js-viewer-rewrite',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const url = req.url || '';
+        if (url.endsWith('.js') && !url.includes('node_modules')) {
+          const viewer = path.join('.', url + '.html');
+          if (fs.existsSync(viewer)) req.url = url + '.html';
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   appType: 'mpa',
-  plugins: [trailingSlash()],
+  plugins: [trailingSlash(), jsViewer()],
   build: {
     rollupOptions: {
       input: {
