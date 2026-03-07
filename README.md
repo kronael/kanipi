@@ -56,8 +56,8 @@ Agent searches code, researches via subagents, answers questions.
 an agent, it writes code, Vite serves it live. Research pages,
 products, experiments — all deployed without a laptop.
 
-**Cheerleader** — social media curator. Drafts responses for human
-review. (spec only)
+**Cheerleader** — engagement and viral mining. Finds high-signal
+conversations and amplification opportunities. (spec only)
 
 **Evangelist** — outbound community engagement. Monitors external
 communities. (spec only)
