@@ -35,6 +35,18 @@ function bareJid(jid: string): string {
   return jid.replace(/^whatsapp:/, '');
 }
 
+/** Convert markdown formatting to WhatsApp formatting */
+function markdownToWhatsApp(text: string): string {
+  return (
+    text
+      // **bold** or __bold__ → *bold*
+      .replace(/\*\*(.+?)\*\*/g, '*$1*')
+      .replace(/__(.+?)__/g, '*$1*')
+      // ~~strikethrough~~ → ~strikethrough~
+      .replace(/~~(.+?)~~/g, '~$1~')
+  );
+}
+
 export class WhatsAppChannel implements Channel {
   name = 'whatsapp';
 
@@ -352,13 +364,15 @@ export class WhatsAppChannel implements Channel {
     text: string,
     _opts?: SendOpts,
   ): Promise<void> {
+    // Convert markdown to WhatsApp formatting
+    const formatted = markdownToWhatsApp(text);
     // Prefix bot messages with assistant name so users know who's speaking.
     // On a shared number, prefix is also needed in DMs (including self-chat)
     // to distinguish bot output from user messages.
     // Skip only when the assistant has its own dedicated phone number.
     const prefixed = ASSISTANT_HAS_OWN_NUMBER
-      ? text
-      : `${ASSISTANT_NAME}: ${text}`;
+      ? formatted
+      : `${ASSISTANT_NAME}: ${formatted}`;
 
     if (!this.connected) {
       this.outgoingQueue.push({ jid, text: prefixed });

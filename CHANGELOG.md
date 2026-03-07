@@ -7,6 +7,16 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Changes
+
+- Cross-channel routing fix: idle containers preempted when a different channel needs the same folder
+- WhatsApp markdown conversion: **bold** to _bold_, ~~strike~~ to ~strike~
+- Extracted `releaseGroup()` helper in group-queue for cleaner state cleanup
+
+---
+
 ## [v1.0.4] — 2026-03-07
 
 ### Changes

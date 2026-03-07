@@ -192,22 +192,16 @@ export class GroupQueue {
     }
   }
 
-  /**
-   * Preempt an idle container if another JID needs the same folder.
-   * Used to fix cross-channel routing when a folder is registered on multiple channels.
-   */
+  /** Preempt idle container if another JID needs the same folder (cross-channel). */
   preemptFolderIfNeeded(folder: string, newJid: string): void {
     const currentJid = this.folderToActiveJid.get(folder);
-    if (currentJid && currentJid !== newJid) {
-      const state = this.getGroup(currentJid);
-      if (state.idleWaiting) {
-        logger.info(
-          { folder, currentJid, newJid },
-          'Preempting idle container for cross-channel message',
-        );
-        this.closeStdin(currentJid);
-      }
-    }
+    if (!currentJid || currentJid === newJid) return;
+    if (!this.getGroup(currentJid).idleWaiting) return;
+    logger.info(
+      { folder, currentJid, newJid },
+      'Preempting idle container for cross-channel',
+    );
+    this.closeStdin(currentJid);
   }
 
   /**
@@ -262,15 +256,7 @@ export class GroupQueue {
       state.consecutiveFailures++;
       logger.error({ groupJid, err }, 'Error processing messages for group');
     } finally {
-      state.active = false;
-      state.process = null;
-      state.containerName = null;
-      if (state.groupFolder) {
-        this.folderToActiveJid.delete(state.groupFolder);
-      }
-      state.groupFolder = null;
-      this.activeCount--;
-      this.drainGroup(groupJid);
+      this.releaseGroup(groupJid, state);
     }
   }
 
@@ -291,17 +277,19 @@ export class GroupQueue {
     } catch (err) {
       logger.error({ groupJid, taskId: task.id, err }, 'Error running task');
     } finally {
-      state.active = false;
       state.isTaskContainer = false;
-      state.process = null;
-      state.containerName = null;
-      if (state.groupFolder) {
-        this.folderToActiveJid.delete(state.groupFolder);
-      }
-      state.groupFolder = null;
-      this.activeCount--;
-      this.drainGroup(groupJid);
+      this.releaseGroup(groupJid, state);
     }
+  }
+
+  private releaseGroup(groupJid: string, state: GroupState): void {
+    state.active = false;
+    state.process = null;
+    state.containerName = null;
+    if (state.groupFolder) this.folderToActiveJid.delete(state.groupFolder);
+    state.groupFolder = null;
+    this.activeCount--;
+    this.drainGroup(groupJid);
   }
 
   private drainGroup(groupJid: string): void {
