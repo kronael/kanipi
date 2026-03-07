@@ -56,10 +56,15 @@
 
 ## Not in scope for v1
 
-- **cli TS rewrite** — bash entrypoint works, no urgency
 - **docker integration tests** — need testcontainers + CI
 - **sidecar actions** — specced in sidecars.md + actions.md,
   container-runner has lifecycle code, action handlers not yet wired
+
+## Shipped (late additions)
+
+| Spec   | Version | Summary                                        |
+| ------ | ------- | ---------------------------------------------- |
+| cli-ts | v0.8.0  | TypeScript CLI rewrite (src/cli.ts, commander) |
 
 ## Deferred to v2
 
