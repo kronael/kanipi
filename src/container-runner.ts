@@ -130,6 +130,20 @@ function buildVolumeMounts(
     readonly: tier === 3,
   });
 
+  // Tier 2: setup files ro via more-specific mount overrides
+  if (tier === 2) {
+    for (const f of ['CLAUDE.md', 'SOUL.md', 'skills']) {
+      const p = path.join(groupDir, f);
+      if (fs.existsSync(p)) {
+        mounts.push({
+          hostPath: hostPath(p),
+          containerPath: `/workspace/group/${f}`,
+          readonly: true,
+        });
+      }
+    }
+  }
+
   // Media dir — enriched attachments
   const mediaDir = path.join(groupDir, 'media');
   fs.mkdirSync(mediaDir, { recursive: true });
