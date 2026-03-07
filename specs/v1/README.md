@@ -59,7 +59,7 @@ interface; specs describe channel-specific behavior.
 - [slink.md](slink.md) — web channel via POST token endpoint (shipped)
 - [forward-metadata.md](forward-metadata.md) — forward origin + reply-to context (shipped)
 - [mime.md](mime.md) — media pipeline: download, transcribe, annotate (partial)
-- [files.md](files.md) — inbound /put, /get, /ls user file transfer (shipped)
+- [files-in.md](files-in.md) — inbound /put, /get, /ls user file transfer (shipped)
 - [file-output.md](file-output.md) — outbound agent sends files via IPC (shipped)
 
 ## Routing & Groups
@@ -122,8 +122,7 @@ gateway capability discovery.
 
 Authentication for web channel. Not needed for telegram/discord/whatsapp.
 
-- [auth.md](auth.md) — local accounts, argon2id, JWT + refresh (shipped)
-- [auth-oauth.md](auth-oauth.md) — OAuth provider support (open)
+- [auth.md](auth.md) — local accounts (shipped) + OAuth providers (open)
 
 ## Infrastructure
 
