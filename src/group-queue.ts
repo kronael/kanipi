@@ -34,6 +34,13 @@ export class GroupQueue {
     null;
   private shuttingDown = false;
 
+  /** Get all JIDs with active containers */
+  getActiveJids(): string[] {
+    return [...this.groups.entries()]
+      .filter(([_, s]) => s.active)
+      .map(([jid]) => jid);
+  }
+
   private getGroup(groupJid: string): GroupState {
     let state = this.groups.get(groupJid);
     if (!state) {

@@ -158,6 +158,17 @@ function saveState(): void {
   setRouterState('last_agent_timestamp', JSON.stringify(lastAgentTimestamp));
 }
 
+/** Refresh registeredGroups from DB and close orphaned containers */
+function refreshRegisteredGroups(): void {
+  const fresh = getAllRegisteredGroups();
+  const removed = Object.keys(registeredGroups).filter((jid) => !fresh[jid]);
+  for (const jid of removed) {
+    logger.info({ jid }, 'Group unregistered, closing container');
+    queue.closeStdin(jid);
+  }
+  registeredGroups = fresh;
+}
+
 function registerGroup(jid: string, group: RegisteredGroup): void {
   let groupDir: string;
   try {
@@ -624,6 +635,9 @@ async function startMessageLoop(): Promise<void> {
 
   while (true) {
     try {
+      // Refresh groups from DB (closes orphaned containers for unregistered JIDs)
+      refreshRegisteredGroups();
+
       const jids = Object.keys(registeredGroups);
       const { messages, newTimestamp } = getNewMessages(
         jids,
