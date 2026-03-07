@@ -50,11 +50,11 @@ Top-level group. Isolated namespace. Sees only what's below.
 
 ### Tier 2: agent
 
-Worker or restricted, depending on config. Default: worker.
+Default: worker. Can be restricted via container_config.
 
 Worker (default):
 
-- rw own group folder, CLAUDE.md, skills
+- rw own group workdir, ro CLAUDE.md/skills (see write levels below)
 - send_message/send_file to own JID
 - delegate to own children
 - schedule tasks for own group
@@ -62,7 +62,7 @@ Worker (default):
 
 Restricted (via container_config override):
 
-- ro group folder, ro CLAUDE.md, ro skills
+- ro everything
 - send_message only
 - escalate to parent only
 - no delegation, no scheduling
@@ -93,6 +93,69 @@ register_group authorization:
 Wait — should root be able to create worlds? Or CLI only?
 Decision: **worlds are CLI only**. Root can create children
 of worlds but not new worlds. Worlds are infrastructure.
+
+## Message visibility
+
+Hierarchical: you see messages routed to you and below you.
+You never see above or beside.
+
+```
+root          sees all messages in all worlds
+atlas/        sees messages routed to atlas/ and atlas/*
+atlas/support sees only messages routed to atlas/support
+yonder/       sees messages routed to yonder/ and yonder/*
+              does NOT see atlas/ messages
+```
+
+Rule: a group sees messages for its own JIDs plus all
+descendant JIDs. Never ancestors, never siblings.
+
+## Write levels
+
+Two levels, configured per group. Default: workdir.
+
+**unrestricted** — rw everything in group mount (CLAUDE.md,
+skills, memory, workdir). Used by root and world agents.
+
+**workdir** — rw group workdir only, ro CLAUDE.md/skills/setup.
+Agent can write notes, memory, working files. Cannot modify
+its own instructions or skills. Default for tier 2 workers.
+
+Restricted tier 2 agents get ro on everything (no writes at all).
+
+This is sufficient because:
+
+- Setup is concentrated in CLAUDE.md (global + group level)
+- Agent can't rewrite its own instructions
+- Prompt injection blast radius is limited to workdir
+- Prototype pattern (below) isolates per-JID state further
+
+## Prototypes
+
+A group can be a **prototype** — a template that is never
+routed to directly. When a new JID needs routing, the gateway
+spawns a new group as a copy of the prototype.
+
+```
+atlas/support/web         prototype (template, no routing)
+atlas/support/web:user123 spawned instance (copy of prototype)
+atlas/support/web:user456 spawned instance (copy of prototype)
+```
+
+Use cases:
+
+- Support tickets: each ticket gets its own agent instance
+- Public forum: each user conversation is isolated
+- Any scenario where per-JID state isolation matters
+
+The prototype's CLAUDE.md, skills, and setup are copied to
+each spawn. Spawned instances get workdir-level writes —
+they can write memory/notes but can't modify the template.
+The prototype itself stays clean.
+
+Spawn lifecycle: created on first message, destroyed on idle
+timeout or explicit cleanup. Prototype updates don't propagate
+to existing spawns (they get the template at creation time).
 
 ## Escalation (upward delegation)
 
@@ -131,14 +194,17 @@ user → atlas/support (restricted, searches facts)
 
 ## Container mount enforcement
 
-| Mount                     | Tier 0 | Tier 1 | Tier 2 (worker) | Tier 2 (restricted) |
-| ------------------------- | ------ | ------ | --------------- | ------------------- |
-| /workspace/group/         | rw     | rw     | rw              | ro                  |
-| /home/node/.claude/       | rw     | rw     | rw              | ro                  |
-| /workspace/self/          | ro     | ro     | no              | no                  |
-| /workspace/data/sessions/ | rw     | no     | no              | no                  |
-| /workspace/share/         | rw     | rw     | ro              | ro                  |
-| /workspace/ipc/           | rw     | rw     | rw              | rw (limited)        |
+Write level determines mount mode. "workdir" means the group's
+working directory is rw but setup files (CLAUDE.md, skills) are ro.
+
+| Mount                     | Tier 0 | Tier 1 | Tier 2 (worker)      | Tier 2 (restricted) |
+| ------------------------- | ------ | ------ | -------------------- | ------------------- |
+| /workspace/group/         | rw     | rw     | workdir=rw, setup=ro | ro                  |
+| /home/node/.claude/       | rw     | rw     | rw                   | ro                  |
+| /workspace/self/          | ro     | ro     | no                   | no                  |
+| /workspace/data/sessions/ | rw     | no     | no                   | no                  |
+| /workspace/share/         | rw     | rw     | ro                   | ro                  |
+| /workspace/ipc/           | rw     | rw     | rw                   | rw (limited)        |
 
 ## Codebase rename: main → root
 
@@ -163,38 +229,34 @@ function permissionTier(folder: string): 0 | 1 | 2 {
 }
 ```
 
-Existing instances: migration renames `main` → `root` in DB
-and filesystem. Or: make "root" configurable via env
-(`ROOT_FOLDER=main`), default `root` for new instances.
+### Migration
 
-### Files to change
+No env var fallback — clean rename, one-time migration.
 
-~30 references to `isRoot()` across src/. The function
-signature stays the same but the logic changes. Key files:
+1. Rename DB: `UPDATE groups SET folder = 'root' WHERE folder = 'main'`
+2. Rename filesystem: `mv groups/main groups/root`
+3. Update routing rules referencing `main`
+4. Add migration skill step for agent-side references
+
+~30 references to `isRoot()` across src/. Key files:
 config.ts, container-runner.ts, index.ts, ipc.ts,
 action-registry.ts, actions/\*.ts, task-scheduler.ts.
 
 ## Open Questions
 
-1. **Root folder name** — rename existing `main` folders to
-   `root`? Or keep `main` and add `ROOT_FOLDER` env var?
+1. **Agent code modification** — root sees /workspace/self/ (ro).
+   Staging area for code changes. Separate spec:
+   specs/v2m1/agent-code-modification.md
 
-2. **World message visibility** — world agents see all messages
-   in their world. Should tier 2 agents see only their own JID's
-   messages, or all messages in their world? Currently: own only.
+2. **Prototype spawn naming** — `group:jid` convention? Or
+   subdirectory? How to avoid filesystem name collisions?
 
-3. **Restricted MEMORY.md** — block writes? Agent memory is
-   useful but also a prompt injection persistence vector.
+3. **Prototype spawn limits** — max concurrent spawns per
+   prototype? Cleanup policy for idle spawns?
 
-4. **Escalation protocol** — structured JSON? Free text?
-   XML like system messages? Needs own spec.
+4. **Prototype update propagation** — when prototype changes,
+   do existing spawns get updated? Or only new spawns?
 
-5. **Mount inheritance** — should tier 2 inherit parent world's
-   extra mounts? Or configure per-group?
-
-6. **Agent code modification** — root sees /workspace/self/ (ro).
-   Staging area approach: agent writes to staging dir, gateway
-   applies on restart. Needs own spec.
-
-7. **Existing instances** — migration path for kanipi_marinade
-   et al. that use folder=main as root.
+5. **Workdir boundary** — how to enforce setup=ro within a
+   single mount? Separate mounts for setup vs workdir?
+   Or trust CLAUDE.md instructions + file permissions?
