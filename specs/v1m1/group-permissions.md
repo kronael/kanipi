@@ -13,13 +13,13 @@ Binary root/non-root is insufficient. Need:
 
 ## Hierarchy
 
-Three differentiated tiers. Max 3 levels of nesting.
+Four tiers. Max 3 levels of nesting.
 
 ```
-root                     tier 0 — god mode
+root                     tier 0 — root (god mode)
 ├── atlas/               tier 1 — world (isolated)
-│   ├── atlas/support    tier 2 — agent
-│   └── atlas/research   tier 2 — agent
+│   ├── atlas/support    tier 2 — agent (rw workdir)
+│   └── atlas/support/web tier 3 — worker (restricted)
 ├── yonder/              tier 1 — world (isolated)
 │   └── yonder/web       tier 2 — agent
 └── (no world needed)    tier 0 alone works for simple setups
@@ -27,8 +27,8 @@ root                     tier 0 — god mode
 
 ### Tier 0: root
 
-The admin agent. Folder name: `root` (rename from current
-`main` — see codebase changes below). One per instance.
+The admin. Folder name: `root` (rename from current `main` —
+see codebase changes below). One per instance.
 
 - Sees all worlds, all groups, all messages
 - Can modify gateway code (staging area, not direct)
@@ -39,6 +39,8 @@ The admin agent. Folder name: `root` (rename from current
 ### Tier 1: world
 
 Top-level group. Isolated namespace. Sees only what's below.
+Unrestricted write access to own group — but no access to
+gateway source, agent runner, or plugin code.
 
 - All IPC actions scoped to own world
 - Can create children (register_group within own world)
@@ -47,20 +49,21 @@ Top-level group. Isolated namespace. Sees only what's below.
 - rw own group folder, CLAUDE.md, skills
 - Cannot see other worlds
 - Cannot see root's data
+- Cannot see /workspace/self/ (gateway/agent source)
 
 ### Tier 2: agent
 
-Default: worker. Can be restricted via container_config.
+The standard agent. Can do real work but can't modify its setup.
 
-Worker (default):
-
-- rw own group workdir, ro CLAUDE.md/skills (see write levels below)
+- rw own group workdir, ro CLAUDE.md/skills (see write levels)
 - send_message/send_file to own JID
 - delegate to own children
 - schedule tasks for own group
 - escalate to parent (upward delegation)
 
-Restricted (via container_config override):
+### Tier 3: worker
+
+Restricted leaf node. Does specific tasks, minimal permissions.
 
 - ro everything
 - send_message only
@@ -68,25 +71,29 @@ Restricted (via container_config override):
 - no delegation, no scheduling
 
 ```typescript
-function permissionTier(folder: string): 0 | 1 | 2 {
+function permissionTier(folder: string): 0 | 1 | 2 | 3 {
   if (folder === 'root') return 0;
   const depth = folder.split('/').length;
-  return Math.min(depth, 2) as 1 | 2;
+  return Math.min(depth, 3) as 1 | 2 | 3;
 }
 ```
+
+Tier is implied by folder depth: depth 1 = world, depth 2 = agent,
+depth 3 = worker. No explicit config needed — structure is permission.
 
 ## World creation
 
 - **CLI only** — agents cannot create new worlds
 - Root agent can create children of existing worlds
 - World agents can create children within own world
-- Tier 2 agents cannot create groups
+- Tier 2 agents and tier 3 workers cannot create groups
 
 ```
 register_group authorization:
   tier 0: can create anything except new worlds (CLI only)
   tier 1: can create children in own world
   tier 2: cannot create groups
+  tier 3: cannot create groups
   CLI:    unrestricted
 ```
 
@@ -115,13 +122,15 @@ descendant JIDs. Never ancestors, never siblings.
 Two levels, configured per group. Default: workdir.
 
 **unrestricted** — rw everything in group mount (CLAUDE.md,
-skills, memory, workdir). Used by root and world agents.
+skills, memory, workdir). Used by root and world. World is
+unrestricted within own group but has no access to gateway
+source or agent/plugin code (only root sees /workspace/self/).
 
 **workdir** — rw group workdir only, ro CLAUDE.md/skills/setup.
 Agent can write notes, memory, working files. Cannot modify
-its own instructions or skills. Default for tier 2 workers.
+its own instructions or skills. Default for tier 2 agents.
 
-Restricted tier 2 agents get ro on everything (no writes at all).
+Tier 3 workers get ro on everything (no writes at all).
 
 This is sufficient because:
 
@@ -159,8 +168,8 @@ to existing spawns (they get the template at creation time).
 
 ## Escalation (upward delegation)
 
-Tier 2 agents can ask their parent for help. Inverse of
-`delegate_group`.
+Tier 2 agents and tier 3 workers can ask their parent for
+help. Inverse of `delegate_group`.
 
 ```
 user → atlas/support (restricted, searches facts)
@@ -176,19 +185,19 @@ user → atlas/support (restricted, searches facts)
 
 ## IPC actions by tier
 
-| Action              | Tier 0 | Tier 1       | Tier 2 (worker) | Tier 2 (restricted) |
-| ------------------- | ------ | ------------ | --------------- | ------------------- |
-| send_message        | any    | own world    | own JID         | own JID             |
-| send_file           | any    | own world    | own JID         | no                  |
-| schedule_task       | any    | own world    | own group       | no                  |
-| pause/resume/cancel | any    | own world    | own group       | no                  |
-| register_group      | yes\*  | own children | no              | no                  |
-| set_routing_rules   | yes    | own children | no              | no                  |
-| delegate_group      | yes    | own children | own children    | no                  |
-| escalate            | n/a    | n/a          | to parent       | to parent           |
-| refresh_groups      | yes    | no           | no              | no                  |
-| reset_session       | yes    | yes          | yes             | yes                 |
-| list_actions        | yes    | yes          | yes             | yes                 |
+| Action              | Tier 0 (root) | Tier 1 (world) | Tier 2 (agent) | Tier 3 (worker) |
+| ------------------- | ------------- | -------------- | -------------- | --------------- |
+| send_message        | any           | own world      | own JID        | own JID         |
+| send_file           | any           | own world      | own JID        | no              |
+| schedule_task       | any           | own world      | own group      | no              |
+| pause/resume/cancel | any           | own world      | own group      | no              |
+| register_group      | yes\*         | own children   | no             | no              |
+| set_routing_rules   | yes           | own children   | no             | no              |
+| delegate_group      | yes           | own children   | own children   | no              |
+| escalate            | n/a           | n/a            | to parent      | to parent       |
+| refresh_groups      | yes           | no             | no             | no              |
+| reset_session       | yes           | yes            | yes            | yes             |
+| list_actions        | yes           | yes            | yes            | yes             |
 
 \*root cannot create worlds (CLI only), but can create world children
 
@@ -197,14 +206,14 @@ user → atlas/support (restricted, searches facts)
 Write level determines mount mode. "workdir" means the group's
 working directory is rw but setup files (CLAUDE.md, skills) are ro.
 
-| Mount                     | Tier 0 | Tier 1 | Tier 2 (worker)      | Tier 2 (restricted) |
-| ------------------------- | ------ | ------ | -------------------- | ------------------- |
-| /workspace/group/         | rw     | rw     | workdir=rw, setup=ro | ro                  |
-| /home/node/.claude/       | rw     | rw     | rw                   | ro                  |
-| /workspace/self/          | ro     | ro     | no                   | no                  |
-| /workspace/data/sessions/ | rw     | no     | no                   | no                  |
-| /workspace/share/         | rw     | rw     | ro                   | ro                  |
-| /workspace/ipc/           | rw     | rw     | rw                   | rw (limited)        |
+| Mount                     | Tier 0 (root) | Tier 1 (world) | Tier 2 (agent)       | Tier 3 (worker) |
+| ------------------------- | ------------- | -------------- | -------------------- | --------------- |
+| /workspace/group/         | rw            | rw             | workdir=rw, setup=ro | ro              |
+| /home/node/.claude/       | rw            | rw             | rw                   | ro              |
+| /workspace/self/          | ro            | no             | no                   | no              |
+| /workspace/data/sessions/ | rw            | no             | no                   | no              |
+| /workspace/share/         | rw            | rw             | ro                   | ro              |
+| /workspace/ipc/           | rw            | rw             | rw                   | rw (limited)    |
 
 ## Codebase rename: main → root
 
@@ -222,10 +231,10 @@ function isWorld(folder: string): boolean {
   return !folder.includes('/') && folder !== 'root';
 }
 
-// Tier from folder
-function permissionTier(folder: string): 0 | 1 | 2 {
+// Tier from folder depth
+function permissionTier(folder: string): 0 | 1 | 2 | 3 {
   if (folder === 'root') return 0;
-  return Math.min(folder.split('/').length, 2) as 1 | 2;
+  return Math.min(folder.split('/').length, 3) as 1 | 2 | 3;
 }
 ```
 
