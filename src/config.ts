@@ -151,6 +151,12 @@ export const WEB_PUBLIC = !!(process.env.WEB_PUBLIC || envConfig.WEB_PUBLIC);
 export const AUTH_SECRET =
   process.env.AUTH_SECRET || envConfig.AUTH_SECRET || '';
 
+// OAuth providers
+export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
+export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
+export const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
+export const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
+
 export function _overrideConfig(patch: {
   SLINK_ANON_RPM?: number;
   SLINK_AUTH_RPM?: number;

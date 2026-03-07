@@ -2,9 +2,14 @@ import http from 'http';
 
 import {
   checkSessionCookie,
+  handleDiscordAuth,
+  handleDiscordCallback,
+  handleGitHubAuth,
+  handleGitHubCallback,
   handleLoginPost,
   handleLogout,
   handleRefresh,
+  handleTelegramAuth,
   loginPageHtml,
 } from './auth.js';
 import { getGroupBySlink } from './db.js';
@@ -231,6 +236,32 @@ export function startWebProxy(opts: {
         Location: '/auth/login',
       });
       res.end();
+      return;
+    }
+
+    // OAuth routes
+    if (url === '/auth/github' && req.method === 'GET') {
+      handleGitHubAuth(req, res);
+      return;
+    }
+
+    if (url.startsWith('/auth/github/callback') && req.method === 'GET') {
+      handleGitHubCallback(req, res);
+      return;
+    }
+
+    if (url === '/auth/discord' && req.method === 'GET') {
+      handleDiscordAuth(req, res);
+      return;
+    }
+
+    if (url.startsWith('/auth/discord/callback') && req.method === 'GET') {
+      handleDiscordCallback(req, res);
+      return;
+    }
+
+    if (url === '/auth/telegram' && req.method === 'POST') {
+      handleTelegramAuth(req, res);
       return;
     }
 
