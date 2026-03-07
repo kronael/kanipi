@@ -354,6 +354,11 @@ export class WhatsAppChannel implements Channel {
             attachments.length > 0 ? attachments : undefined,
             attachments.length > 0 ? waDownload : undefined,
           );
+
+          // Mark message as read (blue ticks)
+          if (!fromMe && msg.key) {
+            this.sock.readMessages([msg.key]).catch(() => {});
+          }
         }
       }
     });
