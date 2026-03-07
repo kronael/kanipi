@@ -8,6 +8,7 @@ import {
   getManifest,
   registerAction,
 } from './action-registry.js';
+import { injectMessage } from './actions/inject.js';
 import { sendFile, sendMessage } from './actions/messaging.js';
 import { resetSession } from './actions/session.js';
 import {
@@ -62,6 +63,7 @@ export interface IpcDeps {
 const allActions: Action[] = [
   sendMessage,
   sendFile,
+  injectMessage,
   scheduleTask,
   pauseTask,
   resumeTask,
