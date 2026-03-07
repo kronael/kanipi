@@ -48,9 +48,11 @@
 
 - **db-bootstrap** — versioned migrations (src/migrations.ts
   - .sql files). Currently inline try/catch ALTER TABLE.
-- **plugins** — agent-proposed, operator-approved plugin flow.
-  Trust boundary designed. No code yet.
 - **OAuth providers** — docs exist, local auth ships, provider login does not.
+
+## Moved to v1m2
+
+- **plugins** — agent-proposed, operator-approved plugin flow → `v1m2/plugins.md`
 
 ## Not in scope for v1
 
