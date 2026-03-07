@@ -7,6 +7,26 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.3] — 2026-03-07
+
+### Changes
+
+- WEB_PUBLIC mode: skip auth and /pub/ redirect for public-facing instances
+- Group web prefix: skills publish under group-specific web dirs
+- Skills updated: hello (capability levels, group-aware links), howto (3-level
+  guide: beginner/intermediate/advanced), web (group prefix convention),
+  research (group-aware deploy)
+- Migration 015: group web prefix convention
+- Fix docs path: kanipi.html deployment path corrected (removed stale /pub/)
+- Permission tiers spec: 4-tier hierarchy (root/world/agent/worker)
+- Specs v1 architecture: 37 specs organized by concern with dependency diagram
+- Spec merges: auth (local+oauth), sidecars (isolation+mcp), files-in rename
+- Escalation spec (v2m1): upward delegation protocol
+- Prototypes spec (v2m1): per-JID group spawning from templates
+- Task scheduler spec: documented shipped task scheduler
+
+---
+
 ## [v1.0.2] — 2026-03-07
 
 ### Changes

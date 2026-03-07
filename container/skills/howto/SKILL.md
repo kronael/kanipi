@@ -1,18 +1,41 @@
 ---
 name: howto
-description: Generate a getting-started howto page for this kanipi instance. Deploys to /workspace/web/pub/howto/. Use when asked to create onboarding, setup guide, or howto page.
+description: Generate a getting-started howto page for this group. Deploys to the group's web directory. Use when asked to create onboarding, setup guide, or howto page.
 ---
 
 # Howto
 
-Generate a getting-started page at `/workspace/web/pub/howto/index.html`
-that guides new users through connecting to this instance.
+Generate a getting-started page that guides new users through
+using this agent. Deploys to the group's web directory.
 
 ## When to use
 
-- First-time instance setup
+- First-time instance/group setup
 - User asks for a howto, guide, or onboarding page
-- Instance has no howto yet
+- Group has no howto yet
+
+## Web directory convention
+
+Every skill that publishes web content MUST use the group's
+web prefix, not a hardcoded path. This keeps group web roots
+isolated within the shared `/workspace/web/`.
+
+```bash
+GROUP_FOLDER=$(basename /workspace/group)
+if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
+  WEB_DIR="/workspace/web"
+else
+  WEB_DIR="/workspace/web/$GROUP_FOLDER"
+  mkdir -p "$WEB_DIR"
+fi
+```
+
+Howto deploys to: `$WEB_DIR/howto/index.html`
+
+Public URL:
+
+- Root: `https://$WEB_HOST/howto/`
+- Group: `https://$WEB_HOST/$GROUP_FOLDER/howto/`
 
 ## Design requirements
 
@@ -56,67 +79,128 @@ sky: {
 - **Info banner**: dismissible (localStorage), subtle bg,
   explains this is a template page
 
-## Content structure
+## Content structure — three levels
 
-### Dismissible banner (top)
+The howto has three sections matching user skill levels.
+ALL three are included on the same page, with clear visual
+separation and anchor links in the nav.
 
-"This is the getting-started guide. Once you're set up,
-your agent can deploy apps here." Dismiss button stores
-`howto-dismissed` in localStorage. Check on load, hide
-if dismissed.
+### Level 1: Getting Started (beginner)
 
-### Hero
+Target: someone who just wants to use the agent as a tool.
 
-Instance name as title. Subtitle: what this bot does
-(AI agent on telegram/discord/whatsapp).
+**Steps:**
 
-### Steps (numbered cards)
-
-1. **Prerequisites** — Docker on server, messaging account
-   (Telegram and/or Discord), Claude OAuth token
-
-2. **Talk to the bot** — How to start a conversation.
+1. **Talk to the bot** — How to start a conversation.
    On Telegram: find the bot by username, send a message.
-   On Discord: add bot to server, mention it in a channel.
-   The bot responds to @mentions or direct messages.
+   On Discord: add bot to server, mention in a channel.
+   On Email: send email to the configured address.
+   Show the actual channel info from env vars.
 
-3. **What it can do** — Read/write files, run commands,
-   search the web, build web apps, schedule tasks.
-   Each conversation gets its own isolated container.
+2. **What it can do** — Conversational AI that can:
+   - Research topics deeply (web search, multi-pass analysis)
+   - Shop and compare products with detailed reviews
+   - Explain concepts at any level of detail
+   - Search and summarize information
+   - Read files, images, PDFs you send it
 
-4. **Web apps** — The bot can create web apps for you.
-   Ask it to build something and it deploys to this site.
-   Example prompts: "build me a todo app", "create a
-   dashboard for X".
+3. **Using the web interface** — Show how to access the web
+   at `https://$WEB_HOST/`. Explain:
+   - Research hubs appear as pages on the site
+   - The agent can build pages you can share with others
+   - Bookmark useful pages it creates
 
-5. **Tips** — Be specific in requests. The bot remembers
-   conversation context. Use @mention in group chats.
-   Long tasks run in background containers.
+4. **Email use** — If email is configured:
+   - Send an email to the agent's address
+   - It replies in-thread, preserving conversation
+   - Attach files for analysis
+   - Good for longer, async tasks
 
-### Features grid (bottom)
+5. **Tips** — Be specific. Ask follow-up questions. The agent
+   remembers your conversation. Say "research X thoroughly" for
+   deep dives.
 
-3-4 feature cards: multi-channel, container isolation,
-web deployment, scheduled tasks.
+### Level 2: Building Web Apps (intermediate)
+
+Target: someone who wants the agent to build interactive things.
+
+**Steps:**
+
+1. **Ask for a web app** — Example prompts:
+   - "build me a todo app"
+   - "create a dashboard showing crypto prices"
+   - "make an interactive calculator for mortgage payments"
+   - "build a comparison table for laptops under $1000"
+
+2. **How it works** — The agent writes HTML/CSS/JS and deploys
+   to a live URL. Apps update instantly. No build step needed.
+   Explain the vite dev server + MPA architecture simply.
+
+3. **Interactive dashboards** — The agent can build data
+   dashboards that fetch and display live data. Examples:
+   - API-powered dashboards (weather, stocks, crypto)
+   - Data visualization with charts
+   - Forms that process and display results
+
+4. **Iterating** — Ask the agent to modify existing apps.
+   "Change the color scheme", "Add a chart", "Make it mobile-
+   friendly". It reads the existing code and updates it.
+
+5. **Sharing** — Every app gets a permanent URL at
+   `https://$WEB_HOST/<app-name>/`. Share with anyone.
+
+### Level 3: Groups & Routing (advanced)
+
+Target: power users who want multi-agent setups.
+
+**Steps:**
+
+1. **Groups** — A single instance can host multiple groups.
+   Each group is a separate agent with its own memory, skills,
+   and web directory. Groups can be in different chat channels.
+
+2. **Registration** — Register a new chat via CLI:
+
+   ```
+   ./kanipi config <instance> group add "<jid>" "<name>" <folder>
+   ```
+
+   The agent can also register groups via MCP tools (root only).
+
+3. **Routing** — Messages can be automatically routed between
+   groups based on rules. A root agent can delegate to child
+   groups for specialized tasks.
+
+4. **Scheduled tasks** — The agent can schedule recurring tasks:
+   - Cron-style schedules
+   - One-time delayed tasks
+   - Periodic checks and reports
+
+5. **MCP tools** — Advanced users can extend the agent with
+   custom MCP servers. Register in settings.json and tools
+   become available in the next session.
 
 ## Customization
 
-Read instance context before generating:
+Read context before generating:
 
-1. Check `$ASSISTANT_NAME` or hostname for the bot name
-2. Check which channels are configured (presence of
-   TELEGRAM_BOT_TOKEN, DISCORD_BOT_TOKEN in env)
-3. Check if web apps already exist (`ls /workspace/web/`)
-4. Tailor the content to what's actually available
+1. `echo $ASSISTANT_NAME` — bot name
+2. `echo $WEB_HOST` — web URL (NEVER guess if empty)
+3. `echo $NANOCLAW_IS_ROOT` — root or non-root group
+4. `basename /workspace/group` — group folder name
+5. Check which channels: env vars for TELEGRAM, DISCORD, EMAIL
+6. Check existing web apps: `ls /workspace/web/`
 
 ## After deploying
 
-1. Update `/workspace/web/pub/index.html` hub to include howto link
-2. Verify page loads: `curl -s http://localhost:$VITE_PORT/pub/howto/`
-3. Tell the user the URL
+1. Update the hub page (if root: `/workspace/web/index.html`;
+   if group: create `/workspace/web/$GROUP_FOLDER/index.html`)
+2. Verify: `curl -s http://localhost:$VITE_PORT/$WEB_PREFIX/howto/`
+3. Tell the user the full URL
 
 ## Attribution
 
-NEVER attribute to Anthropic or Claude in the footer or anywhere on the page.
+NEVER attribute to Anthropic or Claude in the footer.
 Footer MUST read: `powered by <a href="https://krons.fiu.wtf/kanipi">kanipi</a>`
 
 ## Language
@@ -126,17 +210,15 @@ Default to English if unclear.
 
 ## Reference implementation
 
-Use `/workspace/self/template/web/pub/howto/index.html` as the base.
-Copy it to `/workspace/web/pub/howto/index.html` and customize:
+Use `/workspace/self/template/web/pub/howto/index.html` as base.
+Copy to `$WEB_DIR/howto/index.html` and customize:
 
 - Replace "kanipi" with `$ASSISTANT_NAME` in title/hero
-- Update subtitle to match what this specific instance does
-- Remove steps that don't apply (e.g. clone/build for
-  users who just chat with the bot, not deploy it)
-- Add instance-specific info (channel links, web host URL)
+- Update subtitle for this specific group
+- Remove steps for unconfigured channels
+- Add all three levels (beginner/intermediate/advanced)
 - Translate to user's language if not English
 
-The template has the full design system already wired:
-tailwind config, color palette, depth/glow classes,
-code blocks, step cards, theme toggle, dismissible banner.
-Do NOT rebuild from scratch — copy and adapt.
+The template has the design system wired: tailwind config,
+color palette, depth/glow classes, code blocks, step cards,
+theme toggle, dismissible banner. Do NOT rebuild from scratch.

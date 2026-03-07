@@ -63,8 +63,19 @@ Single-page HTML with all research organized into sections:
 
 ### 6. Deploy
 
-Drop `index.html` into `/workspace/web/<name>/`.
-Available at `https://$WEB_HOST/<name>/`.
+Use the group web prefix (see `/web` skill for convention):
+
+```bash
+GROUP_FOLDER=$(basename /workspace/group)
+if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
+  WEB_DIR="/workspace/web"
+else
+  WEB_DIR="/workspace/web/$GROUP_FOLDER"
+fi
+```
+
+Drop `index.html` into `$WEB_DIR/<name>/`.
+Available at `https://$WEB_HOST/[$GROUP_FOLDER/]<name>/`.
 
 ## Page Design
 
