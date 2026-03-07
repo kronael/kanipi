@@ -251,7 +251,7 @@
           <div class="path-content">
             <div class="path-action">Group routing + delegation</div>
             <div class="path-detail">
-              Groups registered via CLI with folder mapping. First group defaults to <code>folder=main</code>.
+              Groups registered via CLI with folder mapping. First group defaults to <code>folder=root</code>.
               Subsequent groups use trigger mode (agent responds only when mentioned).
               Agents can delegate prompts to child groups via <code>delegateToChild</code> IPC action &mdash;
               explicit, not automatic. Unregistered chats silently dropped.
@@ -713,7 +713,7 @@
           4-tier permission model: root (tier 0), world (tier 1), agent (tier 2), worker (tier 3).
           Tier derived from folder depth. Mount isolation: setup files ro for agents, everything ro for workers.
           Config: .env + env vars (no YAML). Channels enabled by token/config presence.
-          Group routing: pre-registration via CLI, hierarchical delegation, trigger mode for non-main groups.
+          Group routing: pre-registration via CLI, hierarchical delegation, trigger mode for non-root groups.
           Action registry: Zod-validated actions (messaging, inject, tasks, groups, session) with tier-based authorization.
           inject_message: insert into DB without channel delivery, clears errored flag — programmatic retry after OOM kills (root/world only).
           MCP sidecars: per-group MCP server config, gateway-managed lifecycle. Whisper transcription as sidecar.

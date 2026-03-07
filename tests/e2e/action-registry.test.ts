@@ -30,6 +30,7 @@ const EXPECTED_ACTIONS = [
   'refresh_groups',
   'register_group',
   'delegate_group',
+  'escalate_group',
   'set_routing_rules',
   'reset_session',
 ];
@@ -59,6 +60,7 @@ beforeEach(() => {
     writeGroupsSnapshot: vi.fn(),
     clearSession: vi.fn(),
     delegateToChild: vi.fn().mockResolvedValue(undefined),
+    delegateToParent: vi.fn().mockResolvedValue(undefined),
   };
 });
 
@@ -138,6 +140,8 @@ describe('drainRequests flow', () => {
         getAvailableGroups: deps.getAvailableGroups,
         writeGroupsSnapshot: deps.writeGroupsSnapshot,
         clearSession: deps.clearSession,
+        delegateToChild: deps.delegateToChild,
+        delegateToParent: deps.delegateToParent,
       },
     );
     expect(result).toEqual({ reset: true });
@@ -160,6 +164,8 @@ describe('drainRequests flow', () => {
         getAvailableGroups: deps.getAvailableGroups,
         writeGroupsSnapshot: deps.writeGroupsSnapshot,
         clearSession: deps.clearSession,
+        delegateToChild: deps.delegateToChild,
+        delegateToParent: deps.delegateToParent,
       },
     );
     expect(result).toEqual({ sent: true });

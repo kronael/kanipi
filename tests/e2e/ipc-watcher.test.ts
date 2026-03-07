@@ -52,6 +52,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
     writeGroupsSnapshot: vi.fn(),
     clearSession: vi.fn(),
     delegateToChild: vi.fn().mockResolvedValue(undefined),
+    delegateToParent: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }

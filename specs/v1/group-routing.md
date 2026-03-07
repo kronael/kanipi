@@ -5,8 +5,9 @@ it. A parent group decides how inbound messages flow to
 its children — statically via rules, or dynamically via
 IPC delegation from its agent.
 
-Builds on `specs/v1/worlds.md` (Phase 1 shipped: `/`
-separator, `isRoot()`, glob matching via minimatch).
+Builds on `specs/v1/worlds.md` (shipped: `/` separator,
+JID normalization, world boundaries). Glob matching is not
+currently shipped.
 
 ---
 
@@ -106,13 +107,10 @@ JID via `sendMessage`. Delegation is fire-and-queue: the
 parent's current container does not wait for the child to
 finish. The child runs in its own GroupQueue slot.
 
-Authorization: direct parent → child only. Source group
-must be the immediate parent of the target (exactly one
-segment deeper, same world prefix). Root groups may
-delegate to their own direct children only — not to
-grandchildren or cross-world groups. A child cannot
-delegate to siblings, ancestors, or groups in other
-worlds.
+Authorization: source group may delegate only to a
+descendant in its own subtree, inside the same world.
+Cross-world, sibling, ancestor, and same-folder targets
+are denied.
 
 ---
 
@@ -337,3 +335,22 @@ to delegate explicitly and should handle the failure.
   Out of scope for v1.
 - Phase 4 (worlds.md): tree-scoped IPC auth — shipped.
   Direct parent→child enforced; cross-world blocked.
+
+### 3. Parent delegates to a deeper descendant
+
+`main` may delegate directly to `main/code/py` if it wants
+to skip the intermediate `main/code` container for a
+specialized task:
+
+```json
+{
+  "type": "delegate_group",
+  "group": "main/code/py",
+  "prompt": "Run the Python-specific lint and fix pass",
+  "chatJid": "telegram:-100111"
+}
+```
+
+This is allowed because `main/code/py` is still inside
+`main`'s subtree. `main` still cannot delegate to
+`main/ops`, `team/alice`, or `main` itself.

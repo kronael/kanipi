@@ -14,7 +14,7 @@
 | extend-skills   | v0.4.0  | Skill seeding, /migrate, MIGRATION_VERSION                 |
 | file-output     | v0.5.0  | send_file IPC action, sendDocument on channels             |
 | group-routing   | v0.6.0  | Hierarchical routing, delegate_group, routing_rules        |
-| isolation       | v0.6.0  | MCP sidecar lifecycle, socket transport, per-group config  |
+| sidecars        | v0.6.0  | Gateway-managed sidecars shipped; agent-requested open     |
 | ipc-signal      | v0.5.0  | SIGUSR1 wakeup, fs.watch gateway-side                      |
 | memory-messages | v0.4.0  | Stdin XML envelope, 100 msg limit (MSG_LIMIT)              |
 | memory-session  | v0.4.0  | Session recording, error notification, cursor rollback     |
@@ -24,7 +24,7 @@
 | sync            | v0.4.0  | /migrate skill + MIGRATION_VERSION system                  |
 | system-messages | v0.4.0  | Tables, enqueue/flush, new-session, new-day                |
 | testing         | v0.6.0  | Unit + e2e + smoke tiers, testability seams                |
-| worlds          | v0.4.0  | / separator, isRoot(), glob routing, chat metadata         |
+| worlds          | v0.4.0  | JID normalization, world boundaries, nested folders        |
 
 ## Reference specs (documentation, no code changes)
 
@@ -37,12 +37,12 @@
 
 ## Shipped (continued)
 
-| Spec          | Version | Summary                                                |
-| ------------- | ------- | ------------------------------------------------------ |
-| memory-diary  | v0.7.0  | Agent daily notes, PreCompact nudge, gateway injection |
-| files         | v0.7.0  | /put, /get, /ls bidirectional file transfer            |
-| introspection | v0.7.0  | .gateway-caps TOML manifest, .whisper-language config  |
-| forward-meta  | v0.7.0  | Forward origin + reply-to context per channel          |
+| Spec          | Version | Summary                                                       |
+| ------------- | ------- | ------------------------------------------------------------- |
+| memory-diary  | v0.7.0  | Agent daily notes, PreCompact nudge, gateway injection        |
+| files         | v0.7.0  | `/file put`, `/file get`, `/file list` bidirectional transfer |
+| introspection | v0.7.0  | .gateway-caps TOML manifest, .whisper-language config         |
+| forward-meta  | v0.7.0  | Forward origin + reply-to context per channel                 |
 
 ## Open (not shipped)
 
@@ -50,12 +50,13 @@
   - .sql files). Currently inline try/catch ALTER TABLE.
 - **plugins** — agent-proposed, operator-approved plugin flow.
   Trust boundary designed. No code yet.
+- **OAuth providers** — docs exist, local auth ships, provider login does not.
 
 ## Not in scope for v1
 
 - **cli TS rewrite** — bash entrypoint works, no urgency
 - **docker integration tests** — need testcontainers + CI
-- **sidecar actions** — specced in mcp-sidecar.md + actions.md,
+- **sidecar actions** — specced in sidecars.md + actions.md,
   container-runner has lifecycle code, action handlers not yet wired
 
 ## Deferred to v2

@@ -1,73 +1,51 @@
-# File Handling — partial
+# File Handling
 
-Inbound: user uploads files to agent workspace.
-Outbound: agent writes files, gateway sends them back.
+**Status**: partial
 
-## Inbound (user → agent)
+Two separate shipped pieces exist today:
 
-### Detection
+- outbound file sending via `send_file`
+- command-driven user file transfer via `/file put|get|list`
 
-| Field          | Notes                              |
-| -------------- | ---------------------------------- |
-| `msg.document` | any file                           |
-| `msg.photo`    | array — use last element (largest) |
-| `msg.video`    | video files                        |
+## Current user flow
 
-### Download
+### Upload into workspace
 
-grammy file API → save to:
+User sends an attachment, then uses:
 
-```
-groups/<folder>/uploads/<timestamp>_<original_filename>
+```text
+/file put [path]
 ```
 
-`timestamp` = Unix ms. `original_filename` from `file_name` field; fallback
-to `photo_<id>.jpg` or `video_<id>.mp4` when absent.
+The gateway stores the attachment under the group workspace and confirms
+the saved path.
 
-Reject files >50 MB before download: reply `"file too large (max 50 MB)"`.
+### Download from workspace
 
-### Injection
-
-Prepend path to agent message (caption or empty string):
-
-```
-[file: /workspace/group/uploads/<timestamp>_<filename>]
-<caption>
+```text
+/file get <path>
 ```
 
-Agent sees files under `/workspace/group/uploads/` — the group folder mounts
-to `/workspace/group` (see `container-runner.ts:buildVolumeMounts`).
+Gateway resolves the path inside the group folder, applies deny-glob and
+size checks, then sends the file back through the channel.
 
-## Outbound (agent → user)
+### List files
 
-### IPC message
-
-Agent writes file to `/workspace/group/output/<filename>` then emits to
-`/workspace/ipc/messages/<file>.json`:
-
-```json
-{ "type": "send_file", "path": "output/foo.png" }
+```text
+/file list [path]
 ```
 
-`path` is relative to `/workspace/group/` (the group folder on host).
+Lists workspace contents under the resolved directory.
 
-`send_file` is a new type — add handling alongside the existing `message`
-type in `ipc.ts:processIpcFiles`. Resolve absolute host path via `hostPath()`
-(same translation used for session dirs).
+## Outbound from agent
 
-### Gateway handling
+Agent uses the `send_file` action with an absolute path under
+`/workspace/group/...`.
 
-On receiving `send_file`:
+That part is covered in `specs/v1/file-output.md`.
 
-```
-ctx.replyWithDocument({ source: fs.createReadStream(absPath) })
-```
+## Open
 
-File is sent to the same chat the agent is responding in.
-Catch send errors for files >50 MB and reply with an error message.
-
-## Notes
-
-- `uploads/` and `output/` dirs created on first use
-- Multiple files in one message: handle first file only (v2.0)
-- No cleanup policy — operator responsibility
+- richer passive file injection into normal prompts
+- multi-file flows
+- more uniform channel support for uploads

@@ -1,89 +1,29 @@
-# Commands -- open (v1)
+# Commands
 
-Gateway-intercepted commands. Pluggable registry,
-channel-aware, agent-discoverable.
+**Status**: shipped
 
-## Command handler
+Gateway-intercepted commands live in `src/commands/`.
 
-```typescript
-interface CommandHandler {
-  name: string; // "new"
-  description: string; // "Start a fresh session"
-  usage?: string; // "/new" or "/new [reason]"
-  handle(ctx: CommandContext): Promise<void>;
-}
+## Current commands
 
-interface CommandContext {
-  group: RegisteredGroup;
-  groupJid: string;
-  message: NewMessage;
-  channel: Channel;
-  args: string;
-  clearSession(): void;
-}
-```
+| Command      | Effect                                                                               |
+| ------------ | ------------------------------------------------------------------------------------ |
+| `/new`       | clear current session, enqueue command context, preserve trailing args for next turn |
+| `/ping`      | reply with bot status                                                                |
+| `/chatid`    | reply with the current chat JID                                                      |
+| `/stop`      | close active stdin / stop current active run for that chat                           |
+| `/file put`  | upload attached file into workspace                                                  |
+| `/file get`  | send file back from workspace                                                        |
+| `/file list` | list files in workspace                                                              |
 
-Handlers in `src/commands/` — one file per command.
+## Current model
 
-## Channel capability
+- commands are intercepted before agent dispatch
+- command registry is exported to `commands.xml`
+- command handlers are normal gateway code, not agent tools
 
-```
-Telegram   → native: true  → registers with grammy
-Discord    → native: true  → registers via REST API
-WhatsApp   → native: false → text prefix only
-Email      → native: false → subject prefix only
-Slink      → native: false → body prefix only
-```
+## Notes
 
-Gateway intercepts `/word` prefix on all channels regardless.
-
-## Agent discoverability
-
-Gateway writes `commands.xml` to group IPC dir at startup:
-
-```xml
-<commands>
-  <command name="new" description="Start a fresh session"
-           usage="/new" />
-  <command name="ping" description="Check bot status"
-           usage="/ping" />
-</commands>
-```
-
-XML for prompt context (see `specs/xml-vs-json-llm.md`).
-Agent reads to know what commands exist. Pull side:
-`list_commands()` MCP tool (v2).
-
-## v1 commands
-
-| Command   | Effect                                |
-| --------- | ------------------------------------- |
-| `/new`    | Reset session; enqueue system message |
-| `/ping`   | Reply with bot name + online status   |
-| `/chatid` | Reply with the channel JID            |
-
-Commands reach the agent via system message queue
-(`system-messages.md`), never by triggering directly.
-
-### `/new` — session reset
-
-1. Send confirmation to user
-2. Clear stored session ID
-3. Enqueue system message `origin="command:/new"`
-4. Args after `/new` become pending user message,
-   flushed with system message on next turn
-
-## Current state
-
-Telegram: `/chatid` and `/ping` hardcoded. This spec
-replaces that with the registry approach.
-
-## Open
-
-- `src/commands/` directory and handler interface
-- Channel `supportsNativeCommands` + `registerCommands`
-  on `Channel` interface (see `channels.md`)
-- `commands.json` IPC snapshot at startup
-- `/help` command
-- Agent-registered commands via IPC (v2)
-- Discord slash command registration
+- some channels also have native command affordances, but the shipped
+  behavior is the text-command interception path
+- commands are implemented already; this is no longer an open design doc
