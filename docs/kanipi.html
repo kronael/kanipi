@@ -29,7 +29,7 @@
         4-tier permissions, and a comprehensive test suite.
         <a href="#v2">V2</a> adds audience agents and knowledge systems.
         <a href="#v3">V3 (Arizuka)</a> adds cross-agent collaboration.
-        <strong>42 source files, 9,626 LOC (+28 test files, 7,924 LOC).</strong>
+        <strong>42 source files, 9,626 LOC (+33 test files, 9,811 LOC).</strong>
       </div>
     </div>
 
@@ -416,13 +416,13 @@
           <tr><th>Metric</th><th>Value</th></tr>
           <tr><td>Source files</td><td><span class="metric">42 TypeScript</span></td></tr>
           <tr><td>Source LOC</td><td><span class="metric">9,626</span></td></tr>
-          <tr><td>Test files</td><td>28 files &middot; 7,924 LOC</td></tr>
-          <tr><td>Test:code ratio</td><td>0.83:1</td></tr>
+          <tr><td>Test files</td><td>33 files &middot; 9,811 LOC</td></tr>
+          <tr><td>Test:code ratio</td><td>1.02:1</td></tr>
           <tr><td>Channel deps</td><td>grammy, discord.js, baileys, imapflow + nodemailer</td></tr>
           <tr><td>Channels</td><td>Telegram, WhatsApp, Discord, Email, Web (Slink)</td></tr>
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
           <tr><td>Deploy</td><td>systemd per instance + <code>kanipi create</code> CLI</td></tr>
-          <tr><td>V1 specs</td><td>37 specification documents</td></tr>
+          <tr><td>V1 specs</td><td>36 specification documents</td></tr>
           <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.0.5)</span></td></tr>
         </table>
       </div>
@@ -708,7 +708,7 @@
           Kanipi is a NanoClaw fork — a multi-tenant, multi-channel Claude agent gateway. V1.0.5
           ships 5 channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
           Web/Slink (authenticated HTTP with HMAC JWT auth, SSE streaming, rate limiting).
-          42 source files, 9,626 LOC + 28 test files, 7,924 LOC.
+          42 source files, 9,626 LOC + 33 test files, 9,811 LOC.
           4-tier permission model: root (tier 0), world (tier 1), agent (tier 2), worker (tier 3).
           Tier derived from folder depth. Mount isolation: setup files ro for agents, everything ro for workers.
           Config: .env + env vars (no YAML). Channels enabled by token/config presence.
@@ -728,7 +728,7 @@
           V2: audience agents — per-user context, knowledge systems, topic routing, workflow pipelines, IPC-to-MCP migration.
           V3 (Arizuka): cross-agent collaboration, shared memory, multi-host bus.
           Deploy: systemd per instance, kanipi CLI for create/config/group management.
-          37 V1 specs.
+          36 V1 specs.
         </p>
       </details>
     </footer>
@@ -742,7 +742,7 @@ base: nanoclaw
 status: v1.0.5
 channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
 config: .env + env vars, sqlite group state
-source: 42 files 9626 LOC, 28 test files 7924 LOC
+source: 42 files 9626 LOC, 33 test files 9811 LOC
 permissions: 4-tier (root/world/agent/worker), tier from folder depth, mount isolation
 workspace: self(ro root-only), group(rw), share(ro/rw by tier), web(rw root/world), ipc(rw), .claude(rw/ro by tier)
 skills: container/skills/ seeded to ~/.claude/skills/ per group; includes kanipi + kronael/tools dev skills
