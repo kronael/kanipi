@@ -29,7 +29,7 @@ Three schedule types:
 created (active) → due → queued → running → completed
                                           → error
 active ↔ paused (via pause_task / resume_task)
-active → deleted (via cancel_task)
+active → row deleted (via cancel_task)
 ```
 
 Tasks are polled every `SCHEDULER_POLL_INTERVAL` (default 60s).
@@ -37,7 +37,7 @@ Due tasks: `status = 'active' AND next_run <= now`.
 
 After each run:
 
-- Log run to `task_runs` table (duration, status, result, error)
+- Log run to `task_run_logs` table (duration, status, result, error)
 - Compute next_run (cron/interval) or null (once)
 - Store result summary (first 200 chars)
 
@@ -87,25 +87,26 @@ can touch any task, non-root only own group's tasks.
 ## DB schema
 
 ```sql
-CREATE TABLE tasks (
+CREATE TABLE scheduled_tasks (
   id TEXT PRIMARY KEY,
   group_folder TEXT NOT NULL,
   chat_jid TEXT NOT NULL,
   prompt TEXT NOT NULL,
   schedule_type TEXT NOT NULL,  -- cron | interval | once
   schedule_value TEXT NOT NULL,
-  context_mode TEXT DEFAULT 'isolated',
   next_run TEXT,
-  status TEXT DEFAULT 'active', -- active | paused
+  last_run TEXT,
+  status TEXT DEFAULT 'active', -- active | paused | completed
   last_result TEXT,
   created_at TEXT NOT NULL
 );
+-- context_mode TEXT DEFAULT 'isolated' added via migration
 
-CREATE TABLE task_runs (
+CREATE TABLE task_run_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id TEXT NOT NULL,
   run_at TEXT NOT NULL,
-  duration_ms INTEGER,
+  duration_ms INTEGER NOT NULL,
   status TEXT NOT NULL,  -- success | error
   result TEXT,
   error TEXT
@@ -115,8 +116,8 @@ CREATE TABLE task_runs (
 ## Tasks snapshot
 
 Before each task run, gateway writes a JSON snapshot of all
-tasks to the group's data dir. The agent can read this to
-see what tasks exist (for listing, modifying via actions).
+tasks (across all groups) to the group's data dir. The agent
+can read this to see what tasks exist.
 
 ## Key files
 
@@ -129,4 +130,4 @@ see what tasks exist (for listing, modifying via actions).
 - Invalid group folder → task paused (stops retry churn)
 - Group not found → logged, run recorded as error
 - Container error → logged, run recorded as error
-- All errors logged to task_runs for debugging
+- All errors logged to task_run_logs for debugging
