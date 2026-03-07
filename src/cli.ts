@@ -130,14 +130,7 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
     process.exit(1);
   }
 
-  const existing = db
-    .prepare('SELECT jid FROM registered_groups WHERE folder = ?')
-    .get(finalFolder) as { jid: string } | undefined;
-  if (existing && existing.jid !== normalizedJid) {
-    console.error(`folder ${finalFolder} already used by ${existing.jid}`);
-    db.close();
-    process.exit(1);
-  }
+  // Multiple JIDs can share the same folder (e.g., group + DM both route to root)
 
   const rt = count === 0 ? 0 : 1;
   const trigger = rt ? `@${assistant}` : '';
