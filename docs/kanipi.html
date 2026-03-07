@@ -11,24 +11,25 @@
   <button class="theme-toggle" aria-label="Toggle theme"></button>
 
   <div class="hub-container">
-    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.0</span></h1>
+    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.0.3</span></h1>
     <p class="hub-subtitle">modular agent deployment on NanoClaw</p>
 
     <div class="caveat" style="margin-bottom: 1.5em;">
-      <strong>Status: v1.0.0 released.</strong> Kanipi is a NanoClaw fork — a multi-tenant, multi-channel Claude agent gateway.
-      Five channels in production: Telegram, Discord, WhatsApp, Email, Web. Runtime tested with real bots and users.
+      <strong>Status: v1.0.3.</strong> Kanipi is a NanoClaw fork — a multi-tenant, multi-channel Claude agent gateway.
+      Five channels in production: Telegram, Discord, WhatsApp, Email, Web. 4-tier permission model (root/world/agent/worker).
+      Runtime tested with real bots and users.
     </div>
 
     <div class="tldr-box">
       <div class="tldr-label">TL;DR</div>
       <div class="tldr-text">
         The <a href="/agents/architecture-comparison/">ideal agent exists in pieces</a>: NanoClaw's container isolation, OpenClaw's routing brain, nobody's credential injection.
-        Kanipi assembles them. Started as ~500 LOC on NanoClaw's ~2,600 foundation, now grown to 9,278 LOC with 5 channels,
+        Kanipi assembles them. Started as ~500 LOC on NanoClaw's ~2,600 foundation, now grown to 9,452 LOC with 5 channels,
         voice transcription, MCP sidecars, diary memory, forward metadata, file commands, action registry,
-        and a comprehensive test suite.
+        4-tier permissions, and a comprehensive test suite.
         <a href="#v2">V2</a> adds audience agents and knowledge systems.
         <a href="#v3">V3 (Arizuka)</a> adds cross-agent collaboration.
-        <strong>40 source files, 9,278 LOC (+27 test files, 7,809 LOC).</strong>
+        <strong>41 source files, 9,452 LOC (+27 test files, 7,830 LOC).</strong>
       </div>
     </div>
 
@@ -165,19 +166,19 @@
       <div class="table-wrap">
         <table>
           <tr><th>Mount</th><th>Path</th><th>Access</th></tr>
-          <tr><td><code>self</code></td><td><code>/workspace/self</code></td><td>kanipi source + all group folders (ro)</td></tr>
-          <tr><td><code>group</code></td><td><code>/workspace/group</code></td><td>current group files (rw)</td></tr>
-          <tr><td><code>global</code></td><td><code>/workspace/global</code></td><td>cross-group shared state (ro)</td></tr>
-          <tr><td><code>web</code></td><td><code>/workspace/web</code></td><td>web output served by Vite (rw)</td></tr>
+          <tr><td><code>self</code></td><td><code>/workspace/self</code></td><td>kanipi source (ro, root only)</td></tr>
+          <tr><td><code>group</code></td><td><code>/workspace/group</code></td><td>current group workdir (rw, ro for workers)</td></tr>
+          <tr><td><code>share</code></td><td><code>/workspace/share</code></td><td>world-level shared state (rw root/world, ro agent/worker)</td></tr>
+          <tr><td><code>web</code></td><td><code>/workspace/web</code></td><td>web output served by Vite (rw, root/world only)</td></tr>
           <tr><td><code>ipc</code></td><td><code>/workspace/ipc</code></td><td>IPC + session state (rw)</td></tr>
-          <tr><td><code>diary</code></td><td><code>/workspace/group/diary</code></td><td>agent daily notes (rw)</td></tr>
+          <tr><td><code>.claude</code></td><td><code>/home/node/.claude</code></td><td>agent memory, skills, CLAUDE.md (rw, ro for tier 2+)</td></tr>
           <tr><td><code>extra</code></td><td><code>/workspace/extra/...</code></td><td>allowlisted additional mounts (ro)</td></tr>
         </table>
       </div>
       <p style="font-size: 0.9em; color: var(--dim);">
-        <code>/workspace/self</code> replaced <code>/workspace/project</code>: exposes the full kanipi
-        source and all groups (not just main). <code>/workspace/web/pub/</code> is publicly served;
-        <code>/workspace/web/priv/</code> requires auth.
+        <code>/workspace/self</code> is root-only (tier 0). Mount access varies by tier:
+        root and world get full rw; agents get rw workdir with ro setup files (CLAUDE.md, skills);
+        workers get everything ro.
       </p>
 
       <h3>Skills System</h3>
@@ -187,11 +188,11 @@
         (bash, go, python, typescript, etc.). A <code>CLAUDE.md</code> is seeded alongside.
       </p>
 
-      <h3>character.json</h3>
+      <h3>SOUL.md</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
-        Agent identity in <code>container/character.json</code> (ElizaOS-style: bio, topics, adjectives,
-        style, messageExamples). Fields are randomized per query. Per-instance overrides via
-        <code>/workspace/global/character.json</code> are merged at load time. Replaces <code>SOUL.md</code>.
+        Agent identity in <code>SOUL.md</code> per group &mdash; personality, tone, style.
+        Read at session start, embodied for the entire session. Per-group overrides in
+        <code>/workspace/group/SOUL.md</code>.
       </p>
 
       <h3>Migration System</h3>
@@ -354,7 +355,7 @@
           <div class="path-content">
             <div class="path-action">Per-agent personality</div>
             <div class="path-detail">
-              Each group gets its own CLAUDE.md, character.json, and skills.
+              Each group gets its own CLAUDE.md, SOUL.md, and skills.
               Different agents, different chats, different personalities.
               System messages formatted per channel with agent name and context.
             </div>
@@ -413,16 +414,16 @@
       <div class="table-wrap">
         <table>
           <tr><th>Metric</th><th>Value</th></tr>
-          <tr><td>Source files</td><td><span class="metric">40 TypeScript</span></td></tr>
-          <tr><td>Source LOC</td><td><span class="metric">9,278</span></td></tr>
-          <tr><td>Test files</td><td>27 files &middot; 7,809 LOC</td></tr>
-          <tr><td>Test:code ratio</td><td>0.84:1</td></tr>
+          <tr><td>Source files</td><td><span class="metric">41 TypeScript</span></td></tr>
+          <tr><td>Source LOC</td><td><span class="metric">9,452</span></td></tr>
+          <tr><td>Test files</td><td>27 files &middot; 7,830 LOC</td></tr>
+          <tr><td>Test:code ratio</td><td>0.83:1</td></tr>
           <tr><td>Channel deps</td><td>grammy, discord.js, baileys, imapflow + nodemailer</td></tr>
           <tr><td>Channels</td><td>Telegram, WhatsApp, Discord, Email, Web (Slink)</td></tr>
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
           <tr><td>Deploy</td><td>systemd per instance + <code>kanipi create</code> CLI</td></tr>
-          <tr><td>V1 specs</td><td>31 specification documents</td></tr>
-          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.0.0)</span></td></tr>
+          <tr><td>V1 specs</td><td>37 specification documents</td></tr>
+          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.0.3)</span></td></tr>
         </table>
       </div>
     </section>
@@ -699,18 +700,20 @@
       <a href="https://github.com/kronael/kanipi">github.com/kronael/kanipi</a> &middot;
       <a href="https://github.com/kronael">kronael</a>
       <br>
-      <span style="color: var(--green, #4caf50);">v1.0.0 &middot; telegram &middot; discord &middot; whatsapp &middot; email &middot; web</span>
+      <span style="color: var(--green, #4caf50);">v1.0.3 &middot; telegram &middot; discord &middot; whatsapp &middot; email &middot; web</span>
 
       <details class="llm-info">
         <summary>Agent context</summary>
         <p>
-          Kanipi is a NanoClaw fork — a multi-tenant, multi-channel Claude agent gateway. V1 (v0.7.0)
+          Kanipi is a NanoClaw fork — a multi-tenant, multi-channel Claude agent gateway. V1.0.3
           ships 5 channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
           Web/Slink (authenticated HTTP with HMAC JWT auth, SSE streaming, rate limiting).
-          40 source files, 9,278 LOC + 27 test files, 7,809 LOC.
+          41 source files, 9,452 LOC + 27 test files, 7,830 LOC.
+          4-tier permission model: root (tier 0), world (tier 1), agent (tier 2), worker (tier 3).
+          Tier derived from folder depth. Mount isolation: setup files ro for agents, everything ro for workers.
           Config: .env + env vars (no YAML). Channels enabled by token/config presence.
           Group routing: pre-registration via CLI, hierarchical delegation, trigger mode for non-main groups.
-          Action registry: Zod-validated actions (messaging, tasks, groups, session) with per-action authorization.
+          Action registry: Zod-validated actions (messaging, tasks, groups, session) with tier-based authorization.
           MCP sidecars: per-group MCP server config, gateway-managed lifecycle. Whisper transcription as sidecar.
           Diary memory: daily markdown notes with YAML frontmatter, 2 most recent injected on session start with relative time.
           Forward metadata: forwarded message origin and reply-to context per channel, nested XML tags.
@@ -718,14 +721,14 @@
           Capability introspection: .gateway-caps TOML manifest written before each spawn.
           Circuit breaker: 3 consecutive failures opens, new user message resets.
           Hot-patching: agent-runner TS source mounted into containers, recompiled at runtime with bunx tsc.
-          Workspace: self (ro), group (rw), global (ro), web (rw), ipc (rw), diary (rw), extra (ro).
-          Skills seeded from container/skills/ per group. character.json (ElizaOS-style) for agent identity.
+          Workspace: self (ro, root only), group (rw), share (ro/rw by tier), web (rw, root/world), ipc (rw), .claude (rw/ro by tier).
+          Skills seeded from container/skills/ per group. SOUL.md for agent identity.
           Migration system: MIGRATION_VERSION + migrations/ dir; /migrate skill syncs groups.
           Signal-driven IPC: SIGUSR1 wakes agent immediately after gateway writes IPC file.
           V2: audience agents — per-user context, knowledge systems, topic routing, workflow pipelines, IPC-to-MCP migration.
           V3 (Arizuka): cross-agent collaboration, shared memory, multi-host bus.
           Deploy: systemd per instance, kanipi CLI for create/config/group management.
-          31 V1 specs, 27 V2 specs.
+          37 V1 specs.
         </p>
       </details>
     </footer>
@@ -736,18 +739,18 @@ type: product
 name: kanipi
 repo: github.com/kronael/kanipi
 base: nanoclaw
-status: v1.0.0
+status: v1.0.3
 channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
 config: .env + env vars, sqlite group state
-source: 40 files 9278 LOC, 27 test files 7809 LOC
-workspace: self(ro), group(rw), global(ro), web(rw), ipc(rw), diary(rw), extra(ro)
-web-layout: web/pub/ (public), web/priv/ (auth-gated)
+source: 41 files 9452 LOC, 27 test files 7830 LOC
+permissions: 4-tier (root/world/agent/worker), tier from folder depth, mount isolation
+workspace: self(ro root-only), group(rw), share(ro/rw by tier), web(rw root/world), ipc(rw), .claude(rw/ro by tier)
 skills: container/skills/ seeded to ~/.claude/skills/ per group; includes kanipi + kronael/tools dev skills
-identity: container/character.json (ElizaOS-style), merged with /workspace/global/character.json
+identity: SOUL.md per group (personality, tone, style)
 migration: MIGRATION_VERSION + migrations/ dir, /migrate skill syncs groups
 ipc: signal-driven (SIGUSR1), 500ms fallback
 memory: diary (shipped, gateway injection + precompact nudge), work.md (v2), episodes (v2), facts (v2)
-actions: messaging, tasks, groups, session — Zod-validated, per-action auth
+actions: messaging, tasks, groups, session — Zod-validated, tier-based auth
 mcp: per-group sidecar config, gateway-managed lifecycle
 media: voice transcription (whisper sidecar), file sending (sendDocument), file commands (/put /get /ls), magic bytes mime detection
 error-handling: circuit breaker (3 failures), no auto-retry, user-notified
@@ -757,7 +760,7 @@ v2-planned: audience-agents, per-user-context, knowledge-systems, topics, workfl
 v3-planned: cross-agent messaging, shared memory, multi-host bus, dashboard
 deploy: systemd per instance, kanipi CLI
 research: /agents/ (6 systems, 13 patterns)
-updated: 2026-03-06
+updated: 2026-03-07
 -->
 
   <script src="/assets/hub.js"></script>
