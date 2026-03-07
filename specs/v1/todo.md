@@ -46,8 +46,6 @@
 
 ## Open (not shipped)
 
-- **db-bootstrap** — versioned migrations (src/migrations.ts
-  - .sql files). Currently inline try/catch ALTER TABLE.
 - **OAuth providers** — docs exist, local auth ships, provider login does not.
 
 ## Moved to v1m2
@@ -56,15 +54,16 @@
 
 ## Not in scope for v1
 
-- **docker integration tests** — need testcontainers + CI
 - **sidecar actions** — specced in sidecars.md + actions.md,
   container-runner has lifecycle code, action handlers not yet wired
 
 ## Shipped (late additions)
 
-| Spec   | Version | Summary                                        |
-| ------ | ------- | ---------------------------------------------- |
-| cli-ts | v0.8.0  | TypeScript CLI rewrite (src/cli.ts, commander) |
+| Spec         | Version | Summary                                              |
+| ------------ | ------- | ---------------------------------------------------- |
+| cli-ts       | v0.8.0  | TypeScript CLI rewrite (src/cli.ts, commander)       |
+| db-bootstrap | v0.8.0  | Versioned migrations (src/migrations.ts, .sql files) |
+| testcontain  | v0.8.0  | Integration tests with testcontainers, scenario mode |
 
 ## Deferred to v2
 
