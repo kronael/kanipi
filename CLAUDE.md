@@ -112,6 +112,7 @@ node uid 1000 inside agent containers.
 
 ```
 src/                  gateway source (TypeScript)
+  cli.ts              CLI entrypoint (config/create/run commands)
 container/            agent container build
   agent-runner/       in-container agent entrypoint
   build.sh            agent image builder
@@ -119,7 +120,7 @@ container/            agent container build
 template/             seed for new instances
   web/                vite web app template
 sidecar/              MCP server binaries
-kanipi                bash entrypoint (create/run/group/vite)
+kanipi                bash entrypoint (legacy, for docker deployments)
 ```
 
 ## Data Dir
@@ -150,15 +151,24 @@ Channels enabled by token presence (telegram/discord), auth dir existence
 
 ## Entrypoint
 
-`kanipi create <name>` — seed data dir, .env, systemd unit.
-`kanipi config <instance> group list|add|rm` — manage registered groups.
-`kanipi <instance>` — cd to home, run gateway + vite
-(restart loop). VITE_PORT/WEB_HOST configured in .env.
+CLI implemented in TypeScript (`src/cli.ts`), run via `npm run cli` or
+`npx tsx src/cli.ts`. The bash `kanipi` script at repo root is legacy
+but still works for production docker deployments.
 
-Group commands use `node -e` with better-sqlite3 against
-`/srv/data/kanipi_$instance/store/messages.db`. `group add`
-creates the DB + schema if missing (solves bootstrap).
-First group defaults to folder=main, requires_trigger=0.
+```bash
+kanipi create <name>                      # seed data dir, .env, systemd unit
+kanipi config <instance> group list       # list registered/discovered groups
+kanipi config <instance> group add <jid> [folder]  # register a group
+kanipi config <instance> group rm <jid>   # unregister (keeps folder)
+kanipi config <instance> user list|add|rm|passwd   # manage web auth users
+kanipi config <instance> mount list|add|rm         # manage container mounts
+kanipi <instance>                         # run gateway + vite
+```
+
+Legacy shorthand: `kanipi <instance> group ...` (same as `config <instance> group`).
+
+`group add` creates the DB + schema if missing (solves bootstrap).
+First group defaults to folder=root, requires_trigger=0.
 Subsequent groups require folder arg and use trigger mode.
 
 ## Related projects
