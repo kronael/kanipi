@@ -4,267 +4,197 @@
 
 ## Problem
 
-Current model is binary: root or non-root. Root can do everything,
-non-root is scoped to own group. This is insufficient for:
+Binary root/non-root is insufficient. Need:
 
-1. Public-facing agents (atlas support) that should not modify
-   their own CLAUDE.md, skills, or system files
-2. Subgroups that need specific capabilities (research agent
-   needs write access to facts/, frontend agent doesn't)
-3. Making CLI management available to agents without giving
-   full root access
-4. Controlling which agents can see/modify what data
+- Public agents that can't modify their own setup
+- Subgroups with specific capabilities
+- CLI ops available to agents with proper access control
+- DB never directly accessible by agents (already true)
 
-## Current State
+## Hierarchy
 
-### What root can do (non-root cannot)
-
-- register_group, set_routing_rules, refresh_groups
-- send_message/send_file to ANY JID
-- schedule tasks for ANY group
-- access /workspace/data/sessions/ (rw)
-- see all groups in available_groups.json
-
-### What ANY agent can do (no permission check)
-
-- Read/write own group folder (/workspace/group/)
-- Modify own CLAUDE.md, skills, MEMORY.md
-- Read gateway source (/workspace/self/, ro)
-- Create diary entries
-- Reset own session
-
-### What no agent can do
-
-- Access SQLite DB directly (all through IPC)
-- Modify mount-allowlist.json (stored outside project)
-- See other groups' folders (not mounted)
-
-## Worlds and Groups
-
-A **world** is an independent root group. An instance can host
-multiple worlds. Each world has its own hierarchy.
+Three differentiated tiers. Max 3 levels of nesting.
 
 ```
-instance: kanipi_marinade
-  ├── main/              → world "main" (root)
-  │   ├── main/support   → child (worker)
-  │   └── main/research  → child (worker)
-  ├── atlas/             → world "atlas" (root)
-  │   └── atlas/web      → child (worker)
-  └── yonder/            → world "yonder" (root)
+root                     tier 0 — god mode
+├── atlas/               tier 1 — world (isolated)
+│   ├── atlas/support    tier 2 — agent
+│   └── atlas/research   tier 2 — agent
+├── yonder/              tier 1 — world (isolated)
+│   └── yonder/web       tier 2 — agent
+└── (no world needed)    tier 0 alone works for simple setups
 ```
 
-**World isolation**: agents cannot delegate across worlds.
-`main/*` cannot reach `atlas/*`. This is enforced by
-`isAuthorizedRoutingTarget` (must share root segment).
+### Tier 0: root
 
-**World creation is CLI-only**. Agents can create child groups
-within their own world via `register_group`, but cannot create
-new root groups. A root agent in `main` can create `main/foo`
-but not `atlas/`. New worlds are an admin decision.
+The admin agent. Folder name: `root` (rename from current
+`main` — see codebase changes below). One per instance.
 
-```
-register_group authorization:
-  - root agent: can create children in own world only
-  - worker agent: cannot create groups
-  - restricted agent: cannot create groups
-  - CLI: can create anything (no restrictions)
-```
+- Sees all worlds, all groups, all messages
+- Can modify gateway code (staging area, not direct)
+- All IPC actions, no world boundary
+- rw everything
+- If you don't need structure, root alone is sufficient
 
-## Design: Hierarchy-Implied Permissions
+### Tier 1: world
 
-Instead of explicit roles, derive permissions from position in
-the group hierarchy. The folder path IS the permission model.
+Top-level group. Isolated namespace. Sees only what's below.
 
-### Permission tiers
+- All IPC actions scoped to own world
+- Can create children (register_group within own world)
+- Can set routing_rules for own children
+- send_message to any JID registered in own world
+- rw own group folder, CLAUDE.md, skills
+- Cannot see other worlds
+- Cannot see root's data
 
-| Tier                  | Depth      | Can write own files | Can write CLAUDE.md | IPC actions             | Delegate     |
-| --------------------- | ---------- | ------------------- | ------------------- | ----------------------- | ------------ |
-| root (depth 0)        | `main`     | yes                 | yes                 | all (own world)         | to children  |
-| worker (depth 1)      | `main/X`   | yes                 | yes                 | own group + delegate    | to children  |
-| restricted (depth 2+) | `main/X/Y` | group folder only   | no                  | send_message + escalate | up to parent |
+### Tier 2: agent
+
+Worker or restricted, depending on config. Default: worker.
+
+Worker (default):
+
+- rw own group folder, CLAUDE.md, skills
+- send_message/send_file to own JID
+- delegate to own children
+- schedule tasks for own group
+- escalate to parent (upward delegation)
+
+Restricted (via container_config override):
+
+- ro group folder, ro CLAUDE.md, ro skills
+- send_message only
+- escalate to parent only
+- no delegation, no scheduling
 
 ```typescript
-function permissionTier(folder: string): 'root' | 'worker' | 'restricted' {
-  const depth = folder.split('/').length - 1;
-  if (depth === 0) return 'root';
-  if (depth === 1) return 'worker';
-  return 'restricted';
+function permissionTier(folder: string): 0 | 1 | 2 {
+  if (folder === 'root') return 0;
+  const depth = folder.split('/').length;
+  return Math.min(depth, 2) as 1 | 2;
 }
 ```
 
-### Root tier (depth 0)
+## World creation
 
-Full admin within its world. Cannot affect other worlds.
-
-- All IPC actions, scoped to own world
-- register_group: children in own world only
-- set_routing_rules: own world groups only
-- send_message: to any JID registered in own world
-- rw group folder, CLAUDE.md, skills
-- access /workspace/data/sessions/ (for migrations)
-
-### Worker tier (depth 1)
-
-Standard agent. Can modify itself, delegate down.
-
-- send_message, send_file: own group's JID only
-- schedule_task: own group only
-- delegate_group: to own children
-- rw group folder, CLAUDE.md, skills
-- no register_group, no set_routing_rules
-
-### Restricted tier (depth 2+)
-
-Sandboxed agent. Read-only, minimal actions, can ask
-parent for help.
-
-- /workspace/group/ mounted read-only
-- CLAUDE.md baked in at spawn, not writable
-- Skills directory read-only
-- send_message and reset_session only
-- **escalate**: new action, sends request to parent group
-  (inverse of delegate — child asks parent for help)
-- Cannot delegate further down
-
-### Escalation (upward delegation)
-
-Restricted agents need a way to ask their parent for help.
-This is the atlas frontend→backend pattern.
+- **CLI only** — agents cannot create new worlds
+- Root agent can create children of existing worlds
+- World agents can create children within own world
+- Tier 2 agents cannot create groups
 
 ```
-user → atlas/support/public (restricted, answers from facts)
-         → escalate to atlas/support (worker, runs research)
+register_group authorization:
+  tier 0: can create anything except new worlds (CLI only)
+  tier 1: can create children in own world
+  tier 2: cannot create groups
+  CLI:    unrestricted
+```
+
+Wait — should root be able to create worlds? Or CLI only?
+Decision: **worlds are CLI only**. Root can create children
+of worlds but not new worlds. Worlds are infrastructure.
+
+## Escalation (upward delegation)
+
+Tier 2 agents can ask their parent for help. Inverse of
+`delegate_group`.
+
+```
+user → atlas/support (restricted, searches facts)
+         → escalate to atlas/ (world, runs deep research)
               → returns findings
          → presents answer to user
 ```
 
-`escalate` is like `delegate_group` but upward:
-
 - Only to direct parent (one level up)
-- Parent receives structured request, not raw user message
+- Parent receives structured request
 - Parent returns findings via IPC reply
-- Restricted agent formats and presents to user
+- Separate spec: specs/v2m1/escalation.md
 
-### Overrides via container_config
+## IPC actions by tier
 
-For cases where hierarchy doesn't fit, container_config on the
-registered_groups row can restrict (never escalate):
+| Action              | Tier 0 | Tier 1       | Tier 2 (worker) | Tier 2 (restricted) |
+| ------------------- | ------ | ------------ | --------------- | ------------------- |
+| send_message        | any    | own world    | own JID         | own JID             |
+| send_file           | any    | own world    | own JID         | no                  |
+| schedule_task       | any    | own world    | own group       | no                  |
+| pause/resume/cancel | any    | own world    | own group       | no                  |
+| register_group      | yes\*  | own children | no              | no                  |
+| set_routing_rules   | yes    | own children | no              | no                  |
+| delegate_group      | yes    | own children | own children    | no                  |
+| escalate            | n/a    | n/a          | to parent       | to parent           |
+| refresh_groups      | yes    | no           | no              | no                  |
+| reset_session       | yes    | yes          | yes             | yes                 |
+| list_actions        | yes    | yes          | yes             | yes                 |
 
-```json
-{
-  "permissions": {
-    "writeClaude": false,
-    "actions": ["send_message", "escalate"],
-    "mountMode": "ro"
-  }
-}
-```
+\*root cannot create worlds (CLI only), but can create world children
 
-A root group could restrict itself to worker-level. A worker
-could restrict itself to restricted-level. But a restricted
-group cannot grant itself worker actions.
+## Container mount enforcement
 
-## Implementation
+| Mount                     | Tier 0 | Tier 1 | Tier 2 (worker) | Tier 2 (restricted) |
+| ------------------------- | ------ | ------ | --------------- | ------------------- |
+| /workspace/group/         | rw     | rw     | rw              | ro                  |
+| /home/node/.claude/       | rw     | rw     | rw              | ro                  |
+| /workspace/self/          | ro     | ro     | no              | no                  |
+| /workspace/data/sessions/ | rw     | no     | no              | no                  |
+| /workspace/share/         | rw     | rw     | ro              | ro                  |
+| /workspace/ipc/           | rw     | rw     | rw              | rw (limited)        |
 
-### 1. World-scoped authorization
+## Codebase rename: main → root
 
-Change `register_group` to enforce world boundaries:
+`isRoot()` currently checks `!folder.includes('/')`. This
+conflates "root group" with "any top-level folder". New model:
 
 ```typescript
-// Root can only create children in own world
-if (tier === 'root') {
-  const myWorld = ctx.sourceGroup.split('/')[0];
-  if (!newFolder.startsWith(myWorld + '/')) {
-    throw new Error('cannot create groups outside own world');
-  }
+// Tier 0: exactly "root"
+function isInstanceRoot(folder: string): boolean {
+  return folder === 'root';
+}
+
+// Tier 1: top-level but not "root"
+function isWorld(folder: string): boolean {
+  return !folder.includes('/') && folder !== 'root';
+}
+
+// Tier from folder
+function permissionTier(folder: string): 0 | 1 | 2 {
+  if (folder === 'root') return 0;
+  return Math.min(folder.split('/').length, 2) as 1 | 2;
 }
 ```
 
-Same pattern for set_routing_rules, send_message (check target
-JID's group is in same world).
+Existing instances: migration renames `main` → `root` in DB
+and filesystem. Or: make "root" configurable via env
+(`ROOT_FOLDER=main`), default `root` for new instances.
 
-### 2. Container mount enforcement
+### Files to change
 
-In container-runner.ts buildVolumeMounts, check tier:
-
-- restricted: mount group folder ro, .claude/ ro
-- worker: current behavior (rw group folder)
-- root: current behavior (rw + sessions access)
-
-### 3. CLI actions via IPC
-
-Expose CLI operations as IPC actions:
-
-| CLI command | IPC action       | Min tier |
-| ----------- | ---------------- | -------- |
-| group list  | list_groups      | worker   |
-| group add   | register_group   | root     |
-| group rm    | unregister_group | root     |
-| mount list  | list_mounts      | root     |
-| mount add   | add_mount        | root     |
-| user list   | list_users       | root     |
-
-All scoped to own world (root sees own world's groups, not all).
-
-### 4. Protect system files
-
-For restricted tier:
-
-- CLAUDE.md: copy (not symlink) at spawn, don't persist changes
-- Skills: mount read-only
-- MEMORY.md: read-only (prompt injection persistence vector)
-
-For worker tier:
-
-- CLAUDE.md: writable (agent self-extension is a feature)
-- Skills: writable
-- Migration files: read-only
-
-### 5. Agent self-modification (code access)
-
-Root group sees /workspace/self/ (ro). For modifying gateway code:
-
-- Agent writes proposed changes to a staging directory
-- Gateway picks up on restart or via IPC action
-- No direct rw access to gateway source
-
-### 6. Version control for agent-modified files
-
-- Group folder is gitignored (instance state, not source)
-- Skills seeded from container/ (git is source of truth)
-- Agent modifications are instance-specific
-- Agent diary tracks what changed
-- Could: git init in group folder, agent manages own repo
-- Could: gateway snapshots group folder on session end
+~30 references to `isRoot()` across src/. The function
+signature stays the same but the logic changes. Key files:
+config.ts, container-runner.ts, index.ts, ipc.ts,
+action-registry.ts, actions/\*.ts, task-scheduler.ts.
 
 ## Open Questions
 
-1. **Worker CLAUDE.md write** — should workers be able to
-   modify their own CLAUDE.md? It's the self-extension feature
-   but also a risk if the worker is user-facing.
+1. **Root folder name** — rename existing `main` folders to
+   `root`? Or keep `main` and add `ROOT_FOLDER` env var?
 
-2. **MEMORY.md for restricted** — completely block, or allow
-   read-only? Useful for agent context but injection risk.
+2. **World message visibility** — world agents see all messages
+   in their world. Should tier 2 agents see only their own JID's
+   messages, or all messages in their world? Currently: own only.
 
-3. **Escalation protocol** — what's the request/response format
-   between restricted child and worker parent? Structured JSON?
-   Free-text prompt? XML like system messages?
+3. **Restricted MEMORY.md** — block writes? Agent memory is
+   useful but also a prompt injection persistence vector.
 
-4. **Cross-world visibility** — should root agents see other
-   worlds exist (names only, no access)? Useful for admin
-   dashboards. Currently available_groups shows everything.
+4. **Escalation protocol** — structured JSON? Free text?
+   XML like system messages? Needs own spec.
 
-5. **Hot reload** — permission changes via container_config
-   take effect on next container spawn (not mid-session).
-   Is this sufficient?
+5. **Mount inheritance** — should tier 2 inherit parent world's
+   extra mounts? Or configure per-group?
 
-6. **Audit trail** — log permission-denied events to a
-   dedicated table? Or just journalctl?
+6. **Agent code modification** — root sees /workspace/self/ (ro).
+   Staging area approach: agent writes to staging dir, gateway
+   applies on restart. Needs own spec.
 
-7. **Mount inheritance** — should children inherit parent's
-   extra mounts? Or configure independently per group?
-
-8. **World admin transfer** — can CLI transfer root of a world
-   to a different group? (e.g., rename main → legacy, make
-   main/v2 the new root). Probably not needed.
+7. **Existing instances** — migration path for kanipi_marinade
+   et al. that use folder=main as root.
