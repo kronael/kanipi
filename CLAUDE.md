@@ -2,6 +2,34 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Conversation Startup Protocol
+
+ALWAYS follow before answering:
+
+1. **Get context** — read `.diary/` recent entries. If the user
+   references past conversations or a JSONL transcript path, read
+   those first. Understand what happened before responding.
+2. **Enough context?** — if not, ask or explore further. NEVER
+   guess what was decided in a prior session.
+3. **Then act** — answer/execute the request with full context.
+
+## Core Design Facts
+
+- **Agent runtime is Claude Code** — full SDK with subagents,
+  tool use, skills, CLAUDE.md, MEMORY.md. Advanced development
+  features are the product differentiator.
+- **Memory is Claude-centric, overridable** — MEMORY.md, diary,
+  facts are all Claude Code native patterns. Gateway injects
+  context but the agent owns its own memory. Products can
+  override memory behavior via CLAUDE.md instructions.
+- **Products are configurations, not forks** — a product is a
+  group with specific CLAUDE.md, SOUL.md, skills, mounts, and
+  tasks. The gateway doesn't know about products.
+- **Components are swappable** — channels, memory layers, IPC,
+  scheduling, container runtime all have clean interfaces.
+  Products configure which components they use.
+- See `ROADMAP.md` for full design principles and product plans.
+
 ## Conventions
 
 - JSONL files use `.jl` extension (not `.jsonl`)
