@@ -266,4 +266,4 @@ wrappers that parse user input and call the action.
 ## Open
 
 - Action middleware (logging, rate limiting) — v2 via
-  MCP proxy hooks (see `v2/ipc-mcp-proxy.md`)
+  MCP proxy hooks (see `v1m2/ipc-mcp-proxy.md`)

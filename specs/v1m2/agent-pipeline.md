@@ -41,4 +41,4 @@ Pipeline topology lives in orchestrator's skill files (product config).
 ## Related
 
 - `specs/v1/slink.md` — slink endpoint for inter-agent POSTs
-- `specs/v2m1/agent-teams.md` — why Claude agent teams don't work
+- `specs/v1/agent-teams.md` — why Claude agent teams don't work

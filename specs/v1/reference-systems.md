@@ -335,7 +335,7 @@ threaded research delivery back to origin message.
   (matches Anthropic's recommendation; see `xml-vs-json-llm.md`)
 - Two-phase verification: Opus researches, Sonnet refutes
 - YAML facts repo pattern for kanipi's long-term memory
-  (see `specs/v2/memory-facts.md`)
+  (see `specs/v1m1/memory-facts.md`)
 - HelpSessionManager TTL pattern for scoped agent sessions
 
 ---

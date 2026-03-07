@@ -140,5 +140,5 @@ Reference: `/home/onvos/app/eliza-plugin-evangelist/src/services/factsService.ts
 - Privacy: facts shared across all group users — per-user scoping needed
 - Whether `facts/` lives alongside `diary/` and `episodes/` or separately
 - Retention/pruning policy for stale facts
-- Cross-reference: `specs/v2/identities.md` — identity claims are a
+- Cross-reference: `specs/v1m2/identities.md` — identity claims are a
   natural bootstrap for user fact files

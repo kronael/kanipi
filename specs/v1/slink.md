@@ -133,10 +133,10 @@ transport (v2024-11-05). Current MCP standard (v2025-03-26) uses Streamable
 HTTP — one endpoint, server streams back via SSE when needed. A future slink
 variant could expose a standards-compliant MCP server endpoint, allowing
 Claude Desktop and other MCP clients to connect natively. See
-`specs/v2/sse.md` for trade-offs.
+`specs/v1m2/sse.md` for trade-offs.
 
 ## Related
 
 - `specs/v1/auth.md` — JWT issuance for authenticated web users
 - `specs/v1/sloth.md` — how agents use slinks to build living pages (TBD)
-- `specs/v2/sse.md` — SSE scoping + MCP transport direction
+- `specs/v1m2/sse.md` — SSE scoping + MCP transport direction

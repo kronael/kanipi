@@ -310,7 +310,7 @@ See `specs/v1/reference-systems.md` for detailed comparison.
 Key influences: brainpro (ChannelSessionMap), takopi (per-thread FIFO).
 
 This spec covers inter-group routing (child groups with their own
-session/config). See `specs/v2/agent-routing.md` for intra-group workers.
+session/config). See `specs/v1/agent-routing.md` for intra-group workers.
 
 ---
 

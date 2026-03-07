@@ -65,9 +65,9 @@
 | db-bootstrap | v1.0.6  | Versioned migrations (src/migrations.ts, .sql files) |
 | testcontain  | v1.0.6  | Integration tests with testcontainers, scenario mode |
 
-## Deferred to v2
+## Deferred to v1m2
 
-- `get_history` -> `v2/message-mcp.md`
-- Agent-side media -> `v2/workflows.md`
-- IPC -> MCP proxy -> `v2/ipc-mcp-proxy.md`
-- Systems -> `v2/systems.md` (#topics, @agents, workflows)
+- `get_history` -> `v1m2/message-mcp.md`
+- Agent-side media -> `v1m2/workflows.md`
+- IPC -> MCP proxy -> `v1m2/ipc-mcp-proxy.md`
+- Systems -> `v1/systems.md` (#topics, @agents, workflows)

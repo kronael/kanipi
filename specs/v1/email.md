@@ -76,7 +76,7 @@ sender_name = "Alice"                    // display name from From header,
                                          // or from-address if absent
 ```
 
-Cross-channel linking in v2 — see `specs/v2/identities.md`.
+Cross-channel linking — see `specs/v1m2/identities.md`.
 
 ## Message metadata
 

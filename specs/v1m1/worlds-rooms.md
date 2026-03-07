@@ -494,7 +494,7 @@ the arc format (6.1) gives us this for free.
 **3. Vector embeddings on every memory** — `Memory.embedding` enables semantic
 similarity search across history. muaddib uses recency only (JSONL walk).
 This is what powers eliza-atlas facts retrieval.
-**Take**: this belongs in the v2 facts layer (`specs/v2/memory-facts.md`),
+**Take**: this belongs in the facts layer (`specs/v1m1/memory-facts.md`),
 not in the room/session model. Do not add embeddings to the messages table.
 
 ---

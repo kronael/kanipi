@@ -42,7 +42,7 @@ jobs stream interim updates via `send_message` IPC.
 
 ## Kanipi changes required
 
-### 1. Extra mount config (already partially specced in `specs/v2/files.md`)
+### 1. Extra mount config (already partially specced in `specs/v1/files-in.md`)
 
 Instance `.env` gains:
 
