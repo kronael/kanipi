@@ -11,6 +11,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ### Changes
 
+- `inject_message` action: insert messages into DB without channel delivery (root/world only), clears errored flag — enables programmatic retry after OOM kills
 - Howto skill: added OpenClaw-inspired automation examples (email triage, price monitoring, code automation, data aggregation, file management)
 - Docs: updated test stats (33 files, 9,811 LOC, 1.02:1 ratio, 36 V1 specs)
 
