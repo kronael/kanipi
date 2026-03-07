@@ -1,6 +1,15 @@
-# Memory: Session -- open
+# Memory: Session
+
+**Status**: open
 
 SDK session continuity across container invocations.
+
+## Terminology
+
+- **SDK session**: The .jl transcript file (Claude Code native)
+- **Group session**: Per-group persistence, one active per group
+- **Container run**: Single invocation of agent container
+- **Session record**: DB row logging a completed run
 
 ## What it is
 

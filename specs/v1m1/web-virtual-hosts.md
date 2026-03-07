@@ -69,23 +69,17 @@ The gateway validates:
 - No duplicate hosts across groups
 - Folder exists and caller has permission
 
-### Permission tiers (from permissions.md)
+### Permissions
 
-| Action       | Tier 0 (root) | Tier 1 (world) | Tier 2 (agent) | Tier 3 (worker) |
-| ------------ | ------------- | -------------- | -------------- | --------------- |
-| set_web_host | any           | own world      | no             | no              |
-| get_web_host | any           | own world      | own group      | own group       |
-| write web/   | yes           | own group      | no             | no              |
+See `specs/v1m1/permissions.md` for tier definitions.
 
-Tier 2 agents cannot modify web content or host config. This
-prevents prompt injection from exposing arbitrary content on
-the instance's domains.
+| Action       | Tier 0 | Tier 1 | Tier 2 | Tier 3 |
+| ------------ | ------ | ------ | ------ | ------ |
+| set_web_host | any    | world  | no     | no     |
+| get_web_host | any    | world  | self   | self   |
+| write web/   | yes    | group  | no     | no     |
 
-Mount enforcement (from permissions.md):
-
-```
-/workspace/web/   rw for tier 0-1, no mount for tier 2-3
-```
+`/workspace/web/` mounted rw for tier 0-1, no mount for tier 2-3.
 
 ### Vite serving
 
@@ -131,36 +125,11 @@ in kanipi's web template:
 - **js-viewer-rewrite**: serves `foo.js.html` when `foo.js`
   is requested, enabling HTML viewers for JS files (added)
 
-## Open questions
+## Open
 
-1. **Option A vs B vs C?** Option A is cleanest but heaviest.
-   Option C is simplest for v1. Could start with C and upgrade
-   to A when a group actually needs HMR.
-
-2. **DNS / reverse proxy**: who creates the DNS records and
-   caddy/nginx config for new hostnames? Currently manual.
-   Should the gateway expose an action that writes caddy config?
-   Or is this always ops-side?
-
-3. **Subdirectory routing alternative**: instead of virtual hosts
-   (myai.fiu.wtf), could groups serve under subdirs of the
-   instance host (krons.fiu.wtf/myai/). Simpler DNS, but vite
-   `base` config gets messy. Host-based is cleaner.
-
-4. **Group web bootstrapping**: when a group is created, should
-   its web dir be seeded from a template? Or empty until the
-   agent creates content? The instance web is seeded from
-   `template/web/` — same pattern could work.
-
-5. **Web content authoring**: who writes group web content? If
-   tier 2 agents can't mount web/, only tier 0-1 can write.
-   Should there be an IPC action for deploying web content
-   (agent writes to workdir, then `deploy_web` copies to web/)?
-
-6. **Hot reload across proxy**: if using option A (per-group
-   vite), the web proxy needs to track which port maps to which
-   host. Port allocation could be automatic (base port + offset)
-   or configured per group.
+- Option A (per-group vite) vs C (static serving): start with C
+- DNS/caddy config: ops-managed or gateway action
+- Web content authoring: tier 0-1 only, or `deploy_web` action for tier 2
 
 ## Implementation order
 

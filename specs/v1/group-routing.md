@@ -1,9 +1,17 @@
 # Hierarchical Group Routing
 
+**Status**: shipped
+
 Any group can define routing rules for child groups beneath
 it. A parent group decides how inbound messages flow to
 its children — statically via rules, or dynamically via
 IPC delegation from its agent.
+
+## Terminology
+
+- **group_folder**: The path (e.g., `atlas/support`)
+- **group_jid**: The channel binding (e.g., `telegram:-100123`)
+- **group_record**: The DB row in `registered_groups`
 
 Builds on `specs/v1/worlds.md` (shipped: `/` separator,
 JID normalization, world boundaries). Glob matching is not
@@ -111,6 +119,16 @@ Authorization: source group may delegate only to a
 descendant in its own subtree, inside the same world.
 Cross-world, sibling, ancestor, and same-folder targets
 are denied.
+
+```typescript
+function isAuthorizedRoutingTarget(source: string, target: string): boolean {
+  // Source may delegate only to descendants in same world
+  // Cross-world, sibling, ancestor, same-folder: denied
+  return (
+    target.startsWith(source + '/') && getWorld(source) === getWorld(target)
+  );
+}
+```
 
 ---
 
@@ -288,21 +306,11 @@ via the action manifest.
 
 ## Prior art
 
-- **brainpro** (muaddib): One session per `ChannelTarget`.
-  No intra-channel routing. Subagents defined in
-  `.brainpro/agents/<name>.toml` with restricted tool sets
-  — closest analog to child groups.
-- **takopi**: Per-thread FIFO queues. Thread = routing key.
-  Thread-aware routing with resume tokens. Parallel threads,
-  serialized within a thread. Projects bound to chat IDs —
-  static routing only.
+See `specs/v1/reference-systems.md` for detailed comparison.
+Key influences: brainpro (ChannelSessionMap), takopi (per-thread FIFO).
 
-Key difference from `specs/v2/agent-routing.md`: that
-spec covers workers within a single group (intra-group,
-same JID). This spec covers routing across distinct
-registered groups (inter-group, child groups with their
-own session and config). The IPC `delegate` message
-defined here can also drive `agent-routing.md` delegation.
+This spec covers inter-group routing (child groups with their own
+session/config). See `specs/v2/agent-routing.md` for intra-group workers.
 
 ---
 

@@ -1,9 +1,16 @@
 # Group Permissions
 
-**Status**: partial, mostly shipped
+**Status**: partial
 
 This spec documents the current permission model implemented in
 the gateway. It also marks the still-missing pieces explicitly.
+
+## Terminology
+
+- **Tier 0**: root (instance admin)
+- **Tier 1**: world (top-level folder)
+- **Tier 2**: agent (group container)
+- **Tier 3**: worker (subagent/sandboxed)
 
 ## Problem
 

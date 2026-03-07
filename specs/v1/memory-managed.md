@@ -1,7 +1,11 @@
-# Memory: Managed — shipped
+# Memory: Managed
+
+**Status**: shipped
 
 Claude Code's built-in persistent memory. No custom code required.
 Automatic, always on. Agent controls content entirely.
+
+See `specs/v1/knowledge-system.md` for memory layer overview.
 
 ## What it is
 

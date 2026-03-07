@@ -1,5 +1,7 @@
 # Cheerleader
 
+**Status**: open
+
 Eliza-inspired social media curator. Watches inbound channels, suggests
 or drafts responses, and routes them through human review before posting.
 
@@ -37,19 +39,8 @@ Reject → draft discarded. Edit + approve → sends edited version.
 
 ## Review queue schema
 
-```sql
-CREATE TABLE drafts (
-  id TEXT PRIMARY KEY,
-  created_at TEXT NOT NULL,
-  channel TEXT NOT NULL,          -- telegram / whatsapp / discord
-  chat_jid TEXT NOT NULL,
-  source_message TEXT NOT NULL,   -- original message that triggered draft
-  draft_text TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',  -- pending / approved / rejected
-  edited_text TEXT,               -- set if human edited before approving
-  reviewed_at TEXT
-);
-```
+Shares draft queue schema with evangelist. See `v1m4/evangelist.md`
+for schema definition.
 
 ## Config
 

@@ -1,8 +1,11 @@
-# Memory: Diary — shipping
+# Memory: Diary
 
-Agent-written daily notes. The agent decides what goes in —
-content is subjective, freeform. The primary human-readable
-record of what happened in a group over time.
+**Status**: shipped
+
+Agent-written daily notes. Primary human-readable record of
+what happened in a group over time.
+
+See `specs/v1/knowledge-system.md` for memory layer overview.
 
 ## Path
 

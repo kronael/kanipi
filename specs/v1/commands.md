@@ -22,8 +22,5 @@ Gateway-intercepted commands live in `src/commands/`.
 - command registry is exported to `commands.xml`
 - command handlers are normal gateway code, not agent tools
 
-## Notes
-
-- some channels also have native command affordances, but the shipped
-  behavior is the text-command interception path
-- commands are implemented already; this is no longer an open design doc
+Some channels have native command affordances; kanipi uses
+text-command interception for consistency.

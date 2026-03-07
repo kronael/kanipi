@@ -1,13 +1,25 @@
 # Knowledge System
 
+**Status**: partial
+
 The pattern underlying diary, facts, episodes, and user context.
 Each is an instance of: markdown files in a directory, with
 summaries selected and injected into agent context.
 
-**Status**: Pattern identified, partial implementation. Diary has
-agent-side skills (write/read) and gateway-side injection (shipped
-v0.7.0). Other push layers (user context, episodes) not yet built.
-Pull layers (facts search) not yet built.
+## Memory Layers
+
+| Layer    | Spec                    | Status  | Storage   |
+| -------- | ----------------------- | ------- | --------- |
+| Messages | memory-messages.md      | shipped | DB (SQL)  |
+| Session  | memory-session.md       | shipped | SDK (.jl) |
+| Managed  | memory-managed.md       | shipped | Files     |
+| Diary    | memory-diary.md         | shipped | Files     |
+| Facts    | v1m1/memory-facts.md    | v2      | Files     |
+| Episodes | v1m2/memory-episodic.md | v2      | Files     |
+
+Diary has agent-side skills (write/read) and gateway-side injection
+(shipped v0.7.0). Other push layers (user context, episodes) not yet
+built. Pull layers (facts search) not yet built.
 
 ## The pattern
 
@@ -41,14 +53,8 @@ code (read files, format XML, inject into prompt). Pull layers need
 a search tool (MCP server or skill) and a write process (researcher).
 Don't try to unify them into one mechanism.
 
-## What does NOT fit this pattern
-
-- **Messages** — DB rows queried by SQL in router.ts. Not files.
-- **Sessions** — SDK state managed by container-runner.ts. Not files.
-- **MEMORY.md** — Claude Code native feature, not gateway-managed.
-
-These have their own working implementations and shouldn't be
-forced into the knowledge system abstraction.
+Messages, sessions, and MEMORY.md have their own implementations
+and aren't forced into this pattern (see layer table above).
 
 ## Injection format
 

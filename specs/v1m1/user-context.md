@@ -1,6 +1,10 @@
 # User Context
 
+**Status**: open
+
 Per-user memory for audience agents. The agent knows who it's talking to.
+
+See `specs/v1/knowledge-system.md` for memory layer overview.
 
 ## Problem
 
@@ -59,13 +63,8 @@ Agent updates the file when it learns something notable:
 Agent should NOT log every interaction — just durable preferences
 and knowledge. The file should stay short (<20 lines).
 
-## Open questions
+## Open
 
-- Where does user-id come from? Telegram user ID? Normalized?
-- How to handle users across channels (same person, different IDs)?
-- Privacy: can users see/delete their file? GDPR implications?
-- Should the agent be told to create files or discover it naturally?
-- Rate of updates: every message? Only on notable interactions?
-- File size limit? What if agent writes too much?
-- Multiple groups: per-group user files or shared across groups?
-- How to seed initial user context for known users?
+- User ID: per-channel (telegram user ID) or normalized cross-channel
+- Privacy: user file access/deletion, GDPR
+- Scope: per-group files or shared across groups

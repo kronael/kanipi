@@ -1,5 +1,7 @@
 # Evangelist
 
+**Status**: open
+
 Outbound community engagement agent. Monitors external communities
 (Reddit, Discord servers, forums) for relevant conversations and
 participates with helpful, on-brand responses.

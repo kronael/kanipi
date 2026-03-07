@@ -1,14 +1,9 @@
 # Session Recovery
 
-When a session ends abnormally (error_during_execution, error_max_turns),
-the new session starts cold — no memory of prior work. The agent cannot
-continue without being told what happened.
+**Status**: open
 
-## Problem
-
-- `error_during_execution`: JSONL is corrupted; new session starts blank
-- `error_max_turns`: clean JSONL exists but new session doesn't reference it
-- In both cases the user has to re-explain context or say "continue" blindly
+When a session ends abnormally (`error_during_execution`, `error_max_turns`),
+the new session starts cold. User must re-explain context.
 
 ## Design
 

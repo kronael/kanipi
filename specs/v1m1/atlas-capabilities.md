@@ -1,6 +1,8 @@
 # Atlas: What We Actually Need
 
-Strip away ElizaOS scaffolding. The evangelist plugin's real value is 5 things.
+**Status**: partial
+
+The evangelist plugin's real value stripped of ElizaOS scaffolding.
 
 ## 1. Facts
 
@@ -74,18 +76,21 @@ Channels extract reply context (`reply_to_text`, `reply_to_sender`)
 and store on the message row. `formatMessages()` emits
 `<reply_to sender="...">text</reply_to>` XML in the prompt.
 
-## Everything else
+## Sandboxed support (product pattern)
 
-Everything else the evangelist plugin did is either:
+Public-facing agent with restricted permissions using the tier model:
 
-- Kanipi infrastructure (message routing, logging, sessions, file delivery)
-- Claude Code native (codebase grep, file reading, web search)
-- ElizaOS plumbing (providers, evaluators, action routing, Eliza cache)
+```
+atlas/               → tier 1: admin
+  atlas/support      → tier 2: research backend (rw facts/)
+    atlas/support/web → tier 3: user-facing (ro, escalate-only)
+```
+
+Worker escalates to parent when facts insufficient. This is product
+configuration, not new gateway code — depends on `specs/v1m1/permissions.md`.
 
 ## Build order
 
-1. **Facts search** — a `/facts` skill or gateway injection. Biggest impact.
-2. ~~**Forwarded messages**~~ — shipped in v0.7.0.
-3. **Researcher** — subagent workflow. Write findings to facts/.
-4. ~~**Reply-to threading**~~ — shipped in v0.7.0.
-5. **Verifier** — second pass. Can defer (single-pass is fine initially).
+1. **Facts search** — a `/facts` skill or gateway injection
+2. **Researcher** — subagent workflow writing to facts/
+3. **Verifier** — second pass (deferrable)

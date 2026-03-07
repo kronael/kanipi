@@ -1,6 +1,10 @@
 # Memory: Messages
 
+**Status**: shipped
+
 Recent message history piped to agent on each invocation.
+
+See `specs/v1/knowledge-system.md` for memory layer overview.
 
 ## Stdin envelope
 

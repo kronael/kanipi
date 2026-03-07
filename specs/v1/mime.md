@@ -3,10 +3,7 @@
 Media attachment processing. Runs on every inbound message
 before container spawn — downloads, transcribes, annotates.
 
-**Status**: ~60% shipped. Voice + video work. Full
-`MessageEnricher` interface is aspirational — current code
-uses simpler handler array. Formalize when third handler
-needed.
+**Status**: partial (voice + video shipped)
 
 ## Model
 
