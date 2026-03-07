@@ -101,12 +101,16 @@ Target: someone who just wants to use the agent as a tool.
    On Email: send email to the configured address.
    Show the actual channel info from env vars.
 
-2. **What it can do** — Conversational AI that can:
+2. **What it can do** — Autonomous AI agent that can:
    - Research topics deeply (web search, multi-pass analysis)
    - Shop and compare products with detailed reviews
    - Explain concepts at any level of detail
-   - Search and summarize information
    - Read files, images, PDFs you send it
+   - Execute shell commands and scripts
+   - Manage and transform files (rename, convert, organize)
+   - Automate repetitive tasks on your behalf
+   - Track expenses, generate reports from data files
+   - Monitor news, prices, or any web data on schedule
 
 3. **Using the web interface** — Show how to access the web
    at `https://$WEB_HOST/`. Explain:
@@ -135,6 +139,9 @@ Target: someone who wants the agent to build interactive things.
    - "create a dashboard showing crypto prices"
    - "make an interactive calculator for mortgage payments"
    - "build a comparison table for laptops under $1000"
+   - "create a personal expense tracker"
+   - "build a habit tracker with streaks"
+   - "make a workout log with progress charts"
 
 2. **How it works** — The agent writes HTML/CSS/JS and deploys
    to a live URL. Apps update instantly. No build step needed.
@@ -194,13 +201,32 @@ Target: power users who want multi-agent setups.
    groups for specialized tasks.
 
 5. **Scheduled tasks** — The agent can schedule recurring tasks:
-   - Cron-style schedules
-   - One-time delayed tasks
-   - Periodic checks and reports
+   - Cron-style schedules (daily briefings, weekly reports)
+   - One-time delayed tasks (remind me in 2 hours)
+   - Periodic checks and reports (monitor prices, stock alerts)
+   - Automated workflows (backup data, sync files, run scripts)
+   - Health/fitness summaries (aggregate data, send weekly stats)
+   - News monitoring (track topics, summarize daily)
 
 6. **MCP tools** — Advanced users can extend the agent with
    custom MCP servers. Register in settings.json and tools
    become available in the next session.
+
+7. **Self-extending** — The agent can create its own skills.
+   Ask it to "create a skill for X" and it writes the skill
+   file, making that capability reusable in future sessions.
+
+### Automation examples (inspired by OpenClaw patterns)
+
+Show users the full potential with concrete automation examples:
+
+- **Email triage** — "every morning, summarize my unread emails"
+- **Price monitoring** — "alert me when GPU prices drop below X"
+- **Code automation** — "run tests on every commit to this repo"
+- **Data aggregation** — "weekly report of my fitness tracker data"
+- **Content curation** — "daily digest of AI news from these sources"
+- **File management** — "organize my downloads folder by type"
+- **Personal CRM** — "remind me to follow up with contacts"
 
 ## Customization
 
