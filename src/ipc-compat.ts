@@ -3,7 +3,7 @@
  * Used by ipc-auth.test.ts. New code should use actions directly.
  */
 import { getAction } from './action-registry.js';
-import { isRoot } from './config.js';
+import { isRoot, permissionTier } from './config.js';
 import { logger } from './logger.js';
 
 export type { IpcDeps } from './ipc.js';
@@ -25,6 +25,7 @@ export async function processTaskIpc(
     await action.handler(data, {
       sourceGroup,
       isRoot: isRoot(sourceGroup),
+      tier: permissionTier(sourceGroup),
       ...deps,
     });
   } catch (err) {

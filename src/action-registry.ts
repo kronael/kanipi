@@ -6,6 +6,7 @@ import { RegisteredGroup } from './types.js';
 export interface ActionContext {
   sourceGroup: string;
   isRoot: boolean;
+  tier: 0 | 1 | 2 | 3;
   sendMessage(jid: string, text: string): Promise<void>;
   sendDocument(jid: string, path: string, name?: string): Promise<void>;
   registeredGroups(): Record<string, RegisteredGroup>;

@@ -2,15 +2,20 @@ import { z } from 'zod';
 
 import { Action, ActionContext } from '../action-registry.js';
 import { logger } from '../logger.js';
+import { isInWorld } from '../permissions.js';
 
 function assertAuthorized(
   chatJid: string,
   ctx: ActionContext,
   action: string,
 ): void {
+  if (ctx.tier === 0) return;
   const target = ctx.registeredGroups()[chatJid];
-  if (chatJid && (ctx.isRoot || (target && target.folder === ctx.sourceGroup)))
-    return;
+  if (ctx.tier === 1) {
+    if (target && isInWorld(ctx.sourceGroup, target.folder)) return;
+  } else {
+    if (target && target.folder === ctx.sourceGroup) return;
+  }
   logger.warn(
     { chatJid, sourceGroup: ctx.sourceGroup },
     `unauthorized ${action} blocked`,
@@ -51,6 +56,8 @@ export const sendFile: Action = {
   description: 'Send a file to a channel',
   input: SendFileInput,
   async handler(raw, ctx) {
+    if (ctx.tier === 3)
+      throw new Error('unauthorized: workers cannot send files');
     const input = SendFileInput.parse(raw);
     assertAuthorized(input.chatJid, ctx, 'send_file');
     await ctx.sendDocument(input.chatJid, input.filepath, input.filename);

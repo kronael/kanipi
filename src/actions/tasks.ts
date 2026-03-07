@@ -6,6 +6,7 @@ import { Action } from '../action-registry.js';
 import { TIMEZONE } from '../config.js';
 import { createTask, deleteTask, getTaskById, updateTask } from '../db.js';
 import { logger } from '../logger.js';
+import { isInWorld } from '../permissions.js';
 
 const ScheduleTaskInput = z.object({
   targetJid: z.string(),
@@ -27,7 +28,11 @@ export const scheduleTask: Action = {
       throw new Error('target group not registered');
     }
     const targetFolder = targetGroup.folder;
-    if (!ctx.isRoot && targetFolder !== ctx.sourceGroup) {
+    if (ctx.tier === 3) throw new Error('unauthorized');
+    if (ctx.tier === 2 && targetFolder !== ctx.sourceGroup) {
+      throw new Error('unauthorized');
+    }
+    if (ctx.tier === 1 && !isInWorld(ctx.sourceGroup, targetFolder)) {
       throw new Error('unauthorized');
     }
 
@@ -82,8 +87,13 @@ function taskAction(
     input: TaskIdInput,
     async handler(raw, ctx) {
       const { taskId } = TaskIdInput.parse(raw);
+      if (ctx.tier === 3) throw new Error('unauthorized');
       const task = getTaskById(taskId);
-      if (!task || (!ctx.isRoot && task.group_folder !== ctx.sourceGroup)) {
+      if (!task) throw new Error('unauthorized');
+      if (ctx.tier === 2 && task.group_folder !== ctx.sourceGroup) {
+        throw new Error('unauthorized');
+      }
+      if (ctx.tier === 1 && !isInWorld(ctx.sourceGroup, task.group_folder)) {
         throw new Error('unauthorized');
       }
       fn(taskId, ctx);

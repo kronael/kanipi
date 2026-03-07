@@ -28,6 +28,7 @@ import {
   HOST_GROUPS_DIR,
   IPC_POLL_INTERVAL,
   isRoot,
+  permissionTier,
 } from './config.js';
 import { AvailableGroup } from './container-runner.js';
 import { logger } from './logger.js';
@@ -87,7 +88,12 @@ const groupWatchers = new Map<
 const drainLocks = new Map<string, boolean>();
 
 function buildContext(sourceGroup: string, deps: IpcDeps): ActionContext {
-  return { sourceGroup, isRoot: isRoot(sourceGroup), ...deps };
+  return {
+    sourceGroup,
+    isRoot: isRoot(sourceGroup),
+    tier: permissionTier(sourceGroup),
+    ...deps,
+  };
 }
 
 export async function _drainGroup(

@@ -4,6 +4,7 @@ import { Action } from '../action-registry.js';
 import { writeCommandsXml } from '../commands/index.js';
 import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
+import { isDirectChild } from '../permissions.js';
 import { isAuthorizedRoutingTarget } from '../router.js';
 import { ContainerConfigSchema } from '../types.js';
 
@@ -64,7 +65,7 @@ export const refreshGroups: Action = {
   description: 'Refresh group metadata from channels',
   input: z.object({}),
   async handler(_input, ctx) {
-    if (!ctx.isRoot) throw new Error('unauthorized');
+    if (ctx.tier !== 0) throw new Error('unauthorized');
     logger.info(
       { sourceGroup: ctx.sourceGroup },
       'group metadata refresh requested',
@@ -96,8 +97,11 @@ export const registerGroup: Action = {
   description: 'Register a new group for agent responses',
   input: RegisterGroupSchema,
   async handler(raw, ctx) {
-    if (!ctx.isRoot) throw new Error('unauthorized');
+    if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = RegisterGroupSchema.parse(raw);
+    if (ctx.tier === 1 && !isDirectChild(ctx.sourceGroup, input.folder)) {
+      throw new Error('unauthorized: can only create children in own world');
+    }
     if (!isValidGroupFolder(input.folder)) {
       throw new Error('invalid folder name');
     }
@@ -128,6 +132,8 @@ export const delegateGroup: Action = {
   description: 'Delegate a prompt to a registered child group agent',
   input: DelegateGroupInput,
   async handler(raw, ctx) {
+    if (ctx.tier === 3)
+      throw new Error('unauthorized: workers cannot delegate');
     const input = DelegateGroupInput.parse(raw);
     const depth = input.depth ?? 0;
 
@@ -168,13 +174,19 @@ export const setRoutingRules: Action = {
   description: 'Set routing rules for a parent group',
   input: SetRoutingRulesInput,
   async handler(raw, ctx) {
-    if (!ctx.isRoot) throw new Error('unauthorized');
+    if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = SetRoutingRulesInput.parse(raw);
     const groups = ctx.registeredGroups();
     const jid = Object.keys(groups).find(
       (k) => groups[k].folder === input.folder,
     );
     if (!jid) throw new Error(`group not found: ${input.folder}`);
+    if (ctx.tier === 1) {
+      const target = groups[jid];
+      if (!target || !isDirectChild(ctx.sourceGroup, target.folder)) {
+        throw new Error('unauthorized');
+      }
+    }
     logger.info(
       { folder: input.folder, ruleCount: input.rules.length },
       'setting routing rules',

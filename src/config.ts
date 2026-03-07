@@ -60,6 +60,21 @@ export function isRoot(folder: string): boolean {
   return !folder.includes('/');
 }
 
+export type PermissionTier = 0 | 1 | 2 | 3;
+
+export function permissionTier(folder: string): PermissionTier {
+  if (!folder.includes('/')) return 0;
+  return Math.min(folder.split('/').length, 3) as 1 | 2 | 3;
+}
+
+export function isInstanceRoot(folder: string): boolean {
+  return folder === 'root';
+}
+
+export function isWorld(folder: string): boolean {
+  return !folder.includes('/') && folder !== 'root';
+}
+
 export const CONTAINER_IMAGE =
   process.env.CONTAINER_IMAGE ||
   envConfig.CONTAINER_IMAGE ||

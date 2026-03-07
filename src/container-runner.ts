@@ -30,6 +30,7 @@ import {
   WEB_HOST,
   WHISPER_MODEL,
   isRoot,
+  permissionTier,
 } from './config.js';
 import { readEnvFile } from './env.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
@@ -118,6 +119,7 @@ function buildVolumeMounts(
   delegateDepth?: number,
 ): VolumeMount[] {
   const root = isRoot(group.folder);
+  const tier = permissionTier(group.folder);
   const mounts: VolumeMount[] = [];
   const groupDir = resolveGroupFolderPath(group.folder);
 
@@ -125,28 +127,30 @@ function buildVolumeMounts(
   mounts.push({
     hostPath: hostPath(groupDir),
     containerPath: '/workspace/group',
-    readonly: false,
+    readonly: tier === 3,
   });
 
-  // Media dir — enriched attachments, mounted rw so agent can write sidecars
+  // Media dir — enriched attachments
   const mediaDir = path.join(groupDir, 'media');
   fs.mkdirSync(mediaDir, { recursive: true });
   mounts.push({
     hostPath: hostPath(mediaDir),
     containerPath: '/workspace/media',
-    readonly: false,
+    readonly: tier === 3,
   });
 
   // Diary dir — agent-written daily notes, persists across sessions.
   // Already accessible via /workspace/group mount; just ensure it exists.
   fs.mkdirSync(path.join(groupDir, 'diary'), { recursive: true });
 
-  // All groups get kanipi source read-only as /workspace/self
-  mounts.push({
-    hostPath: HOST_APP_DIR,
-    containerPath: '/workspace/self',
-    readonly: true,
-  });
+  // Only root (tier 0) sees gateway source
+  if (tier === 0) {
+    mounts.push({
+      hostPath: HOST_APP_DIR,
+      containerPath: '/workspace/self',
+      readonly: true,
+    });
+  }
 
   const world = group.folder.split('/')[0];
   const shareDir = path.join(GROUPS_DIR, world, 'share');
@@ -154,7 +158,7 @@ function buildVolumeMounts(
   mounts.push({
     hostPath: hostPath(shareDir),
     containerPath: '/workspace/share',
-    readonly: !root,
+    readonly: tier >= 2,
   });
 
   const groupSessionsDir = path.join(
@@ -192,6 +196,7 @@ function buildVolumeMounts(
     settings.env.WEB_HOST = WEB_HOST;
     settings.env.NANOCLAW_ASSISTANT_NAME = ASSISTANT_NAME;
     settings.env.NANOCLAW_IS_ROOT = root ? '1' : '';
+    settings.env.NANOCLAW_TIER = String(tier);
     settings.env.NANOCLAW_DELEGATE_DEPTH = String(delegateDepth ?? 0);
     if (group.slinkToken) settings.env.SLINK_TOKEN = group.slinkToken;
     fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
@@ -223,8 +228,28 @@ function buildVolumeMounts(
   mounts.push({
     hostPath: hostPath(groupSessionsDir),
     containerPath: '/home/node/.claude',
-    readonly: false,
+    readonly: tier >= 2,
   });
+
+  // Tier 2 agents: rw overrides for memory and session transcripts
+  if (tier === 2) {
+    const memDir = path.join(groupSessionsDir, 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    chownRecursive(memDir, 1000, 1000);
+    mounts.push({
+      hostPath: hostPath(memDir),
+      containerPath: '/home/node/.claude/memory',
+      readonly: false,
+    });
+    const projDir = path.join(groupSessionsDir, 'projects');
+    fs.mkdirSync(projDir, { recursive: true });
+    chownRecursive(projDir, 1000, 1000);
+    mounts.push({
+      hostPath: hostPath(projDir),
+      containerPath: '/home/node/.claude/projects',
+      readonly: false,
+    });
+  }
 
   const groupIpcDir = resolveGroupIpcPath(group.folder);
   fs.mkdirSync(path.join(groupIpcDir, 'messages'), { recursive: true });
@@ -253,7 +278,7 @@ function buildVolumeMounts(
   mounts.push({
     hostPath: HOST_APP_DIR + '/container/agent-runner/src',
     containerPath: '/app/src',
-    readonly: false,
+    readonly: tier === 3,
   });
 
   if (group.containerConfig?.additionalMounts) {
@@ -265,7 +290,7 @@ function buildVolumeMounts(
     mounts.push(...validatedMounts);
   }
 
-  if (fs.existsSync(WEB_DIR)) {
+  if (fs.existsSync(WEB_DIR) && tier <= 1) {
     chownRecursive(WEB_DIR, 1000, 1000);
     mounts.push({
       hostPath: hostPath(WEB_DIR),
@@ -274,8 +299,8 @@ function buildVolumeMounts(
     });
   }
 
-  // Root group gets data/sessions/ rw so migrate skill can sync across groups
-  if (root) {
+  // Root (tier 0) gets data/sessions/ rw so migrate skill can sync across groups
+  if (tier === 0) {
     const sessionsDir = path.join(DATA_DIR, 'sessions');
     fs.mkdirSync(sessionsDir, { recursive: true });
     mounts.push({
