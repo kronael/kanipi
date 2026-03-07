@@ -535,7 +535,50 @@ async function runQuery(
   return { newSessionId, lastAssistantUuid, closedDuringQuery };
 }
 
+// Scenario mode: return canned responses for integration tests (skip real SDK).
+// Set NANOCLAW_SCENARIO env var to activate.
+function getScenarioResponse(scenario: string, input: ContainerInput): ContainerOutput {
+  switch (scenario) {
+    case 'echo':
+      return { status: 'success', result: `Echo: ${input.prompt}`, newSessionId: 'scenario-session-1' };
+    case 'ipc-send': {
+      // Write IPC request file for round-trip test
+      const ipcDir = '/workspace/ipc/requests';
+      fs.mkdirSync(ipcDir, { recursive: true });
+      const reqFile = path.join(ipcDir, `${Date.now()}.json`);
+      fs.writeFileSync(reqFile, JSON.stringify({ action: 'ping', payload: {} }));
+      return { status: 'success', result: 'ipc-request-sent', newSessionId: 'scenario-session-2' };
+    }
+    case 'error':
+      return { status: 'error', result: null, error: 'Scenario error' };
+    case 'session-persist': {
+      // Write to group dir to test persistence
+      const marker = path.join('/workspace/group', '.session-marker');
+      fs.writeFileSync(marker, `session-${Date.now()}`);
+      return { status: 'success', result: 'session-persisted', newSessionId: 'scenario-session-3' };
+    }
+    default:
+      return { status: 'success', result: 'default-scenario', newSessionId: 'scenario-session-0' };
+  }
+}
+
+async function runScenarioMode(scenario: string): Promise<void> {
+  const stdinData = await readStdin();
+  const input: ContainerInput = JSON.parse(stdinData);
+  log(`Scenario mode: ${scenario}, group: ${input.groupFolder}`);
+  const response = getScenarioResponse(scenario, input);
+  writeOutput(response);
+  process.exit(response.status === 'error' ? 1 : 0);
+}
+
 async function main(): Promise<void> {
+  // Scenario mode: skip real SDK for integration tests
+  const scenario = process.env.NANOCLAW_SCENARIO;
+  if (scenario) {
+    await runScenarioMode(scenario);
+    return;
+  }
+
   let containerInput: ContainerInput;
 
   try {

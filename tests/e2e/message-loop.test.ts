@@ -45,6 +45,7 @@ vi.mock('../../src/logger.js', () => ({
 }));
 
 // ── Mock fs (suppress file-system side effects) ───────────────────────────────
+// Allow real fs for migrations directory (needed by migration runner)
 
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
@@ -54,10 +55,20 @@ vi.mock('fs', async () => {
       ...actual,
       mkdirSync: vi.fn(),
       writeFileSync: vi.fn(),
-      readFileSync: vi.fn(() => '{}'),
+      readFileSync: (path: string, ...args: unknown[]) => {
+        if (typeof path === 'string' && path.includes('migrations')) {
+          return actual.readFileSync(path, ...args);
+        }
+        return '{}';
+      },
       existsSync: vi.fn(() => false),
       renameSync: vi.fn(),
-      readdirSync: vi.fn(() => []),
+      readdirSync: (path: string, ...args: unknown[]) => {
+        if (typeof path === 'string' && path.includes('migrations')) {
+          return actual.readdirSync(path, ...args);
+        }
+        return [];
+      },
       watch: vi.fn(() => ({ close: vi.fn() })),
     },
   };
