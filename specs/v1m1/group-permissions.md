@@ -251,21 +251,134 @@ No env var fallback — clean rename, one-time migration.
 config.ts, container-runner.ts, index.ts, ipc.ts,
 action-registry.ts, actions/\*.ts, task-scheduler.ts.
 
-## Open Questions
+## What each tier can and cannot do
 
-1. **Agent code modification** — root sees /workspace/self/ (ro).
-   Staging area for code changes. Separate spec:
-   specs/v2m1/agent-code-modification.md
+### Root (tier 0)
 
-2. **Prototype spawn naming** — `group:jid` convention? Or
-   subdirectory? How to avoid filesystem name collisions?
+Can: see all messages everywhere, run any IPC action on any
+group, create children of any world, modify own CLAUDE.md and
+skills, read gateway source (ro), schedule tasks on any group,
+delegate to any group, set routing rules for any group.
 
-3. **Prototype spawn limits** — max concurrent spawns per
-   prototype? Cleanup policy for idle spawns?
+Cannot: create new worlds (CLI only), write gateway source
+directly (staging area only, see specs/v2m1/agent-code-modification.md).
 
-4. **Prototype update propagation** — when prototype changes,
-   do existing spawns get updated? Or only new spawns?
+Write level: unrestricted. All mounts rw except /workspace/self/ (ro).
 
-5. **Workdir boundary** — how to enforce setup=ro within a
-   single mount? Separate mounts for setup vs workdir?
-   Or trust CLAUDE.md instructions + file permissions?
+### World (tier 1)
+
+Can: see messages routed to own world and all descendants,
+run IPC actions scoped to own world, create children within
+own world, set routing rules for own children, send messages
+to any JID in own world, modify own CLAUDE.md/skills/memory,
+schedule tasks within own world.
+
+Cannot: see other worlds, see root's data, see gateway source,
+create new worlds, affect groups outside own world.
+
+Write level: unrestricted (within own group mount). No
+/workspace/self/ mount at all.
+
+### Agent (tier 2)
+
+Can: see messages routed to own JIDs only, send messages and
+files to own JID, delegate to own children, schedule tasks
+for own group, escalate to parent, write working files/memory/
+notes to own workdir.
+
+Cannot: modify own CLAUDE.md or skills, see parent or sibling
+messages, create groups, set routing rules, see gateway source,
+see share/ (ro only), see sessions.
+
+Write level: workdir. Setup files (CLAUDE.md, skills, SOUL.md)
+mounted ro. Workdir (everything else in group/) mounted rw.
+.claude/ (memory) mounted rw.
+
+### Worker (tier 3)
+
+Can: see messages routed to own JIDs only, send messages to
+own JID, escalate to parent.
+
+Cannot: write anything (all mounts ro), send files, schedule
+tasks, delegate, create groups, set routing rules.
+
+Write level: readonly. Everything mounted ro. IPC still works
+(writes to /workspace/ipc/ are allowed but limited to request
+files only).
+
+## Workdir boundary enforcement
+
+The "workdir=rw, setup=ro" split for tier 2 agents needs
+enforcement at the docker mount level. Two mounts per group:
+
+```
+# Setup files — ro
+-v groups/atlas/support/CLAUDE.md:/workspace/group/CLAUDE.md:ro
+-v groups/atlas/support/skills:/workspace/group/skills:ro
+-v groups/atlas/support/SOUL.md:/workspace/group/SOUL.md:ro
+
+# Workdir — rw (everything else)
+-v groups/atlas/support:/workspace/group:rw
+```
+
+Docker mount precedence: more specific mounts override less
+specific ones. The ro mounts on CLAUDE.md/skills/SOUL.md
+override the rw mount on the parent directory.
+
+Alternative: single rw mount + chmod 444 on setup files.
+Simpler but agent runs as same user — could chmod back.
+Docker mount approach is enforced by the runtime, not bypassable.
+
+Decision: **docker mount precedence**. More mounts but
+actually enforced. container-runner.ts already builds mount
+lists dynamically — add setup file ro overrides for tier 2.
+
+## Prototype details
+
+Prototypes are a v2 feature (requires group-permissions first).
+Decisions recorded here, implementation deferred.
+
+### Spawn naming
+
+Convention: `{prototype}~{sanitized_jid}`
+
+```
+atlas/support/web               prototype
+atlas/support/web~tg_1112184352 spawn for telegram user
+atlas/support/web~web_abc123    spawn for web user
+```
+
+Tilde separator (`~`) chosen because: not `/` (avoids depth
+confusion), not `:` (used in JIDs), filesystem-safe, visually
+distinct. JID sanitized: replace `:` and `/` with `_`.
+
+Spawns are registered as real groups in DB — they appear in
+`groups` table with a `prototype` column pointing to the
+template group. Gateway treats them like normal groups for
+routing and container spawning.
+
+### Spawn limits
+
+- Max concurrent spawns per prototype: configurable via
+  `container_config.max_spawns` (default: 50)
+- Cleanup: spawns destroyed after idle timeout (same as
+  `IDLE_TIMEOUT` for containers, default 30min)
+- Persistent spawns: optional `persistent: true` flag keeps
+  spawn alive across restarts (for long-lived tickets)
+- DB cleanup: periodic sweep deletes spawn groups with no
+  messages in N days
+
+### Update propagation
+
+New spawns get current prototype state. Existing spawns are
+NOT updated — they're isolated copies. If prototype changes:
+
+- New conversations get updated template
+- Existing conversations keep their version
+- To force-update: destroy spawn, next message creates fresh one
+- No automatic propagation (complexity not worth it)
+
+## Related specs
+
+- specs/v2m1/escalation.md — upward delegation protocol
+- specs/v2m1/agent-code-modification.md — root staging area
