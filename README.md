@@ -49,9 +49,12 @@ CLAUDE.md, memory) is the primary extension mechanism.
 
 ## Products
 
-**Atlas** — codebase Q&A + knowledge agent. Mounted repos + facts.
-Agent researches via subagents, writes findings. Deployed as
-kanipi_marinade (@mnde_atlas_bot).
+**Atlas** — code support agent. Mounted repos + facts directory.
+Agent searches code, researches via subagents, answers questions.
+
+**Takopipi** — agent-driven web development from a phone. Message
+an agent, it writes code, Vite serves it live. Research pages,
+products, experiments — all deployed without a laptop.
 
 **Cheerleader** — social media curator. Drafts responses for human
 review. (spec only)
