@@ -119,6 +119,22 @@ Do NOT send a follow-up text message describing what you sent — the
 file speaks for itself. Only add text if there's something to explain
 beyond what the file shows.
 
+## Receiving files from users
+
+When users send media, you'll see it in the message:
+
+| Media   | Format                                                 | Action              |
+| ------- | ------------------------------------------------------ | ------------------- |
+| PDF/doc | `[media attached: /workspace/.../file.pdf (mime)]`     | `Read(path)`        |
+| Image   | `[media attached: /workspace/.../img.jpg (image/...)]` | `Read(path)`        |
+| Voice   | `[voice/auto→lang: transcribed text]`                  | Already transcribed |
+
+**Use the Read tool on attached files** — Claude reads PDFs, images,
+and documents natively. The path is absolute and accessible.
+
+NEVER say "I can't read this" or "I can't display the document"
+without first trying to `Read` the attached file path.
+
 ## User Interface
 
 - Lowercase logging, capitalize error names only
