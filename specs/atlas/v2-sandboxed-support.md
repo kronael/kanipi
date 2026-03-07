@@ -8,78 +8,91 @@ agent must not be able to change its own instructions or corrupt
 the knowledge base. Users should get answers, not an agent that
 rewrites itself.
 
-## Architecture: Frontend + Backend Split
+## Architecture: Agent + Worker Split
 
-Two agents using the group permission tiers from
-`specs/v1m1/group-permissions.md`. The frontend is restricted
-(depth 2), the backend is a worker (depth 1).
+Three groups using the 4-tier permission model from
+`specs/v1m1/group-permissions.md`.
 
 ```
-atlas/                  → world root (admin)
-  atlas/support         → worker (research backend, writes facts/)
-    atlas/support/web   → restricted (user-facing frontend)
+atlas/                  → tier 1: world (admin, unrestricted)
+  atlas/support         → tier 2: agent (research, rw workdir)
+    atlas/support/web   → tier 3: worker (user-facing, ro)
 ```
 
 ```
 user question
   ↓
-atlas/support/web (restricted, read-only facts, escalate-only)
+atlas/support/web (worker, ro facts, escalate-only)
   ↓ escalate to parent
-atlas/support (worker, full access to facts/, refs/, skills)
+atlas/support (agent, rw workdir, writes facts/, refs/)
   ↓ returns findings
 atlas/support/web
   ↓ surfaces answer to user
 ```
 
-### Frontend agent (atlas/support/web — restricted)
+### Worker (atlas/support/web — tier 3)
 
-- Read-only access to facts/ (search, not write)
-- NO access to CLAUDE.md, skills, memory files
-- NO file write tools
+User-facing. Minimal permissions.
+
+- ro access to facts/ (search, not write)
+- No access to CLAUDE.md, skills, memory files
+- No file write tools
 - Can answer from existing facts directly
-- Delegates to backend when facts are insufficient
-- Formats and presents backend findings to user
+- Escalates to parent when facts insufficient
+- Formats and presents parent findings to user
 
-### Backend agent (researcher)
+### Agent (atlas/support — tier 2)
 
-- Full access: facts/, refs/codebase/, skills
+Research backend. Does the real work.
+
+- rw workdir: facts/, refs/codebase/
+- ro CLAUDE.md/skills (can't modify own setup)
 - Can write new facts, trigger deep research
-- NOT exposed to user messages directly
-- Receives structured research requests from frontend
+- Not exposed to user messages directly
+- Receives structured research requests from worker
 - Returns structured findings (not raw chat)
+
+### World (atlas/ — tier 1)
+
+Admin. Manages the support setup.
+
+- rw everything in atlas/ tree
+- Can modify CLAUDE.md, skills for children
+- Monitors knowledge quality
+- Not typically routed to directly
 
 ## Implementation
 
-Depends on `specs/v1m1/group-permissions.md` — the hierarchy-implied
-permission system. No additional permission code needed beyond what
-that spec provides:
+Depends on `specs/v1m1/group-permissions.md`. Permissions are
+implied by folder depth — no additional permission code needed:
 
-- Restricted tier gives ro mounts, no CLAUDE.md write
-- Escalation action lets frontend ask backend for help
-- Worker tier gives backend full rw to facts/ and refs/
+- Tier 3 (depth 3): ro mounts, send_message + escalate only
+- Tier 2 (depth 2): workdir rw, ro setup, can delegate
+- Tier 1 (depth 1): unrestricted within own world
+- Escalation action lets worker ask agent for help
 
 ### Setup
 
 ```bash
-# Create world
+# Create world (tier 1)
 kanipi config marinade group add telegram:-5174030672 atlas
-# Create backend (worker, depth 1)
+# Create agent (tier 2, research backend)
 kanipi config marinade group add telegram:-5174030672 atlas/support
-# Create frontend (restricted, depth 2)
+# Create worker (tier 3, user-facing frontend)
 kanipi config marinade group add telegram:-5174030672 atlas/support/web
 ```
 
-Frontend CLAUDE.md: search facts, answer directly if found,
-escalate to parent if not. Backend CLAUDE.md: research deeply,
+Worker CLAUDE.md: search facts, answer directly if found,
+escalate to parent if not. Agent CLAUDE.md: research deeply,
 write new facts, return findings.
 
 ## Open Questions
 
-- How does frontend detect "I need to escalate"? Threshold on
+- How does worker detect "I need to escalate"? Threshold on
   fact search results? Explicit "I don't know" detection?
 - Latency: escalation adds a round trip. Cache common answers?
-- Should backend findings be persisted (new facts) or ephemeral?
-- Escalation format: structured JSON or free-text prompt?
+- Should agent findings be persisted (new facts) or ephemeral?
+- Escalation format: see specs/v2m1/escalation.md
 
 ## Interim
 

@@ -25,11 +25,14 @@ but routes messages to containerized Claude agents with:
 
 ## Data layout
 
+Currently single-group (groups/main/). Will migrate to
+multi-tier when group-permissions ships (see v2 below).
+
 ```
 /srv/data/kanipi_marinade/
 ├── .env                    # config (bot token, oauth, ports)
 ├── store/messages.db       # SQLite (groups, messages, state)
-├── groups/main/
+├── groups/main/            # → groups/root/ after migration
 │   ├── CLAUDE.md           # agent personality + instructions
 │   ├── character.json      # ElizaOS-style identity (bio, topics, style)
 │   ├── facts/              # copied from eliza_atlas_marinade/facts/
@@ -41,6 +44,21 @@ but routes messages to containerized Claude agents with:
 │   └── logs/
 ├── data/                   # IPC, sessions
 └── web/                    # vite web app
+```
+
+### v2 layout (after group-permissions)
+
+```
+/srv/data/kanipi_marinade/
+├── groups/
+│   ├── root/               # tier 0 (admin, migrated from main/)
+│   └── atlas/              # tier 1 (world)
+│       ├── atlas/support/  # tier 2 (agent, research backend)
+│       │   ├── CLAUDE.md
+│       │   ├── facts/
+│       │   └── refs/codebase/
+│       └── atlas/support/web/ # tier 3 (worker, user-facing)
+│           └── CLAUDE.md
 ```
 
 ## Codebase access
