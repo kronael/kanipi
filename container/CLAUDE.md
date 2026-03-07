@@ -123,17 +123,17 @@ beyond what the file shows.
 
 When users send media, you'll see it in the message:
 
-| Media   | Format                                                 | Action              |
-| ------- | ------------------------------------------------------ | ------------------- |
-| PDF/doc | `[media attached: /workspace/.../file.pdf (mime)]`     | `Read(path)`        |
-| Image   | `[media attached: /workspace/.../img.jpg (image/...)]` | `Read(path)`        |
-| Voice   | `[voice/auto→lang: transcribed text]`                  | Already transcribed |
+| Media       | Format                                             | Action                   |
+| ----------- | -------------------------------------------------- | ------------------------ |
+| PDF/doc     | `[media attached: .../file.pdf (application/pdf)]` | `Read(path)`             |
+| Image       | `[media attached: .../img.jpg (image/...)]`        | `Read(path)`             |
+| Voice/audio | `[voice/auto→lang: transcribed text]`              | Use text — DO NOT `Read` |
 
-**Use the Read tool on attached files** — Claude reads PDFs, images,
-and documents natively. The path is absolute and accessible.
+**PDFs and images**: use `Read(path)` — Claude reads them natively.
 
-NEVER say "I can't read this" or "I can't display the document"
-without first trying to `Read` the attached file path.
+**Audio/voice**: the transcription is already in your message as text.
+DO NOT try to Read audio files (mp3, ogg, wav, m4a) — you cannot play
+or transcribe them yourself. The `[voice/...]` text IS the content.
 
 ## User Interface
 
