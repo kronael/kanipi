@@ -291,32 +291,49 @@ Write level: readonly. Everything mounted ro. IPC still works
 (writes to /workspace/ipc/ are allowed but limited to request
 files only).
 
+## Group directory layout
+
+Everything lives inside the group dir, mounted as
+`/workspace/group/`. Media also gets a convenience mount
+at `/workspace/media/` (same data, second path).
+
+```
+groups/<folder>/
+  ├── CLAUDE.md        setup (ro for tier 2, ro for tier 3)
+  ├── SOUL.md          setup (ro for tier 2, ro for tier 3)
+  ├── skills/          setup (ro for tier 2, ro for tier 3)
+  ├── diary/           workdir — agent daily notes (rw for tier 2)
+  ├── facts/           workdir — knowledge files (rw for tier 2)
+  ├── media/           workdir — enriched attachments (rw for tier 2)
+  ├── logs/            workdir — conversation logs (rw for tier 2)
+  └── (anything else)  workdir (rw for tier 2)
+```
+
+**share/** lives at `groups/<world>/share/`, mounted as
+`/workspace/share/`. Cross-group knowledge sharing within
+a world. rw for root+world, ro for agent+worker.
+
 ## Workdir boundary enforcement
 
 The "workdir=rw, setup=ro" split for tier 2 agents needs
-enforcement at the docker mount level. Two mounts per group:
+enforcement at the docker mount level:
 
 ```
-# Setup files — ro
+# Group dir — rw (base mount)
+-v groups/atlas/support:/workspace/group:rw
+
+# Setup file overrides — ro (more specific, takes precedence)
 -v groups/atlas/support/CLAUDE.md:/workspace/group/CLAUDE.md:ro
 -v groups/atlas/support/skills:/workspace/group/skills:ro
 -v groups/atlas/support/SOUL.md:/workspace/group/SOUL.md:ro
-
-# Workdir — rw (everything else)
--v groups/atlas/support:/workspace/group:rw
 ```
 
 Docker mount precedence: more specific mounts override less
-specific ones. The ro mounts on CLAUDE.md/skills/SOUL.md
-override the rw mount on the parent directory.
+specific ones. The ro overrides on setup files are enforced by
+the runtime, not bypassable by the agent.
 
-Alternative: single rw mount + chmod 444 on setup files.
-Simpler but agent runs as same user — could chmod back.
-Docker mount approach is enforced by the runtime, not bypassable.
-
-Decision: **docker mount precedence**. More mounts but
-actually enforced. container-runner.ts already builds mount
-lists dynamically — add setup file ro overrides for tier 2.
+Tier 3 workers: single ro mount on the whole group dir.
+No overrides needed — everything is readonly.
 
 ## Related specs
 
