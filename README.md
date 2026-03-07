@@ -52,11 +52,11 @@ CLAUDE.md, memory) is the primary extension mechanism.
 A product is a kanipi instance configured for a specific role.
 Same gateway, different CLAUDE.md + skills + mounts + persona.
 
-**Atlas** — code support agent. Mounted repos + facts directory.
-Agent searches code, researches via subagents, answers questions.
-Configuration: CLAUDE.md with support persona, facts/ for
-knowledge base, refs/ for mounted codebases, /facts skill for
-deep research.
+**Atlas** — code support agent. Mounted repos, support persona,
+and workspace knowledge files. Agent searches code, researches via
+subagents, answers questions. Current configuration is CLAUDE.md +
+skills + refs/ mounts. A dedicated `facts/` memory layer is still
+planned, not shipped.
 
 **Yonder** — research associate and knowledge mapper. Message from
 phone, agent researches topics, builds knowledge pages, maps
@@ -131,9 +131,13 @@ limit (`SLINK_AUTH_RPM`, default 60/min vs `SLINK_ANON_RPM` default 10/min).
 
 `/pub/sloth.js` is a client-side script for embedding in public web pages
 (reads `data-token` from script tag). The authenticated `/_sloth/sloth.js`
-is injected into all proxied HTML pages and adds a `POST /_sloth/message`
+is injected into proxied HTML pages and adds a `POST /_sloth/message`
 handler plus a SSE stream at `/_sloth/stream?group=<name>` for receiving
 agent responses in-page.
+
+Current SSE behavior is group-broadcast: every listener attached to the same
+group receives every response for that group. Sender-scoped SSE is not
+implemented yet.
 
 ## System Messages and Sessions
 
@@ -172,17 +176,19 @@ only for direct parent-to-child relationships within the same world
 (same root folder segment), capped at depth 3.
 
 Set via `set_routing_rules` action; delegate via `delegate_group` action.
+Routing is parent-to-child by registered group folder. Glob-based JID routing
+is not currently implemented.
 
 ## MCP Sidecars
 
-Per-group MCP servers run as sidecar containers alongside the agent.
-Configure via `SIDECAR_<NAME>_IMAGE` env vars (e.g. `SIDECAR_WHISPER_IMAGE`).
-
-Per-group sidecar config is stored in `container_config.sidecars` on
-`registered_groups`. Sidecars communicate via Unix sockets at
-`/workspace/ipc/sidecars/<name>.sock`. The gateway starts sidecars
-before the agent, probes readiness, and merges them into the agent's
+Per-group MCP servers can run as sidecar containers alongside the agent.
+The shipped part is gateway-managed sidecars stored in
+`container_config.sidecars` on `registered_groups`. Sidecars communicate via
+Unix sockets at `/workspace/ipc/sidecars/<name>.sock`. The gateway starts
+sidecars before the agent, probes readiness, and merges them into the agent's
 `settings.json` as MCP servers.
+
+Agent-requested sidecar actions are still planned, not shipped.
 
 ## Instance Layout
 
@@ -202,6 +208,9 @@ The `/pub/` URL prefix is the auth boundary: files under `web/pub/`
 are served without authentication, `web/priv/` requires auth.
 Agent skills are seeded from `container/skills/` to
 `~/.claude/skills/` inside each container on first spawn.
+
+Current shipped auth is local-account session auth plus slink JWT
+verification. OAuth providers described in some specs are not implemented.
 
 ## Config
 
