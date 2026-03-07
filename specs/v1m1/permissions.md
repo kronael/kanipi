@@ -193,6 +193,13 @@ working directory is rw but setup files (CLAUDE.md, skills) are ro.
 | /workspace/data/sessions/ | rw            | no             | no                   | no              |
 | /workspace/share/         | rw            | rw             | ro                   | ro              |
 | /workspace/ipc/           | rw            | rw             | rw                   | rw (limited)    |
+| /workspace/media/         | rw            | rw             | rw                   | ro              |
+| /workspace/web/           | rw            | rw             | no                   | no              |
+| /app/src (agent-runner)   | rw            | rw             | rw                   | ro              |
+
+Note: currently `/workspace/self/` is mounted ro for ALL groups.
+This spec restricts it to root only. `/workspace/media/` and
+`/workspace/web/` are currently rw for all — tier scoping is new.
 
 ## Codebase rename: main → root
 
@@ -221,12 +228,12 @@ function permissionTier(folder: string): 0 | 1 | 2 | 3 {
 
 No env var fallback — clean rename, one-time migration.
 
-1. Rename DB: `UPDATE groups SET folder = 'root' WHERE folder = 'main'`
+1. Rename DB: `UPDATE registered_groups SET folder = 'root' WHERE folder = 'main'`
 2. Rename filesystem: `mv groups/main groups/root`
 3. Update routing rules referencing `main`
 4. Add migration skill step for agent-side references
 
-~30 references to `isRoot()` across src/. Key files:
+~24 references to `isRoot()` in production code. Key files:
 config.ts, container-runner.ts, index.ts, ipc.ts,
 action-registry.ts, actions/\*.ts, task-scheduler.ts.
 

@@ -18,24 +18,24 @@ not at the public-facing agent level.
 
 ```
 atlas/                      world (tier 1)
-├── atlas/support           agent (tier 2, worker)
+├── atlas/support           agent (tier 2, rw workdir)
 │   ├── answers tickets directly
 │   ├── mines facts from resolved tickets
-│   └── publishes sanitized knowledge to atlas/support/forum
-└── atlas/support/forum     agent (tier 2, restricted)
+│   └── publishes sanitized knowledge to atlas/support/web
+└── atlas/support/web       worker (tier 3, ro)
     ├── answers public questions from mined facts
     ├── escalates to atlas/support when facts insufficient
     └── CANNOT see ticket data (different JID, not mounted)
 ```
 
-The support-level agent (atlas/support) is the knowledge gate:
+The agent (atlas/support) is the knowledge gate:
 
 - Sees tickets, can write facts
 - Mines patterns from resolved tickets
-- Controls what knowledge reaches the forum agent
+- Controls what knowledge reaches the worker
 - Subagents never spill private ticket content
 
-The forum agent (atlas/support/forum) is the public face:
+The worker (atlas/support/web) is the public face:
 
 - Reads facts (ro), answers questions
 - Escalates when facts are insufficient
@@ -45,7 +45,7 @@ The forum agent (atlas/support/forum) is the public face:
 ## Escalation protocol
 
 ```typescript
-// Tier 2 agent sends:
+// Tier 3 worker sends:
 {
   action: 'escalate',
   input: {
@@ -56,7 +56,7 @@ The forum agent (atlas/support/forum) is the public face:
 }
 
 // Parent receives as system message:
-<system origin="child" event="escalation" from="atlas/support/forum">
+<system origin="child" event="escalation" from="atlas/support/web">
   <request>User asks about validator bonds APY calculation</request>
   <context>How is the APY for validator bonds calculated?</context>
 </system>
@@ -73,7 +73,7 @@ The forum agent (atlas/support/forum) is the public face:
 ```
 ticket resolved → atlas/support mines facts → facts/ dir
                                             ↓
-atlas/support/forum reads facts/ (ro) → answers public questions
+atlas/support/web reads facts/ (ro) → answers public questions
                                       ↓ (insufficient)
 escalate to atlas/support → research → return sanitized findings
 ```
@@ -102,7 +102,7 @@ The support agent acts as a knowledge firewall:
    responsibility (prompt-based) or enforced by gateway
    (strip patterns, PII detection)?
 
-5. **Multiple escalation targets** — can a tier 2 agent
+5. **Multiple escalation targets** — can a tier 3 worker
    escalate to a sibling instead of parent? Probably not —
    keep it simple, always parent.
 
