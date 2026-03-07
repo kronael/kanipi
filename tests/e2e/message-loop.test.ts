@@ -23,6 +23,8 @@ vi.mock('../../src/config.js', () => ({
   HOST_PROJECT_ROOT_PATH: '/tmp/kanipi-e2e-root',
   IDLE_TIMEOUT: 1800000,
   isRoot: (f: string) => !f.includes('/'),
+  permissionTier: (f: string) =>
+    f.includes('/') ? Math.min(f.split('/').length, 3) : 0,
   MAX_CONCURRENT_CONTAINERS: 2,
   MEDIA_ENABLED: false,
   POLL_INTERVAL: 50,

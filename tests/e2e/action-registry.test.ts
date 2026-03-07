@@ -129,6 +129,7 @@ describe('drainRequests flow', () => {
       {
         sourceGroup: 'main',
         isRoot: true,
+        tier: 0 as const,
         sendMessage: deps.sendMessage,
         sendDocument: deps.sendDocument,
         registeredGroups: deps.registeredGroups,
@@ -150,6 +151,7 @@ describe('drainRequests flow', () => {
       {
         sourceGroup: 'main',
         isRoot: true,
+        tier: 0 as const,
         sendMessage: deps.sendMessage,
         sendDocument: deps.sendDocument,
         registeredGroups: deps.registeredGroups,

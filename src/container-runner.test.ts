@@ -21,6 +21,13 @@ vi.mock('./config.js', () => ({
   WEB_DIR: '/tmp/nanoclaw-test-web',
   WEB_HOST: '',
   isRoot: (f: string) => !f.includes('/'),
+  permissionTier: (f: string) =>
+    f.includes('/') ? Math.min(f.split('/').length, 3) : 0,
+  MEDIA_ENABLED: false,
+  MEDIA_MAX_FILE_BYTES: 10485760,
+  VIDEO_TRANSCRIPTION_ENABLED: false,
+  VOICE_TRANSCRIPTION_ENABLED: false,
+  WHISPER_MODEL: 'base',
 }));
 
 // Mock db (container-runner now calls recordSessionStart/updateSessionEnd)

@@ -47,9 +47,16 @@ vi.mock('../../src/config.js', () => ({
   HOST_PROJECT_ROOT_PATH: '/tmp/kanipi-e2e-cr',
   IDLE_TIMEOUT: 30000,
   isRoot: (f: string) => !f.includes('/'),
+  permissionTier: (f: string) =>
+    f.includes('/') ? Math.min(f.split('/').length, 3) : 0,
   TIMEZONE: 'UTC',
+  MEDIA_ENABLED: false,
+  MEDIA_MAX_FILE_BYTES: 10485760,
+  VIDEO_TRANSCRIPTION_ENABLED: false,
+  VOICE_TRANSCRIPTION_ENABLED: false,
   WEB_DIR: '/tmp/kanipi-e2e-cr-web',
   WEB_HOST: '',
+  WHISPER_MODEL: 'base',
 }));
 
 vi.mock('../../src/logger.js', () => ({

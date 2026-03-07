@@ -8,16 +8,16 @@ description: Introspect this agent — workspace layout, skills, channels,
 
 ## Workspace layout
 
-| Path                       | Contents                                                | Access                                      |
-| -------------------------- | ------------------------------------------------------- | ------------------------------------------- |
-| `/workspace/self`          | kanipi source (canonical skills, changelog, migrations) | read-only, all groups                       |
-| `/workspace/group`         | this group's working directory                          | read-write                                  |
-| `/workspace/share`         | shared global memory                                    | read-only for non-root, read-write for root |
-| `/workspace/web`           | vite web app directory                                  | read-write                                  |
-| `/workspace/ipc`           | gateway↔agent IPC (messages/, tasks/, input/)           | read-write                                  |
-| `/workspace/data/sessions` | all group session dirs (for migrate)                    | read-write, main only                       |
-| `/workspace/extra/<name>`  | operator-configured extra mounts                        | varies                                      |
-| `~/.claude`                | agent memory: skills, CLAUDE.md, sessions               | read-write                                  |
+| Path                       | Contents                                                | Access                                   |
+| -------------------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `/workspace/self`          | kanipi source (canonical skills, changelog, migrations) | ro, tier 0 only                          |
+| `/workspace/group`         | this group's working directory                          | rw (ro for tier 3 workers)               |
+| `/workspace/share`         | world-level shared memory                               | rw for tier 0/1, ro for tier 2/3         |
+| `/workspace/web`           | vite web app directory                                  | rw, tier 0/1 only                        |
+| `/workspace/ipc`           | gateway↔agent IPC (messages/, tasks/, input/)           | rw                                       |
+| `/workspace/data/sessions` | all group session dirs (for migrate)                    | rw, tier 0 only                          |
+| `/workspace/extra/<name>`  | operator-configured extra mounts                        | varies                                   |
+| `~/.claude`                | agent memory, skills, CLAUDE.md, sessions               | rw (ro for tier 2/3, memory/projects rw) |
 
 ## Skill seeding
 
@@ -34,9 +34,10 @@ Canonical latest skills always at `/workspace/self/container/skills/`.
 skill's SKILL.md to `~/.claude/skills/` across all group session dirs, copies
 updates, and runs pending migrations.
 
-## Root group detection
+## Permission tier
 
 ```bash
+echo "tier=$NANOCLAW_TIER"  # 0=root, 1=world, 2=agent, 3=worker
 [ "$NANOCLAW_IS_ROOT" = "1" ] && echo root || echo non-root
 ```
 

@@ -94,6 +94,10 @@ Target: someone who just wants to use the agent as a tool.
 1. **Talk to the bot** — How to start a conversation.
    On Telegram: find the bot by username, send a message.
    On Discord: add bot to server, mention in a channel.
+   On WhatsApp: the instance links a phone number as a device
+   (like WhatsApp Web). Join a group the bot is in, or message
+   the linked number directly. The bot only responds in
+   registered groups — private chats are ignored.
    On Email: send email to the configured address.
    Show the actual channel info from env vars.
 
@@ -167,16 +171,34 @@ Target: power users who want multi-agent setups.
 
    The agent can also register groups via MCP tools (root only).
 
-3. **Routing** — Messages can be automatically routed between
+3. **Adding WhatsApp** — WhatsApp links a phone number as a
+   device (like WhatsApp Web). Setup:
+
+   ```bash
+   # Run from inside the gateway container:
+   docker exec -w /srv/app/home <container> \
+     node /srv/app/dist/whatsapp-auth.js \
+     --pairing-code --phone <number>
+   # Enter the pairing code on your phone:
+   # WhatsApp → Settings → Linked Devices → Link a Device
+   # → "Link with phone number instead" → enter code
+   # Restart the service to enable WhatsApp
+   # Join a group, send /chatid, register the JID
+   ```
+
+   WhatsApp only processes registered groups — all other
+   messages are received but silently ignored.
+
+4. **Routing** — Messages can be automatically routed between
    groups based on rules. A root agent can delegate to child
    groups for specialized tasks.
 
-4. **Scheduled tasks** — The agent can schedule recurring tasks:
+5. **Scheduled tasks** — The agent can schedule recurring tasks:
    - Cron-style schedules
    - One-time delayed tasks
    - Periodic checks and reports
 
-5. **MCP tools** — Advanced users can extend the agent with
+6. **MCP tools** — Advanced users can extend the agent with
    custom MCP servers. Register in settings.json and tools
    become available in the next session.
 

@@ -7,6 +7,17 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.4] — 2026-03-07
+
+### Changes
+
+- WhatsApp /chatid: respond from unregistered chats (like Telegram)
+- Multi-JID groups: multiple channel JIDs can share one folder
+- Permission tiers: tier-based authorization for IPC actions and mounts
+- Howto skill: WhatsApp setup instructions, 3-level guide structure
+
+---
+
 ## [v1.0.3] — 2026-03-07
 
 ### Changes

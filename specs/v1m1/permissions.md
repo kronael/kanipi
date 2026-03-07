@@ -1,6 +1,6 @@
 # Group Permissions
 
-**Status**: not started
+**Status**: shipped
 
 ## Problem
 

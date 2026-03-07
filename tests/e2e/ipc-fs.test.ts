@@ -29,6 +29,8 @@ vi.mock('../../src/config.js', () => ({
   IPC_POLL_INTERVAL: 60000,
   TIMEZONE: 'UTC',
   isRoot: (f: string) => !f.includes('/'),
+  permissionTier: (f: string) =>
+    f.includes('/') ? Math.min(f.split('/').length, 3) : 0,
 }));
 
 vi.mock('../../src/logger.js', () => ({

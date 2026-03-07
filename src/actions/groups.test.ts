@@ -5,6 +5,8 @@ import type { ActionContext } from '../action-registry.js';
 
 vi.mock('../config.js', () => ({
   isRoot: (folder: string) => !folder.includes('/'),
+  permissionTier: (f: string) =>
+    f.includes('/') ? Math.min(f.split('/').length, 3) : 0,
 }));
 
 vi.mock('../group-folder.js', () => ({
@@ -26,6 +28,9 @@ function makeCtx(
   return {
     sourceGroup,
     isRoot: !sourceGroup.includes('/'),
+    tier: (sourceGroup.includes('/')
+      ? Math.min(sourceGroup.split('/').length, 3)
+      : 0) as 0 | 1 | 2 | 3,
     sendMessage: vi.fn(async () => {}),
     sendDocument: vi.fn(async () => {}),
     registeredGroups: vi.fn(() => ({})),

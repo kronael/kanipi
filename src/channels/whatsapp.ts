@@ -194,6 +194,18 @@ export class WhatsAppChannel implements Channel {
           isGroup,
         );
 
+        // /chatid works from any chat (before group check)
+        const msgText =
+          msg.message?.conversation ||
+          msg.message?.extendedTextMessage?.text ||
+          '';
+        if (msgText.trim() === '/chatid') {
+          await this.sock?.sendMessage(rawJid, {
+            text: `Chat JID: ${chatJid}`,
+          });
+          continue;
+        }
+
         // Only deliver full message for registered groups
         const groups = this.opts.registeredGroups();
         if (groups[chatJid]) {
