@@ -86,8 +86,7 @@ Agent execution environment. Container lifecycle, IPC protocol,
 MCP sidecar isolation.
 
 - [ipc-signal.md](ipc-signal.md) — SIGUSR1 wakeup replacing 500ms polling (shipped)
-- [isolation.md](isolation.md) — MCP servers in own containers, socket transport (shipped)
-- [mcp-sidecar.md](mcp-sidecar.md) — agent-driven sidecar provisioning (open)
+- [sidecars.md](sidecars.md) — MCP servers in isolated containers: gateway-managed + agent-requested (partial)
 
 ## Actions & Commands
 
