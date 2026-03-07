@@ -76,7 +76,7 @@ group_cmd() {
         // ensure slink_token column exists (in case DB was created before migration)
         try { db.exec('ALTER TABLE registered_groups ADD COLUMN slink_token TEXT'); } catch {}
         const count = db.prepare('SELECT COUNT(*) as n FROM registered_groups').get().n;
-        const folder = '$FOLDER' || (count === 0 ? 'main' : '');
+        const folder = '$FOLDER' || (count === 0 ? 'root' : '');
         if (!folder) { console.error('folder required (not first group)'); process.exit(1); }
         const existing = db.prepare('SELECT jid FROM registered_groups WHERE folder = ?').get(folder);
         if (existing && existing.jid !== '$JID') {
@@ -117,7 +117,7 @@ group_cmd() {
         const db = new Database('$DB');
         const row = db.prepare('SELECT folder FROM registered_groups WHERE jid = ?').get('$JID');
         if (!row) { console.error('not found: $JID'); process.exit(1); }
-        if (row.folder === 'main') { console.error('refused: cannot remove main group'); process.exit(1); }
+        if (row.folder === 'root') { console.error('refused: cannot remove root group'); process.exit(1); }
         db.prepare('DELETE FROM registered_groups WHERE jid = ?').run('$JID');
         console.log('removed: $JID (folder kept: groups/' + row.folder + ')');
         db.close();
@@ -325,7 +325,7 @@ if [ "${1:-}" = "create" ]; then
     exit 1
   fi
 
-  mkdir -p "$DATA/groups/main/logs" \
+  mkdir -p "$DATA/groups/root/logs" \
            "$DATA/store" \
            "$DATA/data" \
            "$DATA/web" \
