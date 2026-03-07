@@ -1,8 +1,63 @@
 # kanipi
 
-Multitenant Claude agent gateway with multi-channel support
-(telegram, whatsapp, discord, email). Nanoclaw fork with
-systemd-managed instances and MCP sidecar extensibility.
+Multitenant Claude agent gateway. Routes messages from any channel
+(Telegram, WhatsApp, Discord, Email, Web) to containerized Claude
+Code agents. systemd-managed instances, MCP sidecar extensibility.
+
+## Why
+
+Build on the newest, fastest-moving ecosystem. Claude Code ships
+weekly with new capabilities — subagents, tool use, skills, memory,
+MCP. Every improvement lands in your agents for free. Betting on
+a fast-moving foundation means compounding returns: today's agent
+is better than yesterday's without touching your code.
+
+Reusability and modularity aren't aesthetic choices — they're
+survival. When the ecosystem moves fast, components that can't be
+swapped get left behind. A monolithic agent framework locks you
+into today's assumptions. Orthogonal components let you replace
+one piece (the LLM, the channel, the memory layer) when a better
+option arrives tomorrow.
+
+## Principles
+
+**Claude Code is the runtime** — full SDK, not a wrapper. Agents
+get subagents, tool use, skills, CLAUDE.md, MEMORY.md, MCP servers
+out of the box. The gateway orchestrates; the agent develops.
+
+**Minimal and orthogonal** — each subsystem (channels, memory, IPC,
+scheduling) has the narrowest possible responsibility. Like Postfix:
+each component operates on a clean interface, knows nothing of the
+others. Complexity is a liability.
+
+**Products are configurations** — a product is a group with specific
+CLAUDE.md (behavior), SOUL.md (persona), skills (capabilities),
+mounts (data), and tasks. The gateway runs groups, not products.
+
+**Components swap independently** — channels, memory layers, IPC,
+container runtime, storage all have clean interfaces. When something
+better arrives, swap one piece without touching the rest.
+
+**Knowledge layers are the extension point** — push layers (diary,
+user context) for small corpora injected by gateway. Pull layers
+(facts, codebase) for large corpora searched by agent. New memory
+types plug into the same pattern.
+
+**Extensibility over speed** — don't optimize for performance
+unless measured. Agent self-extension (skills, MCP servers,
+CLAUDE.md, memory) is the primary extension mechanism.
+
+## Products
+
+**Atlas** — codebase Q&A + knowledge agent. Mounted repos + facts.
+Agent researches via subagents, writes findings. Deployed as
+kanipi_marinade (@mnde_atlas_bot).
+
+**Cheerleader** — social media curator. Drafts responses for human
+review. (spec only)
+
+**Evangelist** — outbound community engagement. Monitors external
+communities. (spec only)
 
 ## Quick Start
 

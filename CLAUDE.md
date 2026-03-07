@@ -16,19 +16,16 @@ ALWAYS follow before answering:
 ## Core Design Facts
 
 - **Agent runtime is Claude Code** — full SDK with subagents,
-  tool use, skills, CLAUDE.md, MEMORY.md. Advanced development
-  features are the product differentiator.
+  tool use, skills, CLAUDE.md, MEMORY.md. The gateway orchestrates;
+  the agent develops.
 - **Memory is Claude-centric, overridable** — MEMORY.md, diary,
   facts are all Claude Code native patterns. Gateway injects
   context but the agent owns its own memory. Products can
   override memory behavior via CLAUDE.md instructions.
-- **Products are configurations, not forks** — a product is a
-  group with specific CLAUDE.md, SOUL.md, skills, mounts, and
-  tasks. The gateway doesn't know about products.
-- **Components are swappable** — channels, memory layers, IPC,
-  scheduling, container runtime all have clean interfaces.
-  Products configure which components they use.
-- See `ROADMAP.md` for full design principles and product plans.
+- **Products are configurations** — a product is a group with
+  specific CLAUDE.md, SOUL.md, skills, mounts, and tasks. The
+  gateway runs groups, not products.
+- See `README.md` for principles, `ROADMAP.md` for v1/v2/v3.
 
 ## Conventions
 
@@ -176,18 +173,9 @@ Subsequent groups require folder arg and use trigger mode.
 
 ## Design Philosophy
 
-Kanipi aims to be minimal and orthogonal — components should be independently
-useful and have the narrowest possible responsibility. Like Postfix or GNU Hurd:
-each subsystem (channels, memory, IPC, task scheduler) operates on a clean
-interface, knows nothing of the others, and could in principle run with its own
-privileges or as its own process. Complexity is a liability. If two things can
-be separated without losing capability, separate them. Avoid shared state between
-subsystems. Plugins should extend individual subsystems through their own hooks,
-not through a god-object that owns everything.
-
-Prioritize extensibility and reusability over speed. Don't optimize
-for performance unless measured. Agent self-extension (skills, MCP
-servers, CLAUDE.md, memory) is the primary extension mechanism.
+See `README.md` for full principles. TL;DR: minimal, orthogonal,
+Claude Code-native. Components swap independently. Products are
+configurations. Extensibility over speed.
 
 ## Operational check (post-deploy)
 
