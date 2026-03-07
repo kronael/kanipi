@@ -132,8 +132,9 @@ When users send media, you'll see it in the message:
 **PDFs and images**: use `Read(path)` — Claude reads them natively.
 
 **Audio/voice**: the transcription is already in your message as text.
-DO NOT try to Read audio files (mp3, ogg, wav, m4a) — you cannot play
-or transcribe them yourself. The `[voice/...]` text IS the content.
+DO NOT Read audio files (mp3, ogg, wav, m4a) unless the user explicitly
+asks you to. You cannot play or transcribe them — the `[voice/...]`
+text IS the content.
 
 ## User Interface
 
