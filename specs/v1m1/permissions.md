@@ -97,9 +97,8 @@ register_group authorization:
   CLI:    unrestricted
 ```
 
-Wait — should root be able to create worlds? Or CLI only?
-Decision: **worlds are CLI only**. Root can create children
-of worlds but not new worlds. Worlds are infrastructure.
+**Worlds are CLI only**. Root can create children of worlds
+but not new worlds. Worlds are infrastructure.
 
 ## Message visibility
 
