@@ -137,34 +137,13 @@ This is sufficient because:
 - Setup is concentrated in CLAUDE.md (global + group level)
 - Agent can't rewrite its own instructions
 - Prompt injection blast radius is limited to workdir
-- Prototype pattern (below) isolates per-JID state further
+- Prototype pattern isolates per-JID state further
+  (see specs/v2m1/prototypes.md)
 
 ## Prototypes
 
-A group can be a **prototype** — a template that is never
-routed to directly. When a new JID needs routing, the gateway
-spawns a new group as a copy of the prototype.
-
-```
-atlas/support/web         prototype (template, no routing)
-atlas/support/web:user123 spawned instance (copy of prototype)
-atlas/support/web:user456 spawned instance (copy of prototype)
-```
-
-Use cases:
-
-- Support tickets: each ticket gets its own agent instance
-- Public forum: each user conversation is isolated
-- Any scenario where per-JID state isolation matters
-
-The prototype's CLAUDE.md, skills, and setup are copied to
-each spawn. Spawned instances get workdir-level writes —
-they can write memory/notes but can't modify the template.
-The prototype itself stays clean.
-
-Spawn lifecycle: created on first message, destroyed on idle
-timeout or explicit cleanup. Prototype updates don't propagate
-to existing spawns (they get the template at creation time).
+Per-JID group spawning from templates. Separate spec:
+specs/v2m1/prototypes.md
 
 ## Escalation (upward delegation)
 
@@ -333,52 +312,8 @@ Decision: **docker mount precedence**. More mounts but
 actually enforced. container-runner.ts already builds mount
 lists dynamically — add setup file ro overrides for tier 2.
 
-## Prototype details
-
-Prototypes are a v2 feature (requires group-permissions first).
-Decisions recorded here, implementation deferred.
-
-### Spawn naming
-
-Convention: `{prototype}~{sanitized_jid}`
-
-```
-atlas/support/web               prototype
-atlas/support/web~tg_1112184352 spawn for telegram user
-atlas/support/web~web_abc123    spawn for web user
-```
-
-Tilde separator (`~`) chosen because: not `/` (avoids depth
-confusion), not `:` (used in JIDs), filesystem-safe, visually
-distinct. JID sanitized: replace `:` and `/` with `_`.
-
-Spawns are registered as real groups in DB — they appear in
-`groups` table with a `prototype` column pointing to the
-template group. Gateway treats them like normal groups for
-routing and container spawning.
-
-### Spawn limits
-
-- Max concurrent spawns per prototype: configurable via
-  `container_config.max_spawns` (default: 50)
-- Cleanup: spawns destroyed after idle timeout (same as
-  `IDLE_TIMEOUT` for containers, default 30min)
-- Persistent spawns: optional `persistent: true` flag keeps
-  spawn alive across restarts (for long-lived tickets)
-- DB cleanup: periodic sweep deletes spawn groups with no
-  messages in N days
-
-### Update propagation
-
-New spawns get current prototype state. Existing spawns are
-NOT updated — they're isolated copies. If prototype changes:
-
-- New conversations get updated template
-- Existing conversations keep their version
-- To force-update: destroy spawn, next message creates fresh one
-- No automatic propagation (complexity not worth it)
-
 ## Related specs
 
 - specs/v2m1/escalation.md — upward delegation protocol
+- specs/v2m1/prototypes.md — per-JID group spawning
 - specs/v2m1/agent-code-modification.md — root staging area
