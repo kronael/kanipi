@@ -67,8 +67,54 @@ kill $(cat /srv/app/tmp/vite.pid)
 
 The entrypoint auto-restarts vite within ~1s.
 
-## Post-deploy validation
+## Post-deploy verification
 
-1. Fetch the affected URL (WebFetch or curl)
-2. If error or timeout: kill vite PID
-3. Wait 2s, verify again before reporting done
+ALWAYS verify after creating or editing a page:
+
+```bash
+URL="https://$WEB_HOST/$GROUP_FOLDER/myapp/"
+STATUS=$(curl -sL -o /dev/null -w '%{http_code}' "$URL")
+if [ "$STATUS" != "200" ]; then
+  echo "FAIL: $URL returned $STATUS"
+  kill $(cat /srv/app/tmp/vite.pid) 2>/dev/null
+  sleep 2
+  STATUS=$(curl -sL -o /dev/null -w '%{http_code}' "$URL")
+fi
+echo "OK: $URL → $STATUS"
+```
+
+NEVER report a page as done without verifying it loads.
+
+## When to use web
+
+Deploy to web when:
+
+- The user explicitly asks for a web page
+- The output is voluminous — anything that would be a long PDF,
+  a multi-section guide, a research report, an itinerary, etc.
+  Web is better than sending a file the user has to download and
+  open separately. Prefer web over PDFs and send_file for anything
+  longer than a few paragraphs.
+
+Do NOT use web when:
+
+- The user explicitly asks for a file (send_file, PDF, download)
+- The content is short enough for a chat message
+- It's raw data (CSV, JSON, archives, code files)
+
+## Pages (disposable content)
+
+For one-off content (guides, research, reports, itineraries) that
+isn't a persistent app:
+
+1. Create in `$WEB_DIR/pages/YYYY-MM-DD/<slug>/index.html`
+2. Update `$WEB_DIR/pages/index.html` — a simple date-organized
+   link list (most recent first)
+3. Send the URL in chat
+4. Ask the user: "want me to add this to the main index too?"
+   Only add to group hub if they say yes.
+
+Pages index is auto-maintained — add a link entry every time you
+create a page. Format: date heading, link + one-line description.
+If pages/index.html doesn't exist yet, create it (minimal HTML
+with shared hub.css styling).
