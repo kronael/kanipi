@@ -13,22 +13,37 @@ content — either on separate hostnames or as subdirs.
 takopipi solved this with a flat web dir + vite. kanipi needs the
 same, but with per-group isolation and MCP-configurable routing.
 
-## Design
+## Current implementation (shipped)
 
-### Web roots
+Tier 0-1 groups get `/workspace/web/` mounted rw, pointing to the
+instance web root. Groups use subdirectories:
+
+```
+/srv/data/kanipi_krons/web/
+  index.html              ← instance landing
+  happy/index.html        ← krons.fiu.wtf/happy/
+  mayai/index.html        ← krons.fiu.wtf/mayai/
+```
+
+### Per-group CLAUDE.md pattern
+
+Add to `groups/<folder>/CLAUDE.md`:
+
+```markdown
+## Web
+
+Your web presence is at https://krons.fiu.wtf/<folder>/
+Source files: /workspace/web/<folder>/
+NEVER touch files outside /workspace/web/<folder>/
+```
+
+This works for tier 0-1 groups. Tier 2+ need additionalMounts.
+
+## Future: virtual hosts
+
+### Web roots (not yet implemented)
 
 Two levels of web content:
-
-```
-/srv/data/kanipi_krons/
-  web/                    ← instance web root (default host)
-  groups/
-    main/web/             ← group web root (optional)
-    myai/web/             ← group web root (optional)
-```
-
-Instance web root is the fallback. Group web roots are optional —
-if `groups/<folder>/web/` doesn't exist, the group has no web.
 
 ### Host routing
 
