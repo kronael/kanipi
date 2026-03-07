@@ -375,15 +375,16 @@ describe('resolveRoutingTarget — sender routing', () => {
 
 describe('isAuthorizedRoutingTarget', () => {
   it('allows direct parent→child', () => {
-    expect(isAuthorizedRoutingTarget('main', 'main/code')).toBe(true);
+    expect(isAuthorizedRoutingTarget('root', 'root/code')).toBe(true);
   });
 
   it('allows non-root parent→child', () => {
     expect(isAuthorizedRoutingTarget('main/code', 'main/code/py')).toBe(true);
   });
 
-  it('blocks grandchild (two levels down)', () => {
-    expect(isAuthorizedRoutingTarget('main', 'main/code/py')).toBe(false);
+  it('blocks non-direct descendants (grandchildren)', () => {
+    expect(isAuthorizedRoutingTarget('root', 'root/code/py')).toBe(false);
+    expect(isAuthorizedRoutingTarget('root', 'root/code/py/lint')).toBe(false);
   });
 
   it('blocks sibling routing', () => {
@@ -391,15 +392,15 @@ describe('isAuthorizedRoutingTarget', () => {
   });
 
   it('blocks cross-world routing', () => {
-    expect(isAuthorizedRoutingTarget('main', 'team/alice')).toBe(false);
+    expect(isAuthorizedRoutingTarget('root', 'team/alice')).toBe(false);
   });
 
   it('blocks ancestor routing (target is parent)', () => {
-    expect(isAuthorizedRoutingTarget('main/code', 'main')).toBe(false);
+    expect(isAuthorizedRoutingTarget('root/code', 'root')).toBe(false);
   });
 
   it('blocks same folder', () => {
-    expect(isAuthorizedRoutingTarget('main', 'main')).toBe(false);
+    expect(isAuthorizedRoutingTarget('root', 'root')).toBe(false);
   });
 
   it('blocks cross-world non-root', () => {

@@ -22,9 +22,9 @@ vi.mock('../../src/config.js', () => ({
   GROUPS_DIR: '/tmp/kanipi-e2e-groups',
   HOST_PROJECT_ROOT_PATH: '/tmp/kanipi-e2e-root',
   IDLE_TIMEOUT: 1800000,
-  isRoot: (f: string) => !f.includes('/'),
+  isRoot: (f: string) => f === 'root',
   permissionTier: (f: string) =>
-    f.includes('/') ? Math.min(f.split('/').length, 3) : 0,
+    f === 'root' ? 0 : Math.min(f.split('/').length, 3),
   MAX_CONCURRENT_CONTAINERS: 2,
   MEDIA_ENABLED: false,
   POLL_INTERVAL: 50,
@@ -489,7 +489,7 @@ describe('processGroupMessages — agent error handling', () => {
 // ── Routing delegate dispatch ─────────────────────────────────────────────────
 
 const ROUTED_JID = 'parent@g.us';
-const CHILD_FOLDER = 'main/code';
+const CHILD_FOLDER = 'root/code';
 const CHILD_JID = 'child@g.us';
 const ROUTED_MSG_TS = '2024-02-01T00:01:00.000Z';
 
@@ -515,7 +515,7 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
   const groups: Record<string, RegisteredGroup> = {
     [ROUTED_JID]: {
       name: 'Main',
-      folder: 'main',
+      folder: 'root',
       trigger: '@Andy',
       added_at: '2024-02-01T00:00:00.000Z',
       requiresTrigger: false,
@@ -585,7 +585,7 @@ describe('processGroupMessages — routing delegate', () => {
 
     for (const call of mockRunContainerAgent.mock.calls) {
       const [g] = call as [RegisteredGroup, ...unknown[]];
-      expect(g.folder).not.toBe('main');
+      expect(g.folder).not.toBe('root');
     }
   });
 });
@@ -726,8 +726,8 @@ function setupUnauthorizedRouting(
 
 // Path 1: processGroupMessages called directly (pull path via queue).
 describe('unauthorized routing — path 1 (processGroupMessages): falls back to parent', () => {
-  it('grandchild target (main → main/code/py): runs source group agent', async () => {
-    setupUnauthorizedRouting('src@g.us', 'main', 'main/code/py');
+  it('grandchild target (root → root/code/py): runs source group agent', async () => {
+    setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
 
     const ok = await _processGroupMessages('src@g.us');
 
@@ -737,19 +737,19 @@ describe('unauthorized routing — path 1 (processGroupMessages): falls back to 
       RegisteredGroup,
       ...unknown[],
     ];
-    expect(g.folder).toBe('main');
+    expect(g.folder).toBe('root');
   });
 
   it('grandchild target: cursor advanced — parent consumed the message', async () => {
-    setupUnauthorizedRouting('src@g.us', 'main', 'main/code/py');
+    setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
 
     await _processGroupMessages('src@g.us');
 
     expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 
-  it('cross-world target (main → other/code): runs source group agent', async () => {
-    setupUnauthorizedRouting('src@g.us', 'main', 'other/code');
+  it('cross-world target (root → other/code): runs source group agent', async () => {
+    setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
 
     const ok = await _processGroupMessages('src@g.us');
 
@@ -759,19 +759,19 @@ describe('unauthorized routing — path 1 (processGroupMessages): falls back to 
       RegisteredGroup,
       ...unknown[],
     ];
-    expect(g.folder).toBe('main');
+    expect(g.folder).toBe('root');
   });
 
   it('cross-world target: cursor advanced', async () => {
-    setupUnauthorizedRouting('src@g.us', 'main', 'other/code');
+    setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
 
     await _processGroupMessages('src@g.us');
 
     expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 
-  it('sibling target (main/code → main/ops): runs source group agent', async () => {
-    setupUnauthorizedRouting('src@g.us', 'main/code', 'main/ops');
+  it('sibling target (root/code → root/ops): runs source group agent', async () => {
+    setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
 
     const ok = await _processGroupMessages('src@g.us');
 
@@ -781,11 +781,11 @@ describe('unauthorized routing — path 1 (processGroupMessages): falls back to 
       RegisteredGroup,
       ...unknown[],
     ];
-    expect(g.folder).toBe('main/code');
+    expect(g.folder).toBe('root/code');
   });
 
   it('sibling target: cursor advanced', async () => {
-    setupUnauthorizedRouting('src@g.us', 'main/code', 'main/ops');
+    setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
 
     await _processGroupMessages('src@g.us');
 
@@ -802,7 +802,7 @@ describe('unauthorized routing — path 2 (startMessageLoop fallback): parent ha
   it('grandchild target: parent runs after loop routing denied, cursor advanced', async () => {
     // Loop sees unauthorized target → falls to queue.enqueueMessageCheck →
     // processGroupMessages runs → same auth check fails → runAgent called.
-    setupUnauthorizedRouting('src@g.us', 'main', 'main/code/py');
+    setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
 
     const ok = await _processGroupMessages('src@g.us');
 
@@ -812,12 +812,12 @@ describe('unauthorized routing — path 2 (startMessageLoop fallback): parent ha
       RegisteredGroup,
       ...unknown[],
     ];
-    expect(g.folder).toBe('main');
+    expect(g.folder).toBe('root');
     expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 
   it('sibling target: parent runs after loop routing denied, cursor advanced', async () => {
-    setupUnauthorizedRouting('src@g.us', 'main/code', 'main/ops');
+    setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
 
     const ok = await _processGroupMessages('src@g.us');
 
@@ -827,12 +827,12 @@ describe('unauthorized routing — path 2 (startMessageLoop fallback): parent ha
       RegisteredGroup,
       ...unknown[],
     ];
-    expect(g.folder).toBe('main/code');
+    expect(g.folder).toBe('root/code');
     expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 
   it('cross-world target: parent runs after loop routing denied, cursor advanced', async () => {
-    setupUnauthorizedRouting('src@g.us', 'main', 'other/code');
+    setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
 
     const ok = await _processGroupMessages('src@g.us');
 
@@ -842,7 +842,7 @@ describe('unauthorized routing — path 2 (startMessageLoop fallback): parent ha
       RegisteredGroup,
       ...unknown[],
     ];
-    expect(g.folder).toBe('main');
+    expect(g.folder).toBe('root');
     expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 });

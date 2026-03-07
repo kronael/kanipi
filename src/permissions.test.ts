@@ -1,13 +1,16 @@
 import { describe, it, expect } from 'vitest';
 
 import { worldOf, isInWorld, isDirectChild } from './permissions.js';
-import { permissionTier, isInstanceRoot, isWorld } from './config.js';
+import { permissionTier, isRoot } from './config.js';
 
 describe('permissionTier', () => {
-  it('top-level folders are tier 0', () => {
+  it('root folder is tier 0', () => {
     expect(permissionTier('root')).toBe(0);
-    expect(permissionTier('main')).toBe(0);
-    expect(permissionTier('atlas')).toBe(0);
+  });
+
+  it('top-level non-root folders are tier 1', () => {
+    expect(permissionTier('atlas')).toBe(1);
+    expect(permissionTier('yonder')).toBe(1);
   });
 
   it('depth 2 is tier 2', () => {
@@ -20,26 +23,11 @@ describe('permissionTier', () => {
   });
 });
 
-describe('isInstanceRoot', () => {
-  it('only "root" returns true', () => {
-    expect(isInstanceRoot('root')).toBe(true);
-    expect(isInstanceRoot('main')).toBe(false);
-    expect(isInstanceRoot('atlas')).toBe(false);
-  });
-});
-
-describe('isWorld', () => {
-  it('top-level non-root folders are worlds', () => {
-    expect(isWorld('atlas')).toBe(true);
-    expect(isWorld('yonder')).toBe(true);
-  });
-
-  it('root is not a world', () => {
-    expect(isWorld('root')).toBe(false);
-  });
-
-  it('nested folders are not worlds', () => {
-    expect(isWorld('atlas/support')).toBe(false);
+describe('isRoot', () => {
+  it('only root folder is root', () => {
+    expect(isRoot('root')).toBe(true);
+    expect(isRoot('main')).toBe(false);
+    expect(isRoot('atlas')).toBe(false);
   });
 });
 

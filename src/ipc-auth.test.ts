@@ -14,9 +14,9 @@ import './ipc.js';
 import { RegisteredGroup } from './types.js';
 
 // Set up registered groups used across tests
-const MAIN_GROUP: RegisteredGroup = {
-  name: 'Main',
-  folder: 'main',
+const ROOT_GROUP: RegisteredGroup = {
+  name: 'Root',
+  folder: 'root',
   trigger: 'always',
   added_at: '2024-01-01T00:00:00.000Z',
 };
@@ -42,13 +42,13 @@ beforeEach(() => {
   _initTestDatabase();
 
   groups = {
-    'main@g.us': MAIN_GROUP,
+    'root@g.us': ROOT_GROUP,
     'other@g.us': OTHER_GROUP,
     'third@g.us': THIRD_GROUP,
   };
 
   // Populate DB as well
-  setRegisteredGroup('main@g.us', MAIN_GROUP);
+  setRegisteredGroup('root@g.us', ROOT_GROUP);
   setRegisteredGroup('other@g.us', OTHER_GROUP);
   setRegisteredGroup('third@g.us', THIRD_GROUP);
 
@@ -82,7 +82,7 @@ describe('schedule_task authorization', () => {
         schedule_value: '2025-06-01T00:00:00.000Z',
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -136,7 +136,7 @@ describe('schedule_task authorization', () => {
         schedule_value: '2025-06-01T00:00:00.000Z',
         targetJid: 'unknown@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -151,8 +151,8 @@ describe('pause_task authorization', () => {
   beforeEach(() => {
     createTask({
       id: 'task-main',
-      group_folder: 'main',
-      chat_jid: 'main@g.us',
+      group_folder: 'root',
+      chat_jid: 'root@g.us',
       prompt: 'main task',
       schedule_type: 'once',
       schedule_value: '2025-06-01T00:00:00.000Z',
@@ -178,7 +178,7 @@ describe('pause_task authorization', () => {
   it('root group can pause any task', async () => {
     await processTaskIpc(
       { type: 'pause_task', taskId: 'task-other' },
-      'main',
+      'root',
       deps,
     );
     expect(getTaskById('task-other')!.status).toBe('paused');
@@ -224,7 +224,7 @@ describe('resume_task authorization', () => {
   it('root group can resume any task', async () => {
     await processTaskIpc(
       { type: 'resume_task', taskId: 'task-paused' },
-      'main',
+      'root',
       deps,
     );
     expect(getTaskById('task-paused')!.status).toBe('active');
@@ -268,7 +268,7 @@ describe('cancel_task authorization', () => {
 
     await processTaskIpc(
       { type: 'cancel_task', taskId: 'task-to-cancel' },
-      'main',
+      'root',
       deps,
     );
     expect(getTaskById('task-to-cancel')).toBeUndefined();
@@ -299,8 +299,8 @@ describe('cancel_task authorization', () => {
   it('non-root group cannot cancel another groups task', async () => {
     createTask({
       id: 'task-foreign',
-      group_folder: 'main',
-      chat_jid: 'main@g.us',
+      group_folder: 'root',
+      chat_jid: 'root@g.us',
       prompt: 'not yours',
       schedule_type: 'once',
       schedule_value: '2025-06-01T00:00:00.000Z',
@@ -348,7 +348,7 @@ describe('register_group authorization', () => {
         folder: '../../outside',
         trigger: '@Andy',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -377,7 +377,7 @@ describe('refresh_groups authorization', () => {
 describe('IPC message authorization', () => {
   // Replicate the exact check from the IPC watcher
   function isRoot(folder: string): boolean {
-    return !folder.includes('/');
+    return folder === 'root';
   }
 
   function isMessageAuthorized(
@@ -393,8 +393,8 @@ describe('IPC message authorization', () => {
   }
 
   it('root group can send to any group', () => {
-    expect(isMessageAuthorized('main', 'other@g.us', groups)).toBe(true);
-    expect(isMessageAuthorized('main', 'third@g.us', groups)).toBe(true);
+    expect(isMessageAuthorized('root', 'other@g.us', groups)).toBe(true);
+    expect(isMessageAuthorized('root', 'third@g.us', groups)).toBe(true);
   });
 
   it('non-root group can send to its own chat', () => {
@@ -405,7 +405,7 @@ describe('IPC message authorization', () => {
 
   it('non-root group cannot send to another groups chat', () => {
     expect(
-      isMessageAuthorized('discord/other-group', 'main@g.us', groups),
+      isMessageAuthorized('discord/other-group', 'root@g.us', groups),
     ).toBe(false);
     expect(
       isMessageAuthorized('discord/other-group', 'third@g.us', groups),
@@ -420,7 +420,7 @@ describe('IPC message authorization', () => {
 
   it('root group can send to unregistered JID', () => {
     // Root is always authorized regardless of target
-    expect(isMessageAuthorized('main', 'unknown@g.us', groups)).toBe(true);
+    expect(isMessageAuthorized('root', 'unknown@g.us', groups)).toBe(true);
   });
 });
 
@@ -436,7 +436,7 @@ describe('schedule_task schedule types', () => {
         schedule_value: '0 9 * * *', // every day at 9am
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -459,7 +459,7 @@ describe('schedule_task schedule types', () => {
         schedule_value: 'not a cron',
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -477,7 +477,7 @@ describe('schedule_task schedule types', () => {
         schedule_value: '3600000', // 1 hour
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -499,7 +499,7 @@ describe('schedule_task schedule types', () => {
         schedule_value: 'abc',
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -515,7 +515,7 @@ describe('schedule_task schedule types', () => {
         schedule_value: '0',
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -531,7 +531,7 @@ describe('schedule_task schedule types', () => {
         schedule_value: 'not-a-date',
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -552,7 +552,7 @@ describe('schedule_task context_mode', () => {
         context_mode: 'group',
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -570,7 +570,7 @@ describe('schedule_task context_mode', () => {
         context_mode: 'isolated',
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -589,7 +589,7 @@ describe('schedule_task context_mode', () => {
         context_mode: 'bogus' as any,
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -605,7 +605,7 @@ describe('schedule_task context_mode', () => {
         schedule_value: '2025-06-01T00:00:00.000Z',
         targetJid: 'other@g.us',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -626,7 +626,7 @@ describe('register_group success', () => {
         folder: 'atlas/support',
         trigger: '@Andy',
       },
-      'main',
+      'root',
       deps,
     );
 
@@ -646,7 +646,7 @@ describe('register_group success', () => {
         name: 'Partial',
         // missing folder and trigger
       },
-      'main',
+      'root',
       deps,
     );
 
