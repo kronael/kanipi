@@ -1,4 +1,4 @@
-# DB bootstrap spec — open
+# DB bootstrap spec — shipping
 
 ## Problem
 
@@ -104,6 +104,23 @@ for the backfill case.
 
 `ensureDatabase(dbPath)` replaces `initDatabase()` in `db.ts` and is
 importable by the CLI `group add` command — no more inline DDL in bash.
+
+## Test integration
+
+All code paths must use the same migration runner:
+
+- **Gateway**: `ensureDatabase()` on startup
+- **CLI**: `ensureDatabase()` before group/user commands
+- **Unit tests**: `_initTestDatabase()` calls `ensureDatabase()` with in-memory DB
+- **Testcontainers**: same runner, just different DB path
+
+No special test-only schema setup. Tests run real migrations.
+
+## Out of scope
+
+- **Rollback/down migrations** — not needed, adds complexity
+- **ORM** — overkill for SQLite
+- **Transactional DDL** — SQLite doesn't support it
 
 ## Bash interim
 

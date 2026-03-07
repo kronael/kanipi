@@ -7,6 +7,8 @@ import { spawn, ChildProcess } from 'child_process';
 import { hashSync } from '@node-rs/argon2';
 import Database from 'better-sqlite3';
 
+import { ensureDatabase } from './migrations.js';
+
 // --- Utility functions ---
 
 function getDataDir(instance: string): string {
@@ -40,30 +42,6 @@ function readEnvValue(envPath: string, key: string): string | undefined {
     return undefined;
   }
   return undefined;
-}
-
-function ensureDbSchema(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS chats (
-      jid TEXT PRIMARY KEY, name TEXT,
-      last_message_time TEXT, channel TEXT,
-      is_group INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS registered_groups (
-      jid TEXT PRIMARY KEY, name TEXT NOT NULL,
-      folder TEXT NOT NULL UNIQUE,
-      trigger_pattern TEXT NOT NULL,
-      added_at TEXT NOT NULL,
-      container_config TEXT,
-      requires_trigger INTEGER DEFAULT 1
-    );
-  `);
-  // Migration: add slink_token column if missing
-  try {
-    db.exec('ALTER TABLE registered_groups ADD COLUMN slink_token TEXT');
-  } catch {
-    /* already exists */
-  }
 }
 
 function normalizeJid(jid: string): string {
@@ -134,9 +112,7 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
   const normalizedJid = normalizeJid(jid);
 
   // Ensure DB exists with schema
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath);
-  ensureDbSchema(db);
+  const db = ensureDatabase(dbPath);
 
   const envPath = path.join(dataDir, '.env');
   const assistant = readEnvValue(envPath, 'ASSISTANT_NAME') || instance;
@@ -449,22 +425,7 @@ function userAdd(instance: string, username: string, password: string): void {
   }
 
   const dbPath = getDbPath(instance);
-  if (!fs.existsSync(dbPath)) {
-    console.error(`error: db not found: ${dbPath}`);
-    process.exit(1);
-  }
-
-  const db = new Database(dbPath);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS auth_users (
-      id INTEGER PRIMARY KEY,
-      sub TEXT UNIQUE NOT NULL,
-      username TEXT UNIQUE NOT NULL,
-      hash TEXT NOT NULL,
-      name TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )
-  `);
+  const db = ensureDatabase(dbPath);
 
   const sub = `local:${crypto.randomUUID()}`;
   const hash = hashSync(password);

@@ -62,6 +62,7 @@ function createFakeSocket() {
     sendPresenceUpdate: vi.fn().mockResolvedValue(undefined),
     groupFetchAllParticipating: vi.fn().mockResolvedValue({}),
     end: vi.fn(),
+    readMessages: vi.fn().mockResolvedValue(undefined),
     // Expose the event emitter for triggering events in tests
     _ev: ev,
   };
