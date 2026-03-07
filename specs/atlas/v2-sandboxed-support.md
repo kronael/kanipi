@@ -11,7 +11,7 @@ rewrites itself.
 ## Architecture: Agent + Worker Split
 
 Three groups using the 4-tier permission model from
-`specs/v1m1/group-permissions.md`.
+`specs/v1m1/permissions.md`.
 
 ```
 atlas/                  → tier 1: world (admin, unrestricted)
@@ -63,7 +63,7 @@ Admin. Manages the support setup.
 
 ## Implementation
 
-Depends on `specs/v1m1/group-permissions.md`. Permissions are
+Depends on `specs/v1m1/permissions.md`. Permissions are
 implied by folder depth — no additional permission code needed:
 
 - Tier 3 (depth 3): ro mounts, send_message + escalate only

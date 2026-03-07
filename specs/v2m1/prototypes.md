@@ -1,6 +1,6 @@
 # Prototypes (Per-JID Group Spawning)
 
-**Status**: not started. Depends on specs/v1m1/group-permissions.md.
+**Status**: not started. Depends on specs/v1m1/permissions.md.
 
 ## Problem
 

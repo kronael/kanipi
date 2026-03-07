@@ -26,7 +26,7 @@ but routes messages to containerized Claude agents with:
 ## Data layout
 
 Currently single-group (groups/main/). Will migrate to
-multi-tier when group-permissions ships (see v2 below).
+multi-tier when permissions ships (see v2 below).
 
 ```
 /srv/data/kanipi_marinade/
@@ -46,7 +46,7 @@ multi-tier when group-permissions ships (see v2 below).
 └── web/                    # vite web app
 ```
 
-### v2 layout (after group-permissions)
+### v2 layout (after permissions)
 
 ```
 /srv/data/kanipi_marinade/
