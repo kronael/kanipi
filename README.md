@@ -49,18 +49,40 @@ CLAUDE.md, memory) is the primary extension mechanism.
 
 ## Products
 
+A product is a kanipi instance configured for a specific role.
+Same gateway, different CLAUDE.md + skills + mounts + persona.
+
 **Atlas** — code support agent. Mounted repos + facts directory.
 Agent searches code, researches via subagents, answers questions.
+Configuration: CLAUDE.md with support persona, facts/ for
+knowledge base, refs/ for mounted codebases, /facts skill for
+deep research.
 
-**Takopipi** — agent-driven web development from a phone. Message
-an agent, it writes code, Vite serves it live. Research pages,
-products, experiments — all deployed without a laptop.
+**Sloth** — research associate and knowledge mapper. Message from
+phone, agent researches topics, builds knowledge pages, maps
+connections. Vite serves results live. (naming TBD — candidates:
+delve, fumi, thoth, docent, kea)
 
-**Cheerleader** — engagement and viral mining. Finds high-signal
-conversations and amplification opportunities. (spec only)
+**Evangelist** — shills own work and supports the community.
+Engages in relevant conversations, explains products, answers
+questions in external channels. Like a developer advocate bot.
+(spec only)
 
-**Evangelist** — outbound community engagement. Monitors external
-communities. (spec only)
+**Cheerleader** — viral mining and community growth. Finds
+high-signal conversations, amplification opportunities, trending
+topics. Pure discovery and engagement mining. (spec only)
+
+### How products work
+
+```
+kanipi instance = gateway + channel tokens + groups
+product         = group config (CLAUDE.md + SOUL.md + skills + mounts)
+```
+
+The gateway doesn't know "atlas" or "evangelist" — it runs
+groups. Each group's CLAUDE.md defines the agent's behavior,
+persona, and capabilities. To create a new product, configure
+a new group with appropriate instructions and skills.
 
 ## Quick Start
 
