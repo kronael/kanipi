@@ -1,12 +1,27 @@
 ---
 name: web
-description: Deploy web apps by writing files to the group's web directory. Use when asked to build, create, or deploy a web app or page.
+description: Deploy web apps and pages by writing files to the group's web directory.
 ---
 
 # Web
 
-Deploy web apps by writing files to your group's web directory.
-Any directory with index.html is served by vite MPA.
+Deploy web apps and pages by writing files to your group's web
+directory. Any directory with index.html is served by vite MPA.
+
+## When to use web
+
+Prefer web when:
+
+- The user asks for a web page
+- Content is rich or long — guides, reports, itineraries,
+  multi-section documents. Web beats sending a file the user
+  must download and open separately.
+
+Use send_file instead when:
+
+- The user explicitly asks for a file/PDF/download
+- Content is short enough for a chat message
+- It's raw data (CSV, JSON, archives, code)
 
 ## Web directory convention
 
@@ -72,7 +87,8 @@ The entrypoint auto-restarts vite within ~1s.
 ALWAYS verify after creating or editing a page:
 
 ```bash
-URL="https://$WEB_HOST/$GROUP_FOLDER/myapp/"
+# Replace <path> with actual app/page path under WEB_DIR
+URL="https://$WEB_HOST/$GROUP_FOLDER/<path>/"
 STATUS=$(curl -sL -o /dev/null -w '%{http_code}' "$URL")
 if [ "$STATUS" != "200" ]; then
   echo "FAIL: $URL returned $STATUS"
@@ -85,36 +101,17 @@ echo "OK: $URL → $STATUS"
 
 NEVER report a page as done without verifying it loads.
 
-## When to use web
-
-Deploy to web when:
-
-- The user explicitly asks for a web page
-- The output is voluminous — anything that would be a long PDF,
-  a multi-section guide, a research report, an itinerary, etc.
-  Web is better than sending a file the user has to download and
-  open separately. Prefer web over PDFs and send_file for anything
-  longer than a few paragraphs.
-
-Do NOT use web when:
-
-- The user explicitly asks for a file (send_file, PDF, download)
-- The content is short enough for a chat message
-- It's raw data (CSV, JSON, archives, code files)
-
 ## Pages (disposable content)
 
-For one-off content (guides, research, reports, itineraries) that
-isn't a persistent app:
+For one-off content (guides, research, reports, itineraries)
+that isn't a persistent app:
 
-1. Create in `$WEB_DIR/pages/YYYY-MM-DD/<slug>/index.html`
-2. Update `$WEB_DIR/pages/index.html` — a simple date-organized
-   link list (most recent first)
-3. Send the URL in chat
-4. Ask the user: "want me to add this to the main index too?"
-   Only add to group hub if they say yes.
+1. Create `$WEB_DIR/pages/YYYY-MM-DD/<slug>/index.html`
+2. Add link to `$WEB_DIR/pages/index.html` (date heading,
+   link + one-line description, most recent first)
+3. Verify with curl (see above)
+4. Send the URL in chat
 
-Pages index is auto-maintained — add a link entry every time you
-create a page. Format: date heading, link + one-line description.
-If pages/index.html doesn't exist yet, create it (minimal HTML
-with shared hub.css styling).
+Create `pages/index.html` on first use (minimal HTML with
+hub.css styling). Do NOT add pages to the group hub — the
+pages index is their own listing.
