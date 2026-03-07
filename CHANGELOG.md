@@ -7,6 +7,22 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.2] — 2026-03-07
+
+### Changes
+
+- Don't auto-retry errored messages on startup (errored flag in chats table)
+- Startup protocol in CLAUDE.md (get context before acting)
+- Core design facts documented (Claude Code runtime, memory is Claude-centric)
+- README.md: principles manifesto (fast ecosystem, modularity as survival)
+- ROADMAP.md: v1/v2/v3 progression
+- Products defined: Atlas (support), Yonder (research), Evangelist, Cheerleader
+- Atlas v2 spec: sandboxed support agent (frontend/backend split)
+- Specs reorganized: v1m1/v1m2/v2m1/v2m2 versioned milestones
+- Global specs skill for spec-driven development workflow
+
+---
+
 ## [v1.0.1] — 2026-03-06
 
 ### Changes

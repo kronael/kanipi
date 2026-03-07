@@ -1,5 +1,7 @@
 # ROADMAP
 
+Specs live in `specs/<version>/`. See TODO.md for task-level tracking.
+
 ## v1 — shipped
 
 Functional multi-channel agent gateway.
@@ -19,45 +21,53 @@ Functional multi-channel agent gateway.
 - JID normalization (telegram:, whatsapp:, discord:, email:, web:)
 - Mount security (allowlist outside project dir)
 
-## v2 — in progress
+## v1m1 — next to ship
 
-Memory layers, semantic search, product polish.
+Partial work, close to done. `specs/v1m1/`
 
-### Atlas product
+- memory-facts: gateway injection + MCP tools
+- paths: hostPath() elimination
+- autotesting: IPC drain + voice roundtrip gaps
+- sse: per-sender scoping
+- worlds-rooms: phase 2 threads/rooms
+- session-recovery: recovery notes on eviction
+- work: /work skill, staleness detection
 
-- [ ] User context: per-user memory files, gateway-injected
-- [ ] Semantic search: embeddings MCP sidecar (nomic-embed-text)
-- [ ] Gateway fact injection (top-N relevant facts into prompt)
-- [ ] Knowledge gap detection → auto-trigger researcher
-- [ ] Scheduled research (cron)
-- [ ] Cron git pull on symlinked repos
+## v1m2 — outstanding, not urgent
 
-### Platform
+`specs/v1m2/`
 
-- [ ] Generalized knowledge layer interface (push + pull)
-- [ ] Episodes: diary → weekly/monthly aggregation
-- [ ] Agent teams (multi-agent collaboration)
-- [ ] Agent pipeline (continuation payload, multi-hop routing)
-- [ ] Identity linking across channels
-- [ ] IPC → MCP proxy (unix socket, replace file IPC)
-- [ ] SSE per-sender scoping
-- [ ] Message WAL (reliable delivery)
+- message-mcp: get_history/get_thread MCP tools
+- agent-messaging: structured agent-to-agent messages
+- identities: cross-channel identity linking
+- message-wal: pending_delivery table, ack protocol
 
-### Channels
+## v2m1 — memory layers, agent teams, feed adapters
 
-- [ ] Reddit (feed adapter)
-- [ ] Twitter (feed adapter)
-- [ ] Facebook (feed adapter)
-- [ ] Gmail (API + Pub/Sub)
-- [ ] WebDAV (Caddy sidecar)
+New subsystems and channel types. `specs/v2m1/`
 
-## v3 — planned
+- memory-episodic: diary aggregation to weekly/monthly
+- agent-teams: multi-agent collaboration
+- agent-pipeline: continuation payload, multi-hop routing
+- ipc-mcp-proxy: unix socket, replace file IPC
+- plugins: dynamic channel/feature loading
+- workflows: multi-step workflow primitives
+- feed adapters: reddit, twitter, facebook, gmail, webdav
 
-Go rewrite of the gateway. Agent container stays TypeScript.
+## v2m2 — Go rewrite
+
+Gateway rewrite in Go. Agent container stays TypeScript. `specs/v2m2/`
 
 - Single static binary, no node_modules
-- ~10x lower memory (Go vs Node.js)
 - Native concurrency (goroutines vs polling loops)
 - Same SQLite schema, same .env, same IPC protocol
-- Drop-in replacement for v2 gateway
-- See `specs/v3/architecture.md` for full design
+- Drop-in replacement for TS gateway
+
+## Atlas
+
+Product-specific roadmap. `specs/atlas/`
+
+- User context: per-user memory, gateway injection
+- Semantic search: embeddings MCP sidecar
+- Gateway fact injection (top-N relevant)
+- v2 sandboxed support: frontend/backend agent split
