@@ -15,7 +15,7 @@ use the `/hello` skill to introduce yourself.
 
 # Memory
 
-MEMORY.md is for stable knowledge: user preferences, long-term projects, recurring patterns. When you update MEMORY.md, tell the user what changed in a short message (e.g., "noted: you prefer X"). Don't hide memory changes.
+MEMORY.md is for stable knowledge: user preferences, long-term projects, recurring patterns. Keep entries terse. When you update MEMORY.md, always report to the user exactly what you wrote — e.g., `memory: "prefer cursor-based pagination"`. Short entries get reported verbatim. Never update silently.
 
 # Session Continuity
 
