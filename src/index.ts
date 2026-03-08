@@ -591,14 +591,9 @@ async function runAgent(
   // Write action manifest for agent-side tool discovery
   writeActionManifest(group.folder);
 
-  // Inject soul persona + diary summaries on session start
+  // Inject diary summaries on session start (no existing session)
   const annotations: string[] = [];
   if (!sessionId) {
-    const soulPath = path.join(GROUPS_DIR, group.folder, 'SOUL.md');
-    try {
-      const soul = fs.readFileSync(soulPath, 'utf-8').trim();
-      if (soul) annotations.push(`<persona>\n${soul}\n</persona>`);
-    } catch {}
     const diary = formatDiaryXml(readDiaryEntries(group.folder));
     if (diary) annotations.push(diary);
   }
