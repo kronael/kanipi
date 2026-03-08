@@ -9,11 +9,24 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+---
+
+## [v1.0.7] — 2026-03-08
+
+### Features
+
+- Production JSON logging: pino outputs JSON when `NODE_ENV=production`, pino-pretty for dev
+- Trace IDs: `traceId` and `dur` (ms) fields in message processing logs for end-to-end traceability
+- IPC request timing at debug level
+- PREFIX semantic: all paths derive from `PREFIX` env var (default `/srv`), no hardcoded paths
+- Rich `.env.example` documenting all config flags with comments
+- Agent media awareness: CLAUDE.md teaches agents to Read PDFs/images, use voice transcription text
+
 ### Changes
 
 - `inject_message` action: insert messages into DB without channel delivery (root/world only), clears errored flag — enables programmatic retry after OOM kills
-- Howto skill: added OpenClaw-inspired automation examples (email triage, price monitoring, code automation, data aggregation, file management)
-- Docs: updated test stats (33 files, 9,811 LOC, 1.02:1 ratio, 36 V1 specs)
+- README: prerequisites, both deployment paths (docker + standalone), troubleshooting, WhatsApp setup, architecture overview
+- Dev script changed from bun to tsx for consistency
 
 ---
 
