@@ -114,6 +114,23 @@ function hostPath(localPath: string): string {
   return localPath.replace(GATEWAY_ROOT, HOST_PROJECT_ROOT_PATH);
 }
 
+const DEFAULT_SETTINGS = {
+  env: {
+    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
+    CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
+  },
+};
+
+function initSettings(dir: string, spawnEnv: Record<string, string>): void {
+  const file = path.join(dir, 'settings.json');
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, JSON.stringify(DEFAULT_SETTINGS, null, 2) + '\n');
+  }
+  const settings = JSON.parse(fs.readFileSync(file, 'utf-8'));
+  settings.env = { ...(settings.env ?? {}), ...spawnEnv };
+  fs.writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+}
+
 function buildVolumeMounts(
   group: RegisteredGroup,
   delegateDepth?: number,
@@ -183,38 +200,14 @@ function buildVolumeMounts(
   );
   fs.mkdirSync(groupSessionsDir, { recursive: true });
   chownRecursive(groupSessionsDir, 1000, 1000);
-  const settingsFile = path.join(groupSessionsDir, 'settings.json');
-  if (!fs.existsSync(settingsFile)) {
-    fs.writeFileSync(
-      settingsFile,
-      JSON.stringify(
-        {
-          env: {
-            // Load CLAUDE.md from additional mounted directories
-            // https://code.claude.com/docs/en/memory#load-memory-from-additional-directories
-            CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
-            // Enable Claude's memory feature (persists user preferences between sessions)
-            // https://code.claude.com/docs/en/memory#manage-auto-memory
-            CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
-          },
-        },
-        null,
-        2,
-      ) + '\n',
-    );
-  }
-  // Always inject env vars that change per spawn (host, identity, slink token).
-  {
-    const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
-    settings.env = settings.env ?? {};
-    settings.env.WEB_HOST = WEB_HOST;
-    settings.env.NANOCLAW_ASSISTANT_NAME = ASSISTANT_NAME;
-    settings.env.NANOCLAW_IS_ROOT = root ? '1' : '';
-    settings.env.NANOCLAW_TIER = String(tier);
-    settings.env.NANOCLAW_DELEGATE_DEPTH = String(delegateDepth ?? 0);
-    if (group.slinkToken) settings.env.SLINK_TOKEN = group.slinkToken;
-    fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
-  }
+  initSettings(groupSessionsDir, {
+    WEB_HOST,
+    NANOCLAW_ASSISTANT_NAME: ASSISTANT_NAME,
+    NANOCLAW_IS_ROOT: root ? '1' : '',
+    NANOCLAW_TIER: String(tier),
+    NANOCLAW_DELEGATE_DEPTH: String(delegateDepth ?? 0),
+    ...(group.slinkToken ? { SLINK_TOKEN: group.slinkToken } : {}),
+  });
 
   // Seed skills once per group — agent can modify, persists across spawns
   const skillsSrc = path.join(APP_DIR, 'container', 'skills');
@@ -266,11 +259,9 @@ function buildVolumeMounts(
   }
 
   const groupIpcDir = resolveGroupIpcPath(group.folder);
-  fs.mkdirSync(path.join(groupIpcDir, 'messages'), { recursive: true });
-  fs.mkdirSync(path.join(groupIpcDir, 'tasks'), { recursive: true });
-  fs.mkdirSync(path.join(groupIpcDir, 'input'), { recursive: true });
-  fs.mkdirSync(path.join(groupIpcDir, 'requests'), { recursive: true });
-  fs.mkdirSync(path.join(groupIpcDir, 'replies'), { recursive: true });
+  for (const sub of ['messages', 'tasks', 'input', 'requests', 'replies']) {
+    fs.mkdirSync(path.join(groupIpcDir, sub), { recursive: true });
+  }
   chownRecursive(groupIpcDir, 1000, 1000);
   mounts.push({
     hostPath: hostPath(groupIpcDir),
