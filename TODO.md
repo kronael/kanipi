@@ -6,7 +6,6 @@ Partial specs, close to done. Finish these first.
 
 - [ ] paths: hostPath() elimination (HOST\_\* exports done)
 - [ ] autotesting: IPC drain + voice roundtrip test gaps
-- [ ] worlds-rooms: phase 2 threads/rooms (phase 1 isRoot shipped)
 - [ ] session-recovery: recovery notes on eviction
 - [ ] errored chat flag: shipped this session (don't auto-retry on restart)
 - [ ] sse: per-sender scoping (basic broadcast works)
@@ -14,6 +13,7 @@ Partial specs, close to done. Finish these first.
 
 ## Phase 3 — outstanding, not urgent
 
+- [ ] worlds-rooms: phase 2 threads/rooms (phase 1 isRoot shipped)
 - [ ] memory-facts: gateway injection + MCP tools (facts skill exists)
 - [ ] message-mcp: get_history/get_thread MCP tools
 - [ ] agent-messaging: structured agent-to-agent messages
