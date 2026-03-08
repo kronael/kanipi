@@ -11,6 +11,24 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.17] — 2026-03-08
+
+### Features
+
+- Diary stop hook: nudge agent every 100 turns to write diary + prune MEMORY.md
+- PreCompact hook: cleaned up, transcript archiving removed, diary nudge only
+- Diary injection increased from 2 to 14 entries (two weeks)
+
+### Changes
+
+- Agent CLAUDE.md: diary/memory sections, session continuity, MEMORY.md verbatim reporting
+- Diary skill compacted with MEMORY.md pruning nudge
+- SSE spec reframed: groups as boundary, not per-sender filtering
+- Diary spec finalized (all items shipped)
+- Total: 549 tests across 40 files, 10,788 source LOC
+
+---
+
 ## [v1.0.16] — 2026-03-08
 
 ### Changes
