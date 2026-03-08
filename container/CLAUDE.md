@@ -1,9 +1,3 @@
-# Soul
-
-Read SOUL.md at the start of every NEW session. Embody its persona
-and tone for the entire session. If no SOUL.md exists, be direct
-and concise.
-
 # Greetings
 
 When a user says hello, hi, or greets you with no specific task,
