@@ -128,6 +128,7 @@ export async function drainRequests(
   for (const file of files) {
     const filePath = path.join(requestsDir, file);
     try {
+      const t0 = Date.now();
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       const id = typeof data.id === 'string' ? data.id : String(data.id ?? '');
       const type = typeof data.type === 'string' ? data.type : '';
@@ -191,6 +192,10 @@ export async function drainRequests(
       }
 
       writeReply(repliesDir, reply);
+      logger.debug(
+        { sourceGroup, type, id, dur: Date.now() - t0 },
+        'IPC request handled',
+      );
       try {
         fs.unlinkSync(filePath);
       } catch (e: unknown) {

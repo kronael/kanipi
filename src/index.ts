@@ -253,6 +253,8 @@ export function _clearTestState(): void {
  * Called by the GroupQueue when it's this group's turn.
  */
 async function processGroupMessages(chatJid: string): Promise<boolean> {
+  const t0 = Date.now();
+  const traceId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const group = registeredGroups[chatJid];
   if (!group) return true;
 
@@ -370,7 +372,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   saveState();
 
   logger.info(
-    { group: group.name, messageCount: missedMessages.length },
+    { group: group.name, messageCount: missedMessages.length, traceId },
     'Processing messages',
   );
 
@@ -439,12 +441,13 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     clearTimeout(idleTimer ?? undefined);
   }
 
+  const dur = Date.now() - t0;
   if (output === 'error' || hadError) {
     // If we already sent output to the user, don't roll back the cursor —
     // the user got their response and re-processing would send duplicates.
     if (outputSentToUser) {
       logger.warn(
-        { group: group.name },
+        { group: group.name, traceId, dur },
         'Agent error after output was sent, skipping cursor rollback to prevent duplicates',
       );
       return true;
@@ -455,7 +458,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     saveState();
     markChatErrored(chatJid);
     logger.warn(
-      { group: group.name },
+      { group: group.name, traceId, dur },
       'Agent error, rolled back cursor (awaiting user retry)',
     );
     channel
@@ -466,6 +469,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     return true;
   }
 
+  logger.info({ group: group.name, traceId, dur }, 'Messages processed');
   return true;
 }
 
@@ -873,7 +877,7 @@ async function startMessageLoop(): Promise<void> {
         }
       }
     } catch (err) {
-      logger.error({ err }, 'Error in message loop');
+      logger.error({ err, chatJid: 'loop' }, 'Error in message loop');
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
   }
