@@ -139,18 +139,17 @@ Change `readDiaryEntries(folder, 14)` in index.ts. Until
 progressive summarization exists, two weeks of summaries
 gives enough context. Each summary is short — total cost low.
 
-### 4. Nudge teaches MEMORY.md distinction
+### 4. Nudge mentions MEMORY.md
 
-Nudge text should say: "recurring user requests and patterns
-that matter across sessions belong in MEMORY.md, not diary."
+Nudge text says: "clear user preferences or long-term projects
+go to MEMORY.md — tell the user what you noted."
 
-### 5. Agent CLAUDE.md updates
+### 5. Agent CLAUDE.md updates — DONE
 
-Add to `container/CLAUDE.md`:
-
-- "Write diary entries during sessions for important events"
-- "Recurring patterns and user preferences belong in MEMORY.md"
-- Currently CLAUDE.md only says to _read_ diary, never to write
+- Diary section: "write entries for important events"
+- Memory section: "MEMORY.md for stable knowledge — when you
+  update it, tell the user what changed"
+- Memory changes must be visible to user (short message, not hidden)
 
 ## Progressive summarization (future)
 

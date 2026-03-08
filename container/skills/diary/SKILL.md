@@ -1,8 +1,8 @@
 ---
 name: diary
 description: If anything worth noting happened since your last diary entry,
-  record it in /workspace/group/diary/YYYYMMDD.md. Recurring patterns go to
-  MEMORY.md.
+  record it in /workspace/group/diary/YYYYMMDD.md. Clear user preferences or
+  long-term projects go to MEMORY.md — tell the user what you noted.
 ---
 
 # Diary
@@ -77,4 +77,4 @@ starts can be omitted.
 - Long-running and tedious tasks, not routine operations
 - May rewrite/compress earlier entries to save space
 - If nothing noteworthy happened, skip — do not write
-- Recurring user preferences and patterns belong in MEMORY.md, not diary
+- If you notice clear user preferences or long-term projects, save those to MEMORY.md and tell the user what you noted

@@ -11,7 +11,11 @@ use the `/hello` skill to introduce yourself.
 
 # Diary
 
-`diary/*.md` is your work log — tasks, progress, decisions. Write entries during sessions for important events. Recurring patterns and user preferences belong in MEMORY.md, not diary.
+`diary/*.md` is your work log — tasks, progress, decisions. Write entries during sessions for important events.
+
+# Memory
+
+MEMORY.md is for stable knowledge: user preferences, long-term projects, recurring patterns. When you update MEMORY.md, tell the user what changed in a short message (e.g., "noted: you prefer X"). Don't hide memory changes.
 
 # Session Continuity
 
