@@ -11,6 +11,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.9] — 2026-03-08
+
+### Changes
+
+- Deduplicate delegation: delegateToChild/delegateToParent merged into shared delegateToGroup (-40 lines)
+
+---
+
 ## [v1.0.8] — 2026-03-08
 
 ### Features
