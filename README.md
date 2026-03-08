@@ -83,22 +83,45 @@ groups. Each group's CLAUDE.md defines the agent's behavior,
 persona, and capabilities. To create a new product, configure
 a new group with appropriate instructions and skills.
 
+## Prerequisites
+
+- Node.js 22+ (with npm)
+- Docker (for agent containers)
+- bun (build tooling uses `bunx`)
+- Anthropic credentials: `CLAUDE_CODE_OAUTH_TOKEN` (from Claude Code
+  OAuth flow) or `ANTHROPIC_API_KEY`
+
 ## Quick Start
 
-```bash
-make image                     # build gateway docker image
-make -C container image        # build agent docker image
-make -C sidecar/whisper image  # build whisper sidecar image
-./kanipi create foo            # seed instance at /srv/data/kanipi_foo/
-```
-
-Edit `/srv/data/kanipi_foo/.env` with channel tokens,
-register the main group, and start:
+### Docker deployment (production)
 
 ```bash
+make image         # build gateway docker image
+make agent-image   # build agent docker image
+./kanipi create foo                          # seed /srv/data/kanipi_foo/
+edit /srv/data/kanipi_foo/.env               # set tokens
 ./kanipi config foo group add tg:-123456789  # register main group
 ./kanipi foo                                 # start gateway
 ```
+
+### Standalone (bare metal / development)
+
+```bash
+npm install
+make build                                   # tsc compile
+npx tsx src/cli.ts create foo                # seed /srv/data/kanipi_foo/
+edit /srv/data/kanipi_foo/.env               # set tokens
+make agent-image                             # agent container still needs docker
+npx tsx src/cli.ts config foo group add tg:-123456789
+npm run dev                                  # or: npx tsx src/cli.ts run foo
+```
+
+### Path layout
+
+All data lives under `${PREFIX}/data/kanipi_<name>/` where `PREFIX`
+defaults to `/srv`. Override with `PREFIX=/home/user` to put data at
+`/home/user/data/kanipi_foo/`. Individual paths can be overridden
+in `.env` — see `template/env.example` for all options.
 
 ## Group Management
 
@@ -192,7 +215,7 @@ Agent-requested sidecar actions are still planned, not shipped.
 
 ## Instance Layout
 
-`/srv/data/kanipi_<name>/`:
+`${PREFIX}/data/kanipi_<name>/` (PREFIX defaults to `/srv`):
 
 ```
 .env                    config (tokens, ports)
@@ -249,7 +272,16 @@ result separately alongside the auto-detected pass.
 
 ## Deployment
 
-Run directly with docker:
+`./kanipi create <name>` generates a systemd unit file at
+`${PREFIX}/data/kanipi_<name>/kanipi_<name>.service`. Copy it
+to `/etc/systemd/system/` and enable:
+
+```bash
+sudo cp /srv/data/kanipi_foo/kanipi_foo.service /etc/systemd/system/
+sudo systemctl enable --now kanipi_foo
+```
+
+Or run directly with docker:
 
 ```bash
 docker run -d -i --name kanipi_foo \
@@ -260,40 +292,40 @@ docker run -d -i --name kanipi_foo \
     kanipi foo
 ```
 
-Or with systemd — create `/etc/systemd/system/kanipi_foo.service`:
+## Troubleshooting
 
-```ini
-[Unit]
-Description=kanipi foo
-After=docker.service
-Requires=docker.service
+```bash
+# check service health
+sudo systemctl status kanipi_<name>
 
-[Service]
-Restart=always
-RestartSec=1
-ExecStartPre=-/usr/bin/docker stop %n
-ExecStartPre=-/usr/bin/docker rm -f %n
-ExecStop=/usr/bin/docker rm -f %n
-ExecStart=/usr/bin/docker run -i --rm --name %n \
-    --network=host \
-    -v /srv/data/kanipi_foo:/srv/app/home \
-    -v /srv/run/kanipi_foo:/srv/run/kanipi_foo \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    kanipi foo
+# recent logs (expect: Database initialized, channels connected, Running)
+sudo journalctl -u kanipi_<name> --since "5 min ago" --no-pager | head -30
 
-[Install]
-WantedBy=default.target
+# errors only
+sudo journalctl -u kanipi_<name> --since "5 min ago" | grep -iE 'error|fatal'
+
+# orphan containers (>1h old are suspect)
+sudo docker ps --filter "name=nanoclaw-" --format "{{.Names}} {{.Status}}"
 ```
 
-Then `systemctl enable --now kanipi_foo`.
+Common issues:
+
+- **"no .env"**: run `./kanipi create <name>` first or check PREFIX
+- **agent hangs**: check `CLAUDE_CODE_OAUTH_TOKEN` is set in `.env`
+- **no media processing**: set `MEDIA_ENABLED=true` in `.env`
+- **voice not transcribed**: set `VOICE_TRANSCRIPTION_ENABLED=true`,
+  ensure whisper sidecar is running
 
 ## Development
 
 ```bash
-make build          # tsc compile (src/ -> dist/)
-make lint           # typecheck without emitting
-make test           # all tests (vitest run src/ + tests/e2e/)
-npm run dev         # tsx dev mode
+npm install                    # install deps
+make build                     # tsc compile (src/ -> dist/)
+make lint                      # typecheck without emitting
+make test                      # vitest (src/ + tests/e2e/)
+make agent-image               # build agent container
+npm run dev                    # tsx dev mode
 ```
 
-Pre-commit hooks: prettier (single quotes), typecheck, hygiene.
+Makefile uses `bunx` internally. Pre-commit hooks: prettier
+(single quotes), typecheck, hygiene.

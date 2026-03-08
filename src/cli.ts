@@ -11,8 +11,10 @@ import { ensureDatabase } from './migrations.js';
 
 // --- Utility functions ---
 
+const PREFIX = process.env.PREFIX || '/srv';
+
 function getDataDir(instance: string): string {
-  return `/srv/data/kanipi_${instance}`;
+  return `${PREFIX}/data/kanipi_${instance}`;
 }
 
 function getDbPath(instance: string): string {
@@ -499,7 +501,7 @@ function create(name: string): void {
     process.exit(1);
   }
 
-  const dataDir = `/srv/data/kanipi_${name}`;
+  const dataDir = getDataDir(name);
   if (fs.existsSync(dataDir)) {
     console.error(`exists: ${dataDir}`);
     process.exit(1);
@@ -512,7 +514,7 @@ function create(name: string): void {
   fs.mkdirSync(path.join(dataDir, 'store'), { recursive: true });
   fs.mkdirSync(path.join(dataDir, 'data'), { recursive: true });
   fs.mkdirSync(path.join(dataDir, 'web'), { recursive: true });
-  fs.mkdirSync(`/srv/run/kanipi_${name}`, { recursive: true });
+  fs.mkdirSync(`${PREFIX}/run/kanipi_${name}`, { recursive: true });
 
   // chown to uid/gid 1000 (node)
   fs.chownSync(path.join(dataDir, 'groups'), 1000, 1000);
@@ -576,12 +578,12 @@ ExecStartPre=-/usr/bin/docker rm -f %n
 ExecStop=/usr/bin/docker rm -f %n
 ExecStart=/usr/bin/docker run -i --rm --name %n \\
     --network=host \\
-    -v /srv/data/kanipi_${name}:/srv/app/home \\
-    -v /srv/run/kanipi_${name}:/srv/run/kanipi_${name} \\
+    -v ${dataDir}:/srv/app/home \\
+    -v ${PREFIX}/run/kanipi_${name}:${PREFIX}/run/kanipi_${name} \\
     -v /var/run/docker.sock:/var/run/docker.sock \\
     -e DATA_DIR=/srv/app/home \\
-    -e HOST_DATA_DIR=/srv/data/kanipi_${name} \\
-    -e HOST_APP_DIR=/srv/data/kanipi_${name}/self \\
+    -e HOST_DATA_DIR=${dataDir} \\
+    -e HOST_APP_DIR=${dataDir}/self \\
     kanipi \\
     ./kanipi ${name}
 
@@ -619,7 +621,7 @@ function copyDirRecursive(src: string, dst: string): void {
 
 function runInstance(instance: string): void {
   const dataDir = '/srv/app/home';
-  const hostDataDir = `/srv/data/kanipi_${instance}`;
+  const hostDataDir = process.env.HOST_DATA_DIR || getDataDir(instance);
   const envPath = path.join(dataDir, '.env');
 
   if (!fs.existsSync(envPath)) {

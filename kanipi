@@ -1,9 +1,11 @@
 #!/bin/bash
 set -e
 
+PREFIX="${PREFIX:-/srv}"
+
 group_cmd() {
   local INST="$1" ACTION="$2" JID="$3" FOLDER="$4"
-  local DATA="/srv/data/kanipi_${INST}"
+  local DATA="${PREFIX}/data/kanipi_${INST}"
   local DB="$DATA/store/messages.db"
 
   if [ ! -f "$DB" ]; then
@@ -133,7 +135,7 @@ group_cmd() {
 
 mount_cmd() {
   local INST="$1" ACTION="$2" FOLDER="$3" HOST_PATH="$4"
-  local DATA="/srv/data/kanipi_${INST}"
+  local DATA="${PREFIX}/data/kanipi_${INST}"
   local DB="$DATA/store/messages.db"
 
   if [ ! -f "$DB" ]; then
@@ -219,7 +221,7 @@ mount_cmd() {
 
 user_cmd() {
   local INST="$1" ACTION="$2" USERNAME="$3" PASSWORD="$4"
-  local DATA="/srv/data/kanipi_${INST}"
+  local DATA="${PREFIX}/data/kanipi_${INST}"
   local DB="$DATA/store/messages.db"
 
   if [ ! -f "$DB" ]; then
@@ -319,7 +321,7 @@ if [ "${1:-}" = "create" ]; then
     exit 1
   fi
 
-  DATA="/srv/data/kanipi_${NAME}"
+  DATA="${PREFIX}/data/kanipi_${NAME}"
   if [ -d "$DATA" ]; then
     echo "exists: $DATA"
     exit 1
@@ -329,7 +331,7 @@ if [ "${1:-}" = "create" ]; then
            "$DATA/store" \
            "$DATA/data" \
            "$DATA/web" \
-           "/srv/run/kanipi_${NAME}"
+           "${PREFIX}/run/kanipi_${NAME}"
   # Gateway and agent containers run as uid/gid 1000 (node)
   chown -R 1000:1000 "$DATA/groups" "$DATA/data"
 
@@ -367,12 +369,12 @@ ExecStartPre=-/usr/bin/docker rm -f %n
 ExecStop=/usr/bin/docker rm -f %n
 ExecStart=/usr/bin/docker run -i --rm --name %n \
     --network=host \
-    -v /srv/data/kanipi_${NAME}:/srv/app/home \
-    -v /srv/run/kanipi_${NAME}:/srv/run/kanipi_${NAME} \
+    -v ${DATA}:/srv/app/home \
+    -v ${PREFIX}/run/kanipi_${NAME}:${PREFIX}/run/kanipi_${NAME} \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -e DATA_DIR=/srv/app/home \
-    -e HOST_DATA_DIR=/srv/data/kanipi_${NAME} \
-    -e HOST_APP_DIR=/srv/data/kanipi_${NAME}/self \
+    -e HOST_DATA_DIR=${DATA} \
+    -e HOST_APP_DIR=${DATA}/self \
     kanipi \
     ./kanipi ${NAME}
 
@@ -405,7 +407,7 @@ fi
 
 INSTANCE="$1"
 DATA_DIR=/srv/app/home
-HOST_DATA_DIR="/srv/data/kanipi_${INSTANCE}"
+HOST_DATA_DIR="${HOST_DATA_DIR:-${PREFIX}/data/kanipi_${INSTANCE}}"
 
 if [ ! -f "$DATA_DIR/.env" ]; then
   echo "no .env in $DATA_DIR"
