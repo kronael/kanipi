@@ -41,7 +41,7 @@ function parseFrontmatter(content: string): string | null {
   return null;
 }
 
-export function readDiaryEntries(groupFolder: string, max = 2): DiaryEntry[] {
+export function readDiaryEntries(groupFolder: string, max = 14): DiaryEntry[] {
   const diaryDir = path.join(GROUPS_DIR, groupFolder, 'diary');
   if (!fs.existsSync(diaryDir)) return [];
 

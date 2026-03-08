@@ -1,6 +1,6 @@
 # Memory: Diary
 
-**Status**: partial — injection shipped, nudge not implemented
+**Status**: shipped
 
 Agent-written daily notes. The diary IS the task log.
 
@@ -39,8 +39,7 @@ MEMORY.md, prune stale entries, save preferences there.
 On compaction, nudge with the skill's description text.
 Agent decides whether to act. Resets turn counter.
 
-**Status**: partially implemented — hook exists but still
-dumps old transcript format. Needs cleanup.
+**Status**: done — clean diary nudge only.
 
 ### 3. Stop hook (every 100 turns)
 
@@ -52,7 +51,7 @@ if (messageCount >= 100 && !input.stop_hook_active) {
 ```
 
 Same nudge text as PreCompact. Guard prevents loops.
-**Status**: not implemented — this is the critical gap.
+**Status**: done.
 
 ## Gateway injection
 
@@ -65,19 +64,19 @@ On new session, inject diary summaries as XML:
 </knowledge>
 ```
 
-Inject 14 entries (two weeks) until progressive summarization
-ships. Currently injects 2 — change in `src/diary.ts`.
+Injects 14 entries (two weeks) until progressive summarization
+ships.
 
 ## What ships
 
-| Item                                                  | Status             |
-| ----------------------------------------------------- | ------------------ |
-| Mount + dir creation                                  | done               |
-| Gateway injection (summaries → XML)                   | done (change 2→14) |
-| Diary skill (format, rules, MEMORY.md nudge)          | done               |
-| Agent CLAUDE.md (diary + memory sections)             | done               |
-| PreCompact hook (clean nudge, remove transcript dump) | needs fix          |
-| Stop hook (100-turn counter)                          | not implemented    |
+| Item                                            | Status |
+| ----------------------------------------------- | ------ |
+| Mount + dir creation                            | done   |
+| Gateway injection (summaries → XML, 14 entries) | done   |
+| Diary skill (format, rules, MEMORY.md nudge)    | done   |
+| Agent CLAUDE.md (diary + memory sections)       | done   |
+| PreCompact hook (clean nudge)                   | done   |
+| Stop hook (100-turn counter)                    | done   |
 
 ## Progressive summarization (future)
 

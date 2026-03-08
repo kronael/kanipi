@@ -55,19 +55,19 @@ describe('diary', () => {
       expect(readDiaryEntries('main')).toEqual([]);
     });
 
-    it('limits to max entries (default 2)', () => {
+    it('limits to max entries (default 14)', () => {
       vi.spyOn(fs, 'existsSync').mockReturnValue(true);
-      vi.spyOn(fs, 'readdirSync').mockReturnValue([
-        '20260306.md' as any,
-        '20260307.md' as any,
-        '20260308.md' as any,
-      ]);
+      const files = Array.from({ length: 20 }, (_, i) => {
+        const d = new Date(2026, 2, 20 - i);
+        const s = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.md`;
+        return s as any;
+      });
+      vi.spyOn(fs, 'readdirSync').mockReturnValue(files);
       vi.spyOn(fs, 'readFileSync').mockReturnValue('---\nsummary: work\n---\n');
 
       const entries = readDiaryEntries('main');
-      expect(entries).toHaveLength(2);
-      expect(entries[0].date).toBe('2026-03-08');
-      expect(entries[1].date).toBe('2026-03-07');
+      expect(entries).toHaveLength(14);
+      expect(entries[0].date).toBe('2026-03-20');
     });
 
     it('ignores non-diary files', () => {
