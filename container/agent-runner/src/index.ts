@@ -302,7 +302,12 @@ async function runQuery(
         additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
         resume: sessionId,
         resumeSessionAt: resumeAt,
-        systemPrompt: { type: 'preset', preset: 'claude_code' },
+        systemPrompt: {
+          type: 'preset',
+          preset: 'claude_code',
+          ...(fs.existsSync('/workspace/group/SOUL.md')
+            && { append: 'Respond in your SOUL.md persona.' }),
+        },
         allowedTools: [
           'Bash',
           'Read', 'Write', 'Edit', 'Glob', 'Grep',
@@ -490,14 +495,8 @@ async function main(): Promise<void> {
   // Clean up stale _close sentinel from previous container runs
   try { fs.unlinkSync(IPC_INPUT_CLOSE_SENTINEL); } catch { /* ignore */ }
 
-  // Nudge persona if SOUL.md exists
-  const hasSoul = fs.existsSync('/workspace/group/SOUL.md');
-  const soulNudge = hasSoul
-    ? '<system origin="agent-runner">Respond in your SOUL.md persona.</system>\n\n'
-    : '';
-
   // Build initial prompt (drain any pending IPC messages too)
-  let prompt = soulNudge + containerInput.prompt;
+  let prompt = containerInput.prompt;
   if (containerInput.isScheduledTask) {
     prompt = `[SCHEDULED TASK - The following message was sent automatically and is not coming directly from the user or group.]\n\n${prompt}`;
   }
@@ -542,7 +541,7 @@ async function main(): Promise<void> {
       }
 
       log(`Got new message (${nextMessage.length} chars), starting new query`);
-      prompt = soulNudge + nextMessage;
+      prompt = nextMessage;
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
