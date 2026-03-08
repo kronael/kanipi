@@ -11,6 +11,40 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.14] — 2026-03-08
+
+### Tests
+
+- Task scheduler coverage: 8 tests (invalid folder pauses task, group not found, container errors, context_mode session routing, streamed output, duplicate start prevention)
+- Total: 476 unit tests across 34 files
+
+---
+
+## [v1.0.13] — 2026-03-08
+
+### Changes
+
+- Container-runner: extract `initSettings()` helper, simplify IPC dir creation to loop
+- Action handler test coverage: inject, session, messaging actions (13 tests)
+
+---
+
+## [v1.0.12] — 2026-03-08
+
+### Changes
+
+- Structured logging context on warnings/errors (raw output, IPC file context)
+
+---
+
+## [v1.0.11] — 2026-03-08
+
+### Changes
+
+- Group queue timing: `dur` field on task completion logs
+
+---
+
 ## [v1.0.10] — 2026-03-08
 
 ### Features
