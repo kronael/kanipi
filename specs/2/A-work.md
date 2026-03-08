@@ -1,62 +1,65 @@
-# Work — task state via MEMORY.md
+# Work and task state — memory architecture
 
 **Status**: incomplete
 
-## Decision
+## Decision: two layers, clear separation
 
-No separate work.md file. MEMORY.md already handles persistent
-state per group. Adding another agent-controlled file creates
-layer confusion (where do I write this?) without evidence of
-benefit. brainpro's WORKING.md pattern is unvalidated in production.
+| Layer     | Purpose         | Timeframe         | Content                                |
+| --------- | --------------- | ----------------- | -------------------------------------- |
+| MEMORY.md | Tacit knowledge | Permanent         | Conventions, patterns, preferences     |
+| Diary     | Work history    | Daily → long-term | Tasks, progress, decisions, milestones |
 
-## What we want
+No work.md. No separate task state file. Two layers only.
 
-Better agent use of MEMORY.md for active task tracking. Two parts:
+## Diary is the work layer
 
-### 1. Agent instructions (CLAUDE.md)
+Diary captures tasks and work — what started, what progressed,
+what completed, what's blocked. This is the long-term view of
+work. The agent writes diary entries naturally during sessions.
 
-Tell the agent to maintain a `## Current task` section in MEMORY.md:
+Progressive summarization handles scale: daily entries roll up
+to weekly, then monthly. Recent entries are full detail; older
+entries are distilled summaries. This gives the agent both
+immediate context (today's diary) and long-term perspective
+(summarized history) without separate storage.
 
-```markdown
-## Current task
+Gateway injects recent diary entries on session start. The
+agent sees what happened recently and picks up naturally.
 
-Fixing hostPath() — mount translation breaks in docker-in-docker.
-Blocked: need to test on sloth instance.
-Next: rebuild image, deploy, verify IPC paths.
-```
+## MEMORY.md is for knowledge, not tasks
 
-Updated naturally as the agent works. Cleared when done.
-No new file, no new injection path.
+MEMORY.md stores stable patterns — conventions, preferences,
+architectural decisions, recurring solutions. Things that are
+true across sessions, not tied to a specific task.
 
-### 2. /work skill (optional nudge)
+Not for: "currently working on X" or "blocked on Y." That
+belongs in diary. If MEMORY.md captures active tasks, it
+becomes a second diary with conflicting state.
 
-Skill prompt that tells the agent: "review and update the
-Current task section in your MEMORY.md." Useful as:
+## Why not a separate work.md
 
-- Gateway-triggered nudge before idle timeout
-- User-invoked to force a checkpoint
-- Pre-session nudge if MEMORY.md has stale task info
+- Two agent-controlled files is the maximum before reasoning
+  overhead outweighs benefit
+- brainpro's WORKING.md pattern has zero production validation
+- Diary already captures task creation and completion
+- More files = more "where do I write this?" decisions
+- work.md would compete with both MEMORY.md and diary
 
-The skill writes to MEMORY.md, not a separate file. It's a
-behavioral prompt, not a storage layer.
+## Progressive summarization (future)
 
-## Gateway role
+Daily diary entries are verbose. Over time:
 
-- Inject MEMORY.md on session start (already happens — Claude Code native)
-- Optional: detect stale `## Current task` section (>24h unchanged)
-  and annotate on next session start
-- No new file mounts, no new injection paths
+- Recent (1-7 days): full entries, injected as-is
+- Medium (1-4 weeks): summarized to key decisions/outcomes
+- Long-term (months): distilled to major milestones
 
-## Why not a separate file
-
-- Agent already manages MEMORY.md — adding work.md splits attention
-- More files = more reasoning tokens deciding where to write
-- MEMORY.md is injected automatically — no gateway changes needed
-- One unstructured file that the agent owns is simpler than two
+This is the episodic memory layer (`specs/3/B-memory-episodic.md`),
+implemented as diary aggregation — not a new storage system.
 
 ## Open questions
 
-- Should the gateway parse MEMORY.md to detect staleness, or
-  just let the agent manage it?
-- Is /work skill worth building, or are better CLAUDE.md
-  instructions sufficient?
+- What triggers progressive summarization — scheduled task,
+  session start, or manual?
+- How many recent diary entries should gateway inject? (currently 2)
+- Should /work skill exist as a nudge to write a diary entry,
+  or is agent behavior sufficient without it?
