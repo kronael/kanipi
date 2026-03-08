@@ -135,6 +135,14 @@ uses API credits), reads the message from stdin, uses tools/skills/MCP,
 and writes results to stdout as JSON. The gateway streams responses
 back to the originating channel.
 
+Messages are queued per group — each group processes one message at
+a time. `MAX_CONCURRENT_CONTAINERS` limits total parallel agents
+across all groups (default 5). `IDLE_TIMEOUT` controls how long a
+container stays alive between messages (default 30min) — longer
+keeps context but uses more memory, shorter saves resources.
+When the gateway itself runs in docker, `HOST_DATA_DIR` must be
+set so child agent containers get correct host-side mount paths.
+
 The gateway needs docker socket access (`-v /var/run/docker.sock`)
 because it spawns agent containers. The `-i` flag on `docker run`
 keeps stdin open for the gateway's IPC model (stdin piping to agents).
