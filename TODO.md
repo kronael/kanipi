@@ -1,6 +1,6 @@
 # TODO
 
-## v1m1 — next to ship
+## Phase 2 — next to ship
 
 Partial specs, close to done. Finish these first.
 
@@ -13,18 +13,18 @@ Partial specs, close to done. Finish these first.
 - [ ] work: /work skill, staleness detection
 - [ ] errored chat flag: shipped this session (don't auto-retry on restart)
 
-## v1m2 — outstanding, not urgent
+## Phase 3 — outstanding, not urgent
 
 - [ ] message-mcp: get_history/get_thread MCP tools
-- [ ] agent-messaging: structured agent↔agent messages
+- [ ] agent-messaging: structured agent-to-agent messages
 - [ ] identities: cross-channel identity linking
 - [ ] message-wal: pending_delivery table, ack protocol
 - [ ] collapse sessions table into registered_groups.session_id
 - [ ] test SDK resume failure (bad session ID behavior)
 
-## v2m1 — memory layers, agent teams, feed adapters
+## Future — memory layers, agent teams, feed adapters
 
-- [ ] memory-episodic: diary → weekly/monthly aggregation
+- [ ] memory-episodic: diary -> weekly/monthly aggregation
 - [ ] agent-teams: multi-agent collaboration
 - [ ] agent-pipeline: continuation payload, multi-hop routing
 - [ ] ipc-mcp-proxy: unix socket, replace file IPC
@@ -33,16 +33,16 @@ Partial specs, close to done. Finish these first.
 - [ ] feed adapters: reddit, twitter, facebook, gmail, webdav
 - [ ] HTTP request scrubbing (strip secrets from agent HTTP)
 
-## v2m2 — Go rewrite
+## Future — Go rewrite
 
-- [ ] Go gateway rewrite (specs/v2m2/architecture.md)
+- [ ] Go gateway rewrite
 - [ ] arizuka integration
 
-## atlas
+## Atlas
 
 - [ ] user context: per-user memory, gateway injection
 - [ ] semantic search: embeddings MCP sidecar
 - [ ] gateway fact injection (top-N relevant)
-- [ ] knowledge gap detection → auto-trigger research
+- [ ] knowledge gap detection -> auto-trigger research
 - [ ] scheduled research (cron)
-- [ ] v2 sandboxed support: frontend/backend split (specs/atlas/v2-sandboxed-support.md)
+- [ ] v2 sandboxed support: frontend/backend split

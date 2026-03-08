@@ -146,7 +146,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 - ROADMAP.md: v1/v2/v3 progression
 - Products defined: Atlas (support), Yonder (research), Evangelist, Cheerleader
 - Atlas v2 spec: sandboxed support agent (frontend/backend split)
-- Specs reorganized: v1m1/v1m2/v2m1/v2m2 versioned milestones
+- Specs reorganized: 2/3/v2m1/v2m2 versioned milestones
 - Global specs skill for spec-driven development workflow
 
 ---
@@ -420,7 +420,7 @@ commands, capability introspection, security hardening. 40 source files,
   mocking docker without a running daemon
 - Fixed container-runner test mocks: missing `HOST_APP_DIR`/`WEB_HOST`
   constants; `readFileSync` mock returning `''` now returns `'{}'`
-- `specs/v1/testing.md`: all testability gaps marked shipped
+- `specs/1/b-testing.md`: all testability gaps marked shipped
 
 ### Config
 
@@ -450,8 +450,8 @@ commands, capability introspection, security hardening. 40 source files,
 
 ### Specs
 
-- All `specs/v1/` marked with shipped/partial/open status
-- `specs/v1/sync.md` rewritten as solved
+- All `specs/1/` marked with shipped/partial/open status
+- `specs/1/X-sync.md` rewritten as solved
 
 ### Cleanup
 
@@ -476,7 +476,7 @@ commands, capability introspection, security hardening. 40 source files,
 
 ### Specs
 
-- `specs/v1/auth.md`: updated to reflect v1 implementation
+- `specs/1/3-auth.md`: updated to reflect v1 implementation
 
 ---
 
@@ -553,7 +553,7 @@ commands, capability introspection, security hardening. 40 source files,
 - Added auth DB schema: `users`, `sessions`, `oauth_accounts` tables
 - Added auth query functions: `createUser`, `getUserByProvider`, `createSession`, etc.
 - Added `AUTH_SECRET` config constant for JWT signing
-- Added web UI auth spec at `specs/v1/auth.md`
+- Added web UI auth spec at `specs/1/3-auth.md`
 
 ### Whisper sidecar
 

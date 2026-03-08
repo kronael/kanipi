@@ -1,8 +1,8 @@
 # ROADMAP
 
-Specs live in `specs/<version>/`. See TODO.md for task-level tracking.
+Specs live in `specs/<phase>/`. See TODO.md for task-level tracking.
 
-## v1 — shipped
+## Phase 1 — shipped
 
 Functional multi-channel agent gateway.
 
@@ -21,9 +21,9 @@ Functional multi-channel agent gateway.
 - JID normalization (telegram:, whatsapp:, discord:, email:, web:)
 - Mount security (allowlist outside project dir)
 
-## v1m1 — next to ship
+## Phase 2 — next to ship
 
-Partial work, close to done. `specs/v1m1/`
+Partial work, close to done. `specs/2/`
 
 - memory-facts: gateway injection + MCP tools
 - paths: hostPath() elimination
@@ -33,18 +33,26 @@ Partial work, close to done. `specs/v1m1/`
 - session-recovery: recovery notes on eviction
 - work: /work skill, staleness detection
 
-## v1m2 — outstanding, not urgent
+## Phase 3 — outstanding, not urgent
 
-`specs/v1m2/`
+`specs/3/`
 
 - message-mcp: get_history/get_thread MCP tools
 - agent-messaging: structured agent-to-agent messages
 - identities: cross-channel identity linking
 - message-wal: pending_delivery table, ack protocol
 
-## v2m1 — memory layers, agent teams, feed adapters
+## Phase 4-6 — products
 
-New subsystems and channel types. `specs/v2m1/`
+`specs/4/`, `specs/5/`, `specs/6/`
+
+- agent-media-awareness (phase 4)
+- evangelist (phase 5)
+- cheerleader (phase 6)
+
+## Future — memory layers, agent teams, feed adapters
+
+New subsystems and channel types.
 
 - memory-episodic: diary aggregation to weekly/monthly
 - agent-teams: multi-agent collaboration
@@ -54,9 +62,9 @@ New subsystems and channel types. `specs/v2m1/`
 - workflows: multi-step workflow primitives
 - feed adapters: reddit, twitter, facebook, gmail, webdav
 
-## v2m2 — Go rewrite
+## Future — Go rewrite
 
-Gateway rewrite in Go. Agent container stays TypeScript. `specs/v2m2/`
+Gateway rewrite in Go. Agent container stays TypeScript.
 
 - Single static binary, no node_modules
 - Native concurrency (goroutines vs polling loops)
@@ -65,7 +73,7 @@ Gateway rewrite in Go. Agent container stays TypeScript. `specs/v2m2/`
 
 ## Atlas
 
-Product-specific roadmap. `specs/atlas/`
+Product-specific roadmap.
 
 - User context: per-user memory, gateway injection
 - Semantic search: embeddings MCP sidecar

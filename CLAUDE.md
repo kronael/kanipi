@@ -35,7 +35,7 @@ ALWAYS follow before answering:
 
 - XML tags for prompt structure (context sections, examples)
 - JSON for IPC, MCP, tool parameters, structured output
-- See `specs/xml-vs-json-llm.md` for research
+- See `specs/res/xml-vs-json-llm.md` for research
 
 ## What is kanipi
 
@@ -123,7 +123,29 @@ template/             seed for new instances
   web/                vite web app template
 sidecar/              MCP server binaries
 kanipi                bash entrypoint (legacy, for docker deployments)
+specs/                design specs (see below)
 ```
+
+## Specs
+
+Specs live in `specs/` organized by phase. Each milestone
+gets its own phase directory. Files use base58 prefixes
+(0-9, A-H, J-N, P-Z, a-k, m-z) for stable sort order.
+
+```
+specs/1/   phase 1 — core gateway (v1 base)
+specs/2/   phase 2 — milestone 1 (permissions, capabilities)
+specs/3/   phase 3 — milestone 2 (channels, pipelines, memory)
+specs/4/   phase 4 — milestone 3 (media awareness)
+specs/5/   phase 5 — milestone 4 (evangelist)
+specs/6/   phase 6 — milestone 5 (cheerleader)
+specs/res/ resources (examples, research)
+```
+
+Naming: `<phase>/<base58>-<topic>.md` e.g. `1/0-actions.md`,
+`2/5-permissions.md`. The user controls releases and tags —
+TODO.md may suggest which specs a version should cover, but
+the user decides what ships when.
 
 ## Data Dir
 
