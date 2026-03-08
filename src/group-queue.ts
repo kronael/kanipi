@@ -268,6 +268,7 @@ export class GroupQueue {
   }
 
   private async runTask(groupJid: string, task: QueuedTask): Promise<void> {
+    const t0 = Date.now();
     const state = this.getGroup(groupJid);
     state.active = true;
     state.idleWaiting = false;
@@ -281,8 +282,15 @@ export class GroupQueue {
 
     try {
       await task.fn();
+      logger.debug(
+        { groupJid, taskId: task.id, dur: Date.now() - t0 },
+        'Task completed',
+      );
     } catch (err) {
-      logger.error({ groupJid, taskId: task.id, err }, 'Error running task');
+      logger.error(
+        { groupJid, taskId: task.id, dur: Date.now() - t0, err },
+        'Error running task',
+      );
     } finally {
       state.isTaskContainer = false;
       this.releaseGroup(groupJid, state);
