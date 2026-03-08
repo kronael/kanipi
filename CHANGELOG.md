@@ -11,11 +11,12 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.0.18] — 2026-03-08
+## [v1.0.19] — 2026-03-08
 
 ### Features
 
-- Soul persona enforcement moved to output styles (all channels)
+- Persona nudge appended to system prompt via SDK preset (SOUL.md)
+- CLAUDE.md soul section reduced to one-liner
 - Dockerfile fix: create dist/migrations dir after tsc
 
 ---
