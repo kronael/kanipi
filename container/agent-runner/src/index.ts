@@ -492,7 +492,9 @@ async function main(): Promise<void> {
 
   // Nudge persona if SOUL.md exists
   const hasSoul = fs.existsSync('/workspace/group/SOUL.md');
-  const soulNudge = hasSoul ? '[Respond in your SOUL.md persona.]\n\n' : '';
+  const soulNudge = hasSoul
+    ? '<system origin="agent-runner">Respond in your SOUL.md persona.</system>\n\n'
+    : '';
 
   // Build initial prompt (drain any pending IPC messages too)
   let prompt = soulNudge + containerInput.prompt;
