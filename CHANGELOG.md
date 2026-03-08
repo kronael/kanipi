@@ -11,6 +11,15 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.10] — 2026-03-08
+
+### Changes
+
+- Task execution timing in group queue (`dur` field in task completion/error logs)
+- Console startup banners kept for operator UX alongside structured logger calls
+
+---
+
 ## [v1.0.9] — 2026-03-08
 
 ### Changes
