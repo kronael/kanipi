@@ -4,17 +4,17 @@
 
 Partial specs, close to done. Finish these first.
 
-- [ ] memory-facts: gateway injection + MCP tools (facts skill exists)
 - [ ] paths: hostPath() elimination (HOST\_\* exports done)
 - [ ] autotesting: IPC drain + voice roundtrip test gaps
-- [ ] sse: per-sender scoping (basic broadcast works)
 - [ ] worlds-rooms: phase 2 threads/rooms (phase 1 isRoot shipped)
 - [ ] session-recovery: recovery notes on eviction
-- [ ] work: /work skill, staleness detection
 - [ ] errored chat flag: shipped this session (don't auto-retry on restart)
+- [ ] sse: per-sender scoping (basic broadcast works)
+- [ ] work: /work skill, staleness detection
 
 ## Phase 3 — outstanding, not urgent
 
+- [ ] memory-facts: gateway injection + MCP tools (facts skill exists)
 - [ ] message-mcp: get_history/get_thread MCP tools
 - [ ] agent-messaging: structured agent-to-agent messages
 - [ ] identities: cross-channel identity linking
