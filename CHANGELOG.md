@@ -11,6 +11,15 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.8] — 2026-03-08
+
+### Features
+
+- IPC and action-registry test coverage: 16 new tests (drainRequests dispatch, schema validation, path traversal, manifest filtering)
+- Total: 521 tests across 36 files
+
+---
+
 ## [v1.0.7] — 2026-03-08
 
 ### Features
