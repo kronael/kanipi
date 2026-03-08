@@ -1,76 +1,62 @@
-# Work — current task state
+# Work — task state via MEMORY.md
 
-Skill-managed working state file. Inspired by brainpro's
-WORKING.md but implemented as an agent skill, not gateway.
+**Status**: incomplete
 
-## Path
+## Decision
 
-```
-/workspace/group/work.md
-```
+No separate work.md file. MEMORY.md already handles persistent
+state per group. Adding another agent-controlled file creates
+layer confusion (where do I write this?) without evidence of
+benefit. brainpro's WORKING.md pattern is unvalidated in production.
 
-Single file per group. Agent-written, agent-read.
+## What we want
 
-## Purpose
+Better agent use of MEMORY.md for active task tracking. Two parts:
 
-Captures what the agent is currently doing. Unlike diary
-(historical record) or MEMORY.md (tacit knowledge), work.md
-is ephemeral — it describes the active task, blockers, next
-steps. Overwritten each time, not appended.
+### 1. Agent instructions (CLAUDE.md)
 
-## Skill: `/work`
-
-Agent runs `/work` to update current task state. The skill
-instructs the agent to overwrite `/workspace/group/work.md`
-with a short summary:
+Tell the agent to maintain a `## Current task` section in MEMORY.md:
 
 ```markdown
 ## Current task
 
-Implementing IPC file sending — path translation bug.
-
-## Blockers
-
-- hostPath() uses APP_DIR, should use GATEWAY_ROOT
-
-## Next
-
-- Fix hostPath, rebuild, deploy to sloth
-- Test with manual IPC message
+Fixing hostPath() — mount translation breaks in docker-in-docker.
+Blocked: need to test on sloth instance.
+Next: rebuild image, deploy, verify IPC paths.
 ```
 
-No YAML frontmatter — plain markdown. Max ~20 lines.
+Updated naturally as the agent works. Cleared when done.
+No new file, no new injection path.
 
-## Gateway injection
+### 2. /work skill (optional nudge)
 
-On session start, if `groups/<folder>/work.md` exists,
-inject as system message:
+Skill prompt that tells the agent: "review and update the
+Current task section in your MEMORY.md." Useful as:
 
-```
-[work] <contents>
-```
+- Gateway-triggered nudge before idle timeout
+- User-invoked to force a checkpoint
+- Pre-session nudge if MEMORY.md has stale task info
 
-Loaded in full (no truncation — file is short by design).
-Injected after diary, before conversation history.
+The skill writes to MEMORY.md, not a separate file. It's a
+behavioral prompt, not a storage layer.
 
-## Triggers
+## Gateway role
 
-1. **`/work` skill** — agent-initiated, anytime
-2. **Pre-session nudge** — if work.md exists and is >24h old,
-   gateway adds annotation: "work.md is stale — update or
-   clear with /work"
-3. **Session end** — no automatic write (agent decides)
+- Inject MEMORY.md on session start (already happens — Claude Code native)
+- Optional: detect stale `## Current task` section (>24h unchanged)
+  and annotate on next session start
+- No new file mounts, no new injection paths
 
-## Relationship to other layers
+## Why not a separate file
 
-| Layer     | Timeframe  | Content           |
-| --------- | ---------- | ----------------- |
-| work.md   | Right now  | Active task       |
-| diary     | Today      | What happened     |
-| episodes  | Week/month | Aggregated        |
-| facts     | Permanent  | Concepts/entities |
-| MEMORY.md | Persistent | Tacit knowledge   |
+- Agent already manages MEMORY.md — adding work.md splits attention
+- More files = more reasoning tokens deciding where to write
+- MEMORY.md is injected automatically — no gateway changes needed
+- One unstructured file that the agent owns is simpler than two
 
-work.md is the most volatile — updated frequently,
-often fully rewritten. Diary captures the history
-that work.md cycles through.
+## Open questions
+
+- Should the gateway parse MEMORY.md to detect staleness, or
+  just let the agent manage it?
+- Is /work skill worth building, or are better CLAUDE.md
+  instructions sufficient?

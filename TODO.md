@@ -9,7 +9,7 @@ Partial specs, close to done. Finish these first.
 - [ ] session-recovery: recovery notes on eviction
 - [ ] errored chat flag: shipped this session (don't auto-retry on restart)
 - [ ] sse: auth per group on stream endpoint (broadcast is correct)
-- [ ] work: /work skill, staleness detection
+- [ ] work: improve agent MEMORY.md usage for task tracking (no separate file)
 
 ## Phase 3 — outstanding, not urgent
 
