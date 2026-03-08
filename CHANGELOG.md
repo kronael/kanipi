@@ -11,6 +11,17 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.16] — 2026-03-08
+
+### Changes
+
+- Specs reorganized: phase/base58 naming (1/, 2/, 3/ ... 6/)
+- Diary module test coverage (9 tests)
+- Release skill created (/release)
+- Total: 485 tests across 35 files
+
+---
+
 ## [v1.0.15] — 2026-03-08
 
 ### Changes
