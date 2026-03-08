@@ -83,6 +83,7 @@ Key modules:
 - `actions/` — action handlers by domain (messaging, tasks, groups, session, inject)
 - `ipc.ts` — container↔gateway IPC (request-response + legacy fire-and-forget)
 - `task-scheduler.ts` — cron-based scheduled tasks
+- `group-folder.ts` — folder validation and path resolution (prevents traversal)
 - `mount-security.ts` — validates additional mounts against `~/.config/nanoclaw/mount-allowlist.json` (stored outside project to prevent agent tampering)
 - `logger.ts` — pino logger (JSON in production, pino-pretty in dev)
 - `mime.ts` — shared `mimeFromFile()` via file-type (magic bytes detection)

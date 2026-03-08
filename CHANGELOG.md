@@ -11,12 +11,21 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.15] — 2026-03-08
+
+### Changes
+
+- CLAUDE.md: add `group-folder.ts` to key modules list
+- CHANGELOG stats alignment across v1.0.10-v1.0.14
+
+---
+
 ## [v1.0.14] — 2026-03-08
 
 ### Tests
 
 - Task scheduler coverage: 8 tests (invalid folder pauses task, group not found, container errors, context_mode session routing, streamed output, duplicate start prevention)
-- Total: 476 unit tests across 34 files
+- Total: 476 unit tests across 34 files, 10,788 source LOC, 11,680 test LOC (1.08:1)
 
 ---
 
