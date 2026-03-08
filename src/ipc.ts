@@ -342,7 +342,10 @@ async function drainLegacyTasks(
           }
         }
       } else {
-        logger.warn({ type: data.type }, 'Unknown IPC task type');
+        logger.warn(
+          { type: data.type, sourceGroup, file },
+          'Unknown IPC task type',
+        );
       }
       fs.unlinkSync(filePath);
     } catch (err) {
@@ -415,7 +418,10 @@ export function startIpcWatcher(deps: IpcDeps): void {
     try {
       groupFolders = scanGroupFolders();
     } catch (err) {
-      logger.error({ err }, 'Error reading IPC base directory on startup');
+      logger.error(
+        { err, ipcBaseDir },
+        'Error reading IPC base directory on startup',
+      );
       return;
     }
 
@@ -426,7 +432,7 @@ export function startIpcWatcher(deps: IpcDeps): void {
   };
 
   startupDrain().catch((err) =>
-    logger.error({ err }, 'IPC startup drain error'),
+    logger.error({ err, ipcBaseDir }, 'IPC startup drain error'),
   );
 
   // Poll for new group folders

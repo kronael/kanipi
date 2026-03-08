@@ -142,7 +142,10 @@ function loadState(): void {
   try {
     lastAgentTimestamp = agentTs ? JSON.parse(agentTs) : {};
   } catch {
-    logger.warn('Corrupted last_agent_timestamp in DB, resetting');
+    logger.warn(
+      { raw: agentTs?.slice(0, 100) },
+      'Corrupted last_agent_timestamp in DB, resetting',
+    );
     lastAgentTimestamp = {};
   }
   sessions = getAllSessions();
