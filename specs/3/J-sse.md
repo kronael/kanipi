@@ -1,6 +1,6 @@
-# SSE Stream — v2 — open
+# SSE Stream — incomplete
 
-## Current behaviour (v0.2.0)
+## Current behaviour
 
 `GET /_sloth/stream?group=<folder>` opens an SSE connection. The gateway
 broadcasts every agent response to **all listeners** on that group folder,
@@ -10,45 +10,37 @@ regardless of who sent the triggering message.
 knows the URL can subscribe to the stream.
 
 This is intentional for the public widget model: `sloth.js` embeds on a
-public page, all visitors see all agent responses. Fine for a public chatbot.
+public page, all visitors see all agent responses.
 
-## Problem
+## Design direction: groups are the boundary
 
-In a multi-user or semi-private context (authenticated slink senders, web UI
-with `SLOTH_USERS`), a low-privilege or anonymous user connected to the stream
-can read replies to messages sent by authenticated users. The reply may contain
-information scoped to the sender's request.
+Groups are the conversational and permission boundary. Per-sender
+scoping within a group is the wrong abstraction — it fights the
+shared-context model. Instead:
 
-## v2 design
+- **Public group** → SSE broadcast to all (current, correct)
+- **Private group** → require auth (JWT) on the stream endpoint
+- **Per-user isolation** → auto-spawn a group per user via prototypes
 
-Scope SSE responses to the sender's identity rather than broadcasting to all.
-
-### Option A — per-sender stream (recommended)
-
-- SSE connection carries a `sub` claim (JWT) or an opaque session token.
-- Gateway tags each outbound message with the `sub` of the original sender.
-- Only the matching SSE connection receives the event.
-
-Implementation sketch:
-
-- `addSseListener(group, res, sub?)` — store sub alongside response
-- `sendMessage` receives sender sub; only writes to listeners where sub matches
-  (or sub is absent, for anonymous broadcast)
-- `/pub/s/:token` posts include optional `Authorization` header → sub extracted
-  and stored on the queued message
-
-### Option B — separate streams per sub
-
-- `/_sloth/stream?group=<n>&sub=<sub>` — gateway only pushes to that sub.
-- Simpler but sub is visible in the URL (logs, referrers).
+This means SSE auth is just "can you access this group." No per-sender
+tagging, no sub claims on messages, no filtering in sendMessage.
 
 ### Auth on the stream endpoint
 
-Move `/_sloth/stream` out of `PUBLIC_PREFIXES` or add JWT check:
+Move `/_sloth/stream` out of `PUBLIC_PREFIXES` when the group requires auth:
 
-- Anonymous groups: keep open
-- Authenticated groups (`AUTH_SECRET` set): require valid JWT on the stream
-  request (`?token=<jwt>` or `Authorization` header)
+- Group has no `AUTH_SECRET` → stream stays open (public widget)
+- Group has `AUTH_SECRET` → require valid JWT on stream request
+  (`?token=<jwt>` or `Authorization` header)
+
+### Prototypes for per-user groups
+
+When a new authenticated user connects and no dedicated group exists,
+gateway auto-spawns from a prototype config. Each spawned group gets
+its own folder, session, SSE stream. Auth is inherited from the
+prototype's permissions.
+
+See `specs/3/F-prototypes.md` for the prototype spawning design.
 
 ## MCP transport context
 
@@ -77,7 +69,13 @@ Trade-offs:
 
 Not planned for v1. Document here as design direction.
 
+## Open questions
+
+- How does prototype spawning interact with group limits / cleanup?
+- Should spawned groups expire after idle timeout or persist?
+- Stream reconnect: replay missed events from DB or accept gap?
+
 ## Not in scope
 
 - Presence (who is online)
-- Message history replay on reconnect (use DB query instead)
+- Per-sender filtering within a group (use group isolation instead)

@@ -8,7 +8,7 @@ Partial specs, close to done. Finish these first.
 - [ ] autotesting: IPC drain + voice roundtrip test gaps
 - [ ] session-recovery: recovery notes on eviction
 - [ ] errored chat flag: shipped this session (don't auto-retry on restart)
-- [ ] sse: per-sender scoping (basic broadcast works)
+- [ ] sse: auth per group on stream endpoint (broadcast is correct)
 - [ ] work: /work skill, staleness detection
 
 ## Phase 3 — outstanding, not urgent
