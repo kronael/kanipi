@@ -1,6 +1,6 @@
 # v1 Architecture
 
-37 specs. Status from [todo.md](todo.md): shipped, partial, open.
+37 specs. Status from [c-todo.md](c-todo.md): shipped, partial, open.
 
 ## Architecture
 
@@ -53,86 +53,86 @@ agent execution. Each layer depends on layers above it.
 Inbound message handling. Each channel implements the same
 interface; specs describe channel-specific behavior.
 
-- [channels.md](channels.md) — channel interface, activation, JID prefixes (shipped)
-- [email.md](email.md) — IMAP IDLE inbound + SMTP outbound (shipped)
-- [voice.md](voice.md) — Whisper transcription for voice/audio (shipped)
-- [slink.md](slink.md) — web channel via POST token endpoint (shipped)
-- [forward-metadata.md](forward-metadata.md) — forward origin + reply-to context (shipped)
-- [mime.md](mime.md) — media pipeline: download, transcribe, annotate (partial)
-- [files-in.md](files-in.md) — inbound /put, /get, /ls user file transfer (shipped)
-- [file-output.md](file-output.md) — outbound agent sends files via IPC (shipped)
+- [4-channels.md](4-channels.md) — channel interface, activation, JID prefixes (shipped)
+- [8-email.md](8-email.md) — IMAP IDLE inbound + SMTP outbound (shipped)
+- [d-voice.md](d-voice.md) — Whisper transcription for voice/audio (shipped)
+- [W-slink.md](W-slink.md) — web channel via POST token endpoint (shipped)
+- [E-forward-metadata.md](E-forward-metadata.md) — forward origin + reply-to context (shipped)
+- [Q-mime.md](Q-mime.md) — media pipeline: download, transcribe, annotate (partial)
+- [D-files-in.md](D-files-in.md) — inbound /put, /get, /ls user file transfer (shipped)
+- [C-file-output.md](C-file-output.md) — outbound agent sends files via IPC (shipped)
 
 ## Routing & Groups
 
 Message dispatch. Router resolves JID → group, routing rules
 control delegation between groups.
 
-- [router.md](router.md) — JID resolution, group dispatch, prompt assembly (shipped)
-- [worlds.md](worlds.md) — nested JIDs, glob routing, chat metadata (shipped)
-- [group-routing.md](group-routing.md) — hierarchical routing, delegation, rules (shipped)
-- [agent-routing.md](agent-routing.md) — worker agents within a group (open, v2)
+- [T-router.md](T-router.md) — JID resolution, group dispatch, prompt assembly (shipped)
+- [e-worlds.md](e-worlds.md) — nested JIDs, glob routing, chat metadata (shipped)
+- [F-group-routing.md](F-group-routing.md) — hierarchical routing, delegation, rules (shipped)
+- [1-agent-routing.md](1-agent-routing.md) — worker agents within a group (open, v2)
 
 ## Prompt & Format
 
 What the container receives. Router builds the prompt;
 these specs define its structure.
 
-- [prompt-format.md](prompt-format.md) — stdin JSON, XML history, JSON stdout (shipped)
-- [system-messages.md](system-messages.md) — gateway annotations: new-session, new-day (shipped)
+- [R-prompt-format.md](R-prompt-format.md) — stdin JSON, XML history, JSON stdout (shipped)
+- [Y-system-messages.md](Y-system-messages.md) — gateway annotations: new-session, new-day (shipped)
 
 ## IPC & Container
 
 Agent execution environment. Container lifecycle, IPC protocol,
 MCP sidecar isolation.
 
-- [ipc-signal.md](ipc-signal.md) — SIGUSR1 wakeup replacing 500ms polling (shipped)
-- [sidecars.md](sidecars.md) — MCP servers in isolated containers: gateway-managed + agent-requested (partial)
+- [J-ipc-signal.md](J-ipc-signal.md) — SIGUSR1 wakeup replacing 500ms polling (shipped)
+- [V-sidecars.md](V-sidecars.md) — MCP servers in isolated containers: gateway-managed + agent-requested (partial)
 
 ## Actions & Commands
 
 Two directions of control. Commands: user → gateway.
 Actions: agent → gateway via IPC.
 
-- [actions.md](actions.md) — action registry, request-response IPC, tool manifest (shipped)
-- [commands.md](commands.md) — /new, /ping, /chatid gateway-intercepted (shipped)
-- [task-scheduler.md](task-scheduler.md) — cron-based scheduled tasks via IPC (shipped)
+- [0-actions.md](0-actions.md) — action registry, request-response IPC, tool manifest (shipped)
+- [6-commands.md](6-commands.md) — /new, /ping, /chatid gateway-intercepted (shipped)
+- [a-task-scheduler.md](a-task-scheduler.md) — cron-based scheduled tasks via IPC (shipped)
 
 ## Memory
 
 Four memory layers, each with different persistence and scope.
 
-- [memory-messages.md](memory-messages.md) — recent history via stdin XML (shipped)
-- [memory-session.md](memory-session.md) — SDK session continuity across runs (shipped)
-- [memory-managed.md](memory-managed.md) — CLAUDE.md + MEMORY.md persistence (shipped)
-- [memory-diary.md](memory-diary.md) — agent daily notes in diary/ (shipped)
+- [N-memory-messages.md](N-memory-messages.md) — recent history via stdin XML (shipped)
+- [P-memory-session.md](P-memory-session.md) — SDK session continuity across runs (shipped)
+- [M-memory-managed.md](M-memory-managed.md) — CLAUDE.md + MEMORY.md persistence (shipped)
+- [L-memory-diary.md](L-memory-diary.md) — agent daily notes in diary/ (shipped)
 
 ## Agent & Extensibility
 
 How agents extend themselves. Skills, MCP registration,
 gateway capability discovery.
 
-- [extend-agent.md](extend-agent.md) — MCP self-registration, settings.json (shipped)
-- [extend-gateway.md](extend-gateway.md) — gateway registry patterns (reference)
-- [extend-skills.md](extend-skills.md) — skill seeding, /migrate, versions (shipped)
-- [plugins.md](plugins.md) — agent-proposed, operator-approved plugins (open)
-- [introspection.md](introspection.md) — .gateway-caps TOML, .whisper-language (shipped)
+- [9-extend-agent.md](9-extend-agent.md) — MCP self-registration, settings.json (shipped)
+- [A-extend-gateway.md](A-extend-gateway.md) — gateway registry patterns (reference)
+- [B-extend-skills.md](B-extend-skills.md) — skill seeding, /migrate, versions (shipped)
+- [../3/E-plugins.md](../3/E-plugins.md) — agent-proposed, operator-approved plugins (open)
+- [H-introspection.md](H-introspection.md) — .gateway-caps TOML, .whisper-language (shipped)
 
 ## Auth & Web
 
 Authentication for web channel. Not needed for telegram/discord/whatsapp.
 
-- [auth.md](auth.md) — local accounts (shipped) + OAuth providers (open)
+- [3-auth.md](3-auth.md) — local accounts (shipped) + OAuth providers (open)
 
 ## Infrastructure
 
 Build, test, deploy, migrate.
 
-- [cli.md](cli.md) — bash entrypoint: create, run, group (shipped)
-- [db-bootstrap.md](db-bootstrap.md) — versioned DB migrations (open)
-- [sync.md](sync.md) — /migrate skill + MIGRATION_VERSION (shipped)
-- [testing.md](testing.md) — unit + e2e + smoke tiers (shipped)
+- [5-cli.md](5-cli.md) — bash entrypoint: create, run, group (shipped)
+- [7-db-bootstrap.md](7-db-bootstrap.md) — versioned DB migrations (open)
+- [X-sync.md](X-sync.md) — /migrate skill + MIGRATION_VERSION (shipped)
+- [b-testing.md](b-testing.md) — unit + e2e + smoke tiers (shipped)
 
 ## Reference
 
-- [reference-systems.md](reference-systems.md) — brainpro, takopi, eliza-atlas analysis
-- [todo.md](todo.md) — status tracker for all specs
+- [S-reference-systems.md](S-reference-systems.md) — brainpro, takopi, eliza-atlas analysis
+- [c-todo.md](c-todo.md) — status tracker for all specs
