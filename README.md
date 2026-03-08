@@ -88,12 +88,15 @@ a new group with appropriate instructions and skills.
 - Node.js 22+ (with npm)
 - Docker (for agent containers)
 - bun (build tooling uses `bunx`)
-- Anthropic credentials: `CLAUDE_CODE_OAUTH_TOKEN` (from Claude Code
-  OAuth flow) or `ANTHROPIC_API_KEY`
+- Anthropic credentials: `CLAUDE_CODE_OAUTH_TOKEN` (from `claude login`)
+  or `ANTHROPIC_API_KEY` (direct API key). Either works — OAuth token
+  is recommended (higher rate limits, usage on your Claude plan)
 
 ## Quick Start
 
 ### Docker deployment (production)
+
+Two images required: `kanipi` (gateway) and `kanipi-agent` (agent container).
 
 ```bash
 make image         # build gateway docker image
@@ -122,6 +125,20 @@ All data lives under `${PREFIX}/data/kanipi_<name>/` where `PREFIX`
 defaults to `/srv`. Override with `PREFIX=/home/user` to put data at
 `/home/user/data/kanipi_foo/`. Individual paths can be overridden
 in `.env` — see `template/env.example` for all options.
+
+## How It Works
+
+Gateway polls channels (Telegram, WhatsApp, Discord, Email) for
+messages, queues them per group, and spawns a docker container per
+agent invocation. The agent runs Claude Code (paid — each invocation
+uses API credits), reads the message from stdin, uses tools/skills/MCP,
+and writes results to stdout as JSON. The gateway streams responses
+back to the originating channel.
+
+The gateway needs docker socket access (`-v /var/run/docker.sock`)
+because it spawns agent containers. The `-i` flag on `docker run`
+keeps stdin open for the gateway's IPC model (stdin piping to agents).
+Both are required.
 
 ## Group Management
 
@@ -264,6 +281,11 @@ All via `.env` (seeded from `template/env.example`):
 Channels enabled by token presence (telegram/discord),
 auth dir existence (whatsapp: `store/auth/creds.json`),
 or `EMAIL_IMAP_HOST` presence (email).
+
+**WhatsApp setup**: start the gateway without WhatsApp credentials.
+It will print a QR code to the terminal. Scan it with WhatsApp on
+your phone to pair. Credentials are saved to `store/auth/creds.json`
+and reused on subsequent starts.
 
 Per-group whisper language hints: create `.whisper-language` in the group
 folder with one BCP-47 language code per line (e.g. `cs`, `de`). The whisper
