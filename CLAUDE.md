@@ -84,6 +84,7 @@ Key modules:
 - `ipc.ts` — container↔gateway IPC (request-response + legacy fire-and-forget)
 - `task-scheduler.ts` — cron-based scheduled tasks
 - `mount-security.ts` — validates additional mounts against `~/.config/nanoclaw/mount-allowlist.json` (stored outside project to prevent agent tampering)
+- `logger.ts` — pino logger (JSON in production, pino-pretty in dev)
 - `mime.ts` — shared `mimeFromFile()` via file-type (magic bytes detection)
 - `channels/` — telegram (grammy), whatsapp (baileys), discord (discord.js),
   email (IMAP IDLE + SMTP threading)

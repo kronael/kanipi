@@ -13,45 +13,23 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [v1.0.10] — 2026-03-08
 
-### Changes
+### Features
 
-- Task execution timing in group queue (`dur` field in task completion/error logs)
-- Console startup banners kept for operator UX alongside structured logger calls
-
----
-
-## [v1.0.9] — 2026-03-08
+- Production JSON logging: pino outputs JSON when `NODE_ENV=production`, pino-pretty for dev
+- Trace IDs: `traceId` and `dur` (ms) in message processing for end-to-end traceability
+- IPC request timing at debug level
+- Task execution timing in group queue
+- PREFIX semantic: all paths derive from `PREFIX` env var (default `/srv`)
+- Rich `.env.example` documenting all config flags
+- Agent media awareness: CLAUDE.md teaches agents to Read PDFs/images, use voice transcription text
+- IPC and action-registry test coverage: 16 new tests
+- Total: 521 tests across 39 files, 10,788 source LOC, 11,196 test LOC (1.04:1)
 
 ### Changes
 
 - Deduplicate delegation: delegateToChild/delegateToParent merged into shared delegateToGroup (-40 lines)
-
----
-
-## [v1.0.8] — 2026-03-08
-
-### Features
-
-- IPC and action-registry test coverage: 16 new tests (drainRequests dispatch, schema validation, path traversal, manifest filtering)
-- Total: 521 tests across 36 files
-
----
-
-## [v1.0.7] — 2026-03-08
-
-### Features
-
-- Production JSON logging: pino outputs JSON when `NODE_ENV=production`, pino-pretty for dev
-- Trace IDs: `traceId` and `dur` (ms) fields in message processing logs for end-to-end traceability
-- IPC request timing at debug level
-- PREFIX semantic: all paths derive from `PREFIX` env var (default `/srv`), no hardcoded paths
-- Rich `.env.example` documenting all config flags with comments
-- Agent media awareness: CLAUDE.md teaches agents to Read PDFs/images, use voice transcription text
-
-### Changes
-
-- `inject_message` action: insert messages into DB without channel delivery (root/world only), clears errored flag — enables programmatic retry after OOM kills
-- README: prerequisites, both deployment paths (docker + standalone), troubleshooting, WhatsApp setup, architecture overview
+- `inject_message` action: insert messages into DB without channel delivery
+- README: prerequisites, both deployment paths, troubleshooting, WhatsApp setup, architecture
 - Dev script changed from bun to tsx for consistency
 
 ---
