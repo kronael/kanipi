@@ -490,12 +490,9 @@ async function main(): Promise<void> {
   // Clean up stale _close sentinel from previous container runs
   try { fs.unlinkSync(IPC_INPUT_CLOSE_SENTINEL); } catch { /* ignore */ }
 
-  // Read soul persona once — prepend nudge to every prompt
-  let soulNudge = '';
-  try {
-    const soul = fs.readFileSync('/workspace/group/SOUL.md', 'utf-8').trim();
-    if (soul) soulNudge = `<persona>\n${soul}\n</persona>\n\n`;
-  } catch {}
+  // Nudge persona if SOUL.md exists
+  const hasSoul = fs.existsSync('/workspace/group/SOUL.md');
+  const soulNudge = hasSoul ? '[Respond in your SOUL.md persona.]\n\n' : '';
 
   // Build initial prompt (drain any pending IPC messages too)
   let prompt = soulNudge + containerInput.prompt;
