@@ -490,8 +490,15 @@ async function main(): Promise<void> {
   // Clean up stale _close sentinel from previous container runs
   try { fs.unlinkSync(IPC_INPUT_CLOSE_SENTINEL); } catch { /* ignore */ }
 
+  // Read soul persona once — prepend nudge to every prompt
+  let soulNudge = '';
+  try {
+    const soul = fs.readFileSync('/workspace/group/SOUL.md', 'utf-8').trim();
+    if (soul) soulNudge = `<persona>\n${soul}\n</persona>\n\n`;
+  } catch {}
+
   // Build initial prompt (drain any pending IPC messages too)
-  let prompt = containerInput.prompt;
+  let prompt = soulNudge + containerInput.prompt;
   if (containerInput.isScheduledTask) {
     prompt = `[SCHEDULED TASK - The following message was sent automatically and is not coming directly from the user or group.]\n\n${prompt}`;
   }
@@ -536,7 +543,7 @@ async function main(): Promise<void> {
       }
 
       log(`Got new message (${nextMessage.length} chars), starting new query`);
-      prompt = nextMessage;
+      prompt = soulNudge + nextMessage;
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
