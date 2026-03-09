@@ -63,8 +63,8 @@ export function unregisterAction(name: string): void {
 }
 
 export function getManifest(
-  sourceGroup: string,
-  opts: { tier: number; platforms: string[] },
+  sourceGroup = '',
+  opts: { tier: number; platforms: string[] } = { tier: 0, platforms: [] },
 ): Array<{
   name: string;
   description: string;

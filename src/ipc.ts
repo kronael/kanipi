@@ -24,6 +24,7 @@ import {
   registerGroup,
   setRoutingRules,
 } from './actions/groups.js';
+import { allSocialActions } from './actions/social.js';
 import {
   DATA_DIR,
   GROUPS_DIR,
@@ -81,6 +82,7 @@ const allActions: Action[] = [
   delegateGroup,
   escalateGroup,
   resetSession,
+  ...allSocialActions,
 ];
 for (const a of allActions) registerAction(a);
 
