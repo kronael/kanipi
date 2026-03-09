@@ -62,6 +62,7 @@ vi.mock('fs', async () => {
         return '{}';
       },
       existsSync: vi.fn(() => false),
+      appendFileSync: vi.fn(),
       renameSync: vi.fn(),
       readdirSync: (path: string, ...args: unknown[]) => {
         if (typeof path === 'string' && path.includes('migrations')) {
@@ -737,26 +738,17 @@ function setupUnauthorizedRouting(
 
 // Path 1: processGroupMessages called directly (pull path via queue).
 describe('unauthorized routing — path 1 (processGroupMessages): falls back to parent', () => {
-  it('grandchild target (root → root/code/py): runs source group agent', async () => {
+  it('grandchild target (root → root/code/py): delegates (child unregistered, cursor rolls back)', async () => {
     setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
 
     const ok = await _processGroupMessages('src@g.us');
 
     expect(ok).toBe(true);
-    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
-    const [g] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
-      ...unknown[],
-    ];
-    expect(g.folder).toBe('root');
-  });
-
-  it('grandchild target: cursor advanced — parent consumed the message', async () => {
-    setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
-
-    await _processGroupMessages('src@g.us');
-
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+    // Grandchild is now authorized — delegateToChild called, not parent agent
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+    // Flush async .catch rollback
+    await Promise.resolve();
+    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
   });
 
   it('cross-world target (root → other/code): runs source group agent', async () => {
@@ -810,21 +802,17 @@ describe('unauthorized routing — path 1 (processGroupMessages): falls back to 
 // as that callback — the same function the loop dispatches to — proving the
 // parent group handles the message rather than the denied child.
 describe('unauthorized routing — path 2 (startMessageLoop fallback): parent handled via queue', () => {
-  it('grandchild target: parent runs after loop routing denied, cursor advanced', async () => {
-    // Loop sees unauthorized target → falls to queue.enqueueMessageCheck →
-    // processGroupMessages runs → same auth check fails → runAgent called.
+  it('grandchild target: delegates (child unregistered, cursor rolls back)', async () => {
+    // Grandchild is now authorized → delegateToChild called, but child
+    // not registered → async .catch rolls back cursor.
     setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
 
     const ok = await _processGroupMessages('src@g.us');
 
     expect(ok).toBe(true);
-    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
-    const [g] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
-      ...unknown[],
-    ];
-    expect(g.folder).toBe('root');
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
   });
 
   it('sibling target: parent runs after loop routing denied, cursor advanced', async () => {

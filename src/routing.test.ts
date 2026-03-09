@@ -382,9 +382,9 @@ describe('isAuthorizedRoutingTarget', () => {
     expect(isAuthorizedRoutingTarget('main/code', 'main/code/py')).toBe(true);
   });
 
-  it('blocks non-direct descendants (grandchildren)', () => {
-    expect(isAuthorizedRoutingTarget('root', 'root/code/py')).toBe(false);
-    expect(isAuthorizedRoutingTarget('root', 'root/code/py/lint')).toBe(false);
+  it('allows non-direct descendants (grandchildren)', () => {
+    expect(isAuthorizedRoutingTarget('root', 'root/code/py')).toBe(true);
+    expect(isAuthorizedRoutingTarget('root', 'root/code/py/lint')).toBe(true);
   });
 
   it('blocks sibling routing', () => {

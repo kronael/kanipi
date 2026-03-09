@@ -169,7 +169,7 @@ describe('delegate_group IPC — real files', () => {
     expect(delegateToChild).not.toHaveBeenCalled();
   });
 
-  it('grandchild delegation (skipping a level): writes error reply', async () => {
+  it('grandchild delegation (skipping a level): writes ok reply', async () => {
     writeRequest('root', {
       id: 'req-grandchild',
       type: 'delegate_group',
@@ -181,9 +181,9 @@ describe('delegate_group IPC — real files', () => {
     await drainRequests(tmpDir, 'root', deps);
 
     const reply = readReply('root', 'req-grandchild');
-    expect(reply!.ok).toBe(false);
-    expect(reply!.error).toMatch(/unauthorized/i);
-    expect(delegateToChild).not.toHaveBeenCalled();
+    expect(reply!.ok).toBe(true);
+    expect(reply!.result).toEqual({ queued: true });
+    expect(delegateToChild).toHaveBeenCalledOnce();
   });
 
   it('depth limit exceeded: writes error reply', async () => {
