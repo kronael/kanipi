@@ -34,24 +34,12 @@ Gateway resolves platform from JID prefix.
 | `approve`     | reddit, youtube, mastodon                       |
 | `set_flair`   | reddit                                          |
 
-## How it works
+## Architecture
 
-Each action is a handler in `src/actions/social.ts`, registered
-via the action registry (`action-registry.ts`). The agent calls
-them as MCP tools — same pattern as `send_message`, `delegate_group`.
-
-The gateway resolves platform from the JID prefix:
-
-```typescript
-function platformFromJid(jid: string): Platform {
-  const prefix = jid.split(':')[0];
-  return prefixMap[prefix]; // 'reddit' | 'x' | 'mastodon' | ...
-}
-```
-
-Each handler delegates to the platform channel's API client.
-No abstraction layer — direct calls per platform with a
-switch on `platformFromJid(jid)`.
+See `U-channel-actions.md` for registration, filtering, and
+the generic agent-runner proxy. Each channel exports actions
+from `src/channels/{platform}/actions.ts`, registered on
+connect, filtered per group in the manifest.
 
 ## Action schemas
 

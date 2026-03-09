@@ -269,3 +269,5 @@ wrappers that parse user input and call the action.
 
 - Action middleware (logging, rate limiting) — v2 via
   MCP proxy hooks (see `3/A-ipc-mcp-proxy.md`)
+- Filtered manifest per group — see `3/U-channel-actions.md`
+- Dynamic channel action registration — see `3/U-channel-actions.md`
