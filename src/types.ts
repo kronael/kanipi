@@ -86,6 +86,7 @@ export interface ContainerConfig {
 
 export type RoutingRule =
   | { type: 'command'; trigger: string; target: string }
+  | { type: 'verb'; verb: string; target: string }
   | { type: 'pattern'; pattern: string; target: string }
   | { type: 'keyword'; keyword: string; target: string }
   | { type: 'sender'; pattern: string; target: string }

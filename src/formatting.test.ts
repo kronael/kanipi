@@ -102,6 +102,44 @@ describe('formatMessages', () => {
     const result = formatMessages([]);
     expect(result).toBe('<messages>\n\n</messages>');
   });
+
+  it('includes platform and verb when set', () => {
+    const result = formatMessages([
+      makeMsg({ platform: 'telegram', verb: 'message' }),
+    ]);
+    expect(result).toContain('platform="telegram"');
+    expect(result).toContain('verb="message"');
+  });
+
+  it('includes mentions_me only when true', () => {
+    const with_ = formatMessages([makeMsg({ mentions_me: true })]);
+    expect(with_).toContain('mentions_me="true"');
+
+    const without = formatMessages([makeMsg({ mentions_me: false })]);
+    expect(without).not.toContain('mentions_me');
+
+    const undef = formatMessages([makeMsg()]);
+    expect(undef).not.toContain('mentions_me');
+  });
+
+  it('includes thread and target when set', () => {
+    const result = formatMessages([makeMsg({ thread: '999', target: '456' })]);
+    expect(result).toContain('thread="999"');
+    expect(result).toContain('target="456"');
+  });
+
+  it('omits optional attributes when not set', () => {
+    const result = formatMessages([makeMsg()]);
+    expect(result).not.toContain('platform=');
+    expect(result).not.toContain('verb=');
+    expect(result).not.toContain('thread=');
+    expect(result).not.toContain('target=');
+  });
+
+  it('escapes special characters in new attributes', () => {
+    const result = formatMessages([makeMsg({ thread: '<unsafe>&"value' })]);
+    expect(result).toContain('thread="&lt;unsafe&gt;&amp;&quot;value"');
+  });
 });
 
 // --- TRIGGER_PATTERN ---

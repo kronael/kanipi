@@ -23,7 +23,13 @@ export function formatMessages(messages: NewMessage[]): string {
     }
     parts.push(escapeXml(m.content));
     const inner = parts.join('\n');
-    const tag = `<message sender="${escapeXml(m.sender_name ?? m.sender)}" time="${m.timestamp}">`;
+    let attrs = `sender="${escapeXml(m.sender_name ?? m.sender)}" time="${m.timestamp}"`;
+    if (m.platform) attrs += ` platform="${escapeXml(m.platform)}"`;
+    if (m.verb) attrs += ` verb="${escapeXml(m.verb)}"`;
+    if (m.mentions_me === true) attrs += ` mentions_me="true"`;
+    if (m.thread) attrs += ` thread="${escapeXml(m.thread)}"`;
+    if (m.target) attrs += ` target="${escapeXml(m.target)}"`;
+    const tag = `<message ${attrs}>`;
     if (parts.length === 1) return `${tag}${inner}</message>`;
     return `${tag}\n${inner}\n</message>`;
   });
