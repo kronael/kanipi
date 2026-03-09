@@ -1,5 +1,11 @@
 # TODO
 
+also - consider a re-pathing.. where the standard unix layout would map to
+the groups . ... unifying workspace with ~/ homes and the http multi-tenancy
+would become .publick_html like system
+
+- all of this then injects and reflect onto itself of not reinventing the worls
+
 ## Phase 2 — next to ship
 
 Partial specs, close to done. Finish these first.
