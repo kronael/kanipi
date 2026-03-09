@@ -6,7 +6,7 @@ Partial specs, close to done. Finish these first.
 
 - [ ] paths: hostPath() elimination (HOST\_\* exports done)
 - [ ] autotesting: IPC drain + voice roundtrip test gaps
-- [ ] session-recovery: recovery notes on eviction
+- [x] session-recovery: diary recovery entries on error/crash
 - [ ] errored chat flag: shipped this session (don't auto-retry on restart)
 - [ ] sse: auth per group on stream endpoint (broadcast is correct)
 - [x] diary: stop hook nudge, precompact cleanup, 14-entry injection, CLAUDE.md updates

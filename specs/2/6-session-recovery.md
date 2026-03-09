@@ -1,7 +1,8 @@
 # Session Recovery
 
-**Status**: closed — diary (14-entry injection) covers session continuity.
-Max turns handler already generates summary. No special mechanism needed.
+**Status**: shipped — gateway writes recovery entries to diary on
+error/crash. Diary injection picks them up on next session start.
+Max turns handler already generates summary. See `specs/1/L-memory-diary.md`.
 
 When a session ends abnormally (`error_during_execution`, `error_max_turns`),
 the new session starts cold. User must re-explain context.
