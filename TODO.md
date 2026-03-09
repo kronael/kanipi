@@ -36,7 +36,8 @@ Partial specs, close to done. Finish these first.
 - [ ] ipc-mcp-proxy: unix socket, replace file IPC
 - [ ] plugins: dynamic channel/feature loading
 - [ ] workflows: multi-step workflow primitives
-- [ ] feed adapters: reddit, twitter, facebook, gmail, webdav
+- [ ] evangelist: reddit engagement agent (scrape, score, draft, review, post)
+- [ ] feed adapters: twitter, facebook, gmail
 - [ ] HTTP request scrubbing (strip secrets from agent HTTP)
 
 ## Future — Go rewrite

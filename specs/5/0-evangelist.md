@@ -1,6 +1,6 @@
 # Evangelist
 
-**Status**: open
+**Status**: superseded by `specs/3/R-evangelist.md`
 
 Outbound community engagement agent. Monitors external communities
 (Reddit, Discord servers, forums) for relevant conversations and
