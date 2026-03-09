@@ -522,17 +522,18 @@ function create(name: string): void {
   fs.chownSync(path.join(dataDir, 'groups', 'root', 'logs'), 1000, 1000);
   fs.chownSync(path.join(dataDir, 'data'), 1000, 1000);
 
-  // Find template dir
-  let templateDir = process.env.APP_DIR
-    ? path.join(process.env.APP_DIR, 'template')
-    : '';
-  if (!templateDir || !fs.existsSync(templateDir)) {
-    templateDir = path.resolve(
-      path.dirname(new URL(import.meta.url).pathname),
-      '..',
-      'template',
-    );
-  }
+  // Find prototype dir (was template/; check prototype/ first for compat)
+  const appDir = process.env.APP_DIR || '';
+  const srcDir = path.dirname(new URL(import.meta.url).pathname);
+  let templateDir =
+    (appDir && fs.existsSync(path.join(appDir, 'prototype'))
+      ? path.join(appDir, 'prototype')
+      : appDir && fs.existsSync(path.join(appDir, 'template'))
+        ? path.join(appDir, 'template')
+        : '') ||
+    (fs.existsSync(path.resolve(srcDir, '..', 'prototype'))
+      ? path.resolve(srcDir, '..', 'prototype')
+      : path.resolve(srcDir, '..', 'template'));
 
   // Copy and configure .env
   const envSrc = path.join(templateDir, 'env.example');
@@ -635,7 +636,10 @@ function runInstance(instance: string): void {
     '/srv/app/container',
     path.join(dataDir, 'self', 'container'),
   );
-  copyDirRecursive('/srv/app/template', path.join(dataDir, 'self', 'template'));
+  const protoSrc = fs.existsSync('/srv/app/prototype')
+    ? '/srv/app/prototype'
+    : '/srv/app/template';
+  copyDirRecursive(protoSrc, path.join(dataDir, 'self', 'prototype'));
 
   // Set environment variables
   process.env.DATA_DIR = dataDir;

@@ -161,6 +161,28 @@ function buildVolumeMounts(
     }
   }
 
+  // Spawned groups: mount prototype's skills/ read-only (not copied to child)
+  if (group.parent) {
+    try {
+      const protoSkillsDir = path.join(
+        resolveGroupFolderPath(group.parent),
+        'skills',
+      );
+      if (fs.existsSync(protoSkillsDir)) {
+        mounts.push({
+          hostPath: hostPath(protoSkillsDir),
+          containerPath: '/workspace/group/skills',
+          readonly: true,
+        });
+      }
+    } catch (err) {
+      logger.debug(
+        { group: group.name, parent: group.parent, err },
+        'skipping prototype skills mount',
+      );
+    }
+  }
+
   // Media dir — enriched attachments
   const mediaDir = path.join(groupDir, 'media');
   fs.mkdirSync(mediaDir, { recursive: true });

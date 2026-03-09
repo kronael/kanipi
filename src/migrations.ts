@@ -22,7 +22,7 @@ export function runMigrations(db: Database.Database): void {
     .filter((f) => f.endsWith('.sql'))
     .sort();
 
-  const maxVersion =
+  let maxVersion =
     (db.prepare('SELECT max(version) AS v FROM migrations').get() as any)?.v ??
     0;
 
@@ -43,6 +43,7 @@ export function runMigrations(db: Database.Database): void {
         'INSERT INTO migrations (version, applied_at) VALUES (?, ?)',
       ).run(version, new Date().toISOString());
     })();
+    maxVersion = version;
   }
 }
 

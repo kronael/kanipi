@@ -27,7 +27,7 @@ import {
 } from '../mime.js';
 import { getLastGroupSync, setLastGroupSync, updateChatName } from '../db.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts, SendOpts } from '../types.js';
+import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
 
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -350,6 +350,8 @@ export class WhatsAppChannel implements Channel {
               forwarded_from,
               reply_to_text,
               reply_to_sender,
+              verb: Verb.Message,
+              platform: Platform.WhatsApp,
             },
             attachments.length > 0 ? attachments : undefined,
             attachments.length > 0 ? waDownload : undefined,

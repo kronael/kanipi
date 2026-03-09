@@ -17,7 +17,7 @@ import {
   RawAttachment,
 } from '../mime.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts, SendOpts } from '../types.js';
+import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
 
 export class DiscordChannel implements Channel {
   name = 'discord';
@@ -88,8 +88,9 @@ export class DiscordChannel implements Channel {
 
     let content = msg.content;
     const botId = this.client?.user?.id;
-    if (botId && content.includes(`<@${botId}>`)) {
-      content = content.replace(`<@${botId}>`, '').trim();
+    const mentionsBot = !!(botId && content.includes(`<@${botId}>`));
+    if (mentionsBot) {
+      content = content.replace(`<@${botId!}>`, '').trim();
       if (!TRIGGER_PATTERN.test(content)) {
         content = `@${ASSISTANT_NAME} ${content}`;
       }
@@ -156,6 +157,9 @@ export class DiscordChannel implements Channel {
         forwarded_from,
         reply_to_text,
         reply_to_sender,
+        verb: Verb.Message,
+        platform: Platform.Discord,
+        mentions_me: mentionsBot || undefined,
       },
       attachments.length > 0 ? attachments : undefined,
       attachments.length > 0 ? discordDownload : undefined,

@@ -16,7 +16,7 @@ import {
   storeEmailThread,
 } from '../db.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts, SendOpts } from '../types.js';
+import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
 
 function threadId(rootMsgId: string): string {
   return crypto
@@ -166,6 +166,8 @@ export class EmailChannel implements Channel {
           content,
           timestamp,
           is_from_me: false,
+          verb: Verb.Message,
+          platform: Platform.Email,
         });
 
         await this.imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], {

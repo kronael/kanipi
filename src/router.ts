@@ -1,4 +1,21 @@
-import { Channel, NewMessage, RoutingRule } from './types.js';
+import { Channel, NewMessage, Platform, RoutingRule } from './types.js';
+
+// Derive a valid group folder segment from a JID.
+// Replaces non-alphanumeric chars with _, collapses consecutive _, trims.
+// e.g. "tg:-100123456" → "tg_100123456"
+export function spawnFolderName(jid: string): string {
+  return jid
+    .replace(/[^A-Za-z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 63);
+}
+
+// JID format: "platform:identifier" — e.g. "mastodon:@user@instance.social"
+export function platformFromJid(jid: string): Platform {
+  const prefix = jid.split(':')[0] as Platform;
+  return prefix;
+}
 
 export function escapeXml(s: string): string {
   if (!s) return '';
@@ -76,7 +93,7 @@ export function isAuthorizedRoutingTarget(
 }
 
 // Evaluate routing rules against a message. Returns target folder or null.
-// Evaluation order: command → pattern → keyword → sender → default.
+// Evaluation order: command → verb → pattern → keyword → sender → default.
 // First match within each tier wins; tiers evaluated in order.
 export function resolveRoutingTarget(
   msg: NewMessage,
@@ -84,6 +101,7 @@ export function resolveRoutingTarget(
 ): string | null {
   const tiers: RoutingRule['type'][] = [
     'command',
+    'verb',
     'pattern',
     'keyword',
     'sender',
@@ -96,6 +114,8 @@ export function resolveRoutingTarget(
         const t = msg.content.trim();
         if (t === rule.trigger || t.startsWith(rule.trigger + ' '))
           return rule.target;
+      } else if (rule.type === 'verb') {
+        if (msg.verb === rule.verb) return rule.target;
       } else if (rule.type === 'pattern') {
         if (rule.pattern.length > 200) continue;
         try {

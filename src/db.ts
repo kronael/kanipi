@@ -545,6 +545,7 @@ type GroupRow = {
   slink_token: string | null;
   parent: string | null;
   routing_rules: string | null;
+  max_children: number | null;
 };
 
 function parseContainerConfig(raw: string, jid: string) {
@@ -598,6 +599,7 @@ function rowToGroup(row: GroupRow): RegisteredGroup & { jid: string } {
     routingRules: row.routing_rules
       ? parseRoutingRules(row.routing_rules, row.jid)
       : undefined,
+    maxChildren: row.max_children ?? undefined,
   };
 }
 
@@ -641,8 +643,8 @@ export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
   db.prepare(
     `INSERT OR REPLACE INTO registered_groups
        (jid, name, folder, trigger_pattern, added_at, container_config,
-        requires_trigger, slink_token, parent, routing_rules)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        requires_trigger, slink_token, parent, routing_rules, max_children)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     jid,
     group.name,
@@ -654,7 +656,15 @@ export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
     group.slinkToken ?? null,
     group.parent ?? null,
     group.routingRules ? JSON.stringify(group.routingRules) : null,
+    group.maxChildren ?? null,
   );
+}
+
+export function countChildGroups(parentFolder: string): number {
+  const row = db
+    .prepare(`SELECT COUNT(*) AS n FROM registered_groups WHERE folder LIKE ?`)
+    .get(`${parentFolder}/%`) as { n: number };
+  return row.n;
 }
 
 export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {

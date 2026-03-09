@@ -127,6 +127,11 @@ export const RoutingRuleSchema = z.discriminatedUnion('type', [
     target: z.string(),
   }),
   z.object({
+    type: z.literal('verb'),
+    verb: z.string(),
+    target: z.string(),
+  }),
+  z.object({
     type: z.literal('keyword'),
     keyword: z.string(),
     target: z.string(),
@@ -149,6 +154,7 @@ export interface RegisteredGroup {
   slinkToken?: string; // Only set for web: groups
   parent?: string; // Parent folder, undefined for roots
   routingRules?: RoutingRule[]; // Rules for routing to child groups
+  maxChildren?: number; // Max spawned children (default: 50, 0 = no spawning)
 }
 
 export interface SendOpts {

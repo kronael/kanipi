@@ -10,7 +10,7 @@ import {
   RawAttachment,
 } from '../mime.js';
 import { logger } from '../logger.js';
-import { Channel, ChannelOpts, SendOpts } from '../types.js';
+import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
 
 function mdToHtml(text: string): string {
   // Extract fenced code blocks before any other processing
@@ -79,9 +79,10 @@ export class TelegramChannel implements Channel {
       // Telegram @mentions (e.g., @andy_ai_bot) won't match TRIGGER_PATTERN
       // (e.g., ^@Andy\b), so we prepend the trigger when the bot is @mentioned.
       const botUsername = ctx.me?.username?.toLowerCase();
+      let isBotMentioned = false;
       if (botUsername) {
         const entities = ctx.message.entities || [];
-        const isBotMentioned = entities.some((entity) => {
+        isBotMentioned = entities.some((entity) => {
           if (entity.type === 'mention') {
             const mentionText = content
               .substring(entity.offset, entity.offset + entity.length)
@@ -157,6 +158,9 @@ export class TelegramChannel implements Channel {
         forwarded_from,
         reply_to_text,
         reply_to_sender,
+        verb: Verb.Message,
+        platform: Platform.Telegram,
+        mentions_me: isBotMentioned || undefined,
       });
 
       logger.info(
@@ -250,6 +254,8 @@ export class TelegramChannel implements Channel {
           forwarded_from,
           reply_to_text,
           reply_to_sender,
+          verb: Verb.Message,
+          platform: Platform.Telegram,
         },
         attachments.length > 0 ? attachments : undefined,
         attachments.length > 0 ? tgDownload : undefined,
