@@ -54,89 +54,91 @@ Polls or streams inbound events, converts to `InboundEvent`
 
 ### actions.ts
 
-Exports an array of `Action` objects using the standard
-`Action` interface from `action-registry.ts`. Each action
-uses the shared client:
+Exports action handlers. Social actions are registered once
+(not per-channel) since they switch on platform internally.
+Each channel contributes its client to a shared registry:
 
 ```typescript
-export function mastodonActions(client: MastodonClient): Action[] {
-  return [
-    {
-      name: 'mastodon_post',
-      description: 'Create a new Mastodon status',
-      input: z.object({
-        jid: z.string(),
-        content: z.string(),
-        media: z.array(z.string()).optional(),
-      }),
-      async handler(raw, ctx) {
-        const input = PostInput.parse(raw);
-        assertAuthorized(input.jid, ctx);
-        return client.post(input.content, input.media);
-      },
-    },
-    // ... react, repost, follow, ban, pin, etc.
-  ];
+// src/actions/social.ts
+const clients: Map<Platform, PlatformClient> = new Map();
+
+export function registerClient(p: Platform, c: PlatformClient) {
+  clients.set(p, c);
 }
+
+export const postAction: Action = {
+  name: 'post',
+  description: 'Create new content',
+  input: z.object({
+    jid: z.string(),
+    content: z.string(),
+    media: z.array(z.string()).optional(),
+  }),
+  platforms: ['reddit', 'mastodon', 'bluesky', 'twitter'],
+  async handler(raw, ctx) {
+    const input = PostInput.parse(raw);
+    assertAuthorized(input.jid, ctx);
+    const platform = platformFromJid(input.jid);
+    const client = clients.get(platform);
+    if (!client) throw new Error(`${platform} not connected`);
+    return client.post(input.content, input.media);
+  },
+};
 ```
 
 ## MCP tool naming
 
-Tools are named `{platform}_{verb}` for platform-specific
-actions:
+All actions are generic verbs: `post`, `reply`, `ban`, `pin`.
+The handler switches on `platformFromJid(jid)`:
 
+```typescript
+{
+  name: 'ban',
+  handler(raw, ctx) {
+    const platform = platformFromJid(input.jid);
+    switch (platform) {
+      case 'discord': return discordClient.ban(...);
+      case 'reddit': return redditClient.ban(...);
+      case 'mastodon': return mastodonClient.ban(...);
+      default: throw new Error(`${platform} doesn't support ban`);
+    }
+  }
+}
 ```
-mastodon_post, mastodon_react, mastodon_ban
-reddit_post, reddit_set_flair, reddit_approve
-discord_timeout, discord_pin
-```
 
-Generic actions that work identically across platforms can
-use a single name if the handler switches on JID prefix:
+The agent doesn't need platform knowledge — it uses the JID
+it received. The gateway resolves platform and dispatches.
 
-```
-social_reply    — all platforms
-social_delete   — all platforms
-social_follow   — reddit, twitter, mastodon, bluesky
-```
+If an action isn't supported on the target platform, the
+handler returns an error. The manifest hides actions entirely
+if the agent's group has no platforms that support them.
 
-The split is pragmatic: if the schema and behavior are
-identical, share. If platform-specific fields exist (flair,
-shield mode, visibility), separate.
+## Dynamic client registration
 
-## Dynamic action registration
-
-Channels register actions on `connect()`, unregister on
-`disconnect()`. The action registry already supports this:
+Channels register their client on `connect()`, unregister on
+`disconnect()`. Social actions are registered once at startup
+— they dispatch to whichever clients are connected:
 
 ```typescript
 // src/channels/mastodon/index.ts
 export class MastodonChannel implements Channel {
   private client: MastodonClient;
-  private actions: Action[] = [];
 
   async connect() {
     this.client = createClient(this.config);
     await this.client.connect();
-    this.actions = mastodonActions(this.client);
-    for (const a of this.actions) registerAction(a);
+    registerClient('mastodon', this.client);
   }
 
   async disconnect() {
-    for (const a of this.actions) unregisterAction(a.name);
+    unregisterClient('mastodon');
     await this.client.disconnect();
   }
 }
 ```
 
-Requires adding `unregisterAction()` to the registry:
-
-```typescript
-// action-registry.ts — one new function
-export function unregisterAction(name: string): void {
-  actions.delete(name);
-}
-```
+Social actions (`post`, `reply`, `ban`, etc.) are registered
+once in `src/actions/social.ts` and imported in `ipc.ts`.
 
 ## Filtered manifest
 
@@ -167,14 +169,13 @@ export function getManifest(sourceGroup: string): ManifestEntry[] {
 function actionAvailable(
   action: Action,
   tier: number,
-  platforms: Platform[],
+  groupPlatforms: Platform[],
 ): boolean {
-  // tier filter — action declares minimum tier
   if (action.minTier !== undefined && tier > action.minTier) return false;
-
-  // platform filter — action declares required platform
-  if (action.platform && !platforms.includes(action.platform)) return false;
-
+  if (action.platforms?.length) {
+    // show if ANY of the action's platforms are active
+    if (!action.platforms.some((p) => groupPlatforms.includes(p))) return false;
+  }
   return true;
 }
 ```
@@ -189,29 +190,28 @@ interface Action {
   handler(input: unknown, ctx: ActionContext): Promise<unknown>;
   command?: string;
   mcp?: boolean;
-  minTier?: number; // NEW: hide from agents above this tier
-  platform?: Platform; // NEW: only show when platform is active
+  minTier?: number; // hide from agents above this tier
+  platforms?: Platform[]; // show if agent has ANY of these
 }
 ```
 
 ### What gets filtered
 
-| Action            | minTier | platform | Visible to                  |
-| ----------------- | ------- | -------- | --------------------------- |
-| `send_message`    | —       | —        | all agents                  |
-| `delegate_group`  | —       | —        | all agents                  |
-| `register_group`  | 1       | —        | root, world                 |
-| `refresh_groups`  | 0       | —        | root only                   |
-| `inject_message`  | 1       | —        | root, world                 |
-| `mastodon_post`   | —       | mastodon | agents with mastodon JID    |
-| `reddit_ban`      | —       | reddit   | agents with reddit JID      |
-| `social_reply`    | —       | —        | all agents (multi-platform) |
-| `discord_timeout` | —       | discord  | agents with discord JID     |
+| Action           | minTier | platforms          | Visible to         |
+| ---------------- | ------- | ------------------ | ------------------ |
+| `send_message`   | —       | —                  | all agents         |
+| `delegate_group` | —       | —                  | all agents         |
+| `register_group` | 1       | —                  | root, world        |
+| `refresh_groups` | 0       | —                  | root only          |
+| `inject_message` | 1       | —                  | root, world        |
+| `post`           | —       | reddit,mastodon... | agents with any    |
+| `ban`            | —       | reddit,discord,... | agents with any    |
+| `set_flair`      | —       | reddit             | agents with reddit |
+| `timeout`        | —       | discord,twitch,yt  | agents with any    |
 
-Multi-platform actions (like `social_reply`) have no platform
-filter — they appear for all agents. The handler checks JID
-prefix at runtime and returns an error if the platform doesn't
-support the operation.
+Actions appear if the agent has ANY platform that supports
+them. If the agent calls an action on an unsupported platform,
+the handler returns an error at runtime.
 
 ## Agent-runner: generic proxy
 
@@ -280,14 +280,12 @@ No agent-runner changes. Existing hardcoded tools still work.
 
 ### Phase 3: channel actions
 
-1. Social channels export `Action[]` from `actions.ts`
-2. Register on `connect()`, unregister on `disconnect()`
-3. Actions include `platform` field for manifest filtering
-4. Agent sees only tools for its group's active platforms
+1. Social actions in `src/actions/social.ts` (generic verbs)
+2. Channels register client on `connect()`, unregister on `disconnect()`
+3. Actions include `platforms` array for manifest filtering
+4. Agent sees only tools supported by its group's platforms
 
 ## Open
 
-- Multi-platform actions (`social_reply`) — single handler
-  with JID switch, or register per-platform and alias?
 - Rate limit errors — structured error for agent retry?
 - Media upload — presigned URL or stream through gateway?

@@ -100,8 +100,8 @@ connect, filtered per group in the manifest.
 All schemas use Zod. `jid` determines platform via prefix.
 `target` is platform-native ID (post ID, user ID, etc.).
 
-Action names in this table are abstract verbs. MCP tool
-names use `{platform}_{verb}` format — see `U-channel-actions.md`.
+These are the MCP tool names — generic verbs. The handler
+switches on platform internally. See `U-channel-actions.md`.
 
 ## Open
 
