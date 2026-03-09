@@ -1,4 +1,3 @@
-import { isDirectChild } from './permissions.js';
 import { Channel, NewMessage, RoutingRule } from './types.js';
 
 export function escapeXml(s: string): string {
@@ -59,7 +58,7 @@ export function findChannel(
 }
 
 // Returns true if source group may delegate/route to target:
-// same world and target is a direct child of source.
+// same world and target is any descendant of source.
 export function isAuthorizedRoutingTarget(
   sourceFolder: string,
   targetFolder: string,
@@ -67,7 +66,7 @@ export function isAuthorizedRoutingTarget(
   const sourceRoot = sourceFolder.split('/')[0];
   const targetRoot = targetFolder.split('/')[0];
   if (sourceRoot !== targetRoot) return false;
-  return isDirectChild(sourceFolder, targetFolder);
+  return targetFolder.startsWith(sourceFolder + '/');
 }
 
 // Evaluate routing rules against a message. Returns target folder or null.

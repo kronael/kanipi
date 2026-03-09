@@ -328,5 +328,88 @@ server.tool(
   },
 );
 
+server.tool(
+  'delegate_group',
+  'Delegate a task to a child group.',
+  {
+    group: z.string().describe('Target group folder'),
+    prompt: z.string().describe('What the child should do'),
+  },
+  async (args) => {
+    return callAction('delegate_group', {
+      group: args.group,
+      prompt: args.prompt,
+      chatJid,
+    });
+  },
+);
+
+server.tool(
+  'escalate_group',
+  'Escalate to parent group.',
+  {
+    prompt: z.string().describe('Context for parent'),
+  },
+  async (args) => {
+    return callAction('escalate_group', {
+      prompt: args.prompt,
+      chatJid,
+    });
+  },
+);
+
+server.tool(
+  'set_routing_rules',
+  'Set message routing rules for this group\'s children.',
+  {
+    rules: z.string().describe('JSON array of routing rules'),
+  },
+  async (args) => {
+    return callAction('set_routing_rules', {
+      folder: groupFolder,
+      rules: args.rules,
+    });
+  },
+);
+
+server.tool(
+  'refresh_groups',
+  'Refresh group metadata from channels. Root only.',
+  {},
+  async () => {
+    if (!isRoot) {
+      return {
+        content: [{ type: 'text', text: 'Only root can refresh groups.' }],
+        isError: true,
+      };
+    }
+    return callAction('refresh_groups', {});
+  },
+);
+
+server.tool(
+  'inject_message',
+  'Inject a synthetic message into a group. Root only.',
+  {
+    targetFolder: z.string().describe('Target group folder'),
+    text: z.string().describe('Message text'),
+    sender: z.string().optional().describe('Sender name'),
+  },
+  async (args) => {
+    if (!isRoot) {
+      return {
+        content: [{ type: 'text', text: 'Only root can inject messages.' }],
+        isError: true,
+      };
+    }
+    return callAction('inject_message', {
+      targetFolder: args.targetFolder,
+      text: args.text,
+      sender: args.sender,
+      chatJid,
+    });
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);

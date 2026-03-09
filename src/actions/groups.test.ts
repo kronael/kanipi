@@ -63,14 +63,13 @@ describe('delegateGroup — authorization', () => {
     );
   });
 
-  it('root cannot delegate to deeply nested child (must be direct)', async () => {
+  it('root can delegate to deeply nested descendant', async () => {
     const ctx = makeCtx('root');
-    await expect(
-      delegateGroup.handler(
-        { group: 'root/code/py', prompt: 'run tests', chatJid: 'tg/-100' },
-        ctx,
-      ),
-    ).rejects.toThrow('unauthorized');
+    const result = await delegateGroup.handler(
+      { group: 'root/code/py', prompt: 'run tests', chatJid: 'tg/-100' },
+      ctx,
+    );
+    expect(result).toEqual({ queued: true });
   });
 
   it('root cannot delegate to cross-world group', async () => {
