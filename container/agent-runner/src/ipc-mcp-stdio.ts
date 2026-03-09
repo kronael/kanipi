@@ -10,9 +10,7 @@ const REPLIES_DIR = path.join(IPC_DIR, 'replies');
 const chatJid = process.env.NANOCLAW_CHAT_JID!;
 const groupFolder = process.env.NANOCLAW_GROUP_FOLDER!;
 const isRoot = process.env.NANOCLAW_IS_ROOT === '1';
-
 function rand() { return Math.random().toString(36).slice(2, 8); }
-
 function writeRequest(data: object & { id: string; type: string }): void {
   fs.mkdirSync(REQUESTS_DIR, { recursive: true });
   const tmp = path.join(REQUESTS_DIR, `${data.id}.json.tmp`);
@@ -44,7 +42,6 @@ async function callAction(type: string, input: Record<string, unknown>) {
   return { content: [{ type: 'text' as const, text }] };
 }
 
-// Convert JSON Schema to ZodRawShape for MCP tool registration (gateway validates the real schema)
 function toZodShape(schema: unknown): Record<string, z.ZodTypeAny> {
   const s = schema as Record<string, unknown>;
   if (s?.type !== 'object' || !s?.properties) return {};
