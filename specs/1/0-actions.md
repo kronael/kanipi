@@ -1,5 +1,7 @@
 # Gateway Actions
 
+**Status**: shipped
+
 Atomic operations. Action registry is the single source of
 truth — MCP tools, commands, and IPC dispatch all reference it.
 

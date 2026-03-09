@@ -1,6 +1,7 @@
 # Session Recovery
 
-**Status**: open
+**Status**: closed — diary (14-entry injection) covers session continuity.
+Max turns handler already generates summary. No special mechanism needed.
 
 When a session ends abnormally (`error_during_execution`, `error_max_turns`),
 the new session starts cold. User must re-explain context.

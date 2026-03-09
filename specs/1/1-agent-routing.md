@@ -1,5 +1,7 @@
 # Agent Routing & Specialized Workers — open (v2)
 
+**Status**: open (v2)
+
 Pipeline-based message routing to specialized agents within a group.
 Group-configurable from inside (agent or operator sets up routing rules).
 

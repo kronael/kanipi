@@ -1,5 +1,7 @@
 # Reference Systems Analysis
 
+**Status**: reference
+
 Concrete findings from studying brainpro, takopi, and eliza-atlas.
 Source code read, not summaries. Informs kanipi v2 design.
 

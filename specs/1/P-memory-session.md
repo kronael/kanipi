@@ -1,6 +1,6 @@
 # Memory: Session
 
-**Status**: open
+**Status**: partial
 
 SDK session continuity across container invocations.
 

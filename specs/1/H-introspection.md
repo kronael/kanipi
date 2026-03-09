@@ -1,5 +1,7 @@
 # introspection — Agent capability introspection and configuration
 
+**Status**: shipped
+
 ## Problem
 
 The agent has no way to discover what gateway features are available or how

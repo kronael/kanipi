@@ -1,5 +1,7 @@
 # Marinade Atlas on Kanipi
 
+**Status**: shipped
+
 Migration from ElizaOS (eliza_atlas_marinade) to kanipi_marinade.
 
 ## Instance

@@ -1,5 +1,7 @@
 # Router
 
+**Status**: shipped
+
 Message routing: JID resolution, group dispatch, prompt
 assembly, volume mounts.
 

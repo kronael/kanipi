@@ -1,5 +1,7 @@
 # Agent Teams: Analysis and Decision
 
+**Status**: decided (use SDK subagents)
+
 ## What Claude Code calls "Agent Teams" vs "Subagents"
 
 ### Subagents (Agent / Task tool)

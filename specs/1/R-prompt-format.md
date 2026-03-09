@@ -1,5 +1,7 @@
 # Prompt format
 
+**Status**: shipped
+
 ## Status key
 
 - **shipped** -- implemented and running

@@ -1,5 +1,7 @@
 # Sync spec (v1) — solved
 
+**Status**: shipped
+
 ## Problem
 
 Skills, agent code, and persona config need to flow from upstream

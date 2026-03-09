@@ -1,5 +1,7 @@
 # Systems
 
+**Status**: reference
+
 Kanipi decomposes into orthogonal systems.
 
 ## Infrastructure

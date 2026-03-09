@@ -1,5 +1,7 @@
 # System Messages
 
+**Status**: shipped
+
 Gateway-generated annotations riding alongside user messages
 into agent stdin. Never sent to channel, never trigger agent
 alone — piggyback on next real user message.
