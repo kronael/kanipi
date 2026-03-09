@@ -1,9 +1,8 @@
 # Prototypes (Per-JID Group Spawning)
 
-**Status**: superseded by `S-social-events.md` auto-spawning.
-Simpler model: router creates child groups on demand, parent
-is the template, `max_children` limits prevent runaway.
-No separate prototype concept needed.
+**Status**: open. Core mechanism for social channels and
+per-user isolation. See `S-social-events.md` for thread
+routing that uses prototypes.
 
 ## Problem
 

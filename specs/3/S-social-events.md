@@ -266,49 +266,11 @@ Per-group config: `thread_mode: 'inject' | 'spawn'`.
 - **inject** (default): thread context prefixed to message.
   `[thread:abc123 reply-to:def456] message text`.
   All thread events go to same group.
-- **spawn**: route to child group named by thread ID.
-  If the child group doesn't exist, the gateway creates it
-  (see "Auto-spawning" below).
-
-## Auto-spawning groups
-
-When the router resolves a target group that doesn't exist,
-the gateway creates it. This replaces the prototypes spec
-as a simpler mechanism.
-
-Rules:
-
-- Parent group must exist and be registered
-- Target must be a valid descendant of the parent
-- Parent's `max_children` config limits open subgroups
-  (default: 50, prevents runaway from config errors)
-- New group inherits parent's CLAUDE.md, skills, SOUL.md
-- New group gets its own workdir, session, memory
-
-```typescript
-// registered_groups column
-max_children?: number;  // default: 50, 0 = no spawning
-```
-
-When `max_children` is reached, new threads route to the
-parent instead (fallback, not error).
-
-The gateway copies the parent's group folder to create the
-child. No template/prototype concept — the parent IS the
-template.
-
-```
-groups/
-  main/reddit/          parent (registered, has config)
-    CLAUDE.md
-    SOUL.md
-  main/reddit/post_abc  auto-spawned child
-    CLAUDE.md           copied from parent
-    SOUL.md             copied from parent
-```
-
-Cleanup: children with no messages in N days are removed
-(configurable via `spawn_ttl_days`, default: 7).
+- **spawn**: route to prototype-spawned child group per
+  thread ID. Router resolves target, if it doesn't exist,
+  spawns from the prototype. See `F-prototypes.md` for
+  the spawning mechanism, naming (`~` separator), limits
+  (`max_spawns`), lifecycle, and cleanup.
 
 ## Migration from NewMessage
 
