@@ -148,10 +148,19 @@ export async function drainRequests(
 
       if (type === 'list_actions') {
         const tier = permissionTier(sourceGroup);
+        const groups = deps.registeredGroups();
+        const platforms = [
+          ...new Set(
+            Object.entries(groups)
+              .filter(([, g]) => g.folder === sourceGroup)
+              .map(([jid]) => jid.split(':')[0])
+              .filter((p) => p.length > 0 && !p.includes('@')),
+          ),
+        ];
         reply = {
           id,
           ok: true,
-          result: getManifest(sourceGroup, { tier, platforms: [] }),
+          result: getManifest(sourceGroup, { tier, platforms }),
         };
       } else {
         const action = getAction(type);
