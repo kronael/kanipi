@@ -259,18 +259,12 @@ sender → default.
 ]
 ```
 
-## Thread routing
+## Thread context
 
-Per-group config: `thread_mode: 'inject' | 'spawn'`.
-
-- **inject** (default): thread context prefixed to message.
-  `[thread:abc123 reply-to:def456] message text`.
-  All thread events go to same group.
-- **spawn**: route to prototype-spawned child group per
-  thread ID. Router resolves target, if it doesn't exist,
-  spawns from the prototype. See `F-prototypes.md` for
-  the spawning mechanism, naming (`~` separator), limits
-  (`max_spawns`), lifecycle, and cleanup.
+Thread fields (`thread`, `parent`, `root`) are data on the
+event. The agent sees them. The router can match on them
+via pattern rules. If routing resolves to a non-existent
+group, prototypes spawn it (`F-prototypes.md`).
 
 ## Migration from NewMessage
 
