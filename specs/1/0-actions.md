@@ -191,7 +191,7 @@ on next drain.
 
 `schedule_type`: `'cron' | 'interval' | 'once'`.
 `context_mode`: `'group' | 'isolated'` (default `'isolated'`).
-`list_tasks` is not yet implemented.
+`list_tasks` reads from `current_tasks.json`.
 
 ### Groups
 
@@ -202,7 +202,7 @@ on next drain.
 | `delegate_group`    | yes | `{ group, prompt, chatJid, depth? }`                                                         |
 | `set_routing_rules` | yes | `{ folder, rules }`                                                                          |
 
-`register_group` requires root. `delegate_group` is authorized
+`register_group` requires tier ≤ 1 (root or world). `delegate_group` is authorized
 by `isAuthorizedRoutingTarget(sourceGroup, group)`; `depth` is
 injected by the gateway on recursive delegation (max 3).
 

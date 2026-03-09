@@ -161,7 +161,7 @@ Implemented. `email_threads` table maps
 See `specs/1/8-email.md`. Generalise to `channel_threads`
 only when a second channel needs it.
 
-## To ship (message-threading)
+## Open (message-threading)
 
 1. Add `replyTo` to `NewMessage` in `src/types.ts`
 2. Add `SendOpts` to `sendMessage` signature

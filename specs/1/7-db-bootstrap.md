@@ -24,10 +24,10 @@ DB path: `store/messages.db` (relative to cwd).
 
 ### Migration files
 
-Each migration is a `.sql` file in `migrations/` at the project root:
+Each migration is a `.sql` file in `src/migrations/` (resolved via `__dirname`):
 
 ```
-migrations/
+src/migrations/
   0001-slink-token.sql
   0002-context-mode.sql
   0003-is-bot-message.sql
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS migrations (
 ### `src/migrations.ts`
 
 Single module shared by gateway and CLI. Reads `.sql` files from
-`./migrations/` (cwd-relative, matching project layout).
+`src/migrations/` (resolved via `__dirname`).
 
 ```typescript
 export function ensureDatabase(dbPath: string): Database.Database;

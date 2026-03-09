@@ -5,8 +5,6 @@
 Media attachment processing. Runs on every inbound message
 before container spawn — downloads, transcribes, annotates.
 
-**Status**: partial (voice + video shipped)
-
 ## Model
 
 ```
@@ -108,13 +106,9 @@ requires: ffmpeg in PATH
 
 ### GenericFileSaver
 
-```
-matches:  any attachment not matched by specific enricher
-enriches: download -> media/files/<filename>
-          -> localPath, sizeBytes, mimeType
-          -> ContextAnnotation(order:30)
-config:   MEDIA_ENABLED
-```
+Covered by the pipeline's default behavior: all attachments are
+saved and produce `[media attached: ...]` lines. No separate
+handler needed.
 
 ## Prompt assembly
 
