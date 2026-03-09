@@ -7,10 +7,14 @@ vi.mock('./config.js', () => ({
 }));
 
 vi.mock('./logger.js', () => ({
-  logger: { debug: vi.fn() },
+  logger: { debug: vi.fn(), info: vi.fn() },
 }));
 
-import { readDiaryEntries, formatDiaryXml } from './diary.js';
+import {
+  readDiaryEntries,
+  formatDiaryXml,
+  writeRecoveryEntry,
+} from './diary.js';
 
 describe('diary', () => {
   beforeEach(() => {
@@ -117,6 +121,58 @@ describe('diary', () => {
         { date: `${y}-${m}-${d}`, summary: 'today work' },
       ]);
       expect(xml).toContain('age="today"');
+    });
+  });
+
+  describe('writeRecoveryEntry', () => {
+    it('creates diary dir and writes frontmatter on new file', () => {
+      const mkdirSpy = vi.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
+      vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+      const appendSpy = vi
+        .spyOn(fs, 'appendFileSync')
+        .mockReturnValue(undefined);
+
+      writeRecoveryEntry('main', 'error', 'timeout');
+
+      expect(mkdirSpy).toHaveBeenCalledWith(
+        path.join('/tmp/test-groups', 'main', 'diary'),
+        { recursive: true },
+      );
+      const written = appendSpy.mock.calls[0][1] as string;
+      expect(written).toContain('---');
+      expect(written).toContain('summary: "session ended: error"');
+      expect(written).toContain('## Recovery (');
+      expect(written).toContain('Reason: error');
+      expect(written).toContain('Error: timeout');
+    });
+
+    it('appends without frontmatter when file exists', () => {
+      vi.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
+      vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+      const appendSpy = vi
+        .spyOn(fs, 'appendFileSync')
+        .mockReturnValue(undefined);
+
+      writeRecoveryEntry('main', 'container_crash', 'OOM');
+
+      const written = appendSpy.mock.calls[0][1] as string;
+      expect(written).not.toContain('---');
+      expect(written).toContain('## Recovery (');
+      expect(written).toContain('Reason: container_crash');
+      expect(written).toContain('Error: OOM');
+    });
+
+    it('writes "none" when error is omitted', () => {
+      vi.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
+      vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+      const appendSpy = vi
+        .spyOn(fs, 'appendFileSync')
+        .mockReturnValue(undefined);
+
+      writeRecoveryEntry('main', 'error');
+
+      const written = appendSpy.mock.calls[0][1] as string;
+      expect(written).toContain('Error: none');
     });
   });
 });

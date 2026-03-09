@@ -60,7 +60,11 @@ import {
 } from './db.js';
 import { AttachmentDownloader, RawAttachment } from './mime.js';
 import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
-import { formatDiaryXml, readDiaryEntries } from './diary.js';
+import {
+  formatDiaryXml,
+  readDiaryEntries,
+  writeRecoveryEntry,
+} from './diary.js';
 import chatidCommand from './commands/chatid.js';
 import { putCommand, getCommand, lsCommand } from './commands/file.js';
 import newCommand, { pendingCommandArgs } from './commands/new.js';
@@ -624,6 +628,7 @@ async function runAgent(
         { group: group.name, sessionId, error: output.error },
         'Container agent error',
       );
+      writeRecoveryEntry(group.folder, 'error', output.error);
       // Evict if no progress was made (newSessionId same as input or absent)
       if (!output.newSessionId || output.newSessionId === sessionId) {
         delete sessions[group.folder];
@@ -646,6 +651,8 @@ async function runAgent(
 
     return 'success';
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    writeRecoveryEntry(group.folder, 'container_crash', msg);
     logger.error({ group: group.name, err }, 'Agent error');
     return 'error';
   }

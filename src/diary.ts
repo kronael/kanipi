@@ -66,6 +66,34 @@ export function readDiaryEntries(groupFolder: string, max = 14): DiaryEntry[] {
   return entries;
 }
 
+export function writeRecoveryEntry(
+  groupFolder: string,
+  reason: string,
+  error?: string,
+): void {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+
+  const diaryDir = path.join(GROUPS_DIR, groupFolder, 'diary');
+  fs.mkdirSync(diaryDir, { recursive: true });
+
+  const file = path.join(diaryDir, `${y}${m}${d}.md`);
+  const exists = fs.existsSync(file);
+
+  const entry =
+    (exists ? '\n' : `---\nsummary: "session ended: ${reason}"\n---\n`) +
+    `## Recovery (${hh}:${mm})\n` +
+    `Reason: ${reason}\n` +
+    `Error: ${error || 'none'}\n`;
+
+  fs.appendFileSync(file, entry);
+  logger.info({ groupFolder, reason }, 'wrote recovery diary entry');
+}
+
 export function formatDiaryXml(entries: DiaryEntry[]): string {
   if (entries.length === 0) return '';
   const now = new Date();
