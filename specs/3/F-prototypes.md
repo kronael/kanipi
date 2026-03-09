@@ -47,7 +47,9 @@ enforce this. No new isolation mechanism needed.
 
 ## What gets copied
 
-- CLAUDE.md, SOUL.md — copied
+- CLAUDE.md, SOUL.md — full copy (not symlink). Simple,
+  no dependency on prototype staying alive. Spawns are
+  independent once created.
 - Session, memory, workdir — NOT copied (fresh)
 - DB state — new row, empty session
 - skills/ — mounted read-only from prototype (not copied)
@@ -131,8 +133,55 @@ runs migrations from `skills/self/migrations/`.
 New spawns get current prototype state. Existing spawns
 don't auto-update — delete and re-create to refresh.
 
-## Open
+## Spawn folder naming
 
-1. **Copy vs symlink** — full copy or symlink CLAUDE.md/
-   SOUL.md from prototype? Copy is simpler, symlink
-   keeps spawns in sync but breaks on prototype deletion.
+Derived from the triggering event's JID. The folder name
+is the JID with `:` replaced by `_` and special chars
+stripped:
+
+```
+mastodon:instance.social:12345  → mastodon_instance_social_12345
+reddit:r_programming:post_abc   → reddit_r_programming_post_abc
+tg:-100123456                   → tg_100123456
+```
+
+Function: `spawnFolderName(jid: string): string` in
+`src/router.ts`.
+
+## Cleanup job wiring
+
+Registered as a system cron task in `src/task-scheduler.ts`
+on startup (not in DB — hardcoded):
+
+```typescript
+// In startScheduler(), alongside existing system tasks
+registerSystemTask({
+  id: 'spawn-cleanup',
+  cron: '0 3 * * *', // daily at 3am
+  handler: cleanupSpawns,
+});
+```
+
+## Template rename
+
+`template/` → `prototype/` in repo. For existing deployments:
+`kanipi create` checks for `prototype/` first, falls back to
+`template/` for backwards compat. No migration needed — new
+installs use `prototype/`, old installs keep working.
+
+## Scope
+
+This milestone: router clone-on-missing, spawn folder
+creation, max_children limit, DB registration. Thread
+lifecycle (Close events) and retention/archival are
+deferred until social channels land.
+
+## Acceptance criteria
+
+1. Router clones from routing source when target doesn't exist
+2. CLAUDE.md, SOUL.md copied from prototype to spawn
+3. skills/ mounted read-only from prototype in container-runner
+4. max_children limit enforced, fallback to prototype
+5. `spawnFolderName()` generates valid folder names from JIDs
+6. `template/` renamed to `prototype/` with backwards compat
+7. All existing tests pass
