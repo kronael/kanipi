@@ -1,132 +1,112 @@
-# Prototypes (Per-JID Group Spawning)
+# Prototypes
 
-**Status**: open. Core mechanism for social channels and
-per-user isolation. See `S-social-events.md` for thread
-routing that uses prototypes.
+**Status**: open. Core mechanism for group creation.
+See `S-social-events.md` for social channel usage.
 
-## Problem
+## Model
 
-A support agent handles many users. Each user needs isolated
-state — their own memory, working files, conversation context.
-But the agent setup (CLAUDE.md, skills, personality) is the same
-for all users. Registering a group per user manually doesn't scale.
+Every group is created from a prototype. A prototype is
+just a group. The `template/` directory is renamed to
+`prototype/` — it seeds the root group, which is the
+only group not spawned from another group.
 
-## Architecture
-
-A **prototype** is a group template that is never routed to
-directly. When a new JID needs routing, the gateway spawns a
-new group as a copy of the prototype.
+When the router resolves a target that doesn't exist,
+the gateway clones it from the routing source group
+(the group whose routing rule matched). The source IS
+the prototype.
 
 ```
-atlas/support/web               prototype (template, no routing)
-atlas/support/web~tg_1112184352 spawned instance (copy)
-atlas/support/web~web_abc123    spawned instance (copy)
+router resolves target "main/support~user_123"
+  → target doesn't exist
+  → clone from "main/support" (the routing source)
+  → register clone in DB
+  → route to clone
 ```
 
-The prototype's CLAUDE.md, skills, and setup are copied to each
-spawn. Spawned instances get workdir-level writes — they can
-write memory/notes but can't modify the template. The prototype
-itself stays clean.
+No special prototype flag, no prototype column. The
+group that holds the routing rule is the prototype by
+convention. Any group can be a prototype.
+
+## What gets copied
+
+- CLAUDE.md, SOUL.md, skills/ — copied
+- Session, memory, workdir — NOT copied (fresh)
+- DB state — new row, empty session
 
 ## Spawn naming
 
-Convention: `{prototype}~{sanitized_jid}`
+Convention: `{source}~{sanitized_id}`
 
-Tilde separator (`~`) chosen because: not `/` (avoids depth
-confusion), not `:` (used in JIDs), filesystem-safe, visually
-distinct. JID sanitized: replace `:` and `/` with `_`.
+Tilde separator (`~`): not `/` (avoids depth confusion),
+not `:` (used in JIDs), filesystem-safe, visually distinct.
+ID sanitized: replace `:` and `/` with `_`.
 
-## Router integration
-
-When a message arrives for a JID that matches a prototype's
-routing rules:
-
-1. Check if spawn `{prototype}~{sanitized_jid}` exists
-2. If yes, route to the spawn
-3. If no, create spawn: copy prototype dir, register in DB
-4. Route to the new spawn
-
-Spawns are registered as real groups in the `groups` table
-with a `prototype` column pointing to the template group.
-Gateway treats them like normal groups for routing and
-container spawning.
-
-```sql
-ALTER TABLE groups ADD COLUMN prototype TEXT;
--- NULL = normal group, non-NULL = spawn of that prototype
+```
+main/support                    source group (prototype)
+main/support~tg_1112184352      spawned for telegram user
+main/support~web_abc123         spawned for web user
+main/reddit~post_abc123         spawned for reddit thread
 ```
 
-## Spawn lifecycle
-
-- **Created**: on first message matching prototype routing
-- **Active**: normal group behavior, own container, own state
-- **Idle cleanup**: destroyed after configurable idle timeout
-- **Persistent**: optional `persistent: true` flag keeps spawn
-  alive across restarts (for long-lived tickets)
-- **DB cleanup**: periodic sweep deletes spawn groups with no
-  messages in N days
+Tilde doesn't change depth — spawns inherit tier of source.
 
 ## Spawn limits
 
-- Max concurrent spawns per prototype: configurable via
-  `container_config.max_spawns` (default: 50)
-- When limit reached: queue new JIDs, or reject with message
-- Cleanup frees slots for new spawns
+`max_children` on the source group (default: 50).
+When reached, new targets route to the source instead
+(fallback, not error). Prevents runaway from config errors.
 
-## Filesystem layout
+```typescript
+// registered_groups
+max_children?: number;  // default: 50, 0 = no spawning
+```
+
+## Lifecycle
+
+- **Created**: router resolves non-existent target
+- **Active**: normal group, own container, own state
+- **Cleanup**: no messages in N days → remove
+  (`spawn_ttl_days`, default: 7)
+
+## Filesystem
 
 ```
+prototype/                 seeds root (was template/)
+  env.example
+  workspace/
+  web/
+
 groups/
-  atlas/support/web/           prototype (template)
+  main/support/            source group
     CLAUDE.md
-    skills/
     SOUL.md
-  atlas/support/web~tg_123/    spawn (copy)
-    CLAUDE.md                  copied from prototype
-    skills/                    copied from prototype
-    SOUL.md                    copied from prototype
-    workdir/                   spawn-specific, rw
-    .claude/                   spawn-specific memory
+    skills/
+  main/support~tg_123/     spawn
+    CLAUDE.md              copied from source
+    SOUL.md                copied from source
+    skills/                copied from source
 ```
 
 ## Update propagation
 
-New spawns get current prototype state. Existing spawns are
-NOT updated — they're isolated copies.
+New spawns get current source state. Existing spawns are
+isolated copies — not updated. To refresh: delete spawn,
+next message creates fresh clone.
 
-- New conversations get updated template
-- Existing conversations keep their version
-- To force-update: destroy spawn, next message creates fresh
-- No automatic propagation (complexity not worth it)
+## Migration
 
-## Use cases
+Rename `template/` → `prototype/` in:
 
-- Support tickets: each ticket gets its own agent instance
-- Public forum: each user conversation is isolated
-- Onboarding flows: per-user agent with fresh state
-- Any scenario where per-JID state isolation matters
+- Repo directory
+- `src/cli.ts` references
+- `CLAUDE.md` layout section
+- Dockerfile COPY steps
 
-## Tier interaction
+## Open
 
-Spawns inherit the tier of their prototype. A depth-3
-prototype spawns depth-3 workers. Permissions are identical
-to the prototype — the `~jid` suffix doesn't change depth
-calculation (tilde is not `/`).
-
-## Open Questions
-
-1. **Copy mechanism** — full filesystem copy? Or symlink setup
-   files and only create workdir? Symlinks are lighter but
-   break if prototype is modified mid-session.
-
-2. **Spawn discovery** — how does the prototype's parent
-   (agent tier 2) see its spawns? List via IPC action?
-   Aggregate metrics across spawns?
-
-3. **Cross-spawn knowledge** — when one spawn learns something
-   (writes a fact), should it be visible to other spawns?
-   Shared facts/ mount (ro) from prototype?
-
-4. **Routing rule inheritance** — does the spawn inherit the
-   prototype's routing rules? Or is it terminal (no further
-   routing)?
+1. **Copy mechanism** — full filesystem copy or symlink?
+   Symlinks are lighter but break on source modification.
+2. **Cross-spawn knowledge** — shared facts/ mount (ro)
+   from source?
+3. **Routing rule inheritance** — do spawns inherit the
+   source's routing rules? Or terminal (no further routing)?
