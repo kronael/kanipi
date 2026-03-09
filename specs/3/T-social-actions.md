@@ -21,6 +21,18 @@ Gateway resolves platform from JID prefix.
 | `edit_post`   | reddit, mastodon, fb                            |
 | `close`       | gateway (marks thread group closed)             |
 | `delete`      | gateway (removes thread group)                  |
+| `ban`         | reddit, discord, twitch, youtube, mastodon      |
+| `unban`       | reddit, discord, twitch, mastodon               |
+| `timeout`     | discord, twitch, youtube                        |
+| `mute`        | reddit, twitter, mastodon, bluesky              |
+| `block`       | twitter, mastodon, bluesky, twitch              |
+| `pin`         | reddit, mastodon, discord                       |
+| `unpin`       | reddit, mastodon, discord                       |
+| `lock`        | reddit, discord                                 |
+| `unlock`      | reddit, discord                                 |
+| `hide`        | youtube, facebook, instagram                    |
+| `approve`     | reddit, youtube, mastodon                       |
+| `set_flair`   | reddit                                          |
 
 ## How it works
 
@@ -70,6 +82,30 @@ switch on `platformFromJid(jid)`.
 
 // delete — remove thread group entirely
 { group: string }
+
+// ban / unban — remove user from community
+{ jid: string, target: string, duration?: number, reason?: string }
+
+// timeout — temporary mute (seconds)
+{ jid: string, target: string, duration: number }
+
+// mute / block — account-level silencing
+{ jid: string, target: string }
+
+// pin / unpin — sticky content
+{ jid: string, target: string }
+
+// lock / unlock — prevent new replies
+{ jid: string, target: string }
+
+// hide — suppress content without deleting
+{ jid: string, target: string }
+
+// approve — release from moderation queue
+{ jid: string, target: string }
+
+// set_flair — tag content or user
+{ jid: string, target: string, flair: string }
 ```
 
 All schemas use Zod, registered in action-registry. `jid`
@@ -80,46 +116,57 @@ user ID, etc.).
 
 ### Mastodon / Bluesky (build first)
 
-Both have excellent TS libraries (megalodon, @atproto/api).
-Full API access, no rate limit concerns for normal usage.
+TS libs: megalodon, @atproto/api. Full API, no rate concerns.
 
-- `post`: create status/post with optional media
-- `reply`: reply to status by ID
-- `react`: favourite/like
-- `repost`: boost/repost
-- `follow`/`unfollow`: by account ID/DID
-- `set_profile`: update display name, bio, avatar
-- `edit_post`: mastodon only (bluesky immutable)
+Content: post, reply, react, repost, edit (mastodon only),
+delete, pin (mastodon max 5). Account: follow, unfollow,
+set_profile. Moderation: ban/unban (mastodon admin scope),
+mute, block. Bluesky uses labeling system instead of bans.
 
 ### Reddit (build next)
 
-snoowrap or raw API. Rate limited (60/min with OAuth).
+snoowrap or raw API. 60 req/min with OAuth.
 
-- `post`: submit to subreddit (text or link)
-- `reply`: comment on post/comment
-- `react`: upvote/downvote
-- `follow`: subscribe to subreddit
-- `set_profile`: limited (description only)
-- `edit_post`: edit own posts/comments
-- `delete_post`: delete own posts/comments
+Content: post (text/link to subreddit), reply, react
+(upvote/downvote), edit, delete, pin (max 2 sticky),
+lock/unlock threads. Account: follow (subscribe to sub),
+set_profile (description only). Moderation: ban/unban
+(subreddit-scoped, temp+perm), approve (mod queue),
+set_flair (post and user flair).
+
+### Discord (existing channel, add moderation)
+
+Content: pin/unpin (max 50 per channel), lock/unlock
+(thread archive). Moderation: ban/unban, timeout (up to
+28d), kick.
+
+### Twitch (build next)
+
+Content: delete (chat messages). Moderation: ban/unban,
+timeout (1s–2w), block, shield mode toggle, slow mode,
+follower-only mode, sub-only mode.
+
+### YouTube (paid tier)
+
+Content: delete (comments on own content), hide
+(setModerationStatus). Moderation: ban (live chat only),
+timeout (live chat), approve (comment moderation queue).
 
 ### Twitter/X (paid tier)
 
 $200/mo Basic API. Strict rate limits.
 
-- `post`: create tweet (280 chars)
-- `reply`: reply to tweet
-- `react`: like tweet
-- `repost`: retweet
-- `follow`/`unfollow`: by user ID
+Content: post (280 chars), reply, react, repost, delete.
+Account: follow, unfollow, mute, block.
+No community moderation via API.
 
 ### Facebook / Instagram / Threads (gatekept)
 
-Meta Graph API. App review required for most permissions.
+Meta Graph API. App review required.
 
-- `post`: page post (fb), business post (ig)
-- `reply`: comment reply
-- `react`: fb only (page reactions)
+Content: post (page/business), reply, react (fb only),
+delete, hide/unhide (comments). Instagram: disable
+comments per media. Threads: reply audience controls only.
 
 ## Authorization
 
