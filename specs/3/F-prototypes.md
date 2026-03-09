@@ -16,7 +16,7 @@ the gateway clones it from the routing source group
 the prototype.
 
 ```
-router resolves target "main/support~user_123"
+router resolves target "main/support/user_123"
   → target doesn't exist
   → clone from "main/support" (the routing source)
   → register clone in DB
@@ -27,34 +27,37 @@ No special prototype flag, no prototype column. The
 group that holds the routing rule is the prototype by
 convention. Any group can be a prototype.
 
+## Spawns are just child directories
+
+No special naming. Spawns are children in the existing
+`/` hierarchy. The folder isolation already prevents
+siblings from seeing each other:
+
+```
+main/support/                   prototype
+main/support/tg_1112184352/     spawn (child)
+main/support/web_abc123/        spawn (child)
+main/reddit/                    prototype
+main/reddit/post_abc123/        spawn (child)
+```
+
+Children can't see siblings. The prototype (parent)
+can't see children's state. World boundaries already
+enforce this. No new isolation mechanism needed.
+
 ## What gets copied
 
-- CLAUDE.md, SOUL.md, skills/ — copied
+- CLAUDE.md, SOUL.md — copied
 - Session, memory, workdir — NOT copied (fresh)
 - DB state — new row, empty session
-
-## Spawn naming
-
-Convention: `{source}~{sanitized_id}`
-
-Tilde separator (`~`): not `/` (avoids depth confusion),
-not `:` (used in JIDs), filesystem-safe, visually distinct.
-ID sanitized: replace `:` and `/` with `_`.
-
-```
-main/support                    source group (prototype)
-main/support~tg_1112184352      spawned for telegram user
-main/support~web_abc123         spawned for web user
-main/reddit~post_abc123         spawned for reddit thread
-```
-
-Tilde doesn't change depth — spawns inherit tier of source.
+- skills/ — mounted read-only from prototype (not copied)
 
 ## Spawn limits
 
-`max_children` on the source group (default: 50).
-When reached, new targets route to the source instead
-(fallback, not error). Prevents runaway from config errors.
+`max_children` on the prototype group (default: 50).
+When reached, new targets route to the prototype
+instead (fallback, not error). Prevents runaway from
+config errors.
 
 ```typescript
 // registered_groups
@@ -77,23 +80,46 @@ prototype/                 seeds root (was template/)
   web/
 
 groups/
-  main/support/            source group
+  main/support/            prototype
     CLAUDE.md
     SOUL.md
     skills/
-  main/support~tg_123/     spawn
-    CLAUDE.md              copied from source
-    SOUL.md                copied from source
-    skills/                copied from source
+  main/support/tg_123/     spawn
+    CLAUDE.md              copied from prototype
+    SOUL.md                copied from prototype
+    skills/                mounted ro from prototype
 ```
+
+## Routing rule inheritance
+
+Spawns do NOT inherit routing rules. Spawns are terminal
+— they handle messages, they don't route further.
+
+Shared files across spawns use the skills/ directory,
+mounted read-only from the prototype. This is the
+mechanism for cross-spawn knowledge — shared config,
+facts, or tools go in skills/.
+
+## Migrations
+
+The existing migration system extends naturally. When a
+prototype is updated, spawns don't auto-update — but the
+migration runner detects version drift on boot:
+
+1. Prototype has `MIGRATION_VERSION=N`
+2. Spawn was created at version M (stored in spawn dir)
+3. On boot, agent sees `M < N`, runs migrations M+1..N
+   from the prototype's skills/self/migrations/
+
+Same mechanism agents already use. No new code path.
 
 ## Update propagation
 
-New spawns get current source state. Existing spawns are
-isolated copies — not updated. To refresh: delete spawn,
-next message creates fresh clone.
+New spawns get current prototype state. Existing spawns
+are isolated copies — not updated. To refresh: delete
+spawn, next message creates fresh clone.
 
-## Migration
+## Repo migration
 
 Rename `template/` → `prototype/` in:
 
@@ -102,38 +128,8 @@ Rename `template/` → `prototype/` in:
 - `CLAUDE.md` layout section
 - Dockerfile COPY steps
 
-## Routing rule inheritance
-
-Spawns do NOT inherit routing rules from the prototype.
-Spawns are terminal — they handle messages, they don't
-route further. The prototype constrains the spawn: it
-defines the setup, not the behavior tree.
-
-Shared files across spawns use the `skills/` directory.
-Skills are already mounted read-only from the prototype
-into spawns. This is the mechanism for cross-spawn
-knowledge — put shared config, facts, or tools in skills.
-
-## Migrations
-
-The existing migration system (`container/skills/self/
-migrations/`) extends naturally to prototypes. When a
-prototype is updated (new CLAUDE.md, new skills), spawns
-don't auto-update — but the migration runner in the
-agent container can detect version drift:
-
-1. Prototype has `MIGRATION_VERSION=N`
-2. Spawn was created at version M (stored in spawn dir)
-3. On spawn boot, agent sees `M < N`, runs migrations
-   M+1..N from the prototype's `skills/self/migrations/`
-
-This reuses the exact same migration pattern agents
-already run on session start. No new mechanism.
-
 ## Open
 
-1. **Copy mechanism** — full filesystem copy or symlink?
-   Symlinks are lighter but break on source modification.
-2. **Skills mount** — mount prototype's skills/ read-only
-   into spawns, or copy? Mount keeps spawns in sync but
-   requires the prototype to stay on disk.
+1. **Copy vs symlink** — full copy or symlink CLAUDE.md/
+   SOUL.md from prototype? Copy is simpler, symlink
+   keeps spawns in sync but breaks on prototype deletion.
