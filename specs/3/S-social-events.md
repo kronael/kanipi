@@ -14,7 +14,6 @@ Existing `NewMessage` fields map 1:1 (additive change).
 ```typescript
 const Verb = {
   Message: 'message',
-  Mention: 'mention',
   Reply: 'reply',
   Post: 'post',
   React: 'react',
@@ -68,6 +67,10 @@ interface InboundEvent {
   target?: string;
   target_author?: string;
 
+  // mentions
+  mentions?: string[]; // user IDs/names mentioned in content
+  mentions_me?: boolean; // true if agent is mentioned
+
   // compat
   is_from_me?: boolean;
   is_bot_message?: boolean;
@@ -91,35 +94,35 @@ serialized as strings in JSON/IPC/DB.
 
 ### Reddit
 
-| Source              | verb    | thread  | target     |
-| ------------------- | ------- | ------- | ---------- |
-| DM received         | Message | -       | -          |
-| Comment on our post | Reply   | post_id | post_id    |
-| Username mention    | Mention | post_id | comment_id |
-| New post in r/sub   | Post    | -       | -          |
-| Upvote on our post  | React   | -       | post_id    |
+| Source              | verb    | thread  | target     | mentions_me |
+| ------------------- | ------- | ------- | ---------- | ----------- |
+| DM received         | Message | -       | -          | -           |
+| Comment on our post | Reply   | post_id | post_id    | -           |
+| u/ mention          | Message | post_id | comment_id | yes         |
+| New post in r/sub   | Post    | -       | -          | -           |
+| Upvote on our post  | React   | -       | post_id    | -           |
 
 ### Twitter/X
 
-| Source             | verb    | thread   | target   |
-| ------------------ | ------- | -------- | -------- |
-| DM received        | Message | -        | -        |
-| @mention tweet     | Mention | tweet_id | -        |
-| Reply to our tweet | Reply   | tweet_id | tweet_id |
-| Like on our tweet  | React   | -        | tweet_id |
-| Retweet            | Repost  | -        | tweet_id |
-| New follower       | Follow  | -        | -        |
+| Source             | verb    | thread   | target   | mentions_me |
+| ------------------ | ------- | -------- | -------- | ----------- |
+| DM received        | Message | -        | -        | -           |
+| @mention tweet     | Message | tweet_id | -        | yes         |
+| Reply to our tweet | Reply   | tweet_id | tweet_id | -           |
+| Like on our tweet  | React   | -        | tweet_id | -           |
+| Retweet            | Repost  | -        | tweet_id | -           |
+| New follower       | Follow  | -        | -        | -           |
 
 ### Mastodon / Bluesky
 
-| Source            | verb    | thread    | target    |
-| ----------------- | ------- | --------- | --------- |
-| DM (direct vis.)  | Message | -         | -         |
-| @mention          | Mention | status_id | -         |
-| Reply to our post | Reply   | status_id | status_id |
-| Favourite/like    | React   | -         | status_id |
-| Boost/repost      | Repost  | -         | status_id |
-| New follower      | Follow  | -         | -         |
+| Source            | verb    | thread    | target    | mentions_me |
+| ----------------- | ------- | --------- | --------- | ----------- |
+| DM (direct vis.)  | Message | -         | -         | -           |
+| @mention          | Message | status_id | -         | yes         |
+| Reply to our post | Reply   | status_id | status_id | -           |
+| Favourite/like    | React   | -         | status_id | -           |
+| Boost/repost      | Repost  | -         | status_id | -           |
+| New follower      | Follow  | -         | -         | -           |
 
 ### Email
 
@@ -139,12 +142,12 @@ serialized as strings in JSON/IPC/DB.
 
 ### Facebook / Instagram / Threads
 
-| Source          | verb    | thread  | target  |
-| --------------- | ------- | ------- | ------- |
-| Messenger DM    | Message | -       | -       |
-| Comment on post | Reply   | post_id | post_id |
-| @mention        | Mention | -       | post_id |
-| Page reaction   | React   | -       | post_id |
+| Source          | verb    | thread  | target  | mentions_me |
+| --------------- | ------- | ------- | ------- | ----------- |
+| Messenger DM    | Message | -       | -       | -           |
+| Comment on post | Reply   | post_id | post_id | -           |
+| @mention        | Message | -       | post_id | yes         |
+| Page reaction   | React   | -       | post_id | -           |
 
 ### Close events (thread lifecycle)
 
@@ -211,7 +214,6 @@ configured and why.
 | Verb    | Default | Notes                        |
 | ------- | ------- | ---------------------------- |
 | Message | 100     |                              |
-| Mention | 100     |                              |
 | Reply   | 100     |                              |
 | Post    | 100     | tune down if feed is noisy   |
 | React   | 100     | tune to 5 for "20 = trigger" |
@@ -283,10 +285,16 @@ the XML header so the agent knows context:
          thread="status_123" target="status_456">
   content here
 </message>
+
+<message sender="bob" time="..." platform="telegram" verb="message"
+         mentions_me="true">
+  @agent what do you think?
+</message>
 ```
 
 - `platform` — always present (telegram, discord, mastodon...)
-- `verb` — always present (message, reply, mention, react...)
+- `verb` — always present (message, reply, post, react...)
+- `mentions_me` — present when agent is mentioned
 - `thread`, `target` — present when set
 
 Existing chat channels emit `verb="message"` with the
