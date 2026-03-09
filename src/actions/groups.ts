@@ -63,6 +63,7 @@ const RoutingRuleSchema = z.discriminatedUnion('type', [
 export const refreshGroups: Action = {
   name: 'refresh_groups',
   description: 'Refresh group metadata from channels',
+  minTier: 0,
   input: z.object({}),
   async handler(_input, ctx) {
     if (ctx.tier !== 0) throw new Error('unauthorized');
@@ -95,6 +96,7 @@ const RegisterGroupSchema = z.object({
 export const registerGroup: Action = {
   name: 'register_group',
   description: 'Register a new group for agent responses',
+  minTier: 1,
   input: RegisterGroupSchema,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');

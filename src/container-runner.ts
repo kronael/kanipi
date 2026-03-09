@@ -1135,7 +1135,11 @@ export function writeActionManifest(groupFolder: string): void {
   const groupIpcDir = resolveGroupIpcPath(groupFolder);
   fs.mkdirSync(groupIpcDir, { recursive: true });
   const manifestFile = path.join(groupIpcDir, 'action_manifest.json');
-  fs.writeFileSync(manifestFile, JSON.stringify(getManifest(), null, 2));
+  const tier = permissionTier(groupFolder);
+  fs.writeFileSync(
+    manifestFile,
+    JSON.stringify(getManifest(groupFolder, { tier, platforms: [] }), null, 2),
+  );
 }
 
 export interface AvailableGroup {

@@ -40,6 +40,8 @@ export interface Action {
   handler(input: unknown, ctx: ActionContext): Promise<unknown>;
   command?: string;
   mcp?: boolean; // default true
+  minTier?: number;
+  platforms?: string[];
 }
 
 const actions = new Map<string, Action>();
@@ -56,13 +58,29 @@ export function getAllActions(): Action[] {
   return [...actions.values()];
 }
 
-export function getManifest(): Array<{
+export function unregisterAction(name: string): void {
+  actions.delete(name);
+}
+
+export function getManifest(
+  sourceGroup: string,
+  opts: { tier: number; platforms: string[] },
+): Array<{
   name: string;
   description: string;
   input: unknown;
 }> {
   return [...actions.values()]
     .filter((a) => a.mcp !== false)
+    .filter((a) => {
+      if (a.minTier !== undefined && opts.tier > a.minTier) return false;
+      if (
+        a.platforms?.length &&
+        !a.platforms.some((p) => opts.platforms.includes(p))
+      )
+        return false;
+      return true;
+    })
     .map((a) => ({
       name: a.name,
       description: a.description,

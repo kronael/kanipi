@@ -145,7 +145,12 @@ export async function drainRequests(
       let reply: { id: string; ok: boolean; result?: unknown; error?: string };
 
       if (type === 'list_actions') {
-        reply = { id, ok: true, result: getManifest() };
+        const tier = permissionTier(sourceGroup);
+        reply = {
+          id,
+          ok: true,
+          result: getManifest(sourceGroup, { tier, platforms: [] }),
+        };
       } else {
         const action = getAction(type);
         if (!action) {

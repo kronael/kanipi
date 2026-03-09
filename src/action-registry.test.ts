@@ -62,7 +62,7 @@ describe('getManifest', () => {
     const n2 = uid();
     registerAction(makeAction(n1));
     registerAction(makeAction(n2, { mcp: true }));
-    const manifest = getManifest();
+    const manifest = getManifest('root', { tier: 0, platforms: [] });
     expect(manifest.find((m) => m.name === n1)).toBeDefined();
     expect(manifest.find((m) => m.name === n2)).toBeDefined();
   });
@@ -70,14 +70,14 @@ describe('getManifest', () => {
   it('excludes actions with mcp: false', () => {
     const name = uid();
     registerAction(makeAction(name, { mcp: false }));
-    const manifest = getManifest();
+    const manifest = getManifest('root', { tier: 0, platforms: [] });
     expect(manifest.find((m) => m.name === name)).toBeUndefined();
   });
 
   it('returns JSON schema for input', () => {
     const name = uid();
     registerAction(makeAction(name));
-    const manifest = getManifest();
+    const manifest = getManifest('root', { tier: 0, platforms: [] });
     const entry = manifest.find((m) => m.name === name)!;
     expect(entry.input).toBeDefined();
     expect(entry.description).toBe(`test action ${name}`);

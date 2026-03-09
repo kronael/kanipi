@@ -1,5 +1,38 @@
 import { z } from 'zod';
 
+export const Verb = {
+  Message: 'message',
+  Reply: 'reply',
+  Post: 'post',
+  React: 'react',
+  Repost: 'repost',
+  Follow: 'follow',
+  Join: 'join',
+  Edit: 'edit',
+  Delete: 'delete',
+  Close: 'close',
+} as const;
+export type Verb = (typeof Verb)[keyof typeof Verb];
+
+export const Platform = {
+  Telegram: 'telegram',
+  WhatsApp: 'whatsapp',
+  Discord: 'discord',
+  Email: 'email',
+  Web: 'web',
+  Reddit: 'reddit',
+  Twitter: 'twitter',
+  Mastodon: 'mastodon',
+  Bluesky: 'bluesky',
+  Twitch: 'twitch',
+  YouTube: 'youtube',
+  Facebook: 'facebook',
+  Instagram: 'instagram',
+  Threads: 'threads',
+  LinkedIn: 'linkedin',
+} as const;
+export type Platform = (typeof Platform)[keyof typeof Platform];
+
 export interface AdditionalMount {
   hostPath: string; // Absolute path on host (supports ~ for home)
   containerPath?: string; // Optional — defaults to basename of hostPath. Mounted at /workspace/extra/{value}
@@ -134,6 +167,15 @@ export interface NewMessage {
   forwarded_from?: string;
   reply_to_text?: string;
   reply_to_sender?: string;
+  verb?: Verb;
+  platform?: Platform;
+  mentions?: string[];
+  mentions_me?: boolean;
+  thread?: string;
+  parent?: string;
+  root?: string;
+  target?: string;
+  target_author?: string;
 }
 
 export interface ScheduledTask {
@@ -202,3 +244,5 @@ export interface ChannelOpts {
   onChatMetadata: OnChatMetadata;
   registeredGroups: () => Record<string, RegisteredGroup>;
 }
+
+export type InboundEvent = NewMessage;
