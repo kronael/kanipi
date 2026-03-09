@@ -23,6 +23,7 @@ const Verb = {
   Join: 'join',
   Edit: 'edit',
   Delete: 'delete',
+  Close: 'close',
 } as const;
 
 type Verb = (typeof Verb)[keyof typeof Verb];
@@ -282,22 +283,9 @@ Field mapping:
 - `replyTo` → `parent`
 - `reply_to_text`, `reply_to_sender` → dropped (DB lookup)
 
-## Upstream (outbound actions)
+## Outbound actions
 
-Not an interface — actions in the action registry, exposed
-as MCP tools. Gateway resolves platform from JID prefix.
-
-| Action        | Platforms                                       |
-| ------------- | ----------------------------------------------- |
-| `post`        | reddit, twitter, mastodon, bluesky, fb, threads |
-| `reply`       | all                                             |
-| `react`       | all                                             |
-| `repost`      | twitter, mastodon, bluesky                      |
-| `follow`      | reddit, twitter, mastodon, bluesky              |
-| `unfollow`    | reddit, twitter, mastodon, bluesky              |
-| `set_profile` | mastodon, bluesky, reddit                       |
-| `delete_post` | all                                             |
-| `edit_post`   | reddit, mastodon, fb                            |
+See `T-social-actions.md`.
 
 ## JID format
 

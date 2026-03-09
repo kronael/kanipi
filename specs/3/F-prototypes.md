@@ -90,15 +90,67 @@ groups/
     skills/                mounted ro from prototype
 ```
 
-## Routing rule inheritance
+## Routing rules
 
-Spawns do NOT inherit routing rules. Spawns are terminal
-— they handle messages, they don't route further.
+Spawns inherit routing rules from the prototype. The
+hierarchy is for session and data isolation — routing
+is fixed by the prototype's config.
 
 Shared files across spawns use the skills/ directory,
 mounted read-only from the prototype. This is the
 mechanism for cross-spawn knowledge — shared config,
 facts, or tools go in skills/.
+
+## Thread lifecycle
+
+Spawned thread groups have lifecycle events from the
+platform. These map to the `Close` verb in InboundEvent
+(see `S-social-events.md`).
+
+Platform close/lock signals:
+
+| Platform | Signal                   | How                    |
+| -------- | ------------------------ | ---------------------- |
+| Discord  | thread archived/locked   | `THREAD_UPDATE` event  |
+| Reddit   | post locked by moderator | `locked: true` on post |
+| YouTube  | live stream ends         | stream status event    |
+| Twitch   | stream goes offline      | offline event          |
+| Mastodon | no close concept         | —                      |
+| Bluesky  | no close concept         | —                      |
+| Twitter  | reply restrictions set   | reply settings change  |
+| Facebook | comments disabled        | comment setting change |
+
+When a `Close` event arrives for a thread group, the
+gateway marks the group as closed in the DB. Closed
+groups don't accept new messages — events route to the
+prototype instead.
+
+## Retention and archival
+
+Daily cleanup job removes inactive thread groups.
+
+```typescript
+// registered_groups
+spawn_ttl_days?: number;     // delete after N days inactive (default: 7)
+archive_closed_days?: number; // archive closed threads after N days (default: 1)
+```
+
+Three states:
+
+- **active**: normal routing and processing
+- **closed**: marked by Close event or inactivity. No new
+  messages accepted, routes to prototype. Group folder
+  preserved on disk for archival reads.
+- **archived**: folder compressed and moved to
+  `groups/{prototype}/archive/`. DB row removed. Agent
+  can still read archived threads via skills if needed.
+
+Cleanup runs once per day (existing scheduler loop):
+
+1. Find thread groups with no messages in `spawn_ttl_days`
+   → mark closed
+2. Find closed groups older than `archive_closed_days`
+   → compress folder, move to archive/, delete DB row
 
 ## Migrations
 
