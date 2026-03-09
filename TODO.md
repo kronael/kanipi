@@ -22,6 +22,12 @@ Partial specs, close to done. Finish these first.
 - [ ] collapse sessions table into registered_groups.session_id
 - [ ] test SDK resume failure (bad session ID behavior)
 
+## Phase 3 — dashboards & file access
+
+- [ ] dash-status: health dashboard (containers, queues, errors)
+- [ ] dash-memory: memory/diary viewer and editor
+- [ ] webdav: WebDAV file access via Caddy sidecar
+
 ## Future — memory layers, agent teams, feed adapters
 
 - [ ] memory-episodic: diary -> weekly/monthly aggregation

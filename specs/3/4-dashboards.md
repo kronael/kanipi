@@ -143,6 +143,17 @@ for evangelist). Mount at `/dash/<folder>/<name>/`.
 Access control: tier 0-1 can view all dashboards. Tier 2 can
 view own group's dashboards only.
 
+## Individual specs
+
+| Dashboard      | Spec                 | Status |
+| -------------- | -------------------- | ------ |
+| Status/health  | `3/P-dash-status.md` | open   |
+| Memory browser | `3/Q-dash-memory.md` | open   |
+| WebDAV files   | `3/M-webdav.md`      | open   |
+
+Atlas facts inspector and evangelist curation deferred to
+phase 5-6 (depend on those features shipping first).
+
 ## Open
 
 - Build system: bundle dashboard frontend separately?
