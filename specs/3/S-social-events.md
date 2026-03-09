@@ -273,6 +273,26 @@ sender → default.
 ]
 ```
 
+## Agent-facing XML format
+
+`formatMessages()` in `router.ts` adds new attributes to
+the XML header so the agent knows context:
+
+```xml
+<message sender="alice" time="..." platform="mastodon" verb="reply"
+         thread="status_123" target="status_456">
+  content here
+</message>
+```
+
+- `platform` — always present (telegram, discord, mastodon...)
+- `verb` — always present (message, reply, mention, react...)
+- `thread`, `target` — present when set
+
+Existing chat channels emit `verb="message"` with the
+platform name. No behavior change for current agents —
+new attributes are additive.
+
 ## Thread context
 
 Thread fields (`thread`, `parent`, `root`) are data on the
