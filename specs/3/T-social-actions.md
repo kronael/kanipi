@@ -33,6 +33,7 @@ Gateway resolves platform from JID prefix.
 | `hide`        | youtube, facebook, instagram                    |
 | `approve`     | reddit, youtube, mastodon                       |
 | `set_flair`   | reddit                                          |
+| `kick`        | discord                                         |
 
 ## Architecture
 
@@ -96,71 +97,11 @@ connect, filtered per group in the manifest.
 { jid: string, target: string, flair: string }
 ```
 
-All schemas use Zod, registered in action-registry. `jid`
-determines platform. `target` is platform-native ID (post ID,
-user ID, etc.).
+All schemas use Zod. `jid` determines platform via prefix.
+`target` is platform-native ID (post ID, user ID, etc.).
 
-## Platform specifics
-
-### Mastodon / Bluesky (build first)
-
-TS libs: megalodon, @atproto/api. Full API, no rate concerns.
-
-Content: post, reply, react, repost, edit (mastodon only),
-delete, pin (mastodon max 5). Account: follow, unfollow,
-set_profile. Moderation: ban/unban (mastodon admin scope),
-mute, block. Bluesky uses labeling system instead of bans.
-
-### Reddit (build next)
-
-snoowrap or raw API. 60 req/min with OAuth.
-
-Content: post (text/link to subreddit), reply, react
-(upvote/downvote), edit, delete, pin (max 2 sticky),
-lock/unlock threads. Account: follow (subscribe to sub),
-set_profile (description only). Moderation: ban/unban
-(subreddit-scoped, temp+perm), approve (mod queue),
-set_flair (post and user flair).
-
-### Discord (existing channel, add moderation)
-
-Content: pin/unpin (max 50 per channel), lock/unlock
-(thread archive). Moderation: ban/unban, timeout (up to
-28d), kick.
-
-### Twitch (build next)
-
-Content: delete (chat messages). Moderation: ban/unban,
-timeout (1s–2w), block, shield mode toggle, slow mode,
-follower-only mode, sub-only mode.
-
-### YouTube (paid tier)
-
-Content: delete (comments on own content), hide
-(setModerationStatus). Moderation: ban (live chat only),
-timeout (live chat), approve (comment moderation queue).
-
-### Twitter/X (paid tier)
-
-$200/mo Basic API. Strict rate limits.
-
-Content: post (280 chars), reply, react, repost, delete.
-Account: follow, unfollow, mute, block.
-No community moderation via API.
-
-### Facebook / Instagram / Threads (gatekept)
-
-Meta Graph API. App review required.
-
-Content: post (page/business), reply, react (fb only),
-delete, hide/unhide (comments). Instagram: disable
-comments per media. Threads: reply audience controls only.
-
-## Authorization
-
-Same tier model as existing actions. Social actions are
-tier 2 (agent) — the agent's group must own the JID or
-have explicit permission.
+Action names in this table are abstract verbs. MCP tool
+names use `{platform}_{verb}` format — see `U-channel-actions.md`.
 
 ## Open
 

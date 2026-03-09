@@ -285,36 +285,9 @@ No agent-runner changes. Existing hardcoded tools still work.
 3. Actions include `platform` field for manifest filtering
 4. Agent sees only tools for its group's active platforms
 
-## ActionContext extension
-
-Social actions need platform client access. Extend
-`ActionContext` or use closure (channel passes client
-to action factory). Closure is simpler — no interface
-change:
-
-```typescript
-// mastodon actions close over the client
-function mastodonActions(client: MastodonClient): Action[] {
-  return [{
-    name: 'mastodon_post',
-    handler(raw, ctx) {
-      // ctx for authorization, client for API calls
-      assertAuthorized(input.jid, ctx);
-      return client.post(...);
-    },
-  }];
-}
-```
-
-No change to `ActionContext`. The client is a closure
-variable, not a dependency injection.
-
 ## Open
 
 - Multi-platform actions (`social_reply`) — single handler
   with JID switch, or register per-platform and alias?
-- Rate limit errors — return structured error so agent can
-  retry with backoff?
-- Media upload — presigned URL flow or stream through gateway?
-- Action versioning — manifest includes version for schema
-  evolution?
+- Rate limit errors — structured error for agent retry?
+- Media upload — presigned URL or stream through gateway?

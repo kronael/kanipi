@@ -64,13 +64,6 @@ config errors.
 max_children?: number;  // default: 50, 0 = no spawning
 ```
 
-## Lifecycle
-
-- **Created**: router resolves non-existent target
-- **Active**: normal group, own container, own state
-- **Cleanup**: no messages in N days → remove
-  (`spawn_ttl_days`, default: 7)
-
 ## Filesystem
 
 ```
@@ -96,34 +89,11 @@ Spawns inherit routing rules from the prototype. The
 hierarchy is for session and data isolation — routing
 is fixed by the prototype's config.
 
-Shared files across spawns use the skills/ directory,
-mounted read-only from the prototype. This is the
-mechanism for cross-spawn knowledge — shared config,
-facts, or tools go in skills/.
-
 ## Thread lifecycle
 
-Spawned thread groups have lifecycle events from the
-platform. These map to the `Close` verb in InboundEvent
-(see `S-social-events.md`).
-
-Platform close/lock signals:
-
-| Platform | Signal                   | How                    |
-| -------- | ------------------------ | ---------------------- |
-| Discord  | thread archived/locked   | `THREAD_UPDATE` event  |
-| Reddit   | post locked by moderator | `locked: true` on post |
-| YouTube  | live stream ends         | stream status event    |
-| Twitch   | stream goes offline      | offline event          |
-| Mastodon | no close concept         | —                      |
-| Bluesky  | no close concept         | —                      |
-| Twitter  | reply restrictions set   | reply settings change  |
-| Facebook | comments disabled        | comment setting change |
-
-When a `Close` event arrives for a thread group, the
-gateway marks the group as closed in the DB. Closed
-groups don't accept new messages — events route to the
-prototype instead.
+`Close` events from platforms (see `S-social-events.md`)
+mark thread groups as closed. Closed groups don't accept
+new messages — events route to the prototype instead.
 
 ## Retention and archival
 
@@ -154,31 +124,12 @@ Cleanup runs once per day (existing scheduler loop):
 
 ## Migrations
 
-The existing migration system extends naturally. When a
-prototype is updated, spawns don't auto-update — but the
-migration runner detects version drift on boot:
-
-1. Prototype has `MIGRATION_VERSION=N`
-2. Spawn was created at version M (stored in spawn dir)
-3. On boot, agent sees `M < N`, runs migrations M+1..N
-   from the prototype's skills/self/migrations/
-
-Same mechanism agents already use. No new code path.
-
-## Update propagation
+Spawns inherit the prototype's `MIGRATION_VERSION`. On
+boot, if spawn version < prototype version, the agent
+runs migrations from `skills/self/migrations/`.
 
 New spawns get current prototype state. Existing spawns
-are isolated copies — not updated. To refresh: delete
-spawn, next message creates fresh clone.
-
-## Repo migration
-
-Rename `template/` → `prototype/` in:
-
-- Repo directory
-- `src/cli.ts` references
-- `CLAUDE.md` layout section
-- Dockerfile COPY steps
+don't auto-update — delete and re-create to refresh.
 
 ## Open
 

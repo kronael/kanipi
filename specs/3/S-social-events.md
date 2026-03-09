@@ -82,13 +82,12 @@ serialized as strings in JSON/IPC/DB.
 
 ### Chat channels (existing — verb is always Message)
 
-| Source            | verb    | content | thread    |
-| ----------------- | ------- | ------- | --------- |
-| Telegram chat msg | Message | text    | -         |
-| WhatsApp msg      | Message | text    | -         |
-| Discord msg       | Message | text    | threadId  |
-| Email direct      | Message | text    | thread_id |
-| Web (slink)       | Message | text    | -         |
+| Source            | verb    | content | thread   |
+| ----------------- | ------- | ------- | -------- |
+| Telegram chat msg | Message | text    | -        |
+| WhatsApp msg      | Message | text    | -        |
+| Discord msg       | Message | text    | threadId |
+| Web (slink)       | Message | text    | -        |
 
 ### Reddit
 
@@ -146,6 +145,19 @@ serialized as strings in JSON/IPC/DB.
 | Comment on post | Reply   | post_id | post_id |
 | @mention        | Mention | -       | post_id |
 | Page reaction   | React   | -       | post_id |
+
+### Close events (thread lifecycle)
+
+| Platform | Signal                   | How                    |
+| -------- | ------------------------ | ---------------------- |
+| Discord  | thread archived/locked   | `THREAD_UPDATE` event  |
+| Reddit   | post locked by moderator | `locked: true` on post |
+| YouTube  | live stream ends         | stream status event    |
+| Twitch   | stream goes offline      | offline event          |
+| Twitter  | reply restrictions set   | reply settings change  |
+| Facebook | comments disabled        | comment setting change |
+
+Mastodon and Bluesky have no close concept.
 
 ## Impulse filter
 
@@ -205,6 +217,7 @@ configured and why.
 | React   | 100     | tune to 5 for "20 = trigger" |
 | Repost  | 100     | tune to 10 if noisy          |
 | Follow  | 100     | tune to 10 if noisy          |
+| Close   | 100     | triggers thread lifecycle    |
 | Join    | 0       | ignored                      |
 | Edit    | 0       | ignored                      |
 | Delete  | 0       | ignored                      |
@@ -302,22 +315,8 @@ See `T-social-actions.md`.
 | Threads   | `threads:{userId}`         | -                               |
 | LinkedIn  | `li:page:{pageId}`         | -                               |
 
-## Platform viability
-
-| Tier        | Platforms                            | Notes                                |
-| ----------- | ------------------------------------ | ------------------------------------ |
-| Build first | Mastodon, Bluesky                    | Free, open, streaming, great TS libs |
-| Build next  | Reddit, Twitch                       | Free, polling, large audience        |
-| Paid        | Twitter/X ($200/mo), YouTube (quota) | Official, stable                     |
-| Gatekept    | Facebook, Instagram, LinkedIn        | App review required                  |
-| Skip        | TikTok                               | Video-only, no comment API           |
-
 ## Open
 
 - Batch summary format — XML tags or plain text brackets?
-- React `content` field carries reaction value (upvote,
-  emoji, etc.)
-- Rate limit backoff config per platform
-- Media attachments — reuse `RawAttachment` pipeline
+- React `content` field carries reaction value (upvote, emoji)
 - Platform auth failure handling (disable, retry, alert)
-- Spawn cleanup: cron job or lazy on next message loop tick?
