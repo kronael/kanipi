@@ -1,6 +1,9 @@
 # Prototypes (Per-JID Group Spawning)
 
-**Status**: not started. Depends on specs/2/5-permissions.md.
+**Status**: superseded by `S-social-events.md` auto-spawning.
+Simpler model: router creates child groups on demand, parent
+is the template, `max_children` limits prevent runaway.
+No separate prototype concept needed.
 
 ## Problem
 
