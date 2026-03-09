@@ -190,21 +190,26 @@ function checkTimeout(
 
 ### Default weights
 
-| Verb    | Weight | Effect at threshold 100 |
-| ------- | ------ | ----------------------- |
-| Message | 100    | immediate               |
-| Mention | 100    | immediate               |
-| Reply   | 100    | immediate               |
-| Post    | 30     | ~3 posts trigger        |
-| React   | 5      | ~20 likes trigger       |
-| Repost  | 10     | ~10 reposts trigger     |
-| Follow  | 10     | ~10 follows trigger     |
-| Join    | 0      | ignored                 |
-| Edit    | 0      | ignored                 |
-| Delete  | 0      | ignored                 |
+All verbs default to 100 (immediate). Operator tunes down
+what's noisy for their use case. The gateway doesn't know
+which events matter — that depends on what sources were
+configured and why.
 
-Weight 0 = drop. Weight ≥ threshold = immediate flush.
-Operator configures `weights` and `threshold` per group.
+| Verb    | Default | Notes                        |
+| ------- | ------- | ---------------------------- |
+| Message | 100     |                              |
+| Mention | 100     |                              |
+| Reply   | 100     |                              |
+| Post    | 100     | tune down if feed is noisy   |
+| React   | 100     | tune to 5 for "20 = trigger" |
+| Repost  | 100     | tune to 10 if noisy          |
+| Follow  | 100     | tune to 10 if noisy          |
+| Join    | 0       | ignored                      |
+| Edit    | 0       | ignored                      |
+| Delete  | 0       | ignored                      |
+
+Weight 0 = drop. Operator configures `weights` and
+`threshold` per group to taste.
 
 ### Where it sits in code
 
