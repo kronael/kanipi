@@ -11,6 +11,22 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.20] — 2026-03-09
+
+### Features
+
+- Session recovery — gateway writes diary entry on error/crash for next session continuity
+- 5 missing MCP tools exposed to agents: delegate_group, escalate_group, set_routing_rules, refresh_groups, inject_message
+- Routing auth fix: delegation now allows any descendant, not just direct children
+
+### Docs
+
+- Status headers added to all 18 phase 1 specs
+- 5 specs aligned with shipped code (cli, actions, channels, db-bootstrap, mime)
+- Session-recovery spec closed (covered by diary)
+
+---
+
 ## [v1.0.19] — 2026-03-08
 
 ### Features
