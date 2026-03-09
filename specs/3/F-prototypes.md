@@ -102,11 +102,38 @@ Rename `template/` → `prototype/` in:
 - `CLAUDE.md` layout section
 - Dockerfile COPY steps
 
+## Routing rule inheritance
+
+Spawns do NOT inherit routing rules from the prototype.
+Spawns are terminal — they handle messages, they don't
+route further. The prototype constrains the spawn: it
+defines the setup, not the behavior tree.
+
+Shared files across spawns use the `skills/` directory.
+Skills are already mounted read-only from the prototype
+into spawns. This is the mechanism for cross-spawn
+knowledge — put shared config, facts, or tools in skills.
+
+## Migrations
+
+The existing migration system (`container/skills/self/
+migrations/`) extends naturally to prototypes. When a
+prototype is updated (new CLAUDE.md, new skills), spawns
+don't auto-update — but the migration runner in the
+agent container can detect version drift:
+
+1. Prototype has `MIGRATION_VERSION=N`
+2. Spawn was created at version M (stored in spawn dir)
+3. On spawn boot, agent sees `M < N`, runs migrations
+   M+1..N from the prototype's `skills/self/migrations/`
+
+This reuses the exact same migration pattern agents
+already run on session start. No new mechanism.
+
 ## Open
 
 1. **Copy mechanism** — full filesystem copy or symlink?
    Symlinks are lighter but break on source modification.
-2. **Cross-spawn knowledge** — shared facts/ mount (ro)
-   from source?
-3. **Routing rule inheritance** — do spawns inherit the
-   source's routing rules? Or terminal (no further routing)?
+2. **Skills mount** — mount prototype's skills/ read-only
+   into spawns, or copy? Mount keeps spawns in sync but
+   requires the prototype to stay on disk.
