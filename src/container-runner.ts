@@ -257,8 +257,30 @@ function buildVolumeMounts(
   mounts.push({
     hostPath: hostPath(groupSessionsDir),
     containerPath: '/home/node/.claude',
-    readonly: false,
+    readonly: tier >= 2,
   });
+
+  // Restricted tiers: rw overrides for SDK-writable dirs; skills/CLAUDE.md stay readonly
+  if (tier >= 2) {
+    for (const sub of [
+      'debug',
+      'plans',
+      'todos',
+      'session-env',
+      'shell-snapshots',
+      'memory',
+      'projects',
+    ]) {
+      const dir = path.join(groupSessionsDir, sub);
+      fs.mkdirSync(dir, { recursive: true });
+      chownRecursive(dir, 1000, 1000);
+      mounts.push({
+        hostPath: hostPath(dir),
+        containerPath: `/home/node/.claude/${sub}`,
+        readonly: false,
+      });
+    }
+  }
 
   const groupIpcDir = resolveGroupIpcPath(group.folder);
   for (const sub of ['messages', 'tasks', 'input', 'requests', 'replies']) {
