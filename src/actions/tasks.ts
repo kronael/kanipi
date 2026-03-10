@@ -22,12 +22,10 @@ export const scheduleTask: Action = {
   input: ScheduleTaskInput,
   async handler(raw, ctx) {
     const input = ScheduleTaskInput.parse(raw);
-    const groups = ctx.registeredGroups();
-    const targetGroup = groups[input.targetJid];
-    if (!targetGroup) {
-      throw new Error('target group not registered');
+    const targetFolder = ctx.getDefaultTarget(input.targetJid);
+    if (!targetFolder) {
+      throw new Error('target JID has no route');
     }
-    const targetFolder = targetGroup.folder;
     if (ctx.tier === 3) throw new Error('unauthorized');
     if (ctx.tier === 2 && targetFolder !== ctx.sourceGroup) {
       throw new Error('unauthorized');

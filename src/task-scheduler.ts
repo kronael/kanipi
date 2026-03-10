@@ -28,7 +28,7 @@ import { logger } from './logger.js';
 import { ScheduledTask } from './types.js';
 
 export interface SchedulerDependencies {
-  registeredGroups: () => Record<string, GroupConfig>;
+  getGroupConfig: (folder: string) => GroupConfig | undefined;
   getSessions: () => Record<string, string>;
   queue: GroupQueue;
   onProcess: (
@@ -73,10 +73,7 @@ async function runTask(
     'Running scheduled task',
   );
 
-  const groups = deps.registeredGroups();
-  const group = Object.values(groups).find(
-    (g) => g.folder === task.group_folder,
-  );
+  const group = deps.getGroupConfig(task.group_folder);
 
   if (!group) {
     logger.error(

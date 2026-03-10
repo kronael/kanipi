@@ -65,10 +65,13 @@ import {
   getAllGroupConfigs,
   getAllSessions,
   getAllTasks,
+  getDefaultTarget,
+  getDirectChildGroupCount,
   getGroupByFolder,
   getJidToFolderMap,
-  getJidToGroupMap,
+  getJidsForFolder,
   getMessagesSince,
+  getRoutedJids,
   getNewMessages,
   getRecentSessions,
   getRouterState,
@@ -1013,7 +1016,9 @@ async function main(): Promise<void> {
       channel?: string,
       isGroup?: boolean,
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
-    registeredGroups: getJidToGroupMap,
+    isRoutedJid: (jid: string) => getDefaultTarget(jid) !== null,
+    hasAlwaysOnGroup: () =>
+      Object.values(getAllGroupConfigs()).some((g) => !g.requiresTrigger),
   };
 
   // Create and connect channels
@@ -1119,7 +1124,7 @@ async function main(): Promise<void> {
 
   // Start subsystems (independently of connection handler)
   startSchedulerLoop({
-    registeredGroups: getJidToGroupMap,
+    getGroupConfig: getGroupByFolder,
     getSessions: () => sessions,
     queue,
     onProcess: (groupJid, proc, containerName, groupFolder) =>
@@ -1152,7 +1157,11 @@ async function main(): Promise<void> {
       }
       return channel.sendDocument(jid, filePath, filename);
     },
-    registeredGroups: getJidToGroupMap,
+    getDefaultTarget,
+    getJidsForFolder,
+    getRoutedJids,
+    getGroupConfig: getGroupByFolder,
+    getDirectChildGroupCount,
     registerGroup,
     clearSession: (groupFolder) => {
       delete sessions[groupFolder];

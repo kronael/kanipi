@@ -58,7 +58,7 @@ describe('task scheduler', () => {
     );
 
     startSchedulerLoop({
-      registeredGroups: () => ({}),
+      getGroupConfig: () => undefined,
       getSessions: () => ({}),
       queue: { enqueueTask } as any,
       onProcess: () => {},
@@ -98,15 +98,16 @@ describe('task scheduler', () => {
     );
 
     startSchedulerLoop({
-      registeredGroups: () => ({
-        'group@g.us': {
-          name: 'Main',
-          folder: 'main',
-          trigger: '',
-          added_at: '2026-02-22T00:00:00.000Z',
-          requiresTrigger: false,
-        },
-      }),
+      getGroupConfig: (folder) =>
+        folder === 'main'
+          ? {
+              name: 'Main',
+              folder: 'main',
+              trigger: '',
+              added_at: '2026-02-22T00:00:00.000Z',
+              requiresTrigger: false,
+            }
+          : undefined,
       getSessions: () => ({ main: 'ses-abc123' }),
       queue: { enqueueTask, closeStdin: vi.fn(), notifyIdle: vi.fn() } as any,
       onProcess: () => {},
@@ -147,15 +148,16 @@ describe('task scheduler', () => {
     );
 
     startSchedulerLoop({
-      registeredGroups: () => ({
-        'iso@g.us': {
-          name: 'Main',
-          folder: 'main',
-          trigger: '',
-          added_at: '2026-02-22T00:00:00.000Z',
-          requiresTrigger: false,
-        },
-      }),
+      getGroupConfig: (folder) =>
+        folder === 'main'
+          ? {
+              name: 'Main',
+              folder: 'main',
+              trigger: '',
+              added_at: '2026-02-22T00:00:00.000Z',
+              requiresTrigger: false,
+            }
+          : undefined,
       getSessions: () => ({ main: 'ses-abc123' }),
       queue: { enqueueTask, closeStdin: vi.fn(), notifyIdle: vi.fn() } as any,
       onProcess: () => {},
@@ -189,7 +191,7 @@ describe('task scheduler', () => {
     );
 
     startSchedulerLoop({
-      registeredGroups: () => ({}),
+      getGroupConfig: () => undefined,
       getSessions: () => ({}),
       queue: { enqueueTask } as any,
       onProcess: () => {},
@@ -228,15 +230,16 @@ describe('task scheduler', () => {
     );
 
     startSchedulerLoop({
-      registeredGroups: () => ({
-        'group@g.us': {
-          name: 'Main',
-          folder: 'main',
-          trigger: '',
-          added_at: '2026-02-22T00:00:00.000Z',
-          requiresTrigger: false,
-        },
-      }),
+      getGroupConfig: (folder) =>
+        folder === 'main'
+          ? {
+              name: 'Main',
+              folder: 'main',
+              trigger: '',
+              added_at: '2026-02-22T00:00:00.000Z',
+              requiresTrigger: false,
+            }
+          : undefined,
       getSessions: () => ({}),
       queue: { enqueueTask, closeStdin: vi.fn(), notifyIdle: vi.fn() } as any,
       onProcess: () => {},
@@ -275,7 +278,7 @@ describe('task scheduler', () => {
     );
 
     startSchedulerLoop({
-      registeredGroups: () => ({}),
+      getGroupConfig: () => undefined,
       getSessions: () => ({}),
       queue: { enqueueTask } as any,
       onProcess: () => {},
@@ -289,7 +292,7 @@ describe('task scheduler', () => {
 
   it('prevents duplicate scheduler starts', async () => {
     const deps = {
-      registeredGroups: () => ({}),
+      getGroupConfig: () => undefined,
       getSessions: () => ({}),
       queue: { enqueueTask: vi.fn() } as any,
       onProcess: () => {},
@@ -341,15 +344,16 @@ describe('task scheduler', () => {
     );
 
     startSchedulerLoop({
-      registeredGroups: () => ({
-        'group@g.us': {
-          name: 'Main',
-          folder: 'main',
-          trigger: '',
-          added_at: '2026-02-22T00:00:00.000Z',
-          requiresTrigger: false,
-        },
-      }),
+      getGroupConfig: (folder) =>
+        folder === 'main'
+          ? {
+              name: 'Main',
+              folder: 'main',
+              trigger: '',
+              added_at: '2026-02-22T00:00:00.000Z',
+              requiresTrigger: false,
+            }
+          : undefined,
       getSessions: () => ({}),
       queue: { enqueueTask, closeStdin, notifyIdle: vi.fn() } as any,
       onProcess: () => {},

@@ -52,7 +52,11 @@ function makeDeps(overrides?: Partial<IpcDeps>): IpcDeps {
   return {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
-    registeredGroups: () => ({}),
+    getDefaultTarget: (_jid: string) => null,
+    getJidsForFolder: (_folder: string) => [],
+    getRoutedJids: () => [],
+    getGroupConfig: (_folder: string) => undefined,
+    getDirectChildGroupCount: (_folder: string) => 0,
     registerGroup: vi.fn(),
     syncGroupMetadata: vi.fn().mockResolvedValue(undefined),
     getAvailableGroups: () => [],
@@ -224,7 +228,12 @@ describe('list_actions platform filtering', () => {
       { name: string; folder: string; trigger: string; added_at: string }
     >,
   ): IpcDeps {
-    return makeDeps({ registeredGroups: () => groups });
+    return makeDeps({
+      getJidsForFolder: (f: string) =>
+        Object.entries(groups)
+          .filter(([, g]) => g.folder === f)
+          .map(([jid]) => jid),
+    });
   }
 
   function writeReqFor(

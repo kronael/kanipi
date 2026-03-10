@@ -52,7 +52,10 @@ function makeCtx(
       : Math.min(sourceGroup.split('/').length, 3)) as 0 | 1 | 2 | 3,
     sendMessage: vi.fn(async () => {}),
     sendDocument: vi.fn(async () => {}),
-    registeredGroups: vi.fn(() => ({})),
+    getDefaultTarget: vi.fn((_jid: string) => null),
+    getRoutedJids: vi.fn(() => []),
+    getGroupConfig: vi.fn((_folder: string) => undefined),
+    getDirectChildGroupCount: vi.fn(() => 0),
     registerGroup: vi.fn(),
     syncGroupMetadata: vi.fn(async () => {}),
     getAvailableGroups: vi.fn(() => []),
@@ -210,27 +213,18 @@ describe('escalateGroup', () => {
 describe('registerGroup — max_children', () => {
   it('allows registration when under max_children limit', async () => {
     const ctx = makeCtx('root', {
-      registeredGroups: vi.fn(() => ({
-        'root@g.us': {
-          folder: 'root',
-          name: 'Root',
-          trigger: '',
-          added_at: '',
-          maxChildren: 3,
-        },
-        'child1@g.us': {
-          folder: 'root/a',
-          name: 'A',
-          trigger: '',
-          added_at: '',
-        },
-        'child2@g.us': {
-          folder: 'root/b',
-          name: 'B',
-          trigger: '',
-          added_at: '',
-        },
-      })),
+      getGroupConfig: vi.fn((folder: string) =>
+        folder === 'root'
+          ? {
+              folder: 'root',
+              name: 'Root',
+              trigger: '',
+              added_at: '',
+              maxChildren: 3,
+            }
+          : undefined,
+      ),
+      getDirectChildGroupCount: vi.fn(() => 2),
     });
     const result = await registerGroup.handler(
       { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
@@ -242,27 +236,18 @@ describe('registerGroup — max_children', () => {
 
   it('blocks registration when max_children limit is reached', async () => {
     const ctx = makeCtx('root', {
-      registeredGroups: vi.fn(() => ({
-        'root@g.us': {
-          folder: 'root',
-          name: 'Root',
-          trigger: '',
-          added_at: '',
-          maxChildren: 2,
-        },
-        'child1@g.us': {
-          folder: 'root/a',
-          name: 'A',
-          trigger: '',
-          added_at: '',
-        },
-        'child2@g.us': {
-          folder: 'root/b',
-          name: 'B',
-          trigger: '',
-          added_at: '',
-        },
-      })),
+      getGroupConfig: vi.fn((folder: string) =>
+        folder === 'root'
+          ? {
+              folder: 'root',
+              name: 'Root',
+              trigger: '',
+              added_at: '',
+              maxChildren: 2,
+            }
+          : undefined,
+      ),
+      getDirectChildGroupCount: vi.fn(() => 2),
     });
     const result = await registerGroup.handler(
       { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
@@ -278,15 +263,17 @@ describe('registerGroup — max_children', () => {
 
   it('blocks registration when max_children=0 (spawning disabled)', async () => {
     const ctx = makeCtx('root', {
-      registeredGroups: vi.fn(() => ({
-        'root@g.us': {
-          folder: 'root',
-          name: 'Root',
-          trigger: '',
-          added_at: '',
-          maxChildren: 0,
-        },
-      })),
+      getGroupConfig: vi.fn((folder: string) =>
+        folder === 'root'
+          ? {
+              folder: 'root',
+              name: 'Root',
+              trigger: '',
+              added_at: '',
+              maxChildren: 0,
+            }
+          : undefined,
+      ),
     });
     const result = await registerGroup.handler(
       { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
@@ -301,18 +288,14 @@ describe('registerGroup — max_children', () => {
   });
 
   it('uses default max_children=50 when not configured', async () => {
-    const groups: Record<string, import('../db.js').GroupConfig> = {
-      'root@g.us': { folder: 'root', name: 'Root', trigger: '', added_at: '' },
-    };
-    for (let i = 0; i < 49; i++) {
-      groups[`child${i}@g.us`] = {
-        folder: `root/c${i}`,
-        name: `C${i}`,
-        trigger: '',
-        added_at: '',
-      };
-    }
-    const ctx = makeCtx('root', { registeredGroups: vi.fn(() => groups) });
+    const ctx = makeCtx('root', {
+      getGroupConfig: vi.fn((folder: string) =>
+        folder === 'root'
+          ? { folder: 'root', name: 'Root', trigger: '', added_at: '' }
+          : undefined,
+      ),
+      getDirectChildGroupCount: vi.fn(() => 49),
+    });
     const result = await registerGroup.handler(
       { jid: 'new@g.us', name: 'New', folder: 'root/c50', trigger: '' },
       ctx,
@@ -322,18 +305,14 @@ describe('registerGroup — max_children', () => {
   });
 
   it('blocks at default limit of 50', async () => {
-    const groups: Record<string, import('../db.js').GroupConfig> = {
-      'root@g.us': { folder: 'root', name: 'Root', trigger: '', added_at: '' },
-    };
-    for (let i = 0; i < 50; i++) {
-      groups[`child${i}@g.us`] = {
-        folder: `root/c${i}`,
-        name: `C${i}`,
-        trigger: '',
-        added_at: '',
-      };
-    }
-    const ctx = makeCtx('root', { registeredGroups: vi.fn(() => groups) });
+    const ctx = makeCtx('root', {
+      getGroupConfig: vi.fn((folder: string) =>
+        folder === 'root'
+          ? { folder: 'root', name: 'Root', trigger: '', added_at: '' }
+          : undefined,
+      ),
+      getDirectChildGroupCount: vi.fn(() => 50),
+    });
     const result = await registerGroup.handler(
       { jid: 'new@g.us', name: 'New', folder: 'root/c51', trigger: '' },
       ctx,
@@ -348,15 +327,17 @@ describe('registerGroup — max_children', () => {
 
   it('does not apply max_children check for non-direct-child folders', async () => {
     const ctx = makeCtx('root', {
-      registeredGroups: vi.fn(() => ({
-        'root@g.us': {
-          folder: 'root',
-          name: 'Root',
-          trigger: '',
-          added_at: '',
-          maxChildren: 0,
-        },
-      })),
+      getGroupConfig: vi.fn((folder: string) =>
+        folder === 'root'
+          ? {
+              folder: 'root',
+              name: 'Root',
+              trigger: '',
+              added_at: '',
+              maxChildren: 0,
+            }
+          : undefined,
+      ),
     });
     const result = await registerGroup.handler(
       { jid: 'new@g.us', name: 'New', folder: 'root/a/b', trigger: '' },

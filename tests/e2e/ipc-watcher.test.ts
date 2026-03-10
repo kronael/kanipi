@@ -38,14 +38,14 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
   return {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
-    registeredGroups: () => ({
-      [MAIN_JID]: {
-        name: 'Main',
-        folder: 'main',
-        trigger: 'always',
-        added_at: '',
-      },
-    }),
+    getDefaultTarget: (jid: string) => (jid === MAIN_JID ? 'main' : null),
+    getJidsForFolder: (folder: string) => (folder === 'main' ? [MAIN_JID] : []),
+    getRoutedJids: () => [MAIN_JID],
+    getGroupConfig: (folder: string) =>
+      folder === 'main'
+        ? { name: 'Main', folder: 'main', trigger: 'always', added_at: '' }
+        : undefined,
+    getDirectChildGroupCount: (_folder: string) => 0,
     registerGroup: vi.fn(),
     syncGroupMetadata: vi.fn().mockResolvedValue(undefined),
     getAvailableGroups: () => [],

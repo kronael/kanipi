@@ -10,11 +10,11 @@ function assertAuthorized(
   action: string,
 ): void {
   if (ctx.tier === 0) return;
-  const target = ctx.registeredGroups()[chatJid];
+  const targetFolder = ctx.getDefaultTarget(chatJid);
   if (ctx.tier === 1) {
-    if (target && isInWorld(ctx.sourceGroup, target.folder)) return;
+    if (targetFolder && isInWorld(ctx.sourceGroup, targetFolder)) return;
   } else {
-    if (target && target.folder === ctx.sourceGroup) return;
+    if (targetFolder && targetFolder === ctx.sourceGroup) return;
   }
   logger.warn(
     { chatJid, sourceGroup: ctx.sourceGroup },

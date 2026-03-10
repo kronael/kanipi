@@ -9,7 +9,10 @@ export interface ActionContext {
   tier: 0 | 1 | 2 | 3;
   sendMessage(jid: string, text: string): Promise<void>;
   sendDocument(jid: string, path: string, name?: string): Promise<void>;
-  registeredGroups(): Record<string, GroupConfig>;
+  getDefaultTarget(jid: string): string | null;
+  getRoutedJids(): string[];
+  getGroupConfig(folder: string): GroupConfig | undefined;
+  getDirectChildGroupCount(parentFolder: string): number;
   registerGroup(jid: string, group: GroupConfig): void;
   syncGroupMetadata(force: boolean): Promise<void>;
   getAvailableGroups(): AvailableGroup[];

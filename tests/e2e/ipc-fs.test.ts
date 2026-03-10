@@ -85,7 +85,13 @@ function makeDeps(overrides: Partial<IpcDeps> = {}): IpcDeps & {
   const base: IpcDeps = {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
-    registeredGroups: () => ({ [MAIN_JID]: MAIN_GROUP }),
+    getDefaultTarget: (jid) => (jid === MAIN_JID ? MAIN_GROUP.folder : null),
+    getJidsForFolder: (folder) =>
+      folder === MAIN_GROUP.folder ? [MAIN_JID] : [],
+    getRoutedJids: () => [MAIN_JID],
+    getGroupConfig: (folder) =>
+      folder === MAIN_GROUP.folder ? MAIN_GROUP : undefined,
+    getDirectChildGroupCount: (_folder) => 0,
     registerGroup: vi.fn(),
     syncGroupMetadata: vi.fn().mockResolvedValue(undefined),
     getAvailableGroups: () => [],
@@ -326,17 +332,18 @@ describe('_drainGroup — full IPC pipeline with real fs', () => {
   it('unauthorized legacy message is blocked (non-root group)', async () => {
     // Create a child group that only owns its own folder
     const childJid = 'child@g.us';
-    const childGroup: GroupConfig = {
-      name: 'Child',
-      folder: 'main/child',
-      trigger: '@Andy',
-      added_at: '2024-01-01T00:00:00.000Z',
-    };
     const deps = makeDeps({
-      registeredGroups: () => ({
-        [MAIN_JID]: MAIN_GROUP,
-        [childJid]: childGroup,
-      }),
+      getDefaultTarget: (jid: string) => {
+        if (jid === MAIN_JID) return MAIN_GROUP.folder;
+        if (jid === childJid) return 'main/child';
+        return null;
+      },
+      getJidsForFolder: (folder: string) => {
+        if (folder === MAIN_GROUP.folder) return [MAIN_JID];
+        if (folder === 'main/child') return [childJid];
+        return [];
+      },
+      getRoutedJids: () => [MAIN_JID, childJid],
     });
 
     const msgDir = path.join(ipcDir, 'main/child', 'messages');

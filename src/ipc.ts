@@ -46,7 +46,11 @@ export interface IpcDeps {
     filePath: string,
     filename?: string,
   ) => Promise<void>;
-  registeredGroups: () => Record<string, GroupConfig>;
+  getDefaultTarget: (jid: string) => string | null;
+  getJidsForFolder: (folder: string) => string[];
+  getRoutedJids: () => string[];
+  getGroupConfig: (folder: string) => GroupConfig | undefined;
+  getDirectChildGroupCount: (parentFolder: string) => number;
   registerGroup: (jid: string, group: GroupConfig) => void;
   syncGroupMetadata: (force: boolean) => Promise<void>;
   getAvailableGroups: () => AvailableGroup[];
@@ -152,12 +156,11 @@ export async function drainRequests(
 
       if (type === 'list_actions') {
         const tier = permissionTier(sourceGroup);
-        const groups = deps.registeredGroups();
         const platforms = [
           ...new Set(
-            Object.entries(groups)
-              .filter(([, g]) => g.folder === sourceGroup)
-              .map(([jid]) => jid.split(':')[0])
+            deps
+              .getJidsForFolder(sourceGroup)
+              .map((jid) => jid.split(':')[0])
               .filter((p) => p.length > 0 && !p.includes('@')),
           ),
         ];
@@ -268,17 +271,14 @@ async function drainLegacyMessages(
   const messagesDir = path.join(ipcBaseDir, sourceGroup, 'messages');
   if (!fs.existsSync(messagesDir)) return;
 
-  const registeredGroups = deps.registeredGroups();
   const files = fs.readdirSync(messagesDir).filter((f) => f.endsWith('.json'));
 
   for (const file of files) {
     const filePath = path.join(messagesDir, file);
     try {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      const targetGroup = registeredGroups[data.chatJid];
-      const authorized =
-        data.chatJid &&
-        (root || (targetGroup && targetGroup.folder === sourceGroup));
+      const targetFolder = deps.getDefaultTarget(data.chatJid);
+      const authorized = data.chatJid && (root || targetFolder === sourceGroup);
 
       if (!authorized) {
         logger.warn(

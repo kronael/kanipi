@@ -209,7 +209,8 @@ export type OnChatMetadata = (
 export interface ChannelOpts {
   onMessage: OnInboundMessage;
   onChatMetadata: OnChatMetadata;
-  registeredGroups: () => Record<string, import('./db.js').GroupConfig>;
+  isRoutedJid: (jid: string) => boolean;
+  hasAlwaysOnGroup: () => boolean;
 }
 
 export type InboundEvent = NewMessage;

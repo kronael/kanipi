@@ -27,7 +27,7 @@ export const refreshGroups: Action = {
     ctx.writeGroupsSnapshot(
       ctx.sourceGroup,
       groups,
-      new Set(Object.keys(ctx.registeredGroups())),
+      new Set(ctx.getRoutedJids()),
     );
     return { refreshed: true };
   },
@@ -62,10 +62,7 @@ export const registerGroup: Action = {
     }
 
     if (isDirectChild(ctx.sourceGroup, input.folder)) {
-      const groups = ctx.registeredGroups();
-      const src = Object.values(groups).find(
-        (g) => g.folder === ctx.sourceGroup,
-      );
+      const src = ctx.getGroupConfig(ctx.sourceGroup);
       const max = src?.maxChildren ?? 50;
       if (max === 0) {
         return {
@@ -74,9 +71,7 @@ export const registerGroup: Action = {
           fallback: ctx.sourceGroup,
         };
       }
-      const n = Object.values(groups).filter((g) =>
-        isDirectChild(ctx.sourceGroup, g.folder),
-      ).length;
+      const n = ctx.getDirectChildGroupCount(ctx.sourceGroup);
       if (n >= max) {
         logger.warn(
           { sourceGroup: ctx.sourceGroup, n, max },

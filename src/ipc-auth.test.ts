@@ -5,8 +5,10 @@ import {
   _setTestGroupRoute,
   createTask,
   getAllTasks,
+  getDefaultTarget,
   getGroupByFolder,
-  getJidToGroupMap,
+  getJidsForFolder,
+  getRoutedJids,
   getTaskById,
   GroupConfig,
 } from './db.js';
@@ -39,7 +41,6 @@ const THIRD_GROUP: GroupConfig = {
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
-let groups: Record<string, GroupConfig>;
 let deps: IpcDeps;
 
 beforeEach(() => {
@@ -50,16 +51,17 @@ beforeEach(() => {
   _setTestGroupRoute('other@g.us', OTHER_GROUP);
   _setTestGroupRoute('third@g.us', THIRD_GROUP);
 
-  groups = getJidToGroupMap();
-
   deps = {
     sendMessage: async () => {},
     clearSession: vi.fn(),
     sendDocument: async () => {},
-    registeredGroups: getJidToGroupMap,
+    getDefaultTarget,
+    getJidsForFolder,
+    getRoutedJids,
+    getGroupConfig: getGroupByFolder,
+    getDirectChildGroupCount: () => 0,
     registerGroup: (jid, group) => {
       _setTestGroupRoute(jid, group);
-      groups = getJidToGroupMap();
     },
     syncGroupMetadata: async () => {},
     getAvailableGroups: () => [],
@@ -334,8 +336,8 @@ describe('register_group authorization', () => {
       deps,
     );
 
-    // registeredGroups should not have changed
-    expect(groups['new@g.us']).toBeUndefined();
+    // route should not have been registered
+    expect(getDefaultTarget('new@g.us')).toBeNull();
   });
 
   it('root group cannot register with unsafe folder path', async () => {
@@ -351,7 +353,7 @@ describe('register_group authorization', () => {
       deps,
     );
 
-    expect(groups['new@g.us']).toBeUndefined();
+    expect(getDefaultTarget('new@g.us')).toBeNull();
   });
 });
 
@@ -371,7 +373,7 @@ describe('refresh_groups authorization', () => {
 
 // --- IPC message authorization ---
 // Tests the authorization pattern from startIpcWatcher (ipc.ts).
-// The logic: isRoot(sourceGroup) || (targetGroup && targetGroup.folder === sourceGroup)
+// The logic: isRoot(sourceGroup) || targetFolder === sourceGroup
 
 describe('IPC message authorization', () => {
   // Replicate the exact check from the IPC watcher
@@ -382,44 +384,36 @@ describe('IPC message authorization', () => {
   function isMessageAuthorized(
     sourceGroup: string,
     targetChatJid: string,
-    registeredGroups: Record<string, GroupConfig>,
   ): boolean {
-    const targetGroup = registeredGroups[targetChatJid];
-    return (
-      isRoot(sourceGroup) ||
-      (!!targetGroup && targetGroup.folder === sourceGroup)
-    );
+    const targetFolder = getDefaultTarget(targetChatJid);
+    return isRoot(sourceGroup) || targetFolder === sourceGroup;
   }
 
   it('root group can send to any group', () => {
-    expect(isMessageAuthorized('root', 'other@g.us', groups)).toBe(true);
-    expect(isMessageAuthorized('root', 'third@g.us', groups)).toBe(true);
+    expect(isMessageAuthorized('root', 'other@g.us')).toBe(true);
+    expect(isMessageAuthorized('root', 'third@g.us')).toBe(true);
   });
 
   it('non-root group can send to its own chat', () => {
-    expect(
-      isMessageAuthorized('discord/other-group', 'other@g.us', groups),
-    ).toBe(true);
+    expect(isMessageAuthorized('discord/other-group', 'other@g.us')).toBe(true);
   });
 
   it('non-root group cannot send to another groups chat', () => {
-    expect(
-      isMessageAuthorized('discord/other-group', 'root@g.us', groups),
-    ).toBe(false);
-    expect(
-      isMessageAuthorized('discord/other-group', 'third@g.us', groups),
-    ).toBe(false);
+    expect(isMessageAuthorized('discord/other-group', 'root@g.us')).toBe(false);
+    expect(isMessageAuthorized('discord/other-group', 'third@g.us')).toBe(
+      false,
+    );
   });
 
   it('non-root group cannot send to unregistered JID', () => {
-    expect(
-      isMessageAuthorized('discord/other-group', 'unknown@g.us', groups),
-    ).toBe(false);
+    expect(isMessageAuthorized('discord/other-group', 'unknown@g.us')).toBe(
+      false,
+    );
   });
 
   it('root group can send to unregistered JID', () => {
     // Root is always authorized regardless of target
-    expect(isMessageAuthorized('root', 'unknown@g.us', groups)).toBe(true);
+    expect(isMessageAuthorized('root', 'unknown@g.us')).toBe(true);
   });
 });
 

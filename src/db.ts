@@ -628,52 +628,6 @@ function migrateJsonState(): void {
       setSession(folder, sessionId);
     }
   }
-
-  // Migrate registered_groups.json to groups + routes tables
-  type LegacyGroup = {
-    folder: string;
-    name: string;
-    added_at: string;
-    trigger: string;
-    requiresTrigger?: boolean;
-    containerConfig?: import('./types.js').ContainerConfig;
-    slinkToken?: string;
-    parent?: string;
-    maxChildren?: number;
-  };
-  const legacyGroups = migrateFile('registered_groups.json') as Record<
-    string,
-    LegacyGroup
-  > | null;
-  if (legacyGroups) {
-    for (const [jid, group] of Object.entries(legacyGroups)) {
-      try {
-        const config: GroupConfig = {
-          folder: group.folder,
-          name: group.name,
-          added_at: group.added_at,
-          containerConfig: group.containerConfig,
-          parent: group.parent,
-          trigger: group.trigger,
-          requiresTrigger: group.requiresTrigger ?? true,
-          slinkToken: group.slinkToken,
-          maxChildren: group.maxChildren,
-        };
-        setGroupConfig(config);
-        addRoute(jid, {
-          seq: 0,
-          type: 'default',
-          match: null,
-          target: group.folder,
-        });
-      } catch (err) {
-        logger.warn(
-          { jid, folder: group.folder, err },
-          'Skipping migrated registered group with invalid folder',
-        );
-      }
-    }
-  }
 }
 
 // --- Auth ---
@@ -885,6 +839,23 @@ export function getJidsForFolder(folder: string): string[] {
   return rows.map((r) => r.jid);
 }
 
+export function getDefaultTarget(jid: string): string | null {
+  const row = db
+    .prepare(
+      `SELECT target FROM routes WHERE jid = ? AND type = 'default' ORDER BY seq LIMIT 1`,
+    )
+    .get(jid) as { target: string } | undefined;
+  return row?.target ?? null;
+}
+
+export function getDirectChildGroupCount(parentFolder: string): number {
+  const depth = parentFolder.split('/').length + 1;
+  const rows = db
+    .prepare('SELECT folder FROM groups WHERE folder LIKE ?')
+    .all(`${parentFolder}/%`) as { folder: string }[];
+  return rows.filter((r) => r.folder.split('/').length === depth).length;
+}
+
 /**
  * Build a mapping from JID to default folder (for message loop polling).
  * Returns the target of the default route for each JID.
@@ -898,26 +869,6 @@ export function getJidToFolderMap(): Record<string, string> {
   const result: Record<string, string> = {};
   for (const r of rows) {
     if (!result[r.jid]) result[r.jid] = r.target;
-  }
-  return result;
-}
-
-/**
- * Build a JID-keyed map of GroupConfig objects (for channel + IPC use).
- * Joins routes (default type) with groups to produce { jid → GroupConfig }.
- */
-export function getJidToGroupMap(): Record<string, GroupConfig> {
-  const rows = db
-    .prepare(
-      `SELECT r.jid, g.*
-       FROM routes r JOIN groups g ON r.target = g.folder
-       WHERE r.type = 'default'
-       ORDER BY r.jid, r.seq`,
-    )
-    .all() as (GroupsRow & { jid: string })[];
-  const result: Record<string, GroupConfig> = {};
-  for (const row of rows) {
-    if (!result[row.jid]) result[row.jid] = rowToGroupConfig(row);
   }
   return result;
 }

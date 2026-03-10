@@ -114,8 +114,7 @@ export class TelegramChannel implements Channel {
       }
 
       // Only deliver full message for registered groups
-      const group = this.opts.registeredGroups()[chatJid];
-      if (!group) {
+      if (!this.opts.isRoutedJid(chatJid)) {
         logger.debug(
           { chatJid, chatName },
           'Message from unregistered Telegram chat',
@@ -198,8 +197,7 @@ export class TelegramChannel implements Channel {
       attachments: RawAttachment[],
     ) => {
       const chatJid = `telegram:${ctx.chat.id}`;
-      const group = this.opts.registeredGroups()[chatJid];
-      if (!group) return;
+      if (!this.opts.isRoutedJid(chatJid)) return;
 
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
       const senderName =

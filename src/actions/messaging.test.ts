@@ -20,7 +20,12 @@ function makeCtx(
     tier,
     sendMessage: vi.fn(),
     sendDocument: vi.fn(),
-    registeredGroups: vi.fn().mockReturnValue(groups ?? {}),
+    getDefaultTarget: vi.fn((jid: string) => groups?.[jid]?.folder ?? null),
+    getRoutedJids: vi.fn(() => Object.keys(groups ?? {})),
+    getGroupConfig: vi.fn((folder: string) =>
+      Object.values(groups ?? {}).find((g) => g.folder === folder),
+    ),
+    getDirectChildGroupCount: vi.fn(() => 0),
     registerGroup: vi.fn(),
     syncGroupMetadata: vi.fn(),
     getAvailableGroups: vi.fn(),

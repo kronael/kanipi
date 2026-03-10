@@ -77,8 +77,7 @@ export class DiscordChannel implements Channel {
 
     this.opts.onChatMetadata(chatJid, timestamp, chatName, 'discord', isGroup);
 
-    const group = this.opts.registeredGroups()[chatJid];
-    if (!group) {
+    if (!this.opts.isRoutedJid(chatJid)) {
       logger.debug(
         { chatJid, chatName },
         'Message from unregistered Discord channel',

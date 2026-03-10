@@ -107,17 +107,12 @@ import { getLastGroupSync, updateChatName, setLastGroupSync } from '../db.js';
 function createTestOpts(
   overrides?: Partial<WhatsAppChannelOpts>,
 ): WhatsAppChannelOpts {
+  const registeredJids = new Set(['whatsapp:registered@g.us']);
   return {
     onMessage: vi.fn(),
     onChatMetadata: vi.fn(),
-    registeredGroups: vi.fn(() => ({
-      'whatsapp:registered@g.us': {
-        name: 'Test Group',
-        folder: 'test-group',
-        trigger: '@Andy',
-        added_at: '2024-01-01T00:00:00.000Z',
-      },
-    })),
+    isRoutedJid: vi.fn((jid) => registeredJids.has(jid)),
+    hasAlwaysOnGroup: vi.fn(() => true),
     ...overrides,
   };
 }
@@ -606,14 +601,9 @@ describe('WhatsAppChannel', () => {
   describe('LID to JID translation', () => {
     it('translates known LID to phone JID', async () => {
       const opts = createTestOpts({
-        registeredGroups: vi.fn(() => ({
-          'whatsapp:1234567890@s.whatsapp.net': {
-            name: 'Self Chat',
-            folder: 'self-chat',
-            trigger: '@Andy',
-            added_at: '2024-01-01T00:00:00.000Z',
-          },
-        })),
+        isRoutedJid: vi.fn(
+          (jid) => jid === 'whatsapp:1234567890@s.whatsapp.net',
+        ),
       });
       const channel = new WhatsAppChannel(opts);
 

@@ -1,6 +1,6 @@
 /**
  * Integration tests for delegate_group IPC flow.
- * Uses real IPC request/reply files on disk and DB-backed registeredGroups.
+ * Uses real IPC request/reply files on disk and DB-backed routing.
  * Only the container boundary (delegateToChild) is mocked.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -13,7 +13,9 @@ import './ipc.js';
 import {
   _initTestDatabase,
   _setTestGroupRoute,
-  getJidToGroupMap,
+  getDefaultTarget,
+  getJidsForFolder,
+  getRoutedJids,
   GroupConfig,
 } from './db.js';
 
@@ -66,7 +68,11 @@ beforeEach(() => {
   deps = {
     sendMessage: vi.fn(async () => {}),
     sendDocument: vi.fn(async () => {}),
-    registeredGroups: getJidToGroupMap,
+    getDefaultTarget,
+    getJidsForFolder,
+    getRoutedJids,
+    getGroupConfig: vi.fn((_folder: string) => undefined),
+    getDirectChildGroupCount: vi.fn(() => 0),
     registerGroup: (jid, group) => _setTestGroupRoute(jid, group),
     syncGroupMetadata: vi.fn(async () => {}),
     getAvailableGroups: vi.fn(() => []),
@@ -340,15 +346,14 @@ describe('unknown action type', () => {
 // DB-backed registeredGroups: live reads
 // ---------------------------------------------------------------------------
 
-describe('DB-backed registeredGroups — live reads', () => {
-  it('registeredGroups dep reflects DB state at call time', () => {
+describe('DB-backed routing — live reads', () => {
+  it('getDefaultTarget dep reflects DB state at call time', () => {
     _setTestGroupRoute('root@g.us', ROOT);
-    expect(deps.registeredGroups()['root@g.us']).toBeDefined();
+    expect(deps.getDefaultTarget('root@g.us')).toBe('root');
 
     _setTestGroupRoute('child@g.us', CODE);
-    const after = deps.registeredGroups();
-    expect(after['child@g.us']).toBeDefined();
-    expect(Object.keys(after)).toHaveLength(2);
+    expect(deps.getDefaultTarget('child@g.us')).toBe('root/code');
+    expect(deps.getRoutedJids()).toHaveLength(2);
   });
 
   it('delegate from non-root parent uses correct child path check', async () => {
