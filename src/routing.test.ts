@@ -561,11 +561,11 @@ describe('resolveRoutingChain', () => {
 
   it('stops after two hops (max depth)', () => {
     const groups = {
-      a: mkGroup('root', [{ type: 'default', target: 'root/a' }]),
-      b: mkGroup('root/a', [{ type: 'default', target: 'root/a/b' }]),
-      c: mkGroup('root/a/b', [{ type: 'default', target: 'root/a/b/c' }]),
+      a: mkGroup('atlas', [{ type: 'default', target: 'atlas/a' }]),
+      b: mkGroup('atlas/a', [{ type: 'default', target: 'atlas/a/b' }]),
+      c: mkGroup('atlas/a/b', [{ type: 'default', target: 'atlas/a/b/c' }]),
     };
     // third hop ignored — two-level max
-    expect(resolveRoutingChain(mkMsg('hi'), 'root', groups)).toBe('root/a/b');
+    expect(resolveRoutingChain(mkMsg('hi'), 'atlas', groups)).toBe('atlas/a/b');
   });
 });
