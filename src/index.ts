@@ -551,7 +551,7 @@ function spawnGroupFromPrototype(
   if (!fs.existsSync(prototypePath)) {
     logger.warn(
       { parentFolder, targetFolder },
-      'no _prototype dir, spawn refused',
+      'no prototype dir, spawn refused',
     );
     return undefined;
   }
