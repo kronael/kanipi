@@ -16,12 +16,32 @@ import {
   WEB_DIR,
   WEB_PORT,
   WEB_PUBLIC,
+  MASTODON_INSTANCE_URL,
+  MASTODON_ACCESS_TOKEN,
+  BLUESKY_IDENTIFIER,
+  BLUESKY_PASSWORD,
+  BLUESKY_SERVICE_URL,
+  REDDIT_CLIENT_ID,
+  REDDIT_CLIENT_SECRET,
+  REDDIT_USERNAME,
+  REDDIT_PASSWORD,
+  TWITTER_APP_KEY,
+  TWITTER_APP_SECRET,
+  TWITTER_ACCESS_TOKEN,
+  TWITTER_ACCESS_SECRET,
+  FACEBOOK_PAGE_ID,
+  FACEBOOK_PAGE_ACCESS_TOKEN,
   isRoot,
   whatsappEnabled,
 } from './config.js';
+import { BlueskyChannel } from './channels/bluesky/index.js';
 import { DiscordChannel } from './channels/discord.js';
 import { EmailChannel } from './channels/email.js';
+import { FacebookChannel } from './channels/facebook/index.js';
+import { MastodonChannel } from './channels/mastodon/index.js';
+import { RedditChannel } from './channels/reddit/index.js';
 import { TelegramChannel } from './channels/telegram.js';
+import { TwitterChannel } from './channels/twitter/index.js';
 import { WebChannel } from './channels/web.js';
 import { WhatsAppChannel } from './channels/whatsapp.js';
 import { startWebProxy } from './web-proxy.js';
@@ -514,6 +534,7 @@ function spawnGroupFromPrototype(
     name: targetFolder.split('/').pop()!,
     folder: targetFolder,
     trigger: parent.trigger,
+    routingRules: parent.routingRules,
     added_at: new Date().toISOString(),
     requiresTrigger: true,
     parent: parentFolder,
@@ -545,7 +566,7 @@ async function delegateToGroup(
   const taskId = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   queue.enqueueTask(targetFolder, taskId, async () => {
-    writeActionManifest(target.folder);
+    writeActionManifest(target.folder, registeredGroups);
     const output = await runContainerAgent(
       target,
       {
@@ -640,7 +661,7 @@ async function runAgent(
   );
 
   // Write action manifest for agent-side tool discovery
-  writeActionManifest(group.folder);
+  writeActionManifest(group.folder, registeredGroups);
 
   // Inject diary summaries on session start (no existing session)
   const annotations: string[] = [];
@@ -1004,6 +1025,69 @@ async function main(): Promise<void> {
     const email = new EmailChannel(channelOpts);
     channels.push(email);
     await email.connect();
+  }
+
+  if (MASTODON_ACCESS_TOKEN) {
+    const masto = new MastodonChannel(
+      {
+        instanceUrl: MASTODON_INSTANCE_URL,
+        accessToken: MASTODON_ACCESS_TOKEN,
+      },
+      channelOpts,
+    );
+    channels.push(masto);
+    await masto.connect();
+  }
+
+  if (BLUESKY_IDENTIFIER && BLUESKY_PASSWORD) {
+    const bsky = new BlueskyChannel(
+      {
+        identifier: BLUESKY_IDENTIFIER,
+        password: BLUESKY_PASSWORD,
+        serviceUrl: BLUESKY_SERVICE_URL || undefined,
+      },
+      channelOpts,
+    );
+    channels.push(bsky);
+    await bsky.connect();
+  }
+
+  if (REDDIT_CLIENT_ID) {
+    const reddit = new RedditChannel(
+      {
+        clientId: REDDIT_CLIENT_ID,
+        clientSecret: REDDIT_CLIENT_SECRET,
+        username: REDDIT_USERNAME,
+        password: REDDIT_PASSWORD,
+        userAgent: `kanipi:1.0 (by /u/${REDDIT_USERNAME})`,
+      },
+      channelOpts,
+    );
+    channels.push(reddit);
+    await reddit.connect();
+  }
+
+  if (TWITTER_APP_KEY) {
+    const twitter = new TwitterChannel(
+      {
+        appKey: TWITTER_APP_KEY,
+        appSecret: TWITTER_APP_SECRET,
+        accessToken: TWITTER_ACCESS_TOKEN,
+        accessSecret: TWITTER_ACCESS_SECRET,
+      },
+      channelOpts,
+    );
+    channels.push(twitter);
+    await twitter.connect();
+  }
+
+  if (FACEBOOK_PAGE_ID) {
+    const fb = new FacebookChannel(
+      { pageId: FACEBOOK_PAGE_ID, pageAccessToken: FACEBOOK_PAGE_ACCESS_TOKEN },
+      channelOpts,
+    );
+    channels.push(fb);
+    await fb.connect();
   }
 
   if (WEB_PORT) {

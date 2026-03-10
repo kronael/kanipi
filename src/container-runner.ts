@@ -1153,14 +1153,25 @@ export function writeTasksSnapshot(
   fs.writeFileSync(tasksFile, JSON.stringify(filteredTasks, null, 2));
 }
 
-export function writeActionManifest(groupFolder: string): void {
+export function writeActionManifest(
+  groupFolder: string,
+  groups: Record<string, RegisteredGroup>,
+): void {
   const groupIpcDir = resolveGroupIpcPath(groupFolder);
   fs.mkdirSync(groupIpcDir, { recursive: true });
   const manifestFile = path.join(groupIpcDir, 'action_manifest.json');
   const tier = permissionTier(groupFolder);
+  const platforms = [
+    ...new Set(
+      Object.entries(groups)
+        .filter(([, g]) => g.folder === groupFolder)
+        .map(([jid]) => jid.split(':')[0])
+        .filter((p) => p.length > 0 && !p.includes('@')),
+    ),
+  ];
   fs.writeFileSync(
     manifestFile,
-    JSON.stringify(getManifest(groupFolder, { tier, platforms: [] }), null, 2),
+    JSON.stringify(getManifest(groupFolder, { tier, platforms }), null, 2),
   );
 }
 
