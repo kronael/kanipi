@@ -11,7 +11,6 @@ import {
   NewMessage,
   RegisteredGroup,
   Route,
-  RoutingRuleSchema,
   ScheduledTask,
   TaskRunLog,
 } from './types.js';
@@ -36,13 +35,13 @@ export function _initTestDatabase(): void {
 
 export function _setRawGroupColumns(
   jid: string,
-  cols: { container_config?: string; routing_rules?: string },
+  cols: { container_config?: string },
 ): void {
   db.prepare(
     `INSERT OR REPLACE INTO registered_groups
        (jid, name, folder, trigger_pattern, added_at, container_config,
         requires_trigger, slink_token, parent, routing_rules)
-     VALUES (?, ?, ?, ?, ?, ?, 1, NULL, NULL, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, 1, NULL, NULL, NULL)`,
   ).run(
     jid,
     'test',
@@ -50,7 +49,6 @@ export function _setRawGroupColumns(
     '',
     '2024-01-01T00:00:00.000Z',
     cols.container_config ?? null,
-    cols.routing_rules ?? null,
   );
 }
 
@@ -545,7 +543,6 @@ type GroupRow = {
   requires_trigger: number | null;
   slink_token: string | null;
   parent: string | null;
-  routing_rules: string | null;
   max_children: number | null;
 };
 
@@ -566,23 +563,6 @@ function parseContainerConfig(raw: string, jid: string) {
   }
 }
 
-function parseRoutingRules(raw: string, jid: string) {
-  try {
-    const r = RoutingRuleSchema.array().safeParse(JSON.parse(raw));
-    if (!r.success) {
-      logger.warn(
-        { jid, errors: r.error.issues },
-        'routing_rules schema invalid, ignoring',
-      );
-      return undefined;
-    }
-    return r.data;
-  } catch {
-    logger.warn({ jid }, 'routing_rules is not valid JSON, ignoring');
-    return undefined;
-  }
-}
-
 function rowToGroup(row: GroupRow): RegisteredGroup & { jid: string } {
   return {
     jid: row.jid,
@@ -597,9 +577,6 @@ function rowToGroup(row: GroupRow): RegisteredGroup & { jid: string } {
       row.requires_trigger === null ? undefined : row.requires_trigger === 1,
     slinkToken: row.slink_token ?? undefined,
     parent: row.parent ?? undefined,
-    routingRules: row.routing_rules
-      ? parseRoutingRules(row.routing_rules, row.jid)
-      : undefined,
     maxChildren: row.max_children ?? undefined,
   };
 }
@@ -638,9 +615,6 @@ export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
   if (group.containerConfig !== undefined) {
     ContainerConfigSchema.parse(group.containerConfig);
   }
-  if (group.routingRules !== undefined) {
-    RoutingRuleSchema.array().parse(group.routingRules);
-  }
   db.prepare(
     `INSERT OR REPLACE INTO registered_groups
        (jid, name, folder, trigger_pattern, added_at, container_config,
@@ -656,7 +630,7 @@ export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
     group.requiresTrigger === undefined ? 1 : group.requiresTrigger ? 1 : 0,
     group.slinkToken ?? null,
     group.parent ?? null,
-    group.routingRules ? JSON.stringify(group.routingRules) : null,
+    null, // routing_rules deprecated, use routes table
     group.maxChildren ?? null,
   );
 }

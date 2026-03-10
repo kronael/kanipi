@@ -31,7 +31,10 @@ const EXPECTED_ACTIONS = [
   'register_group',
   'delegate_group',
   'escalate_group',
-  'set_routing_rules',
+  'get_routes',
+  'set_routes',
+  'add_route',
+  'delete_route',
   'reset_session',
 ];
 

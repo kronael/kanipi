@@ -1,6 +1,6 @@
 # Gateway Routing
 
-**Status**: in-progress (rewrite from per-group to flat table)
+**Status**: done
 
 The gateway has one routing table. Messages arrive on a JID,
 the router scans the table, and resolves a destination folder.

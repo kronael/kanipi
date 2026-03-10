@@ -84,14 +84,6 @@ export interface ContainerConfig {
   sidecars?: Record<string, SidecarSpec>;
 }
 
-export type RoutingRule =
-  | { type: 'command'; trigger: string; target: string }
-  | { type: 'verb'; verb: string; target: string }
-  | { type: 'pattern'; pattern: string; target: string }
-  | { type: 'keyword'; keyword: string; target: string }
-  | { type: 'sender'; pattern: string; target: string }
-  | { type: 'default'; target: string };
-
 // Flat routing table row
 export interface Route {
   id: number;
@@ -125,35 +117,6 @@ export const ContainerConfigSchema = z.object({
   sidecars: z.record(z.string(), SidecarSpecSchema).optional(),
 });
 
-export const RoutingRuleSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('command'),
-    trigger: z.string(),
-    target: z.string(),
-  }),
-  z.object({
-    type: z.literal('pattern'),
-    pattern: z.string(),
-    target: z.string(),
-  }),
-  z.object({
-    type: z.literal('verb'),
-    verb: z.string(),
-    target: z.string(),
-  }),
-  z.object({
-    type: z.literal('keyword'),
-    keyword: z.string(),
-    target: z.string(),
-  }),
-  z.object({
-    type: z.literal('sender'),
-    pattern: z.string(),
-    target: z.string(),
-  }),
-  z.object({ type: z.literal('default'), target: z.string() }),
-]);
-
 export interface RegisteredGroup {
   name: string;
   folder: string;
@@ -163,7 +126,6 @@ export interface RegisteredGroup {
   requiresTrigger?: boolean; // Default: true for groups, false for solo chats
   slinkToken?: string; // Only set for web: groups
   parent?: string; // Parent folder, undefined for roots
-  routingRules?: RoutingRule[]; // Rules for routing to child groups
   maxChildren?: number; // Max spawned children (default: 50, 0 = no spawning)
 }
 

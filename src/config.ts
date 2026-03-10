@@ -36,10 +36,9 @@ const envConfig = readEnvFile([
   'REDDIT_CLIENT_SECRET',
   'REDDIT_USERNAME',
   'REDDIT_PASSWORD',
-  'TWITTER_APP_KEY',
-  'TWITTER_APP_SECRET',
-  'TWITTER_ACCESS_TOKEN',
-  'TWITTER_ACCESS_SECRET',
+  'TWITTER_USERNAME',
+  'TWITTER_PASSWORD',
+  'TWITTER_EMAIL',
   'FACEBOOK_PAGE_ID',
   'FACEBOOK_PAGE_ACCESS_TOKEN',
 ]);
@@ -148,14 +147,12 @@ export const REDDIT_USERNAME =
   process.env.REDDIT_USERNAME || envConfig.REDDIT_USERNAME || '';
 export const REDDIT_PASSWORD =
   process.env.REDDIT_PASSWORD || envConfig.REDDIT_PASSWORD || '';
-export const TWITTER_APP_KEY =
-  process.env.TWITTER_APP_KEY || envConfig.TWITTER_APP_KEY || '';
-export const TWITTER_APP_SECRET =
-  process.env.TWITTER_APP_SECRET || envConfig.TWITTER_APP_SECRET || '';
-export const TWITTER_ACCESS_TOKEN =
-  process.env.TWITTER_ACCESS_TOKEN || envConfig.TWITTER_ACCESS_TOKEN || '';
-export const TWITTER_ACCESS_SECRET =
-  process.env.TWITTER_ACCESS_SECRET || envConfig.TWITTER_ACCESS_SECRET || '';
+export const TWITTER_USERNAME =
+  process.env.TWITTER_USERNAME || envConfig.TWITTER_USERNAME || '';
+export const TWITTER_PASSWORD =
+  process.env.TWITTER_PASSWORD || envConfig.TWITTER_PASSWORD || '';
+export const TWITTER_EMAIL =
+  process.env.TWITTER_EMAIL || envConfig.TWITTER_EMAIL || '';
 export const FACEBOOK_PAGE_ID =
   process.env.FACEBOOK_PAGE_ID || envConfig.FACEBOOK_PAGE_ID || '';
 export const FACEBOOK_PAGE_ACCESS_TOKEN =

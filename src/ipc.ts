@@ -23,11 +23,9 @@ import {
   deleteRouteAction,
   escalateGroup,
   getRoutes,
-  getRoutingRules,
   refreshGroups,
   registerGroup,
   setRoutes,
-  setRoutingRules,
 } from './actions/groups.js';
 import { allSocialActions } from './actions/social.js';
 import {
@@ -83,8 +81,6 @@ const allActions: Action[] = [
   cancelTask,
   refreshGroups,
   registerGroup,
-  getRoutingRules,
-  setRoutingRules,
   getRoutes,
   setRoutes,
   addRouteAction,

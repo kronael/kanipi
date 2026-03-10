@@ -13,7 +13,7 @@ import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
 import { isDirectChild } from '../permissions.js';
 import { isAuthorizedRoutingTarget } from '../router.js';
-import { ContainerConfigSchema, RoutingRuleSchema } from '../types.js';
+import { ContainerConfigSchema } from '../types.js';
 
 const MAX_DELEGATE_DEPTH = 3;
 
@@ -47,7 +47,6 @@ const RegisterGroupSchema = z.object({
   requiresTrigger: z.boolean().optional(),
   containerConfig: ContainerConfigSchema.optional(),
   parent: z.string().min(1).optional(),
-  routingRules: z.array(RoutingRuleSchema).optional(),
 });
 
 export const registerGroup: Action = {
@@ -105,7 +104,6 @@ export const registerGroup: Action = {
       containerConfig: input.containerConfig,
       requiresTrigger: input.requiresTrigger,
       parent: input.parent,
-      routingRules: input.routingRules,
     });
     writeCommandsXml(input.folder);
     return { registered: true };
@@ -188,69 +186,6 @@ export const delegateGroup: Action = {
       depth + 1,
     );
     return { queued: true };
-  },
-};
-
-const GetRoutingRulesInput = z.object({
-  folder: z.string().min(1),
-});
-
-export const getRoutingRules: Action = {
-  name: 'get_routing_rules',
-  description: 'Get routing rules for a group',
-  input: GetRoutingRulesInput,
-  async handler(raw, ctx) {
-    if (ctx.tier >= 2) throw new Error('unauthorized');
-    const input = GetRoutingRulesInput.parse(raw);
-    const groups = ctx.registeredGroups();
-    const group = Object.values(groups).find((g) => g.folder === input.folder);
-    if (!group) throw new Error(`group not found: ${input.folder}`);
-    if (ctx.tier === 1) {
-      if (
-        input.folder !== ctx.sourceGroup &&
-        !isDirectChild(ctx.sourceGroup, input.folder)
-      ) {
-        throw new Error('unauthorized');
-      }
-    }
-    return { folder: input.folder, rules: group.routingRules ?? [] };
-  },
-};
-
-const SetRoutingRulesInput = z.object({
-  folder: z.string().min(1),
-  rules: z.array(RoutingRuleSchema),
-});
-
-export const setRoutingRules: Action = {
-  name: 'set_routing_rules',
-  description: 'Set routing rules for a group',
-  input: SetRoutingRulesInput,
-  async handler(raw, ctx) {
-    if (ctx.tier >= 2) throw new Error('unauthorized');
-    const input = SetRoutingRulesInput.parse(raw);
-    const groups = ctx.registeredGroups();
-    const jid = Object.keys(groups).find(
-      (k) => groups[k].folder === input.folder,
-    );
-    if (!jid) throw new Error(`group not found: ${input.folder}`);
-    if (ctx.tier === 1) {
-      if (
-        input.folder !== ctx.sourceGroup &&
-        !isDirectChild(ctx.sourceGroup, input.folder)
-      ) {
-        throw new Error('unauthorized');
-      }
-    }
-    logger.info(
-      { folder: input.folder, ruleCount: input.rules.length },
-      'setting routing rules',
-    );
-    ctx.registerGroup(jid, {
-      ...groups[jid],
-      routingRules: input.rules,
-    });
-    return { folder: input.folder, rules: input.rules };
   },
 };
 

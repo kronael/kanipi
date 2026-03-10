@@ -503,23 +503,6 @@ describe('setRegisteredGroup', () => {
     expect(g?.containerConfig?.timeout).toBe(60000);
   });
 
-  it('stores and retrieves routingRules', () => {
-    setRegisteredGroup('telegram:rr', {
-      name: 'rr',
-      folder: 'rr',
-      trigger: '',
-      added_at: '2024-01-01T00:00:00.000Z',
-      routingRules: [{ type: 'command', trigger: '/code', target: 'code' }],
-    });
-    const g = getRegisteredGroup('telegram:rr');
-    expect(g?.routingRules).toHaveLength(1);
-    expect(g?.routingRules?.[0]).toMatchObject({
-      type: 'command',
-      trigger: '/code',
-      target: 'code',
-    });
-  });
-
   it('throws on invalid containerConfig schema', () => {
     expect(() =>
       setRegisteredGroup('telegram:bad-cc', {
@@ -532,25 +515,12 @@ describe('setRegisteredGroup', () => {
       }),
     ).toThrow();
   });
-
-  it('throws on invalid routingRules schema', () => {
-    expect(() =>
-      setRegisteredGroup('telegram:bad-rr', {
-        name: 'bad',
-        folder: 'bad2',
-        trigger: '',
-        added_at: '2024-01-01T00:00:00.000Z',
-        // @ts-expect-error intentional bad data
-        routingRules: [{ type: 'unknown', target: 'x' }],
-      }),
-    ).toThrow();
-  });
 });
 
 // --- registered_groups round-trip ---
 
 describe('registered_groups round-trip', () => {
-  it('preserves all JSON fields through set/get', () => {
+  it('preserves containerConfig fields through set/get', () => {
     setRegisteredGroup('telegram:full', {
       name: 'full',
       folder: 'full',
@@ -560,10 +530,6 @@ describe('registered_groups round-trip', () => {
         timeout: 120000,
         additionalMounts: [{ hostPath: '/srv/data', readonly: true }],
       },
-      routingRules: [
-        { type: 'command', trigger: '/code', target: 'code' },
-        { type: 'default', target: 'main' },
-      ],
     });
     const all = getAllRegisteredGroups();
     const g = all['telegram:full'];
@@ -571,11 +537,6 @@ describe('registered_groups round-trip', () => {
     expect(g?.containerConfig?.additionalMounts?.[0].hostPath).toBe(
       '/srv/data',
     );
-    expect(g?.routingRules).toHaveLength(2);
-    expect(g?.routingRules?.[1]).toMatchObject({
-      type: 'default',
-      target: 'main',
-    });
   });
 });
 
@@ -600,26 +561,9 @@ describe('registered_groups malformed JSON fallback', () => {
     expect(g!.containerConfig).toBeUndefined();
   });
 
-  it('returns undefined routingRules for invalid JSON', () => {
-    _setRawGroupColumns('telegram:bad-json-rr', { routing_rules: '[{broken' });
-    const g = getRegisteredGroup('telegram:bad-json-rr');
-    expect(g).toBeDefined();
-    expect(g!.routingRules).toBeUndefined();
-  });
-
-  it('returns undefined routingRules for schema-invalid JSON', () => {
-    _setRawGroupColumns('telegram:schema-rr', {
-      routing_rules: JSON.stringify([{ type: 'unknown', target: 'x' }]),
-    });
-    const g = getRegisteredGroup('telegram:schema-rr');
-    expect(g).toBeDefined();
-    expect(g!.routingRules).toBeUndefined();
-  });
-
   it('getAllRegisteredGroups skips malformed fields without throwing', () => {
     _setRawGroupColumns('telegram:all-bad', {
       container_config: '{bad',
-      routing_rules: '[bad',
     });
     let all: Record<string, unknown> | undefined;
     expect(() => {
@@ -700,42 +644,6 @@ describe('registered_groups DB-boundary: malformed JSON', () => {
     const g = getRegisteredGroup('telegram:bad-cc-schema');
     expect(g).toBeDefined();
     expect(g!.containerConfig).toBeUndefined();
-  });
-
-  it('invalid JSON in routing_rules: getRegisteredGroup returns undefined for field', () => {
-    _setRawGroupColumns('telegram:bad-rr-json', { routing_rules: '{broken' });
-    const g = getRegisteredGroup('telegram:bad-rr-json');
-    expect(g).toBeDefined();
-    expect(g!.routingRules).toBeUndefined();
-  });
-
-  it('schema-invalid JSON in routing_rules: getRegisteredGroup returns undefined for field', () => {
-    _setRawGroupColumns('telegram:bad-rr-schema', {
-      routing_rules: JSON.stringify([{ type: 'unknown_type', target: 'x' }]),
-    });
-    const g = getRegisteredGroup('telegram:bad-rr-schema');
-    expect(g).toBeDefined();
-    expect(g!.routingRules).toBeUndefined();
-  });
-
-  it('invalid JSON in routing_rules: getAllRegisteredGroups still returns the group', () => {
-    _setRawGroupColumns('telegram:bad-rr-all', {
-      routing_rules: 'null-json!!!',
-    });
-    const all = getAllRegisteredGroups();
-    expect(all['telegram:bad-rr-all']).toBeDefined();
-    expect(all['telegram:bad-rr-all'].routingRules).toBeUndefined();
-  });
-
-  it('both fields malformed: group still returned with both undefined', () => {
-    _setRawGroupColumns('telegram:bad-both', {
-      container_config: '!!!',
-      routing_rules: '!!!',
-    });
-    const g = getRegisteredGroup('telegram:bad-both');
-    expect(g).toBeDefined();
-    expect(g!.containerConfig).toBeUndefined();
-    expect(g!.routingRules).toBeUndefined();
   });
 });
 

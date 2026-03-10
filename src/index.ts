@@ -526,7 +526,6 @@ function spawnGroupFromPrototype(
     name: targetFolder.split('/').pop()!,
     folder: targetFolder,
     trigger: parent.trigger,
-    routingRules: parent.routingRules,
     added_at: new Date().toISOString(),
     requiresTrigger: true,
     parent: parentFolder,

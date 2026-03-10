@@ -294,7 +294,7 @@ describe('delegate_group IPC — real files', () => {
 // ---------------------------------------------------------------------------
 
 describe('list_actions IPC', () => {
-  it('returns manifest containing delegate_group, escalate_group, and set_routing_rules', async () => {
+  it('returns manifest containing delegate_group, escalate_group, and set_routes', async () => {
     writeRequest('root', {
       id: 'req-manifest',
       type: 'list_actions',
@@ -309,7 +309,7 @@ describe('list_actions IPC', () => {
     const names = manifest.map((a) => a.name);
     expect(names).toContain('delegate_group');
     expect(names).toContain('escalate_group');
-    expect(names).toContain('set_routing_rules');
+    expect(names).toContain('set_routes');
   });
 });
 
@@ -329,104 +329,6 @@ describe('unknown action type', () => {
     const reply = readReply('root', 'req-unknown');
     expect(reply!.ok).toBe(false);
     expect(reply!.error).toMatch(/unknown action/i);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// set_routing_rules: DB-backed routing
-// ---------------------------------------------------------------------------
-
-describe('set_routing_rules IPC — DB-backed', () => {
-  it('writes routing rules to DB, readable via getAllRegisteredGroups', async () => {
-    setRegisteredGroup('root@g.us', ROOT);
-
-    writeRequest('root', {
-      id: 'req-rules',
-      type: 'set_routing_rules',
-      folder: 'root',
-      rules: [
-        { type: 'command', trigger: '/code', target: 'root/code' },
-        { type: 'default', target: 'root/general' },
-      ],
-    });
-
-    await drainRequests(tmpDir, 'root', deps);
-
-    const reply = readReply('root', 'req-rules');
-    expect(reply!.ok).toBe(true);
-    expect(reply!.result.folder).toBe('root');
-    expect(reply!.result.rules).toHaveLength(2);
-
-    // Routing rules must be persisted to the real in-memory SQLite DB
-    const groups = getAllRegisteredGroups();
-    const rules = groups['root@g.us'].routingRules;
-    expect(rules).toHaveLength(2);
-    expect(rules![0]).toMatchObject({
-      type: 'command',
-      trigger: '/code',
-      target: 'root/code',
-    });
-    expect(rules![1]).toMatchObject({
-      type: 'default',
-      target: 'root/general',
-    });
-  });
-
-  it('returns error when target folder not in DB', async () => {
-    writeRequest('root', {
-      id: 'req-nogroup',
-      type: 'set_routing_rules',
-      folder: 'nonexistent',
-      rules: [{ type: 'default', target: 'root/general' }],
-    });
-
-    await drainRequests(tmpDir, 'root', deps);
-
-    const reply = readReply('root', 'req-nogroup');
-    expect(reply!.ok).toBe(false);
-    expect(reply!.error).toMatch(/not found/i);
-  });
-
-  it('non-root group cannot call set_routing_rules', async () => {
-    setRegisteredGroup('child@g.us', CODE);
-
-    writeRequest('root/code', {
-      id: 'req-unauth',
-      type: 'set_routing_rules',
-      folder: 'root/code',
-      rules: [{ type: 'default', target: 'root/code/py' }],
-    });
-
-    await drainRequests(tmpDir, 'root/code', deps);
-
-    const reply = readReply('root/code', 'req-unauth');
-    expect(reply!.ok).toBe(false);
-    // routing rules should remain unset
-    expect(getAllRegisteredGroups()['child@g.us'].routingRules).toBeUndefined();
-  });
-
-  it('set_routing_rules uses live DB state to resolve JID by folder', async () => {
-    // Register three groups; set rules for the middle one
-    setRegisteredGroup('root@g.us', ROOT);
-    setRegisteredGroup('child@g.us', CODE);
-    setRegisteredGroup('logs@g.us', LOGS);
-
-    writeRequest('root', {
-      id: 'req-mid',
-      type: 'set_routing_rules',
-      folder: 'root/code',
-      rules: [{ type: 'keyword', keyword: 'py', target: 'root/code/py' }],
-    });
-
-    await drainRequests(tmpDir, 'root', deps);
-
-    const reply = readReply('root', 'req-mid');
-    expect(reply!.ok).toBe(true);
-
-    // Only CODE group should have routing rules; LOGS untouched
-    const groups = getAllRegisteredGroups();
-    expect(groups['child@g.us'].routingRules).toHaveLength(1);
-    expect(groups['logs@g.us'].routingRules).toBeUndefined();
   });
 });
 
