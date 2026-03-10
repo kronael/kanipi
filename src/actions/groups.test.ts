@@ -294,7 +294,7 @@ describe('registerGroup — max_children', () => {
       getDirectChildGroupCount: vi.fn(() => 49),
     });
     const result = await registerGroup.handler(
-      { jid: 'new@g.us', name: 'New', folder: 'root/c50', trigger: '' },
+      { jid: 'new@g.us', name: 'New', folder: 'root/c50' },
       ctx,
     );
     expect(result).toEqual({ registered: true });
@@ -311,7 +311,7 @@ describe('registerGroup — max_children', () => {
       getDirectChildGroupCount: vi.fn(() => 50),
     });
     const result = await registerGroup.handler(
-      { jid: 'new@g.us', name: 'New', folder: 'root/c51', trigger: '' },
+      { jid: 'new@g.us', name: 'New', folder: 'root/c51' },
       ctx,
     );
     expect(result).toEqual({
@@ -336,7 +336,7 @@ describe('registerGroup — max_children', () => {
       ),
     });
     const result = await registerGroup.handler(
-      { jid: 'new@g.us', name: 'New', folder: 'root/a/b', trigger: '' },
+      { jid: 'new@g.us', name: 'New', folder: 'root/a/b' },
       ctx,
     );
     expect(result).toEqual({ registered: true });
@@ -353,7 +353,6 @@ describe('registerGroup', () => {
           jid: 'world@g.us',
           name: 'World',
           folder: 'atlas',
-          trigger: '@Andy',
         },
         ctx,
       ),
@@ -367,7 +366,6 @@ describe('registerGroup', () => {
         jid: 'child@g.us',
         name: 'Child',
         folder: 'atlas/support',
-        trigger: '@Andy',
       },
       ctx,
     );
