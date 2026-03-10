@@ -451,19 +451,32 @@ describe('isAuthorizedRoutingTarget', () => {
     expect(isAuthorizedRoutingTarget('main/code', 'main/ops')).toBe(false);
   });
 
-  it('blocks cross-world routing', () => {
-    expect(isAuthorizedRoutingTarget('root', 'team/alice')).toBe(false);
+  it('root world allows cross-world delegation', () => {
+    expect(isAuthorizedRoutingTarget('root', 'team/alice')).toBe(true);
+    expect(isAuthorizedRoutingTarget('root', 'atlas/support')).toBe(true);
   });
 
-  it('blocks ancestor routing (target is parent)', () => {
-    expect(isAuthorizedRoutingTarget('root/code', 'root')).toBe(false);
+  it('root subgroup allows cross-world delegation', () => {
+    expect(isAuthorizedRoutingTarget('root/ops', 'atlas/support')).toBe(true);
+    expect(isAuthorizedRoutingTarget('root/code', 'team/alice')).toBe(true);
   });
 
-  it('blocks same folder', () => {
-    expect(isAuthorizedRoutingTarget('root', 'root')).toBe(false);
+  it('root world allows ancestor and same-folder targets', () => {
+    // Self-targeting is blocked at the call site (index.ts), not here
+    expect(isAuthorizedRoutingTarget('root', 'root')).toBe(true);
+    expect(isAuthorizedRoutingTarget('root/code', 'root')).toBe(true);
   });
 
-  it('blocks cross-world non-root', () => {
+  it('blocks non-root cross-world routing', () => {
+    expect(isAuthorizedRoutingTarget('atlas', 'team/alice')).toBe(false);
     expect(isAuthorizedRoutingTarget('main/code', 'team/alice')).toBe(false);
+  });
+
+  it('blocks non-root ancestor routing', () => {
+    expect(isAuthorizedRoutingTarget('atlas/support', 'atlas')).toBe(false);
+  });
+
+  it('blocks non-root same folder', () => {
+    expect(isAuthorizedRoutingTarget('atlas', 'atlas')).toBe(false);
   });
 });

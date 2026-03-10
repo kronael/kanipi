@@ -81,6 +81,28 @@ For each inbound message on a parent-bound JID:
 First matching rule wins. Rules evaluated in array order
 within each type tier.
 
+### Self-targeting rules
+
+If a routing rule resolves to the group's own folder
+(`target === group.folder`), delegation is skipped and the
+message falls through to normal processing by the group's
+own agent. This enables dual-role setups where a single JID
+uses routing rules to split traffic:
+
+```json
+{
+  "folder": "root",
+  "routing_rules": [
+    { "type": "command", "trigger": "@root", "target": "root" },
+    { "type": "default", "target": "atlas" }
+  ]
+}
+```
+
+Here `@root` matches and returns `root` (self) — delegation
+is skipped, and root's agent handles the message directly.
+All other messages delegate to `atlas`.
+
 ---
 
 ## IPC delegation
@@ -115,18 +137,21 @@ JID via `sendMessage`. Delegation is fire-and-queue: the
 parent's current container does not wait for the child to
 finish. The child runs in its own GroupQueue slot.
 
-Authorization: source group may delegate only to a
-descendant in its own subtree, inside the same world.
-Cross-world, sibling, ancestor, and same-folder targets
-are denied.
+Authorization: root world groups (`root` and `root/*`) can
+delegate to any folder in any world. Other groups may only
+delegate to descendants in their own subtree within the same
+world. Sibling, ancestor, and same-folder targets are denied
+for non-root groups. Self-targeting (`target === source`) is
+handled at the call site — `isAuthorizedRoutingTarget` does
+not check for it.
 
 ```typescript
 function isAuthorizedRoutingTarget(source: string, target: string): boolean {
-  // Source may delegate only to descendants in same world
-  // Cross-world, sibling, ancestor, same-folder: denied
-  return (
-    target.startsWith(source + '/') && getWorld(source) === getWorld(target)
-  );
+  if (source.split('/')[0] === 'root') return true;
+  const sourceRoot = source.split('/')[0];
+  const targetRoot = target.split('/')[0];
+  if (sourceRoot !== targetRoot) return false;
+  return target.startsWith(source + '/');
 }
 ```
 
@@ -342,7 +367,8 @@ to delegate explicitly and should handle the failure.
 - Broadcast mode: send to multiple children (no winner).
   Out of scope for v1.
 - Phase 4 (worlds.md): tree-scoped IPC auth — shipped.
-  Direct parent→child enforced; cross-world blocked.
+  Root world has cross-world delegation; other worlds
+  are descendant-only within same subtree.
 
 ### 3. Parent delegates to a deeper descendant
 
@@ -360,5 +386,6 @@ specialized task:
 ```
 
 This is allowed because `main/code/py` is still inside
-`main`'s subtree. `main` still cannot delegate to
-`main/ops`, `team/alice`, or `main` itself.
+`main`'s subtree. Non-root groups still cannot delegate
+to siblings or cross-world targets. Root world groups
+(`root`, `root/*`) can delegate to any folder.
