@@ -10,6 +10,7 @@ import {
   ContainerConfigSchema,
   NewMessage,
   RegisteredGroup,
+  Route,
   RoutingRuleSchema,
   ScheduledTask,
   TaskRunLog,
@@ -862,4 +863,171 @@ export function storeEmailThread(
        (message_id, thread_id, from_address, root_msg_id, seen_at)
      VALUES (?, ?, ?, ?, ?)`,
   ).run(messageId, threadId, fromAddress, rootMsgId, new Date().toISOString());
+}
+
+// --- Routes (flat routing table) ---
+
+type RouteRow = {
+  id: number;
+  jid: string;
+  seq: number;
+  type: string;
+  match: string | null;
+  target: string;
+};
+
+function rowToRoute(row: RouteRow): Route {
+  return {
+    id: row.id,
+    jid: row.jid,
+    seq: row.seq,
+    type: row.type as Route['type'],
+    match: row.match,
+    target: row.target,
+  };
+}
+
+export function getRoutesForJid(jid: string): Route[] {
+  const rows = db
+    .prepare('SELECT * FROM routes WHERE jid = ? ORDER BY seq ASC')
+    .all(jid) as RouteRow[];
+  return rows.map(rowToRoute);
+}
+
+export function getAllRoutes(): Route[] {
+  const rows = db
+    .prepare('SELECT * FROM routes ORDER BY jid, seq ASC')
+    .all() as RouteRow[];
+  return rows.map(rowToRoute);
+}
+
+export function getRoutedJids(): string[] {
+  const rows = db.prepare('SELECT DISTINCT jid FROM routes').all() as {
+    jid: string;
+  }[];
+  return rows.map((r) => r.jid);
+}
+
+export function setRoutesForJid(
+  jid: string,
+  routes: Omit<Route, 'id' | 'jid'>[],
+): void {
+  db.prepare('DELETE FROM routes WHERE jid = ?').run(jid);
+  const insert = db.prepare(
+    'INSERT INTO routes (jid, seq, type, match, target) VALUES (?, ?, ?, ?, ?)',
+  );
+  for (const r of routes) {
+    insert.run(jid, r.seq, r.type, r.match, r.target);
+  }
+}
+
+export function addRoute(
+  jid: string,
+  route: Omit<Route, 'id' | 'jid'>,
+): number {
+  const result = db
+    .prepare(
+      'INSERT INTO routes (jid, seq, type, match, target) VALUES (?, ?, ?, ?, ?)',
+    )
+    .run(jid, route.seq, route.type, route.match, route.target);
+  return result.lastInsertRowid as number;
+}
+
+export function deleteRoute(id: number): void {
+  db.prepare('DELETE FROM routes WHERE id = ?').run(id);
+}
+
+export function getJidsForFolder(folder: string): string[] {
+  const rows = db
+    .prepare('SELECT DISTINCT jid FROM routes WHERE target = ?')
+    .all(folder) as { jid: string }[];
+  return rows.map((r) => r.jid);
+}
+
+// --- Groups table (flat routing) ---
+
+type GroupsRow = {
+  folder: string;
+  name: string;
+  added_at: string;
+  container_config: string | null;
+  parent: string | null;
+  trigger_pattern: string;
+  requires_trigger: number;
+  slink_token: string | null;
+  max_children: number | null;
+};
+
+export interface GroupConfig {
+  folder: string;
+  name: string;
+  added_at: string;
+  containerConfig?: import('./types.js').ContainerConfig;
+  parent?: string;
+  trigger: string;
+  requiresTrigger: boolean;
+  slinkToken?: string;
+  maxChildren?: number;
+}
+
+function rowToGroupConfig(row: GroupsRow): GroupConfig {
+  return {
+    folder: row.folder,
+    name: row.name,
+    added_at: row.added_at,
+    containerConfig: row.container_config
+      ? parseContainerConfig(row.container_config, row.folder)
+      : undefined,
+    parent: row.parent ?? undefined,
+    trigger: row.trigger_pattern,
+    requiresTrigger: row.requires_trigger === 1,
+    slinkToken: row.slink_token ?? undefined,
+    maxChildren: row.max_children ?? undefined,
+  };
+}
+
+export function getGroupByFolder(folder: string): GroupConfig | undefined {
+  const row = db
+    .prepare('SELECT * FROM groups WHERE folder = ?')
+    .get(folder) as GroupsRow | undefined;
+  if (!row) return undefined;
+  return rowToGroupConfig(row);
+}
+
+export function getAllGroupConfigs(): Record<string, GroupConfig> {
+  const rows = db.prepare('SELECT * FROM groups').all() as GroupsRow[];
+  const result: Record<string, GroupConfig> = {};
+  for (const row of rows) {
+    result[row.folder] = rowToGroupConfig(row);
+  }
+  return result;
+}
+
+export function setGroupConfig(config: GroupConfig): void {
+  if (!isValidGroupFolder(config.folder)) {
+    throw new Error(`Invalid group folder "${config.folder}"`);
+  }
+  if (config.containerConfig !== undefined) {
+    ContainerConfigSchema.parse(config.containerConfig);
+  }
+  db.prepare(
+    `INSERT OR REPLACE INTO groups
+       (folder, name, added_at, container_config, parent,
+        trigger_pattern, requires_trigger, slink_token, max_children)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    config.folder,
+    config.name,
+    config.added_at,
+    config.containerConfig ? JSON.stringify(config.containerConfig) : null,
+    config.parent ?? null,
+    config.trigger,
+    config.requiresTrigger ? 1 : 0,
+    config.slinkToken ?? null,
+    config.maxChildren ?? null,
+  );
+}
+
+export function deleteGroupConfig(folder: string): void {
+  db.prepare('DELETE FROM groups WHERE folder = ?').run(folder);
 }

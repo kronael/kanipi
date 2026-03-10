@@ -92,6 +92,16 @@ export type RoutingRule =
   | { type: 'sender'; pattern: string; target: string }
   | { type: 'default'; target: string };
 
+// Flat routing table row
+export interface Route {
+  id: number;
+  jid: string;
+  seq: number;
+  type: 'command' | 'verb' | 'pattern' | 'keyword' | 'sender' | 'default';
+  match: string | null;
+  target: string;
+}
+
 // Zod schemas for DB JSON field validation
 
 export const AdditionalMountSchema = z.object({

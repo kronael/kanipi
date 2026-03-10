@@ -3,6 +3,7 @@ import {
   NewMessage,
   Platform,
   RegisteredGroup,
+  Route,
   RoutingRule,
 } from './types.js';
 
@@ -80,6 +81,41 @@ export function findChannel(
   jid: string,
 ): Channel | undefined {
   return channels.find((c) => c.ownsJid(jid));
+}
+
+// Evaluate flat routes (from routes table) against a message.
+// Routes are already ordered by seq from DB. First match wins.
+export function resolveRoute(msg: NewMessage, routes: Route[]): string | null {
+  for (const r of routes) {
+    if (r.type === 'command') {
+      const t = msg.content.trim();
+      if (r.match && (t === r.match || t.startsWith(r.match + ' ')))
+        return r.target;
+    } else if (r.type === 'verb') {
+      if (msg.verb === r.match) return r.target;
+    } else if (r.type === 'pattern') {
+      if (!r.match || r.match.length > 200) continue;
+      try {
+        if (new RegExp(r.match).test(msg.content)) return r.target;
+      } catch {
+        /* invalid regex — skip */
+      }
+    } else if (r.type === 'keyword') {
+      if (r.match && msg.content.toLowerCase().includes(r.match.toLowerCase()))
+        return r.target;
+    } else if (r.type === 'sender') {
+      if (!r.match || r.match.length > 200) continue;
+      const s = msg.sender_name ?? msg.sender;
+      try {
+        if (new RegExp(r.match).test(s)) return r.target;
+      } catch {
+        /* invalid regex — skip */
+      }
+    } else if (r.type === 'default') {
+      return r.target;
+    }
+  }
+  return null;
 }
 
 // Returns true if source group may delegate/route to target:

@@ -18,11 +18,15 @@ import {
   scheduleTask,
 } from './actions/tasks.js';
 import {
+  addRouteAction,
   delegateGroup,
+  deleteRouteAction,
   escalateGroup,
+  getRoutes,
   getRoutingRules,
   refreshGroups,
   registerGroup,
+  setRoutes,
   setRoutingRules,
 } from './actions/groups.js';
 import { allSocialActions } from './actions/social.js';
@@ -81,6 +85,10 @@ const allActions: Action[] = [
   registerGroup,
   getRoutingRules,
   setRoutingRules,
+  getRoutes,
+  setRoutes,
+  addRouteAction,
+  deleteRouteAction,
   delegateGroup,
   escalateGroup,
   resetSession,

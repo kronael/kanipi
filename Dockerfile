@@ -13,7 +13,7 @@ FROM deps AS build
 
 COPY tsconfig.json ./
 COPY src/ ./src/
-RUN npx tsc && mkdir -p dist/migrations
+RUN npx tsc && cp -r src/migrations dist/
 
 FROM node:22-bookworm-slim
 
