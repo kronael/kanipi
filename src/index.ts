@@ -84,6 +84,7 @@ import {
   formatOutbound,
   isAuthorizedRoutingTarget,
   resolveRoutingTarget,
+  spawnFolderName,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
@@ -480,6 +481,69 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   return true;
 }
 
+function spawnGroupFromPrototype(
+  targetFolder: string,
+  originJid: string,
+): (RegisteredGroup & { jid: string }) | undefined {
+  // Find parent group whose folder is the direct parent of targetFolder
+  const parentSlash = targetFolder.lastIndexOf('/');
+  if (parentSlash < 0) return undefined;
+  const parentFolder = targetFolder.slice(0, parentSlash);
+  const parentEntry = Object.entries(registeredGroups).find(
+    ([, g]) => g.folder === parentFolder,
+  );
+  if (!parentEntry) return undefined;
+  const [parentJid, parent] = parentEntry;
+
+  const max = parent.maxChildren ?? 50;
+  if (max === 0) {
+    logger.warn(
+      { parentFolder, targetFolder },
+      'spawning disabled (max_children=0)',
+    );
+    return undefined;
+  }
+  const childCount = Object.values(registeredGroups).filter(
+    (g) => g.parent === parentFolder,
+  ).length;
+  if (childCount >= max) {
+    logger.warn(
+      { parentFolder, targetFolder, childCount, max },
+      'max_children reached',
+    );
+    return undefined;
+  }
+
+  // Clone: copy CLAUDE.md and SOUL.md from parent folder
+  const parentPath = resolveGroupFolderPath(parentFolder);
+  const childPath = resolveGroupFolderPath(targetFolder);
+  fs.mkdirSync(childPath, { recursive: true });
+  for (const f of ['CLAUDE.md', 'SOUL.md']) {
+    const src = path.join(parentPath, f);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, path.join(childPath, f));
+    }
+  }
+
+  // Register in DB
+  const jid = originJid;
+  const group: RegisteredGroup = {
+    name: targetFolder.split('/').pop() || targetFolder,
+    folder: targetFolder,
+    trigger: parent.trigger,
+    added_at: new Date().toISOString(),
+    requiresTrigger: true,
+    parent: parentFolder,
+  };
+  registeredGroups[jid] = group;
+  setRegisteredGroup(jid, group);
+  logger.info(
+    { parentFolder, targetFolder, jid },
+    'spawned child group from prototype',
+  );
+  return { ...group, jid };
+}
+
 async function delegateToGroup(
   targetFolder: string,
   prompt: string,
@@ -487,10 +551,13 @@ async function delegateToGroup(
   depth: number,
   label: string,
 ): Promise<void> {
-  const target = Object.values(registeredGroups).find(
+  let target = Object.values(registeredGroups).find(
     (g) => g.folder === targetFolder,
   );
-  if (!target) throw new Error(`unknown ${label} group: ${targetFolder}`);
+  if (!target) {
+    target = spawnGroupFromPrototype(targetFolder, originJid);
+    if (!target) throw new Error(`unknown ${label} group: ${targetFolder}`);
+  }
 
   const channel = findChannel(channels, originJid);
   if (!channel) throw new Error(`no channel for origin JID: ${originJid}`);

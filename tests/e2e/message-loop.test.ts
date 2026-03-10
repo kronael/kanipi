@@ -655,27 +655,18 @@ describe('delegateToChild — depth propagation', () => {
 
 // ── Routed-failure rollback ────────────────────────────────────────────────────
 
-describe('processGroupMessages — routed-failure cursor rollback', () => {
-  it('rolls back cursor when delegate fails because child is not registered', async () => {
-    setupRoutedGroup(false /* no child group */);
-
-    await _processGroupMessages(ROUTED_JID);
-
-    // The cursor was advanced synchronously before delegateToChild was called.
-    // delegateToChild rejects immediately (child not found) → .catch rolls it back.
-    // Flush the pending .catch() microtask:
-    await Promise.resolve();
-
-    expect(_getLastAgentTimestamp(ROUTED_JID)).toBe('');
-  });
-
-  it('does not call runContainerAgent when child is not registered', async () => {
-    setupRoutedGroup(false);
+describe('processGroupMessages — clone-on-missing child', () => {
+  it('spawns child from prototype when child is not registered', async () => {
+    setupRoutedGroup(false /* no child group registered */);
 
     await _processGroupMessages(ROUTED_JID);
     await Promise.resolve();
 
-    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+    // Clone-on-missing spawns the child — cursor advances, agent runs
+    expect(_getLastAgentTimestamp(ROUTED_JID)).toBe(ROUTED_MSG_TS);
+    expect(mockRunContainerAgent).toHaveBeenCalled();
+    const [group] = mockRunContainerAgent.mock.calls[0];
+    expect(group.folder).toBe(CHILD_FOLDER);
   });
 });
 

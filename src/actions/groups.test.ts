@@ -167,6 +167,169 @@ describe('escalateGroup', () => {
   });
 });
 
+describe('registerGroup — max_children', () => {
+  it('allows registration when under max_children limit', async () => {
+    const ctx = makeCtx('root', {
+      registeredGroups: vi.fn(() => ({
+        'root@g.us': {
+          folder: 'root',
+          name: 'Root',
+          trigger: '',
+          added_at: '',
+          maxChildren: 3,
+        },
+        'child1@g.us': {
+          folder: 'root/a',
+          name: 'A',
+          trigger: '',
+          added_at: '',
+        },
+        'child2@g.us': {
+          folder: 'root/b',
+          name: 'B',
+          trigger: '',
+          added_at: '',
+        },
+      })),
+    });
+    const result = await registerGroup.handler(
+      { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
+      ctx,
+    );
+    expect(result).toEqual({ registered: true });
+    expect(ctx.registerGroup).toHaveBeenCalled();
+  });
+
+  it('blocks registration when max_children limit is reached', async () => {
+    const ctx = makeCtx('root', {
+      registeredGroups: vi.fn(() => ({
+        'root@g.us': {
+          folder: 'root',
+          name: 'Root',
+          trigger: '',
+          added_at: '',
+          maxChildren: 2,
+        },
+        'child1@g.us': {
+          folder: 'root/a',
+          name: 'A',
+          trigger: '',
+          added_at: '',
+        },
+        'child2@g.us': {
+          folder: 'root/b',
+          name: 'B',
+          trigger: '',
+          added_at: '',
+        },
+      })),
+    });
+    const result = await registerGroup.handler(
+      { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
+      ctx,
+    );
+    expect(result).toEqual({
+      registered: false,
+      reason: 'max_children_exceeded',
+      fallback: 'root',
+    });
+    expect(ctx.registerGroup).not.toHaveBeenCalled();
+  });
+
+  it('blocks registration when max_children=0 (spawning disabled)', async () => {
+    const ctx = makeCtx('root', {
+      registeredGroups: vi.fn(() => ({
+        'root@g.us': {
+          folder: 'root',
+          name: 'Root',
+          trigger: '',
+          added_at: '',
+          maxChildren: 0,
+        },
+      })),
+    });
+    const result = await registerGroup.handler(
+      { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
+      ctx,
+    );
+    expect(result).toEqual({
+      registered: false,
+      reason: 'spawning_disabled',
+      fallback: 'root',
+    });
+    expect(ctx.registerGroup).not.toHaveBeenCalled();
+  });
+
+  it('uses default max_children=50 when not configured', async () => {
+    const groups: Record<string, import('../types.js').RegisteredGroup> = {
+      'root@g.us': { folder: 'root', name: 'Root', trigger: '', added_at: '' },
+    };
+    for (let i = 0; i < 49; i++) {
+      groups[`child${i}@g.us`] = {
+        folder: `root/c${i}`,
+        name: `C${i}`,
+        trigger: '',
+        added_at: '',
+      };
+    }
+    const ctx = makeCtx('root', { registeredGroups: vi.fn(() => groups) });
+    const result = await registerGroup.handler(
+      { jid: 'new@g.us', name: 'New', folder: 'root/c50', trigger: '' },
+      ctx,
+    );
+    expect(result).toEqual({ registered: true });
+    expect(ctx.registerGroup).toHaveBeenCalled();
+  });
+
+  it('blocks at default limit of 50', async () => {
+    const groups: Record<string, import('../types.js').RegisteredGroup> = {
+      'root@g.us': { folder: 'root', name: 'Root', trigger: '', added_at: '' },
+    };
+    for (let i = 0; i < 50; i++) {
+      groups[`child${i}@g.us`] = {
+        folder: `root/c${i}`,
+        name: `C${i}`,
+        trigger: '',
+        added_at: '',
+      };
+    }
+    const ctx = makeCtx('root', { registeredGroups: vi.fn(() => groups) });
+    const result = await registerGroup.handler(
+      { jid: 'new@g.us', name: 'New', folder: 'root/c51', trigger: '' },
+      ctx,
+    );
+    expect(result).toEqual({
+      registered: false,
+      reason: 'max_children_exceeded',
+      fallback: 'root',
+    });
+    expect(ctx.registerGroup).not.toHaveBeenCalled();
+  });
+
+  it('does not apply max_children check for non-direct-child folders', async () => {
+    // root registering root/a/b — not a direct child of root, so no max_children check
+    // But tier=0 allows creating folders with slashes, so it should pass the tier check
+    const ctx = makeCtx('root', {
+      registeredGroups: vi.fn(() => ({
+        'root@g.us': {
+          folder: 'root',
+          name: 'Root',
+          trigger: '',
+          added_at: '',
+          maxChildren: 0,
+        },
+      })),
+    });
+    // 'root/a/b' is not a direct child of 'root' — max_children check skipped
+    const result = await registerGroup.handler(
+      { jid: 'new@g.us', name: 'New', folder: 'root/a/b', trigger: '' },
+      ctx,
+    );
+    expect(result).toEqual({ registered: true });
+    expect(ctx.registerGroup).toHaveBeenCalled();
+  });
+});
+
 describe('registerGroup', () => {
   it('root cannot create a new world via action', async () => {
     const ctx = makeCtx('root');
