@@ -1,6 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { delegateGroup, escalateGroup, registerGroup } from './groups.js';
+import {
+  addRouteAction,
+  delegateGroup,
+  deleteRouteAction,
+  escalateGroup,
+  getRoutes,
+  registerGroup,
+  setRoutes,
+} from './groups.js';
 import type { ActionContext } from '../action-registry.js';
 
 vi.mock('../config.js', () => ({
@@ -19,6 +27,18 @@ vi.mock('../logger.js', () => ({
 
 vi.mock('../commands/index.js', () => ({
   writeCommandsXml: vi.fn(),
+}));
+
+vi.mock('../db.js', () => ({
+  getRoutesForJid: vi.fn(),
+  setRoutesForJid: vi.fn(),
+  addRoute: vi.fn(),
+  getRouteById: vi.fn(),
+  deleteRoute: vi.fn(),
+}));
+
+vi.mock('../router.js', () => ({
+  isAuthorizedRoutingTarget: vi.fn(),
 }));
 
 function makeCtx(
@@ -48,6 +68,19 @@ function makeCtx(
 // --- delegate_group action ---
 
 describe('delegateGroup — authorization', () => {
+  beforeEach(async () => {
+    const { isAuthorizedRoutingTarget } = await import('../router.js');
+    vi.mocked(isAuthorizedRoutingTarget).mockImplementation(
+      (source, target) => {
+        if (source.split('/')[0] === 'root') return true;
+        const srcWorld = source.split('/')[0];
+        const tgtWorld = target.split('/')[0];
+        if (srcWorld !== tgtWorld) return false;
+        return target.startsWith(source + '/');
+      },
+    );
+  });
+
   it('root can delegate to any child', async () => {
     const ctx = makeCtx('root');
     const result = await delegateGroup.handler(
@@ -420,5 +453,198 @@ describe('delegateGroup — depth limit', () => {
       'tg/-100',
       1,
     );
+  });
+});
+
+// --- Routing actions ---
+
+describe('getRoutes', () => {
+  it('returns routes for JID when tier 1', async () => {
+    const { getRoutesForJid } = await import('../db.js');
+    vi.mocked(getRoutesForJid).mockReturnValue([
+      { id: 1, seq: 0, type: 'command', match: 'help', target: 'root/support' },
+      { id: 2, seq: 1, type: 'default', match: null, target: 'root/default' },
+    ]);
+    const ctx = makeCtx('root');
+    const result = await getRoutes.handler({ jid: 'tg/-100' }, ctx);
+    expect(result).toEqual({
+      jid: 'tg/-100',
+      routes: [
+        {
+          id: 1,
+          seq: 0,
+          type: 'command',
+          match: 'help',
+          target: 'root/support',
+        },
+        { id: 2, seq: 1, type: 'default', match: null, target: 'root/default' },
+      ],
+    });
+  });
+
+  it('rejects tier 2 group', async () => {
+    const ctx = makeCtx('root/code');
+    await expect(getRoutes.handler({ jid: 'tg/-100' }, ctx)).rejects.toThrow(
+      'unauthorized',
+    );
+  });
+
+  it('rejects tier 3 group', async () => {
+    const ctx = makeCtx('root/code/py');
+    await expect(getRoutes.handler({ jid: 'tg/-100' }, ctx)).rejects.toThrow(
+      'unauthorized',
+    );
+  });
+});
+
+describe('setRoutes', () => {
+  it('replaces routes for JID when tier 0 (root)', async () => {
+    const { setRoutesForJid } = await import('../db.js');
+    const { isAuthorizedRoutingTarget } = await import('../router.js');
+    vi.mocked(isAuthorizedRoutingTarget).mockReturnValue(true);
+    const ctx = makeCtx('root');
+    const newRoutes = [
+      { seq: 0, type: 'command' as const, match: 'start', target: 'root/main' },
+    ];
+    const result = await setRoutes.handler(
+      { jid: 'tg/-100', routes: newRoutes },
+      ctx,
+    );
+    expect(result).toEqual({ jid: 'tg/-100', routes: newRoutes });
+    expect(setRoutesForJid).toHaveBeenCalledWith('tg/-100', newRoutes);
+  });
+
+  it('rejects tier 2 group', async () => {
+    const ctx = makeCtx('root/code');
+    await expect(
+      setRoutes.handler(
+        {
+          jid: 'tg/-100',
+          routes: [
+            { seq: 0, type: 'default' as const, match: null, target: 'root' },
+          ],
+        },
+        ctx,
+      ),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('denies tier 0 (root) routing to unauthorized target', async () => {
+    const { isAuthorizedRoutingTarget } = await import('../router.js');
+    vi.mocked(isAuthorizedRoutingTarget).mockReturnValue(false);
+    const ctx = makeCtx('root');
+    await expect(
+      setRoutes.handler(
+        {
+          jid: 'tg/-100',
+          routes: [
+            {
+              seq: 0,
+              type: 'default' as const,
+              match: null,
+              target: 'invalid',
+            },
+          ],
+        },
+        ctx,
+      ),
+    ).rejects.toThrow('unauthorized');
+  });
+});
+
+describe('addRouteAction', () => {
+  it('adds single route when tier 1 and authorized', async () => {
+    const { addRoute } = await import('../db.js');
+    const { isAuthorizedRoutingTarget } = await import('../router.js');
+    vi.mocked(isAuthorizedRoutingTarget).mockReturnValue(true);
+    vi.mocked(addRoute).mockReturnValue(5);
+    const ctx = makeCtx('root');
+    const route = {
+      seq: 0,
+      type: 'keyword' as const,
+      match: 'error',
+      target: 'root/debug',
+    };
+    const result = await addRouteAction.handler({ jid: 'tg/-100', route }, ctx);
+    expect(result).toEqual({ jid: 'tg/-100', id: 5, route });
+    expect(addRoute).toHaveBeenCalledWith('tg/-100', route);
+  });
+
+  it('rejects tier 2 group', async () => {
+    const ctx = makeCtx('root/code');
+    const route = {
+      seq: 0,
+      type: 'default' as const,
+      match: null,
+      target: 'root',
+    };
+    await expect(
+      addRouteAction.handler({ jid: 'tg/-100', route }, ctx),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('denies tier 1 routing to unauthorized target', async () => {
+    const { isAuthorizedRoutingTarget } = await import('../router.js');
+    vi.mocked(isAuthorizedRoutingTarget).mockReturnValue(false);
+    const ctx = makeCtx('atlas/code');
+    const route = {
+      seq: 0,
+      type: 'default' as const,
+      match: null,
+      target: 'team/bot',
+    };
+    await expect(
+      addRouteAction.handler({ jid: 'tg/-100', route }, ctx),
+    ).rejects.toThrow('unauthorized');
+  });
+});
+
+describe('deleteRouteAction', () => {
+  it('deletes route by ID when tier 0', async () => {
+    const { getRouteById, deleteRoute } = await import('../db.js');
+    const { isAuthorizedRoutingTarget } = await import('../router.js');
+    vi.mocked(getRouteById).mockReturnValue({
+      id: 3,
+      seq: 0,
+      type: 'command',
+      match: 'help',
+      target: 'root/support',
+    });
+    vi.mocked(isAuthorizedRoutingTarget).mockReturnValue(true);
+    const ctx = makeCtx('root');
+    const result = await deleteRouteAction.handler({ id: 3 }, ctx);
+    expect(result).toEqual({ deleted: true, id: 3 });
+    expect(deleteRoute).toHaveBeenCalledWith(3);
+  });
+
+  it('throws route not found error', async () => {
+    const { getRouteById } = await import('../db.js');
+    vi.mocked(getRouteById).mockReturnValue(undefined);
+    const ctx = makeCtx('root');
+    await expect(deleteRouteAction.handler({ id: 999 }, ctx)).rejects.toThrow(
+      'route not found: 999',
+    );
+  });
+
+  it('rejects tier 2 group', async () => {
+    const ctx = makeCtx('root/code');
+    await expect(deleteRouteAction.handler({ id: 1 }, ctx)).rejects.toThrow(
+      'unauthorized',
+    );
+  });
+
+  it('tier 0 (root) can delete any route', async () => {
+    const { getRouteById, deleteRoute } = await import('../db.js');
+    vi.mocked(getRouteById).mockReturnValue({
+      id: 10,
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'any/target',
+    });
+    const ctx = makeCtx('root');
+    const result = await deleteRouteAction.handler({ id: 10 }, ctx);
+    expect(result).toEqual({ deleted: true, id: 10 });
+    expect(deleteRoute).toHaveBeenCalledWith(10);
   });
 });

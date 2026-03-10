@@ -279,6 +279,16 @@ describe('isAuthorizedRoutingTarget', () => {
   it('blocks non-root same folder', () => {
     expect(isAuthorizedRoutingTarget('atlas', 'atlas')).toBe(false);
   });
+
+  it('allows non-root to delegate to direct child', () => {
+    expect(isAuthorizedRoutingTarget('atlas', 'atlas/child')).toBe(true);
+  });
+
+  it('allows non-root to delegate to deeper descendant', () => {
+    expect(isAuthorizedRoutingTarget('atlas', 'atlas/child/grandchild')).toBe(
+      true,
+    );
+  });
 });
 
 // --- resolveRoute (flat routing table) ---
@@ -464,5 +474,144 @@ describe('resolveRoute — flat routing table', () => {
 
   it('empty routes returns null', () => {
     expect(resolveRoute(mkMsg('hello'), [])).toBeNull();
+  });
+
+  it('command type does not match different command', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'command',
+        match: '@code',
+        target: 'code',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(resolveRoute(mkMsg('@root help'), routes)).toBe('general');
+  });
+
+  it('keyword type matches case-insensitively', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'keyword',
+        match: 'URGENT',
+        target: 'ops',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(resolveRoute(mkMsg('this is urgent'), routes)).toBe('ops');
+    expect(resolveRoute(mkMsg('this is URGENT'), routes)).toBe('ops');
+    expect(resolveRoute(mkMsg('this is Urgent'), routes)).toBe('ops');
+  });
+
+  it('pattern type skips invalid regex', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'pattern',
+        match: '[invalid(regex',
+        target: 'invalid',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(resolveRoute(mkMsg('test'), routes)).toBe('general');
+  });
+
+  it('pattern type skips regex longer than 200 chars', () => {
+    const longRegex = 'a'.repeat(201);
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'pattern',
+        match: longRegex,
+        target: 'long',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(resolveRoute(mkMsg('a'), routes)).toBe('general');
+  });
+
+  it('sender type falls back to sender JID when sender_name absent', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'sender',
+        match: 'alice@s.whatsapp.net',
+        target: 'team/alice',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(
+      resolveRoute(msg('hi', 'alice@s.whatsapp.net', undefined), routes),
+    ).toBe('team/alice');
+  });
+
+  it('sender type skips invalid regex', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'sender',
+        match: '[invalid(regex',
+        target: 'invalid',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(
+      resolveRoute(msg('hi', 'alice@s.whatsapp.net', 'alice'), routes),
+    ).toBe('general');
   });
 });
