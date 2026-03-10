@@ -136,9 +136,17 @@ group config, and routing rules into one row. Migration:
 
 ## Error handling
 
-**Static routing** (gateway message loop): no match for a
-JID → message is stored but not processed. If the target
-folder has no group config, gateway logs a warning.
+**No route match**: Message is stored but not processed.
+Gateway logs at debug level. No agent runs.
+
+**Route match, delegation fails** (target can't spawn):
+Message cursor advances (marked as processed). Gateway
+logs error. No retry — message is "dropped" but still in
+DB for parent access via MCP message history tools.
+
+**Authorization check**: Happens at route creation time
+(IPC actions), not at runtime. If a route exists, it's
+followed. Bad routes in DB are the operator's problem.
 
 **Dynamic delegation** (`delegate_group`): unauthorized
 target → error reply via IPC. The agent handles it.

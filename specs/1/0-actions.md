@@ -195,30 +195,49 @@ on next drain.
 
 ### Groups
 
-| Action              | MCP | Input                                                                                        |
-| ------------------- | --- | -------------------------------------------------------------------------------------------- |
-| `refresh_groups`    | yes | --                                                                                           |
-| `register_group`    | yes | `{ jid, name, folder, trigger, requiresTrigger?, containerConfig?, parent?, routingRules? }` |
-| `delegate_group`    | yes | `{ group, prompt, chatJid, depth? }`                                                         |
-| `set_routing_rules` | yes | `{ folder, rules }`                                                                          |
+| Action           | MCP | Input                                                                         |
+| ---------------- | --- | ----------------------------------------------------------------------------- |
+| `refresh_groups` | yes | --                                                                            |
+| `register_group` | yes | `{ jid, name, folder, trigger, requiresTrigger?, containerConfig?, parent? }` |
+| `delegate_group` | yes | `{ group, prompt, chatJid, depth? }`                                          |
 
 `register_group` requires tier ≤ 1 (root or world). `delegate_group` is authorized
 by `isAuthorizedRoutingTarget(sourceGroup, group)`; `depth` is
 injected by the gateway on recursive delegation (max 3).
 
-`rules` is an array of `RoutingRule`:
+### Routing
+
+| Action         | MCP | Input             |
+| -------------- | --- | ----------------- |
+| `get_routes`   | yes | `{ jid? }`        |
+| `set_routes`   | yes | `{ jid, routes }` |
+| `add_route`    | yes | `{ jid, route }`  |
+| `delete_route` | yes | `{ id }`          |
+
+Tier 0 can modify any routes. Tier 1 can modify routes only
+if target folder is in its own subtree. Tier 2+ cannot modify
+routes. Authorization checked at route creation, not runtime.
+
+Route schema:
 
 ```typescript
-type RoutingRule =
-  | { type: 'command'; trigger: string; target: string }
-  | { type: 'pattern'; pattern: string; target: string } // regex
-  | { type: 'keyword'; keyword: string; target: string }
-  | { type: 'sender'; pattern: string; target: string } // regex on sender JID
-  | { type: 'default'; target: string };
+type Route = {
+  seq: number; // evaluation order (lower first)
+  type: RouteType; // command/verb/pattern/keyword/sender/default
+  match?: string; // trigger/pattern/keyword value
+  target: string; // destination folder
+};
+
+type RouteType =
+  | 'command'
+  | 'verb'
+  | 'pattern'
+  | 'keyword'
+  | 'sender'
+  | 'default';
 ```
 
-`target` is a group folder name. Evaluation order:
-command → pattern → keyword → sender → default.
+Evaluation: select routes for JID, scan by seq, first match wins.
 
 ### Sidecars (specced, not yet implemented)
 
