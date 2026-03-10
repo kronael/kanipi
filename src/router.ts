@@ -83,8 +83,7 @@ export function findChannel(
   return channels.find((c) => c.ownsJid(jid));
 }
 
-// Evaluate flat routes (from routes table) against a message.
-// Routes are already ordered by seq from DB. First match wins.
+// First match wins. Routes ordered by seq from DB.
 export function resolveRoute(msg: NewMessage, routes: Route[]): string | null {
   for (const r of routes) {
     if (r.type === 'command') {
@@ -97,20 +96,16 @@ export function resolveRoute(msg: NewMessage, routes: Route[]): string | null {
       if (!r.match || r.match.length > 200) continue;
       try {
         if (new RegExp(r.match).test(msg.content)) return r.target;
-      } catch {
-        /* invalid regex — skip */
-      }
+      } catch {}
     } else if (r.type === 'keyword') {
       if (r.match && msg.content.toLowerCase().includes(r.match.toLowerCase()))
         return r.target;
     } else if (r.type === 'sender') {
       if (!r.match || r.match.length > 200) continue;
-      const s = msg.sender_name ?? msg.sender;
       try {
-        if (new RegExp(r.match).test(s)) return r.target;
-      } catch {
-        /* invalid regex — skip */
-      }
+        if (new RegExp(r.match).test(msg.sender_name ?? msg.sender))
+          return r.target;
+      } catch {}
     } else if (r.type === 'default') {
       return r.target;
     }
@@ -153,9 +148,8 @@ export function resolveRoutingChain(
   return hop2;
 }
 
-// Evaluate routing rules against a message. Returns target folder or null.
-// Evaluation order: command → verb → pattern → keyword → sender → default.
-// First match within each tier wins; tiers evaluated in order.
+// Tier order: command → verb → pattern → keyword → sender → default.
+// First match within each tier wins.
 export function resolveRoutingTarget(
   msg: NewMessage,
   rules: RoutingRule[],
@@ -181,20 +175,16 @@ export function resolveRoutingTarget(
         if (rule.pattern.length > 200) continue;
         try {
           if (new RegExp(rule.pattern).test(msg.content)) return rule.target;
-        } catch {
-          /* invalid regex — skip */
-        }
+        } catch {}
       } else if (rule.type === 'keyword') {
         if (msg.content.toLowerCase().includes(rule.keyword.toLowerCase()))
           return rule.target;
       } else if (rule.type === 'sender') {
         if (rule.pattern.length > 200) continue;
-        const s = msg.sender_name ?? msg.sender;
         try {
-          if (new RegExp(rule.pattern).test(s)) return rule.target;
-        } catch {
-          /* invalid regex — skip */
-        }
+          if (new RegExp(rule.pattern).test(msg.sender_name ?? msg.sender))
+            return rule.target;
+        } catch {}
       } else if (rule.type === 'default') {
         return rule.target;
       }

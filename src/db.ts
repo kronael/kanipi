@@ -933,6 +933,13 @@ export function addRoute(
   return result.lastInsertRowid as number;
 }
 
+export function getRouteById(id: number): Route | undefined {
+  const row = db.prepare('SELECT * FROM routes WHERE id = ?').get(id) as
+    | RouteRow
+    | undefined;
+  return row ? rowToRoute(row) : undefined;
+}
+
 export function deleteRoute(id: number): void {
   db.prepare('DELETE FROM routes WHERE id = ?').run(id);
 }

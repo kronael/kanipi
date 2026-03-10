@@ -5,6 +5,7 @@ import { writeCommandsXml } from '../commands/index.js';
 import {
   addRoute,
   deleteRoute,
+  getRouteById,
   getRoutesForJid,
   setRoutesForJid,
 } from '../db.js';
@@ -12,59 +13,9 @@ import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
 import { isDirectChild } from '../permissions.js';
 import { isAuthorizedRoutingTarget } from '../router.js';
-import { ContainerConfigSchema } from '../types.js';
+import { ContainerConfigSchema, RoutingRuleSchema } from '../types.js';
 
 const MAX_DELEGATE_DEPTH = 3;
-
-const RoutingRuleSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('command'),
-    trigger: z.string().min(1),
-    target: z.string().min(1),
-  }),
-  z.object({
-    type: z.literal('pattern'),
-    pattern: z
-      .string()
-      .min(1)
-      .max(200)
-      .superRefine((val, ctx) => {
-        try {
-          new RegExp(val);
-        } catch {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'invalid regex',
-          });
-        }
-      }),
-    target: z.string().min(1),
-  }),
-  z.object({
-    type: z.literal('keyword'),
-    keyword: z.string().min(1),
-    target: z.string().min(1),
-  }),
-  z.object({
-    type: z.literal('sender'),
-    pattern: z
-      .string()
-      .min(1)
-      .max(200)
-      .superRefine((val, ctx) => {
-        try {
-          new RegExp(val);
-        } catch {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'invalid regex',
-          });
-        }
-      }),
-    target: z.string().min(1),
-  }),
-  z.object({ type: z.literal('default'), target: z.string().min(1) }),
-]);
 
 export const refreshGroups: Action = {
   name: 'refresh_groups',
@@ -318,13 +269,13 @@ const GetRoutesInput = z.object({
 
 export const getRoutes: Action = {
   name: 'get_routes',
-  description: 'Get routing rules for a JID from the flat routing table',
+  description: 'Get routing rules for a JID',
+  minTier: 1,
   input: GetRoutesInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = GetRoutesInput.parse(raw);
-    const routes = getRoutesForJid(input.jid);
-    return { jid: input.jid, routes };
+    return { jid: input.jid, routes: getRoutesForJid(input.jid) };
   },
 };
 
@@ -335,12 +286,12 @@ const SetRoutesInput = z.object({
 
 export const setRoutes: Action = {
   name: 'set_routes',
-  description: 'Replace all routing rules for a JID in the flat routing table',
+  description: 'Replace all routing rules for a JID',
+  minTier: 1,
   input: SetRoutesInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = SetRoutesInput.parse(raw);
-    // Validate targets are authorized
     for (const r of input.routes) {
       if (!isAuthorizedRoutingTarget(ctx.sourceGroup, r.target)) {
         throw new Error(
@@ -348,10 +299,7 @@ export const setRoutes: Action = {
         );
       }
     }
-    logger.info(
-      { jid: input.jid, routeCount: input.routes.length },
-      'setting routes for JID',
-    );
+    logger.info({ jid: input.jid, n: input.routes.length }, 'set_routes');
     setRoutesForJid(input.jid, input.routes);
     return { jid: input.jid, routes: input.routes };
   },
@@ -365,6 +313,7 @@ const AddRouteInput = z.object({
 export const addRouteAction: Action = {
   name: 'add_route',
   description: 'Add a single routing rule for a JID',
+  minTier: 1,
   input: AddRouteInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
@@ -374,7 +323,7 @@ export const addRouteAction: Action = {
         `unauthorized: ${ctx.sourceGroup} cannot route to ${input.route.target}`,
       );
     }
-    logger.info({ jid: input.jid, route: input.route }, 'adding route for JID');
+    logger.info({ jid: input.jid, route: input.route }, 'add_route');
     const id = addRoute(input.jid, input.route);
     return { jid: input.jid, id, route: input.route };
   },
@@ -387,11 +336,22 @@ const DeleteRouteInput = z.object({
 export const deleteRouteAction: Action = {
   name: 'delete_route',
   description: 'Delete a routing rule by ID',
+  minTier: 1,
   input: DeleteRouteInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = DeleteRouteInput.parse(raw);
-    logger.info({ id: input.id }, 'deleting route');
+    const route = getRouteById(input.id);
+    if (!route) throw new Error(`route not found: ${input.id}`);
+    if (
+      ctx.tier === 1 &&
+      !isAuthorizedRoutingTarget(ctx.sourceGroup, route.target)
+    ) {
+      throw new Error(
+        `unauthorized: ${ctx.sourceGroup} cannot delete route to ${route.target}`,
+      );
+    }
+    logger.info({ id: input.id }, 'delete_route');
     deleteRoute(input.id);
     return { deleted: true, id: input.id };
   },

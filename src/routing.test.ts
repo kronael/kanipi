@@ -4,12 +4,18 @@ import { _initTestDatabase, getAllChats, storeChatMetadata } from './db.js';
 import { getAvailableGroups, _setRegisteredGroups } from './index.js';
 import {
   isAuthorizedRoutingTarget,
+  resolveRoute,
   resolveRoutingChain,
   resolveRoutingTarget,
   spawnFolderName,
   platformFromJid,
 } from './router.js';
-import type { NewMessage, RegisteredGroup, RoutingRule } from './types.js';
+import type {
+  NewMessage,
+  RegisteredGroup,
+  Route,
+  RoutingRule,
+} from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
@@ -567,5 +573,175 @@ describe('resolveRoutingChain', () => {
     };
     // third hop ignored — two-level max
     expect(resolveRoutingChain(mkMsg('hi'), 'atlas', groups)).toBe('atlas/a/b');
+  });
+});
+
+// --- resolveRoute (flat routing table) ---
+
+function mkRoute(
+  type: Route['type'],
+  match: string | null,
+  target: string,
+  seq = 0,
+): Omit<Route, 'jid'> {
+  return { id: seq, seq, type, match, target };
+}
+
+describe('resolveRoute — flat routing table', () => {
+  it('command match returns target', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'command',
+        match: '@root',
+        target: 'root',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'atlas',
+      },
+    ];
+    expect(resolveRoute(mkMsg('@root help'), routes)).toBe('root');
+  });
+
+  it('default fallback when no command match', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'command',
+        match: '@root',
+        target: 'root',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'atlas',
+      },
+    ];
+    expect(resolveRoute(mkMsg('hello'), routes)).toBe('atlas');
+  });
+
+  it('respects seq order — first match wins', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'keyword',
+        match: 'urgent',
+        target: 'ops',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'keyword',
+        match: 'urgent',
+        target: 'general',
+      },
+    ];
+    expect(resolveRoute(mkMsg('urgent issue'), routes)).toBe('ops');
+  });
+
+  it('returns null when no routes match', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'command',
+        match: '/code',
+        target: 'code',
+      },
+    ];
+    expect(resolveRoute(mkMsg('hello'), routes)).toBeNull();
+  });
+
+  it('pattern type uses regex', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'pattern',
+        match: '^deploy',
+        target: 'deploy',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(resolveRoute(mkMsg('deploy the app'), routes)).toBe('deploy');
+    expect(resolveRoute(mkMsg('please deploy'), routes)).toBe('general');
+  });
+
+  it('sender type matches sender_name', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'sender',
+        match: 'alice',
+        target: 'team/alice',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(
+      resolveRoute(msg('hi', 'alice@s.whatsapp.net', 'alice'), routes),
+    ).toBe('team/alice');
+    expect(resolveRoute(msg('hi', 'bob@s.whatsapp.net', 'bob'), routes)).toBe(
+      'general',
+    );
+  });
+
+  it('verb type matches message verb', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'verb',
+        match: 'join',
+        target: 'welcome',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    const joinMsg: NewMessage = { ...mkMsg(''), verb: 'join' };
+    expect(resolveRoute(joinMsg, routes)).toBe('welcome');
+  });
+
+  it('empty routes returns null', () => {
+    expect(resolveRoute(mkMsg('hello'), [])).toBeNull();
   });
 });

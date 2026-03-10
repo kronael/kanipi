@@ -69,6 +69,7 @@ import {
   getNewMessages,
   getRecentSessions,
   getRouterState,
+  getRoutesForJid,
   initDatabase,
   isChatErrored,
   markChatErrored,
@@ -103,8 +104,7 @@ import {
   formatMessages,
   formatOutbound,
   isAuthorizedRoutingTarget,
-  resolveRoutingChain,
-  resolveRoutingTarget,
+  resolveRoute,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
@@ -309,10 +309,11 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     if (!hasTrigger) return true;
   }
 
-  // Apply routing rules recursively before spawning agent.
+  // Apply flat routing rules before spawning agent.
   const lastMsg = missedMessages[missedMessages.length - 1];
-  const target = resolveRoutingChain(lastMsg, group.folder, registeredGroups);
-  if (target) {
+  const routes = getRoutesForJid(chatJid);
+  const target = resolveRoute(lastMsg, routes);
+  if (target && target !== group.folder) {
     const formatted = formatMessages(missedMessages);
     const prevCursor = lastAgentTimestamp[chatJid] || '';
     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
@@ -554,6 +555,8 @@ async function delegateToGroup(
   const channel = findChannel(channels, originJid);
   if (!channel) throw new Error(`no channel for origin JID: ${originJid}`);
 
+  startTyping(channel, originJid);
+
   const taskId = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   queue.enqueueTask(targetFolder, taskId, async () => {
@@ -591,6 +594,7 @@ async function delegateToGroup(
       sessions[target.folder] = output.newSessionId;
       setSession(target.folder, output.newSessionId);
     }
+    stopTypingFor(originJid);
     if (output.status === 'error') {
       logger.warn(
         { targetFolder, label, error: output.error },
@@ -826,15 +830,12 @@ async function startMessageLoop(): Promise<void> {
             if (!hasTrigger) continue;
           }
 
-          // Apply routing rules recursively.
+          // Apply flat routing rules.
           {
             const lastMsg = nonCommandMessages[nonCommandMessages.length - 1];
-            const target = resolveRoutingChain(
-              lastMsg,
-              group.folder,
-              registeredGroups,
-            );
-            if (target) {
+            const routes = getRoutesForJid(chatJid);
+            const target = resolveRoute(lastMsg, routes);
+            if (target && target !== group.folder) {
               await waitForEnrichments(nonCommandMessages.map((m) => m.id));
               const allForRoute = getMessagesSince(
                 chatJid,
