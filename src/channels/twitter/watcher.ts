@@ -1,7 +1,7 @@
 import type { TweetV2SingleStreamResult } from 'twitter-api-v2';
 
 import { logger } from '../../logger.js';
-import { NewMessage, OnInboundMessage } from '../../types.js';
+import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
 import { TwitterClient } from './client.js';
 
 const POLL_MS = 30_000;
@@ -114,8 +114,8 @@ export class TwitterWatcher {
       sender: username,
       content: text,
       timestamp: createdAt ?? new Date().toISOString(),
-      platform: 'twitter',
-      verb: 'message',
+      platform: Platform.Twitter,
+      verb: Verb.Message,
     };
   }
 }

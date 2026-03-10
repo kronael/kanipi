@@ -4,7 +4,6 @@ import { Action } from '../action-registry.js';
 import { platformFromJid } from '../router.js';
 import { Platform } from '../types.js';
 
-// PlatformClient interface — each social channel implements this
 export interface PlatformClient {
   post(content: string, media?: string[]): Promise<unknown>;
   reply(target: string, content: string): Promise<unknown>;
@@ -32,233 +31,210 @@ export interface PlatformClient {
 
 const clients = new Map<Platform, PlatformClient>();
 
-export function registerClient(
-  platform: Platform,
-  client: PlatformClient,
-): void {
-  clients.set(platform, client);
+export function registerClient(p: Platform, c: PlatformClient): void {
+  clients.set(p, c);
 }
 
-export function unregisterClient(platform: Platform): void {
-  clients.delete(platform);
+export function unregisterClient(p: Platform): void {
+  clients.delete(p);
 }
 
-function getClient(
-  jid: string,
-):
+type ClientResult =
   | { platform: Platform; client: PlatformClient }
-  | { error: string; platform: string } {
+  | { error: string; platform: string };
+
+function getClient(jid: string): ClientResult {
   const platform = platformFromJid(jid);
   const client = clients.get(platform);
   if (!client) return { error: 'not_implemented', platform };
   return { platform, client };
 }
 
-// --- Schemas ---
-
 const JidTarget = z.object({ jid: z.string(), target: z.string() });
 
-// --- Actions ---
+function targetAction(
+  method: keyof PlatformClient & string,
+  description: string,
+  platforms: Platform[],
+  actionName?: string,
+): Action {
+  return {
+    name: actionName ?? method,
+    description,
+    platforms,
+    input: JidTarget,
+    async handler(raw) {
+      const { jid, target } = JidTarget.parse(raw);
+      const r = getClient(jid);
+      if ('error' in r) return r;
+      return (r.client[method] as (t: string) => Promise<unknown>)(target);
+    },
+  };
+}
+
+const PostInput = z.object({
+  jid: z.string(),
+  content: z.string(),
+  media: z.array(z.string()).optional(),
+});
 
 export const post: Action = {
   name: 'post',
   description: 'Create new content on a social platform',
   platforms: [
-    'reddit',
-    'twitter',
-    'mastodon',
-    'bluesky',
-    'facebook',
-    'threads',
+    Platform.Reddit,
+    Platform.Twitter,
+    Platform.Mastodon,
+    Platform.Bluesky,
+    Platform.Facebook,
+    Platform.Threads,
   ],
-  input: z.object({
-    jid: z.string(),
-    content: z.string(),
-    media: z.array(z.string()).optional(),
-  }),
+  input: PostInput,
   async handler(raw) {
-    const input = (post.input as z.ZodObject<z.ZodRawShape>).parse(raw) as {
-      jid: string;
-      content: string;
-      media?: string[];
-    };
-    const r = getClient(input.jid);
+    const { jid, content, media } = PostInput.parse(raw);
+    const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.post(input.content, input.media);
+    return r.client.post(content, media);
   },
 };
+
+const ReplyInput = z.object({
+  jid: z.string(),
+  target: z.string(),
+  content: z.string(),
+});
 
 export const reply: Action = {
   name: 'reply',
   description: 'Reply to existing content on a social platform',
   platforms: [
-    'reddit',
-    'twitter',
-    'mastodon',
-    'bluesky',
-    'facebook',
-    'threads',
-    'discord',
-    'twitch',
-    'youtube',
-    'instagram',
-    'linkedin',
+    Platform.Reddit,
+    Platform.Twitter,
+    Platform.Mastodon,
+    Platform.Bluesky,
+    Platform.Facebook,
+    Platform.Threads,
+    Platform.Discord,
+    Platform.Twitch,
+    Platform.YouTube,
+    Platform.Instagram,
+    Platform.LinkedIn,
   ],
-  input: z.object({
-    jid: z.string(),
-    target: z.string(),
-    content: z.string(),
-  }),
+  input: ReplyInput,
   async handler(raw) {
-    const input = (reply.input as z.ZodObject<z.ZodRawShape>).parse(raw) as {
-      jid: string;
-      target: string;
-      content: string;
-    };
-    const r = getClient(input.jid);
+    const { jid, target, content } = ReplyInput.parse(raw);
+    const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.reply(input.target, input.content);
+    return r.client.reply(target, content);
   },
 };
+
+const ReactInput = z.object({
+  jid: z.string(),
+  target: z.string(),
+  reaction: z.string().optional(),
+});
 
 export const react: Action = {
   name: 'react',
   description: 'Like, upvote, or favourite content on a social platform',
   platforms: [
-    'reddit',
-    'twitter',
-    'mastodon',
-    'bluesky',
-    'facebook',
-    'threads',
-    'discord',
-    'twitch',
-    'youtube',
-    'instagram',
-    'linkedin',
+    Platform.Reddit,
+    Platform.Twitter,
+    Platform.Mastodon,
+    Platform.Bluesky,
+    Platform.Facebook,
+    Platform.Threads,
+    Platform.Discord,
+    Platform.Twitch,
+    Platform.YouTube,
+    Platform.Instagram,
+    Platform.LinkedIn,
   ],
-  input: z.object({
-    jid: z.string(),
-    target: z.string(),
-    reaction: z.string().optional(),
-  }),
+  input: ReactInput,
   async handler(raw) {
-    const input = (react.input as z.ZodObject<z.ZodRawShape>).parse(raw) as {
-      jid: string;
-      target: string;
-      reaction?: string;
-    };
-    const r = getClient(input.jid);
+    const { jid, target, reaction } = ReactInput.parse(raw);
+    const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.react(input.target, input.reaction);
+    return r.client.react(target, reaction);
   },
 };
 
-export const repost: Action = {
-  name: 'repost',
-  description: 'Share, boost, or retweet content',
-  platforms: ['twitter', 'mastodon', 'bluesky'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.repost(input.target);
-  },
-};
+export const repost = targetAction(
+  'repost',
+  'Share, boost, or retweet content',
+  [Platform.Twitter, Platform.Mastodon, Platform.Bluesky],
+);
 
-export const follow: Action = {
-  name: 'follow',
-  description: 'Follow a user or community on a social platform',
-  platforms: ['reddit', 'twitter', 'mastodon', 'bluesky'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.follow(input.target);
-  },
-};
+export const follow = targetAction(
+  'follow',
+  'Follow a user or community on a social platform',
+  [Platform.Reddit, Platform.Twitter, Platform.Mastodon, Platform.Bluesky],
+);
 
-export const unfollow: Action = {
-  name: 'unfollow',
-  description: 'Unfollow a user or community on a social platform',
-  platforms: ['reddit', 'twitter', 'mastodon', 'bluesky'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.unfollow(input.target);
-  },
-};
+export const unfollow = targetAction(
+  'unfollow',
+  'Unfollow a user or community on a social platform',
+  [Platform.Reddit, Platform.Twitter, Platform.Mastodon, Platform.Bluesky],
+);
+
+const ProfileInput = z.object({
+  jid: z.string(),
+  name: z.string().optional(),
+  bio: z.string().optional(),
+  avatar: z.string().optional(),
+});
 
 export const set_profile: Action = {
   name: 'set_profile',
   description: 'Update display name, bio, or avatar on a social platform',
-  platforms: ['mastodon', 'bluesky', 'reddit'],
-  input: z.object({
-    jid: z.string(),
-    name: z.string().optional(),
-    bio: z.string().optional(),
-    avatar: z.string().optional(),
-  }),
+  platforms: [Platform.Mastodon, Platform.Bluesky, Platform.Reddit],
+  input: ProfileInput,
   async handler(raw) {
-    const input = (set_profile.input as z.ZodObject<z.ZodRawShape>).parse(
-      raw,
-    ) as {
-      jid: string;
-      name?: string;
-      bio?: string;
-      avatar?: string;
-    };
-    const r = getClient(input.jid);
+    const { jid, name, bio, avatar } = ProfileInput.parse(raw);
+    const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.setProfile(input.name, input.bio, input.avatar);
+    return r.client.setProfile(name, bio, avatar);
   },
 };
 
-export const delete_post: Action = {
-  name: 'delete_post',
-  description: 'Delete content on a social platform',
-  platforms: [
-    'reddit',
-    'twitter',
-    'mastodon',
-    'bluesky',
-    'facebook',
-    'threads',
-    'discord',
-    'twitch',
-    'youtube',
-    'instagram',
-    'linkedin',
-  ],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.deletePost(input.target);
-  },
-};
+const ALL_CONTENT = [
+  Platform.Reddit,
+  Platform.Twitter,
+  Platform.Mastodon,
+  Platform.Bluesky,
+  Platform.Facebook,
+  Platform.Threads,
+  Platform.Discord,
+  Platform.Twitch,
+  Platform.YouTube,
+  Platform.Instagram,
+  Platform.LinkedIn,
+];
+
+export const delete_post = targetAction(
+  'deletePost',
+  'Delete content on a social platform',
+  ALL_CONTENT,
+  'delete_post',
+);
+
+const EditInput = z.object({
+  jid: z.string(),
+  target: z.string(),
+  content: z.string().optional(),
+});
 
 export const edit_post: Action = {
   name: 'edit_post',
   description: 'Edit existing content on a social platform',
-  platforms: ['reddit', 'mastodon', 'facebook'],
-  input: z.object({
-    jid: z.string(),
-    target: z.string(),
-    content: z.string().optional(),
-  }),
+  platforms: [Platform.Reddit, Platform.Mastodon, Platform.Facebook],
+  input: EditInput,
   async handler(raw) {
-    const input = (edit_post.input as z.ZodObject<z.ZodRawShape>).parse(
-      raw,
-    ) as { jid: string; target: string; content?: string };
-    const r = getClient(input.jid);
+    const { jid, target, content } = EditInput.parse(raw);
+    const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.editPost(input.target, input.content ?? '');
+    return r.client.editPost(target, content ?? '');
   },
 };
 
@@ -268,12 +244,9 @@ export const close: Action = {
   name: 'close',
   description: 'Mark a thread group closed (no new messages)',
   input: GroupInput,
-  async handler(raw, ctx) {
-    const input = GroupInput.parse(raw);
-    void ctx;
-    void input;
-    // Gateway-side: mark group closed in DB (future implementation)
-    return { ok: true, action: 'close', group: input.group };
+  async handler(raw) {
+    const { group } = GroupInput.parse(raw);
+    return { ok: true, action: 'close', group };
   },
 };
 
@@ -281,10 +254,9 @@ export const delete_group: Action = {
   name: 'delete',
   description: 'Remove a thread group entirely',
   input: GroupInput,
-  async handler(raw, ctx) {
-    const input = GroupInput.parse(raw);
-    void ctx;
-    return { ok: true, action: 'delete', group: input.group };
+  async handler(raw) {
+    const { group } = GroupInput.parse(raw);
+    return { ok: true, action: 'delete', group };
   },
 };
 
@@ -298,28 +270,28 @@ const BanInput = z.object({
 export const ban: Action = {
   name: 'ban',
   description: 'Ban a user from a community',
-  platforms: ['reddit', 'discord', 'twitch', 'youtube', 'mastodon'],
+  platforms: [
+    Platform.Reddit,
+    Platform.Discord,
+    Platform.Twitch,
+    Platform.YouTube,
+    Platform.Mastodon,
+  ],
   input: BanInput,
   async handler(raw) {
-    const input = BanInput.parse(raw);
-    const r = getClient(input.jid);
+    const { jid, target, duration, reason } = BanInput.parse(raw);
+    const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.ban(input.target, input.duration, input.reason);
+    return r.client.ban(target, duration, reason);
   },
 };
 
-export const unban: Action = {
-  name: 'unban',
-  description: 'Unban a user from a community',
-  platforms: ['reddit', 'discord', 'twitch', 'mastodon'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.unban(input.target);
-  },
-};
+export const unban = targetAction('unban', 'Unban a user from a community', [
+  Platform.Reddit,
+  Platform.Discord,
+  Platform.Twitch,
+  Platform.Mastodon,
+]);
 
 const TimeoutInput = z.object({
   jid: z.string(),
@@ -330,119 +302,63 @@ const TimeoutInput = z.object({
 export const timeout: Action = {
   name: 'timeout',
   description: 'Temporarily mute a user (seconds)',
-  platforms: ['discord', 'twitch', 'youtube'],
+  platforms: [Platform.Discord, Platform.Twitch, Platform.YouTube],
   input: TimeoutInput,
   async handler(raw) {
-    const input = TimeoutInput.parse(raw);
-    const r = getClient(input.jid);
+    const { jid, target, duration } = TimeoutInput.parse(raw);
+    const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.timeout(input.target, input.duration);
+    return r.client.timeout(target, duration);
   },
 };
 
-export const mute: Action = {
-  name: 'mute',
-  description: 'Mute an account at the account level',
-  platforms: ['reddit', 'twitter', 'mastodon', 'bluesky'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.mute(input.target);
-  },
-};
+export const mute = targetAction(
+  'mute',
+  'Mute an account at the account level',
+  [Platform.Reddit, Platform.Twitter, Platform.Mastodon, Platform.Bluesky],
+);
 
-export const block: Action = {
-  name: 'block',
-  description: 'Block an account',
-  platforms: ['twitter', 'mastodon', 'bluesky', 'twitch'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.block(input.target);
-  },
-};
+export const block = targetAction('block', 'Block an account', [
+  Platform.Twitter,
+  Platform.Mastodon,
+  Platform.Bluesky,
+  Platform.Twitch,
+]);
 
-export const pin: Action = {
-  name: 'pin',
-  description: 'Pin content to the top of a feed or channel',
-  platforms: ['reddit', 'mastodon', 'discord'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.pin(input.target);
-  },
-};
+export const pin = targetAction(
+  'pin',
+  'Pin content to the top of a feed or channel',
+  [Platform.Reddit, Platform.Mastodon, Platform.Discord],
+);
 
-export const unpin: Action = {
-  name: 'unpin',
-  description: 'Unpin previously pinned content',
-  platforms: ['reddit', 'mastodon', 'discord'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.unpin(input.target);
-  },
-};
+export const unpin = targetAction('unpin', 'Unpin previously pinned content', [
+  Platform.Reddit,
+  Platform.Mastodon,
+  Platform.Discord,
+]);
 
-export const lock: Action = {
-  name: 'lock',
-  description: 'Lock a post to prevent new replies',
-  platforms: ['reddit', 'discord'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.lock(input.target);
-  },
-};
+export const lock = targetAction('lock', 'Lock a post to prevent new replies', [
+  Platform.Reddit,
+  Platform.Discord,
+]);
 
-export const unlock: Action = {
-  name: 'unlock',
-  description: 'Unlock a previously locked post',
-  platforms: ['reddit', 'discord'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.unlock(input.target);
-  },
-};
+export const unlock = targetAction(
+  'unlock',
+  'Unlock a previously locked post',
+  [Platform.Reddit, Platform.Discord],
+);
 
-export const hide: Action = {
-  name: 'hide',
-  description: 'Suppress content without deleting it',
-  platforms: ['youtube', 'facebook', 'instagram'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.hide(input.target);
-  },
-};
+export const hide = targetAction(
+  'hide',
+  'Suppress content without deleting it',
+  [Platform.YouTube, Platform.Facebook, Platform.Instagram],
+);
 
-export const approve: Action = {
-  name: 'approve',
-  description: 'Release content from moderation queue',
-  platforms: ['reddit', 'youtube', 'mastodon'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.approve(input.target);
-  },
-};
+export const approve = targetAction(
+  'approve',
+  'Release content from moderation queue',
+  [Platform.Reddit, Platform.YouTube, Platform.Mastodon],
+);
 
 const FlairInput = z.object({
   jid: z.string(),
@@ -453,28 +369,19 @@ const FlairInput = z.object({
 export const set_flair: Action = {
   name: 'set_flair',
   description: 'Tag content or user with a flair',
-  platforms: ['reddit'],
+  platforms: [Platform.Reddit],
   input: FlairInput,
   async handler(raw) {
-    const input = FlairInput.parse(raw);
-    const r = getClient(input.jid);
+    const { jid, target, flair } = FlairInput.parse(raw);
+    const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.setFlair(input.target, input.flair);
+    return r.client.setFlair(target, flair);
   },
 };
 
-export const kick: Action = {
-  name: 'kick',
-  description: 'Kick a user from a Discord server',
-  platforms: ['discord'],
-  input: JidTarget,
-  async handler(raw) {
-    const input = JidTarget.parse(raw);
-    const r = getClient(input.jid);
-    if ('error' in r) return r;
-    return r.client.kick(input.target);
-  },
-};
+export const kick = targetAction('kick', 'Kick a user from a Discord server', [
+  Platform.Discord,
+]);
 
 export const allSocialActions: Action[] = [
   post,

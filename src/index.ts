@@ -483,7 +483,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
 function spawnGroupFromPrototype(
   targetFolder: string,
-  originJid: string,
 ): (RegisteredGroup & { jid: string }) | undefined {
   // Find parent group whose folder is the direct parent of targetFolder
   const parentSlash = targetFolder.lastIndexOf('/');
@@ -493,7 +492,7 @@ function spawnGroupFromPrototype(
     ([, g]) => g.folder === parentFolder,
   );
   if (!parentEntry) return undefined;
-  const [parentJid, parent] = parentEntry;
+  const [, parent] = parentEntry;
 
   const max = parent.maxChildren ?? 50;
   if (max === 0) {
@@ -525,8 +524,8 @@ function spawnGroupFromPrototype(
     }
   }
 
-  // Register in DB
-  const jid = originJid;
+  // Register in DB — use a synthetic JID so we don't overwrite the parent's entry
+  const jid = `spawn:${targetFolder}`;
   const group: RegisteredGroup = {
     name: targetFolder.split('/').pop() || targetFolder,
     folder: targetFolder,
@@ -555,7 +554,7 @@ async function delegateToGroup(
     (g) => g.folder === targetFolder,
   );
   if (!target) {
-    target = spawnGroupFromPrototype(targetFolder, originJid);
+    target = spawnGroupFromPrototype(targetFolder);
     if (!target) throw new Error(`unknown ${label} group: ${targetFolder}`);
   }
 

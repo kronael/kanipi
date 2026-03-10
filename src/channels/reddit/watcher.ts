@@ -1,5 +1,5 @@
 import { logger } from '../../logger.js';
-import { NewMessage } from '../../types.js';
+import { NewMessage, Platform, Verb } from '../../types.js';
 import { RedditClient } from './client.js';
 
 interface RedditThing {
@@ -103,8 +103,8 @@ export class RedditWatcher {
       sender: d.author,
       content,
       timestamp: new Date(d.created_utc * 1000).toISOString(),
-      platform: 'reddit',
-      verb: thing.kind === 't1' ? 'reply' : 'post',
+      platform: Platform.Reddit,
+      verb: thing.kind === 't1' ? Verb.Reply : Verb.Post,
       parent: d.parent_id,
       root: d.link_id,
     };

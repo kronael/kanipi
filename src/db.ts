@@ -660,13 +660,6 @@ export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
   );
 }
 
-export function countChildGroups(parentFolder: string): number {
-  const row = db
-    .prepare(`SELECT COUNT(*) AS n FROM registered_groups WHERE folder LIKE ?`)
-    .get(`${parentFolder}/%`) as { n: number };
-  return row.n;
-}
-
 export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
   const rows = db
     .prepare('SELECT * FROM registered_groups')

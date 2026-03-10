@@ -1,4 +1,5 @@
 import { registerClient, unregisterClient } from '../../actions/social.js';
+import { logger } from '../../logger.js';
 import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { RedditClient, RedditConfig } from './client.js';
 import { RedditWatcher } from './watcher.js';
@@ -18,6 +19,15 @@ export class RedditChannel implements Channel {
     this.client = new RedditClient(this.config);
     await this.client.authenticate();
     registerClient('reddit', this.client);
+    logger.info({ user: this.config.username }, 'reddit: connected');
+
+    this.opts.onChatMetadata(
+      `reddit:${this.config.username}`,
+      new Date().toISOString(),
+      this.config.username,
+      'reddit',
+    );
+
     this.watcher = new RedditWatcher({
       client: this.client,
       subreddits: this.subreddits,
@@ -31,6 +41,7 @@ export class RedditChannel implements Channel {
     this.watcher = null;
     unregisterClient('reddit');
     this.client = null;
+    logger.info('reddit disconnected');
   }
 
   isConnected(): boolean {
@@ -41,15 +52,16 @@ export class RedditChannel implements Channel {
     return jid.startsWith('reddit:');
   }
 
-  async sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void> {
+  async sendMessage(
+    _jid: string,
+    text: string,
+    opts?: SendOpts,
+  ): Promise<void> {
     if (!this.client) throw new Error('reddit not connected');
     if (opts?.replyTo) {
       await this.client.reply(opts.replyTo, text);
     } else {
-      // post to subreddit extracted from jid
-      const target = jid.replace(/^reddit:/, '');
       await this.client.post(text);
-      void target;
     }
   }
 }

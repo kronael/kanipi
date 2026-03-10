@@ -26,6 +26,15 @@ export class BlueskyChannel implements Channel {
     await this.client.connect();
     registerClient('bluesky', this.client);
 
+    if (this.client.did) {
+      this.opts.onChatMetadata(
+        `bluesky:${this.client.did}`,
+        new Date().toISOString(),
+        this.config.identifier,
+        'bluesky',
+      );
+    }
+
     this.watcher = new BlueskyWatcher({
       agent: this.client.atpAgent,
       onMessage: this.opts.onMessage,
@@ -39,6 +48,7 @@ export class BlueskyChannel implements Channel {
     this.watcher = null;
     unregisterClient('bluesky');
     this.client = null;
+    logger.info('bluesky disconnected');
   }
 
   isConnected(): boolean {
@@ -50,13 +60,16 @@ export class BlueskyChannel implements Channel {
   }
 
   async sendMessage(
-    jid: string,
+    _jid: string,
     text: string,
-    _opts?: SendOpts,
+    opts?: SendOpts,
   ): Promise<void> {
     if (!this.client) throw new Error('bluesky not connected');
-    await this.client.post(text);
-    void jid;
+    if (opts?.replyTo) {
+      await this.client.reply(opts.replyTo, text);
+    } else {
+      await this.client.post(text);
+    }
   }
 }
 

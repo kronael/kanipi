@@ -1,4 +1,5 @@
 import { registerClient, unregisterClient } from '../../actions/social.js';
+import { logger } from '../../logger.js';
 import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { FacebookClient, FacebookConfig, createClient } from './client.js';
 import { FacebookWatcher } from './watcher.js';
@@ -16,6 +17,7 @@ export class FacebookChannel implements Channel {
   async connect(): Promise<void> {
     this.client = createClient(this.config);
     registerClient('facebook', this.client);
+    logger.info({ pageId: this.config.pageId }, 'facebook: connected');
     this.watcher = new FacebookWatcher(this.config, this.opts);
     this.watcher.start();
     this.opts.onChatMetadata(
@@ -32,6 +34,7 @@ export class FacebookChannel implements Channel {
     this.watcher = null;
     unregisterClient('facebook');
     this.client = null;
+    logger.info('facebook disconnected');
   }
 
   isConnected(): boolean {
@@ -42,14 +45,17 @@ export class FacebookChannel implements Channel {
     return jid.startsWith('facebook:');
   }
 
-  async sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void> {
+  async sendMessage(
+    _jid: string,
+    text: string,
+    opts?: SendOpts,
+  ): Promise<void> {
     if (!this.client) throw new Error('facebook not connected');
     if (opts?.replyTo) {
       await this.client.reply(opts.replyTo, text);
     } else {
       await this.client.post(text);
     }
-    void jid;
   }
 }
 

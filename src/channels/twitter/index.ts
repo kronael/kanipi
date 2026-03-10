@@ -19,6 +19,14 @@ export class TwitterChannel implements Channel {
     const me = await this.client.verifyCredentials();
     logger.info({ user: me.username }, 'twitter: connected');
     registerClient('twitter', this.client);
+
+    this.opts.onChatMetadata(
+      `twitter:${me.id}`,
+      new Date().toISOString(),
+      me.username,
+      'twitter',
+    );
+
     this.watcher = new TwitterWatcher(this.client, this.opts.onMessage);
     await this.watcher.start();
   }
@@ -28,6 +36,7 @@ export class TwitterChannel implements Channel {
     this.watcher = null;
     unregisterClient('twitter');
     this.client = null;
+    logger.info('twitter disconnected');
   }
 
   isConnected(): boolean {
@@ -38,14 +47,17 @@ export class TwitterChannel implements Channel {
     return jid.startsWith('twitter:');
   }
 
-  async sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void> {
+  async sendMessage(
+    _jid: string,
+    text: string,
+    opts?: SendOpts,
+  ): Promise<void> {
     if (!this.client) throw new Error('twitter not connected');
     if (opts?.replyTo) {
       await this.client.reply(opts.replyTo, text);
     } else {
       await this.client.post(text);
     }
-    void jid;
   }
 }
 

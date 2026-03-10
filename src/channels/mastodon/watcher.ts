@@ -1,7 +1,7 @@
 import { createStreamingAPIClient, type mastodon } from 'masto';
 
 import { logger } from '../../logger.js';
-import { ChannelOpts, NewMessage } from '../../types.js';
+import { ChannelOpts, NewMessage, Platform, Verb } from '../../types.js';
 import { MastodonClient } from './client.js';
 
 const log = logger.child({ channel: 'mastodon' });
@@ -87,8 +87,8 @@ export class MastodonWatcher {
       sender_name: n.account.displayName || n.account.username,
       content: stripHtml(n.status.content),
       timestamp: n.status.createdAt ?? new Date().toISOString(),
-      platform: 'mastodon',
-      verb: 'message',
+      platform: Platform.Mastodon,
+      verb: Verb.Message,
       replyTo: n.status.inReplyToId ?? undefined,
     };
 
@@ -96,7 +96,7 @@ export class MastodonWatcher {
     this.opts.onMessage(msg.chat_jid, msg);
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     if (this.sub) {
       this.sub.unsubscribe();
       this.sub = null;

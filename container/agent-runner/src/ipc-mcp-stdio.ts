@@ -19,14 +19,21 @@ function writeRequest(data: object & { id: string; type: string }): void {
 }
 
 function waitForReply(id: string, timeoutMs = 30000): Promise<{ ok: boolean; result?: unknown; error?: string }> {
-  const replyPath = path.join(REPLIES_DIR, `${id}.json`);
-  const start = Date.now();
+  const file = path.join(REPLIES_DIR, `${id}.json`);
+  const t0 = Date.now();
   return new Promise((resolve) => {
     const poll = () => {
-      if (fs.existsSync(replyPath)) {
-        try { const r = JSON.parse(fs.readFileSync(replyPath, 'utf-8')); try { fs.unlinkSync(replyPath); } catch {} resolve(r); return; } catch {}
+      if (fs.existsSync(file)) {
+        try {
+          const r = JSON.parse(fs.readFileSync(file, 'utf-8'));
+          try { fs.unlinkSync(file); } catch {}
+          resolve(r);
+          return;
+        } catch {
+          // parse failed — file partially written, retry on next poll
+        }
       }
-      if (Date.now() - start > timeoutMs) { resolve({ ok: false, error: 'timeout' }); return; }
+      if (Date.now() - t0 > timeoutMs) { resolve({ ok: false, error: 'timeout' }); return; }
       setTimeout(poll, 100);
     };
     poll();
@@ -54,7 +61,7 @@ function toZodShape(schema: unknown): Record<string, z.ZodTypeAny> {
       : v.type === 'boolean' ? z.boolean()
       : v.type === 'array' ? z.array(z.unknown())
       : z.unknown();
-    if (v.description) t = (t as z.ZodString).describe(v.description as string);
+    if (v.description) t = t.describe(v.description as string);
     if (!req.has(k)) t = t.optional();
     shape[k] = t;
   }
@@ -80,14 +87,21 @@ server.tool('list_tasks', 'List all scheduled tasks.', {}, async () => {
   if (!fs.existsSync(file)) return { content: [{ type: 'text', text: 'No scheduled tasks found.' }] };
   try {
     const all = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    const tasks = isRoot ? all : all.filter((t: { groupFolder: string }) => t.groupFolder === groupFolder);
+    const tasks = isRoot ? all
+      : all.filter((t: { groupFolder: string }) => t.groupFolder === groupFolder);
     if (!tasks.length) return { content: [{ type: 'text', text: 'No scheduled tasks found.' }] };
-    const text = tasks.map((t: { id: string; prompt: string; schedule_type: string; schedule_value: string; status: string; next_run: string }) =>
-      `- [${t.id}] ${t.prompt.slice(0, 50)}... (${t.schedule_type}: ${t.schedule_value}) - ${t.status}, next: ${t.next_run || 'N/A'}`
+    interface Task {
+      id: string; prompt: string; schedule_type: string;
+      schedule_value: string; status: string; next_run: string;
+    }
+    const text = tasks.map((t: Task) =>
+      `- [${t.id}] ${t.prompt.slice(0, 50)}... ` +
+      `(${t.schedule_type}: ${t.schedule_value}) - ${t.status}, next: ${t.next_run || 'N/A'}`
     ).join('\n');
     return { content: [{ type: 'text', text: `Scheduled tasks:\n${text}` }] };
   } catch (err) {
-    return { content: [{ type: 'text', text: `Error reading tasks: ${err instanceof Error ? err.message : String(err)}` }] };
+    const msg = err instanceof Error ? err.message : String(err);
+    return { content: [{ type: 'text', text: `Error reading tasks: ${msg}` }] };
   }
 });
 

@@ -33,9 +33,15 @@ export class FacebookWatcher {
 
   private async poll(): Promise<void> {
     try {
-      const url = `${this.base}/${this.pageId}/feed?fields=id,message,from,created_time&limit=10&access_token=${this.token}`;
+      const fields = 'id,message,from,created_time';
+      const url =
+        `${this.base}/${this.pageId}/feed` +
+        `?fields=${fields}&limit=10&access_token=${this.token}`;
       const res = await fetch(url);
-      if (!res.ok) return;
+      if (!res.ok) {
+        logger.warn({ status: res.status }, 'facebook feed fetch failed');
+        return;
+      }
       const data = (await res.json()) as {
         data: Array<{
           id: string;
@@ -57,7 +63,7 @@ export class FacebookWatcher {
           content: post.message,
           timestamp: post.created_time,
           verb: Verb.Message,
-          platform: 'facebook' as Platform,
+          platform: Platform.Facebook,
         };
         this.opts.onMessage(`facebook:${this.pageId}`, msg);
       }
