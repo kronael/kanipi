@@ -335,9 +335,9 @@ if [ "${1:-}" = "create" ]; then
   # Gateway and agent containers run as uid/gid 1000 (node)
   chown -R 1000:1000 "$DATA/groups" "$DATA/data"
 
-  # seed .env from template
-  SEED="${APP_DIR:-/srv/app}/template"
-  [ ! -d "$SEED" ] && SEED="$(cd "$(dirname "$0")" && pwd)/template"
+  # seed .env from prototype
+  SEED="${APP_DIR:-/srv/app}/prototype"
+  [ ! -d "$SEED" ] && SEED="$(cd "$(dirname "$0")" && pwd)/prototype"
   cp "$SEED/env.example" "$DATA/.env"
   sed -i "s/^ASSISTANT_NAME=.*/ASSISTANT_NAME=${NAME}/" "$DATA/.env"
   SLOTH_PASS=$(openssl rand -hex 8 2>/dev/null || tr -dc a-z0-9 < /dev/urandom | head -c 16)
@@ -416,7 +416,7 @@ fi
 
 mkdir -p "$DATA_DIR/self"
 cp -r /srv/app/container/. "$DATA_DIR/self/container/"
-cp -r /srv/app/template/. "$DATA_DIR/self/template/"
+cp -r /srv/app/prototype/. "$DATA_DIR/self/prototype/"
 export DATA_DIR HOST_DATA_DIR
 export HOST_APP_DIR="$HOST_DATA_DIR/self"
 
