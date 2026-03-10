@@ -332,18 +332,18 @@ See `T-social-actions.md`.
 
 ## JID format
 
-| Platform  | DM JID                | Feed JID                  |
-| --------- | --------------------- | ------------------------- |
-| Reddit    | `reddit:{username}`   | `reddit:r_{sub}`          |
-| Twitter   | `twitter:{userId}`    | `twitter:{userId}:feed`   |
-| Mastodon  | `mastodon:{id}`       | `mastodon:{id}:feed`      |
-| Bluesky   | `bluesky:{did}`       | `bluesky:{did}:feed`      |
-| Twitch    | `twitch:{channel}`    | -                         |
-| YouTube   | `yt:{channelId}:live` | `yt:{channelId}:comments` |
-| Facebook  | `facebook:{pageId}`   | `facebook:{pageId}:feed`  |
-| Instagram | `ig:{threadId}`       | `ig:biz:{accountId}`      |
-| Threads   | `threads:{userId}`    | -                         |
-| LinkedIn  | `li:page:{pageId}`    | -                         |
+| Platform  | DM JID                     | Feed JID                       |
+| --------- | -------------------------- | ------------------------------ |
+| Reddit    | `reddit:{username}`        | `reddit:r_{sub}`               |
+| Twitter   | `twitter:{userId}`         | `twitter:{userId}:feed`        |
+| Mastodon  | `mastodon:{id}`            | `mastodon:{id}:feed`           |
+| Bluesky   | `bluesky:{did}`            | `bluesky:{did}:feed`           |
+| Twitch    | `twitch:{channel}`         | -                              |
+| YouTube   | `youtube:{channelId}:live` | `youtube:{channelId}:comments` |
+| Facebook  | `facebook:{pageId}`        | `facebook:{pageId}:feed`       |
+| Instagram | `instagram:{threadId}`     | `instagram:biz:{accountId}`    |
+| Threads   | `threads:{userId}`         | -                              |
+| LinkedIn  | `linkedin:page:{pageId}`   | -                              |
 
 ## Resolved decisions
 

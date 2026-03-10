@@ -1,45 +1,48 @@
 # Twitter/X channel
 
-Inbound/outbound via `twitter-api-v2` with OAuth 1.0a.
-Paid API ($200/mo Basic tier minimum).
+Inbound/outbound via `agent-twitter-client` (elizaOS scraper).
+No API keys required -- uses cookie-based auth.
 
 ## Source and sink
 
-- **Inbound**: filtered stream with fallback to polling mentions
-- **Outbound**: tweet, reply, repost, like, DM
-- Enabled by: `TWITTER_APP_KEY` + `TWITTER_APP_SECRET` + `TWITTER_ACCESS_TOKEN` + `TWITTER_ACCESS_SECRET`
+- **Inbound**: polling mentions via search every 30s
+- **Outbound**: tweet, reply, repost, like, follow
+- Enabled by: `TWITTER_USERNAME` + `TWITTER_PASSWORD` + `TWITTER_EMAIL`
 
 ## JID format
 
-`twitter:{userId}` for DMs and @mentions.
+`twitter:{userId}` for @mentions.
 
 ## Library
 
-`twitter-api-v2` — official v1.1 + v2 API wrapper. OAuth 1.0a user context.
+`agent-twitter-client` -- scraper-based client, no official API required.
+Fork of @the-convocation/twitter-scraper with tweet sending support.
 
 ## Auth flow
 
-1. Create app at developer.twitter.com → get API key + secret
-2. Generate user access token + secret (read+write permissions)
-3. All four tokens in .env, no login flow needed
+1. First run: login with username + password + email
+2. Cookies saved to `store/twitter-cookies.json`
+3. Subsequent runs: load cookies, skip login
+4. If cookies stale: re-login, refresh cookies
 
 ## Config
 
 ```env
-TWITTER_APP_KEY=...
-TWITTER_APP_SECRET=...
-TWITTER_ACCESS_TOKEN=...
-TWITTER_ACCESS_SECRET=...
+TWITTER_USERNAME=...
+TWITTER_PASSWORD=...
+TWITTER_EMAIL=...
 ```
 
 ## V1 scope (current)
 
-- Mentions via filtered stream (fallback: polling every 30s)
-- Post, reply, like, retweet, follow/unfollow, delete, set profile
+- Mentions via search polling (every 30s)
+- Post, reply, like, retweet, follow
 - Single bot account per instance
 
-## V2 scope (future)
+## Limitations
 
-- Timeline monitoring (watched accounts/keywords)
-- DM support (requires elevated API access)
-- Full outbound action types
+- No streaming (scraper doesn't support it)
+- No DMs (scraper limitation)
+- No unfollow/delete/profile updates
+- Tweets over 280 chars may fail
+- Rate limits depend on Twitter's anti-scraping measures

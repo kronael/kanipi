@@ -25,10 +25,9 @@ import {
   REDDIT_CLIENT_SECRET,
   REDDIT_USERNAME,
   REDDIT_PASSWORD,
-  TWITTER_APP_KEY,
-  TWITTER_APP_SECRET,
-  TWITTER_ACCESS_TOKEN,
-  TWITTER_ACCESS_SECRET,
+  TWITTER_USERNAME,
+  TWITTER_PASSWORD,
+  TWITTER_EMAIL,
   FACEBOOK_PAGE_ID,
   FACEBOOK_PAGE_ACCESS_TOKEN,
   isRoot,
@@ -1051,13 +1050,12 @@ async function main(): Promise<void> {
     await reddit.connect();
   }
 
-  if (TWITTER_APP_KEY) {
+  if (TWITTER_USERNAME) {
     const twitter = new TwitterChannel(
       {
-        appKey: TWITTER_APP_KEY,
-        appSecret: TWITTER_APP_SECRET,
-        accessToken: TWITTER_ACCESS_TOKEN,
-        accessSecret: TWITTER_ACCESS_SECRET,
+        username: TWITTER_USERNAME,
+        password: TWITTER_PASSWORD,
+        email: TWITTER_EMAIL,
       },
       channelOpts,
     );

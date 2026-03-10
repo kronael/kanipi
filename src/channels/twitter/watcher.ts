@@ -1,4 +1,4 @@
-import type { TweetV2SingleStreamResult } from 'twitter-api-v2';
+import type { Tweet } from 'agent-twitter-client';
 
 import { logger } from '../../logger.js';
 import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
@@ -7,30 +7,18 @@ import { TwitterClient } from './client.js';
 const log = logger.child({ channel: 'twitter' });
 const POLL_MS = 30_000;
 
-function toMessage(
-  id: string,
-  text: string,
-  authorId?: string,
-  createdAt?: string,
-  users?: Map<string, string>,
-): NewMessage {
-  const handle = (authorId && users?.get(authorId)) ?? authorId ?? 'unknown';
+function toMessage(tweet: Tweet): NewMessage {
+  const handle = tweet.username ?? tweet.userId ?? 'unknown';
   return {
-    id,
-    chat_jid: `twitter:${authorId ?? 'unknown'}`,
+    id: tweet.id ?? `${Date.now()}`,
+    chat_jid: `twitter:${tweet.userId ?? 'unknown'}`,
     sender: handle,
-    sender_name: handle,
-    content: text,
-    timestamp: createdAt ?? new Date().toISOString(),
+    sender_name: tweet.name ?? handle,
+    content: tweet.text ?? '',
+    timestamp: tweet.timeParsed?.toISOString() ?? new Date().toISOString(),
     platform: Platform.Twitter,
     verb: Verb.Message,
   };
-}
-
-function usersMap(includes?: {
-  users?: Array<{ id: string; username: string }>;
-}): Map<string, string> {
-  return new Map((includes?.users ?? []).map((u) => [u.id, u.username]));
 }
 
 export async function startWatcher(
@@ -41,34 +29,35 @@ export async function startWatcher(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let sinceId: string | undefined;
 
-  function handleTweet(result: TweetV2SingleStreamResult): void {
-    const t = result.data;
-    const msg = toMessage(
-      t.id,
-      t.text,
-      t.author_id,
-      t.created_at,
-      usersMap(result.includes),
-    );
-    onMsg(msg.chat_jid, msg);
-  }
-
   async function fetchMentions(): Promise<void> {
-    const uid = client.userId;
-    if (!uid) return;
-    const r = await client.api.v2.userMentionTimeline(uid, {
-      since_id: sinceId,
-      'tweet.fields': ['author_id', 'created_at', 'in_reply_to_user_id'],
-      'user.fields': ['username'],
-      expansions: ['author_id'],
-    });
-    const tweets = r.data?.data ?? [];
-    const users = usersMap(r.data?.includes);
-    for (const t of tweets) {
-      const msg = toMessage(t.id, t.text, t.author_id, t.created_at, users);
+    const handle = client.username;
+    if (!handle) return;
+
+    // Search for recent mentions of this account
+    const query = `@${handle}`;
+    const tweets: Tweet[] = [];
+
+    // searchTweets returns an async generator
+    for await (const tweet of client.scraper.searchTweets(query, 20)) {
+      // Skip own tweets and tweets older than sinceId
+      if (tweet.userId === client.userId) continue;
+      if (sinceId && tweet.id && tweet.id <= sinceId) continue;
+      tweets.push(tweet);
+    }
+
+    // Process oldest first
+    tweets.reverse();
+
+    for (const tweet of tweets) {
+      const msg = toMessage(tweet);
       onMsg(msg.chat_jid, msg);
     }
-    if (tweets.length > 0) sinceId = tweets[0].id;
+
+    // Update cursor to newest tweet
+    if (tweets.length > 0) {
+      const newest = tweets[tweets.length - 1];
+      if (newest.id) sinceId = newest.id;
+    }
   }
 
   function poll(): void {
@@ -80,20 +69,8 @@ export async function startWatcher(
       });
   }
 
-  try {
-    const stream = await client.api.v2.searchStream({
-      'tweet.fields': ['author_id', 'created_at', 'in_reply_to_user_id'],
-      'user.fields': ['username'],
-      expansions: ['author_id'],
-    });
-    stream.autoReconnect = true;
-    stream.on('data', handleTweet);
-    stream.on('error', (err: Error) => log.error({ err }, 'stream error'));
-    stream.on('reconnect', () => log.info('stream reconnecting'));
-  } catch {
-    log.info('streaming unavailable, falling back to polling');
-    poll();
-  }
+  // Start polling (no streaming available with scraper)
+  poll();
 
   return () => {
     running = false;
