@@ -37,8 +37,6 @@ const RegisterGroupSchema = z.object({
   jid: z.string().min(1),
   name: z.string().min(1),
   folder: z.string().min(1),
-  trigger: z.string(),
-  requiresTrigger: z.boolean().optional(),
   containerConfig: ContainerConfigSchema.optional(),
   parent: z.string().min(1).optional(),
 });
@@ -88,10 +86,8 @@ export const registerGroup: Action = {
     ctx.registerGroup(input.jid, {
       name: input.name,
       folder: input.folder,
-      trigger: input.trigger,
       added_at: new Date().toISOString(),
       containerConfig: input.containerConfig,
-      requiresTrigger: input.requiresTrigger ?? true,
       parent: input.parent,
     });
     writeCommandsXml(input.folder);

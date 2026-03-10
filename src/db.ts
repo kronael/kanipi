@@ -38,9 +38,8 @@ export function _setRawGroupColumns(
 ): void {
   db.prepare(
     `INSERT OR REPLACE INTO groups
-       (folder, name, added_at, container_config,
-        parent, trigger_pattern, requires_trigger, slink_token, max_children)
-     VALUES (?, ?, ?, ?, NULL, '', 1, NULL, NULL)`,
+       (folder, name, added_at, container_config, parent, slink_token, max_children)
+     VALUES (?, ?, ?, ?, NULL, NULL, NULL)`,
   ).run(
     folder,
     'test',
@@ -563,8 +562,6 @@ export function _setTestGroupRoute(
   const fullConfig: GroupConfig = {
     name: group.name,
     folder: group.folder,
-    trigger: group.trigger ?? '',
-    requiresTrigger: group.requiresTrigger ?? true,
     added_at: group.added_at ?? new Date().toISOString(),
     containerConfig: group.containerConfig,
     slinkToken: group.slinkToken,
@@ -863,7 +860,7 @@ export function getDirectChildGroupCount(parentFolder: string): number {
 export function getJidToFolderMap(): Record<string, string> {
   const rows = db
     .prepare(
-      `SELECT jid, target FROM routes WHERE type = 'default' ORDER BY jid, seq`,
+      `SELECT jid, target FROM routes WHERE type IN ('default', 'trigger') ORDER BY jid, seq`,
     )
     .all() as { jid: string; target: string }[];
   const result: Record<string, string> = {};
@@ -871,6 +868,20 @@ export function getJidToFolderMap(): Record<string, string> {
     if (!result[r.jid]) result[r.jid] = r.target;
   }
   return result;
+}
+
+export function getJidsThatNeedTrigger(): Set<string> {
+  const rows = db
+    .prepare("SELECT jid FROM routes WHERE type = 'trigger'")
+    .all() as { jid: string }[];
+  return new Set(rows.map((r) => r.jid));
+}
+
+export function hasAlwaysOnRoute(): boolean {
+  return (
+    db.prepare("SELECT 1 FROM routes WHERE type = 'default' LIMIT 1").get() !=
+    null
+  );
 }
 
 // --- Groups table (flat routing) ---
@@ -881,8 +892,6 @@ type GroupsRow = {
   added_at: string;
   container_config: string | null;
   parent: string | null;
-  trigger_pattern: string;
-  requires_trigger: number;
   slink_token: string | null;
   max_children: number | null;
 };
@@ -893,8 +902,6 @@ export interface GroupConfig {
   added_at: string;
   containerConfig?: import('./types.js').ContainerConfig;
   parent?: string;
-  trigger: string;
-  requiresTrigger: boolean;
   slinkToken?: string;
   maxChildren?: number;
 }
@@ -925,8 +932,6 @@ function rowToGroupConfig(row: GroupsRow): GroupConfig {
       ? parseContainerConfig(row.container_config, row.folder)
       : undefined,
     parent: row.parent ?? undefined,
-    trigger: row.trigger_pattern,
-    requiresTrigger: row.requires_trigger === 1,
     slinkToken: row.slink_token ?? undefined,
     maxChildren: row.max_children ?? undefined,
   };
@@ -958,17 +963,14 @@ export function setGroupConfig(config: GroupConfig): void {
   }
   db.prepare(
     `INSERT OR REPLACE INTO groups
-       (folder, name, added_at, container_config, parent,
-        trigger_pattern, requires_trigger, slink_token, max_children)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (folder, name, added_at, container_config, parent, slink_token, max_children)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     config.folder,
     config.name,
     config.added_at,
     config.containerConfig ? JSON.stringify(config.containerConfig) : null,
     config.parent ?? null,
-    config.trigger,
-    config.requiresTrigger ? 1 : 0,
     config.slinkToken ?? null,
     config.maxChildren ?? null,
   );

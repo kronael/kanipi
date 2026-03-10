@@ -51,7 +51,6 @@ function readEnvValue(envPath: string, key: string): string | undefined {
 interface GroupRow {
   folder: string;
   name: string;
-  requires_trigger: number;
 }
 
 interface RouteRow {
@@ -74,7 +73,7 @@ function groupList(instance: string): void {
 
   const db = new Database(dbPath, { readonly: true });
   const groupRows = db
-    .prepare('SELECT folder, name, requires_trigger FROM groups')
+    .prepare('SELECT folder, name FROM groups')
     .all() as GroupRow[];
   const routeRows = db
     .prepare("SELECT jid, target FROM routes WHERE type = 'default'")
@@ -97,10 +96,9 @@ function groupList(instance: string): void {
   console.log('groups:');
   if (!groupRows.length) console.log('  (none)');
   for (const g of groupRows) {
-    const rt = g.requires_trigger ? 'trigger' : 'direct';
     const jids = folderJids.get(g.folder) || [];
     const jidStr = jids.length > 0 ? jids.join(', ') : '(no routes)';
-    console.log(`  ${g.folder}  ${rt}  ${g.name}  [${jidStr}]`);
+    console.log(`  ${g.folder}  ${g.name}  [${jidStr}]`);
   }
 
   const discovered = chats.filter((c) => !routedJids.has(c.jid));

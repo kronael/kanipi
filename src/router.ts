@@ -99,6 +99,8 @@ export function resolveRoute(msg: NewMessage, routes: Route[]): string | null {
         if (new RegExp(r.match).test(msg.sender_name ?? msg.sender))
           return r.target;
       } catch {}
+    } else if (r.type === 'trigger') {
+      return r.target;
     } else if (r.type === 'default') {
       return r.target;
     }

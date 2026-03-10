@@ -68,6 +68,8 @@ import {
   getDirectChildGroupCount,
   getGroupByFolder,
   getJidToFolderMap,
+  getJidsThatNeedTrigger,
+  hasAlwaysOnRoute,
   getJidsForFolder,
   getMessagesSince,
   getRoutedJids,
@@ -120,6 +122,7 @@ let lastTimestamp = '';
 let sessions: Record<string, string> = {};
 let groups: Record<string, GroupConfig> = {};
 let jidToFolder: Record<string, string> = {};
+let jidsTrigger: Set<string> = new Set();
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
@@ -183,6 +186,7 @@ function loadState(): void {
   sessions = getAllSessions();
   groups = getAllGroupConfigs();
   jidToFolder = getJidToFolderMap();
+  jidsTrigger = getJidsThatNeedTrigger();
   logger.info(
     {
       groupCount: Object.keys(groups).length,
@@ -210,6 +214,7 @@ function refreshGroups(): void {
   }
   groups = freshGroups;
   jidToFolder = freshJidMap;
+  jidsTrigger = getJidsThatNeedTrigger();
 }
 
 function registerGroup(jid: string, group: GroupConfig): void {
@@ -332,7 +337,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   if (missedMessages.length === 0) return true;
 
   // For non-root groups, check if trigger is required and present
-  if (!isRoot(group.folder) && group.requiresTrigger !== false) {
+  if (!isRoot(group.folder) && jidsTrigger.has(chatJid)) {
     const hasTrigger = missedMessages.some((m) =>
       TRIGGER_PATTERN.test(m.content.trim()),
     );
@@ -553,9 +558,7 @@ function spawnGroupFromPrototype(
   const group: GroupConfig = {
     name: targetFolder.split('/').pop()!,
     folder: targetFolder,
-    trigger: parent.trigger,
     added_at: new Date().toISOString(),
-    requiresTrigger: true,
     parent: parentFolder,
   };
   groups[targetFolder] = group;
@@ -795,7 +798,8 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          const needsTrigger = !isRoot(group.folder) && group.requiresTrigger;
+          const needsTrigger =
+            !isRoot(group.folder) && jidsTrigger.has(chatJid);
 
           // Intercept command messages before routing to agent
           const nonCommandMessages: NewMessage[] = [];
@@ -1012,8 +1016,7 @@ async function main(): Promise<void> {
       isGroup?: boolean,
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
     isRoutedJid: (jid: string) => getDefaultTarget(jid) !== null,
-    hasAlwaysOnGroup: () =>
-      Object.values(getAllGroupConfigs()).some((g) => !g.requiresTrigger),
+    hasAlwaysOnGroup: () => hasAlwaysOnRoute(),
   };
 
   // Create and connect channels
