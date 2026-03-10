@@ -619,7 +619,6 @@ describe('register_group success', () => {
     expect(group).toBeDefined();
     expect(group!.name).toBe('New Group');
     expect(group!.folder).toBe('atlas/support');
-    expect(group!.trigger).toBe('@Andy');
   });
 
   it('register_group rejects request with missing fields', async () => {
@@ -628,7 +627,7 @@ describe('register_group success', () => {
         type: 'register_group',
         jid: 'partial@g.us',
         name: 'Partial',
-        // missing folder and trigger
+        // missing folder
       },
       'root',
       deps,

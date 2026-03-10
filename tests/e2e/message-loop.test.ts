@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
+import fs from 'fs';
 
 // ── Mock config ───────────────────────────────────────────────────────────────
 
@@ -203,9 +204,7 @@ describe('getAvailableGroups (gateway export)', () => {
         g1: {
           name: 'G1',
           folder: 'g1',
-          trigger: '@Andy',
           added_at: '2024-01-01T00:00:00.000Z',
-          requiresTrigger: true,
         },
       },
       { 'g1@g.us': 'g1' },
@@ -352,7 +351,6 @@ describe('DB state for gateway routing', () => {
     _setTestGroupRoute('g@g.us', {
       name: 'Test',
       folder: 'test',
-      trigger: '@Andy',
     });
     expect(getDefaultTarget('g@g.us')).toBe('test');
     const group = getGroupByFolder('test');
@@ -382,9 +380,7 @@ const TEST_FOLDER = 'testfolder';
 const TEST_GROUP: GroupConfig = {
   name: 'Test Group',
   folder: TEST_FOLDER,
-  trigger: '@Andy',
   added_at: '2024-01-01T00:00:00.000Z',
-  requiresTrigger: false,
 };
 
 function setupGroup(): Channel & { sendMessage: ReturnType<typeof vi.fn> } {
@@ -541,9 +537,7 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
     root: {
       name: 'Main',
       folder: 'root',
-      trigger: '@Andy',
       added_at: '2024-02-01T00:00:00.000Z',
-      requiresTrigger: false,
     },
   };
 
@@ -555,9 +549,7 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
     groupConfigs[CHILD_FOLDER] = {
       name: 'Code',
       folder: CHILD_FOLDER,
-      trigger: '@Andy',
       added_at: '2024-02-01T00:00:00.000Z',
-      requiresTrigger: true,
     };
     jidMap[CHILD_JID] = CHILD_FOLDER;
   }
@@ -679,6 +671,9 @@ describe('delegateToChild — depth propagation', () => {
 describe('processGroupMessages — clone-on-missing child', () => {
   it('spawns child from prototype when child is not registered', async () => {
     setupRoutedGroup(false /* no child group registered */);
+    vi.mocked(fs.existsSync).mockImplementation((p) =>
+      String(p).endsWith('/prototype'),
+    );
 
     await _processGroupMessages(ROUTED_JID);
     await Promise.resolve();
@@ -728,9 +723,7 @@ function setupUnauthorizedRouting(
       [sourceFolder]: {
         name: 'Source',
         folder: sourceFolder,
-        trigger: '@Andy',
         added_at: '2024-04-01T00:00:00.000Z',
-        requiresTrigger: false,
       },
     },
     { [sourceJid]: sourceFolder },

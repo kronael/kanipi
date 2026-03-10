@@ -9,6 +9,23 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Refactor
+
+- `spawnGroupFromPrototype` copies from `group/prototype/` dir instead of
+  parent-level files — prototype content is now self-contained per group
+- Web app template moved into `container/skills/web/` (was in `prototype/`);
+  `kanipi create` seeds from the skill directory
+- Group-chat instructions moved from `prototype/.claude/CLAUDE.md` into
+  `container/CLAUDE.md` (the agent image seed); `prototype/.claude/CLAUDE.md`
+  is now the lightweight root-group seed written by `kanipi create`
+- Dead `trigger`/`requiresTrigger` fields removed from group action handlers
+  and all test fixtures
+
+### Agent
+
+- Migration 018: web scaffold now lives in web skill
+- `MIGRATION_VERSION` bumped to 018
+
 ---
 
 ## [v1.0.22] — 2026-03-10
