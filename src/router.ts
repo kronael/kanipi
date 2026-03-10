@@ -95,28 +95,26 @@ export function isAuthorizedRoutingTarget(
   return targetFolder.startsWith(sourceFolder + '/');
 }
 
-// Walk routing rules recursively. Resolves the full chain:
-// root → atlas → atlas/support, returning the final target.
-// Stops at self-targets, missing groups, or depth limit (8).
+// Two-level routing: resolve source's rules, then check if
+// the target also has rules. Returns final target or null.
+// Self-targets and unauthorized hops return null.
 export function resolveRoutingChain(
   msg: NewMessage,
   sourceFolder: string,
   groups: Record<string, RegisteredGroup>,
-  maxDepth = 8,
 ): string | null {
-  let current = sourceFolder;
-  for (let i = 0; i < maxDepth; i++) {
-    const group = Object.values(groups).find((g) => g.folder === current);
-    if (!group?.routingRules?.length)
-      return current === sourceFolder ? null : current;
-    const next = resolveRoutingTarget(msg, group.routingRules);
-    if (!next || next === current)
-      return current === sourceFolder ? null : current;
-    if (!isAuthorizedRoutingTarget(current, next))
-      return current === sourceFolder ? null : current;
-    current = next;
-  }
-  return current === sourceFolder ? null : current;
+  const src = Object.values(groups).find((g) => g.folder === sourceFolder);
+  if (!src?.routingRules?.length) return null;
+  const hop1 = resolveRoutingTarget(msg, src.routingRules);
+  if (!hop1 || hop1 === sourceFolder) return null;
+  if (!isAuthorizedRoutingTarget(sourceFolder, hop1)) return null;
+  // second hop: if target also has rules, follow once more
+  const dst = Object.values(groups).find((g) => g.folder === hop1);
+  if (!dst?.routingRules?.length) return hop1;
+  const hop2 = resolveRoutingTarget(msg, dst.routingRules);
+  if (!hop2 || hop2 === hop1) return hop1;
+  if (!isAuthorizedRoutingTarget(hop1, hop2)) return hop1;
+  return hop2;
 }
 
 // Evaluate routing rules against a message. Returns target folder or null.

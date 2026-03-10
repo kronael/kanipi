@@ -106,13 +106,12 @@ Here `@root` matches and returns `root` (self) — delegation
 is skipped, and root's agent handles the message directly.
 All other messages delegate to `atlas`.
 
-### Recursive chain resolution
+### Two-level routing
 
-The gateway resolves routing rules recursively. If root
+The gateway resolves routing rules two levels deep. If root
 routes to `atlas`, and `atlas` has rules that route to
-`atlas/support`, the gateway follows the full chain and
-spawns `atlas/support` directly — no intermediate agent
-spawns.
+`atlas/support`, the gateway follows both hops and spawns
+`atlas/support` directly — no intermediate agent spawns.
 
 ```
 root (rules: default → atlas)
@@ -120,12 +119,9 @@ root (rules: default → atlas)
        └─ atlas/support ← gateway spawns here directly
 ```
 
-`resolveRoutingChain()` walks the chain with safeguards:
-
-- **Self-target** stops the chain (handle locally)
-- **Auth denied** stops the chain (non-root can't cross worlds)
-- **Missing group** stops the chain (target not registered)
-- **Depth limit** (8) prevents infinite loops
+Self-targets and unauthorized hops stop resolution.
+Rules are scanned in specificity order (command → verb →
+pattern → keyword → sender → default), first match wins.
 
 Agents can override routing at runtime via `set_routing_rules`
 IPC action. Tier 0 (root) can set rules on any group. Tier 1
