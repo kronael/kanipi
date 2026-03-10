@@ -9,6 +9,10 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+---
+
+## [v1.0.22] — 2026-03-10
+
 ### Refactor
 
 - Flat routing complete — `RegisteredGroup` interface removed; `ChannelOpts`
