@@ -9,17 +9,28 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+---
+
+## [v1.0.23] — 2026-03-10
+
+### Features
+
+- Default group CLAUDE.md seed: agents stay silent unless directly addressed;
+  `kanipi create` writes `prototype/.claude/CLAUDE.md` into root group folder
+
 ### Refactor
 
+- Trigger gating moved from group config into routes table — `requires_trigger`
+  and `trigger_pattern` fields removed; trigger behavior is now a `trigger`
+  route type per JID
+- Group add/rm decoupled from JID — groups are folder configs only; routes
+  managed separately via `add_route`/`delete_route` IPC actions
 - `spawnGroupFromPrototype` copies from `group/prototype/` dir instead of
   parent-level files — prototype content is now self-contained per group
 - Web app template moved into `container/skills/web/` (was in `prototype/`);
   `kanipi create` seeds from the skill directory
 - Group-chat instructions moved from `prototype/.claude/CLAUDE.md` into
-  `container/CLAUDE.md` (the agent image seed); `prototype/.claude/CLAUDE.md`
-  is now the lightweight root-group seed written by `kanipi create`
-- Dead `trigger`/`requiresTrigger` fields removed from group action handlers
-  and all test fixtures
+  `container/CLAUDE.md` (the agent image seed)
 
 ### Agent
 
