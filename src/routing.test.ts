@@ -4,11 +4,12 @@ import { _initTestDatabase, getAllChats, storeChatMetadata } from './db.js';
 import { getAvailableGroups, _setRegisteredGroups } from './index.js';
 import {
   isAuthorizedRoutingTarget,
+  resolveRoutingChain,
   resolveRoutingTarget,
   spawnFolderName,
   platformFromJid,
 } from './router.js';
-import type { NewMessage, RoutingRule } from './types.js';
+import type { NewMessage, RegisteredGroup, RoutingRule } from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
@@ -478,5 +479,96 @@ describe('isAuthorizedRoutingTarget', () => {
 
   it('blocks non-root same folder', () => {
     expect(isAuthorizedRoutingTarget('atlas', 'atlas')).toBe(false);
+  });
+});
+
+// --- resolveRoutingChain ---
+
+function mkGroup(folder: string, rules?: RoutingRule[]): RegisteredGroup {
+  return {
+    name: folder,
+    folder,
+    trigger: '',
+    added_at: '',
+    routingRules: rules,
+  };
+}
+
+function mkMsg(content: string): NewMessage {
+  return {
+    id: '1',
+    chat_jid: 'test:1',
+    sender: 'user',
+    content,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+describe('resolveRoutingChain', () => {
+  it('returns null when source has no rules', () => {
+    const groups = { a: mkGroup('root') };
+    expect(resolveRoutingChain(mkMsg('hi'), 'root', groups)).toBeNull();
+  });
+
+  it('single hop: root → atlas', () => {
+    const groups = {
+      a: mkGroup('root', [{ type: 'default', target: 'atlas' }]),
+      b: mkGroup('atlas'),
+    };
+    expect(resolveRoutingChain(mkMsg('hi'), 'root', groups)).toBe('atlas');
+  });
+
+  it('two hops: root → atlas → atlas/support', () => {
+    const groups = {
+      a: mkGroup('root', [{ type: 'default', target: 'atlas' }]),
+      b: mkGroup('atlas', [{ type: 'default', target: 'atlas/support' }]),
+      c: mkGroup('atlas/support'),
+    };
+    expect(resolveRoutingChain(mkMsg('hi'), 'root', groups)).toBe(
+      'atlas/support',
+    );
+  });
+
+  it('self-target stops chain and returns null (handle locally)', () => {
+    const groups = {
+      a: mkGroup('root', [
+        { type: 'command', trigger: '@root', target: 'root' },
+        { type: 'default', target: 'atlas' },
+      ]),
+    };
+    expect(resolveRoutingChain(mkMsg('@root help'), 'root', groups)).toBeNull();
+  });
+
+  it('command match stops at first hop', () => {
+    const groups = {
+      a: mkGroup('root', [
+        { type: 'command', trigger: '@root', target: 'root' },
+        { type: 'default', target: 'atlas' },
+      ]),
+      b: mkGroup('atlas'),
+    };
+    // non-command falls through to default → atlas
+    expect(resolveRoutingChain(mkMsg('hello'), 'root', groups)).toBe('atlas');
+  });
+
+  it('unauthorized hop stops chain', () => {
+    const groups = {
+      a: mkGroup('atlas', [{ type: 'default', target: 'team/x' }]),
+    };
+    // atlas can't route cross-world to team/x
+    expect(resolveRoutingChain(mkMsg('hi'), 'atlas', groups)).toBeNull();
+  });
+
+  it('stops at depth limit', () => {
+    // chain longer than maxDepth=3
+    const groups = {
+      a: mkGroup('root', [{ type: 'default', target: 'root/a' }]),
+      b: mkGroup('root/a', [{ type: 'default', target: 'root/a/b' }]),
+      c: mkGroup('root/a/b', [{ type: 'default', target: 'root/a/b/c' }]),
+      d: mkGroup('root/a/b/c', [{ type: 'default', target: 'root/a/b/c/d' }]),
+    };
+    expect(resolveRoutingChain(mkMsg('hi'), 'root', groups, 3)).toBe(
+      'root/a/b/c',
+    );
   });
 });

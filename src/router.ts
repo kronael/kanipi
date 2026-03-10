@@ -1,4 +1,10 @@
-import { Channel, NewMessage, Platform, RoutingRule } from './types.js';
+import {
+  Channel,
+  NewMessage,
+  Platform,
+  RegisteredGroup,
+  RoutingRule,
+} from './types.js';
 
 // Derive a valid group folder segment from a JID.
 // Replaces non-alphanumeric chars with _, collapses consecutive _, trims.
@@ -87,6 +93,30 @@ export function isAuthorizedRoutingTarget(
   const targetRoot = targetFolder.split('/')[0];
   if (sourceRoot !== targetRoot) return false;
   return targetFolder.startsWith(sourceFolder + '/');
+}
+
+// Walk routing rules recursively. Resolves the full chain:
+// root → atlas → atlas/support, returning the final target.
+// Stops at self-targets, missing groups, or depth limit (8).
+export function resolveRoutingChain(
+  msg: NewMessage,
+  sourceFolder: string,
+  groups: Record<string, RegisteredGroup>,
+  maxDepth = 8,
+): string | null {
+  let current = sourceFolder;
+  for (let i = 0; i < maxDepth; i++) {
+    const group = Object.values(groups).find((g) => g.folder === current);
+    if (!group?.routingRules?.length)
+      return current === sourceFolder ? null : current;
+    const next = resolveRoutingTarget(msg, group.routingRules);
+    if (!next || next === current)
+      return current === sourceFolder ? null : current;
+    if (!isAuthorizedRoutingTarget(current, next))
+      return current === sourceFolder ? null : current;
+    current = next;
+  }
+  return current === sourceFolder ? null : current;
 }
 
 // Evaluate routing rules against a message. Returns target folder or null.

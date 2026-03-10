@@ -103,6 +103,7 @@ import {
   formatMessages,
   formatOutbound,
   isAuthorizedRoutingTarget,
+  resolveRoutingChain,
   resolveRoutingTarget,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
@@ -308,33 +309,23 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     if (!hasTrigger) return true;
   }
 
-  // Apply routing rules on the latest message before spawning parent agent.
-  const rules = group.routingRules ?? [];
-  if (rules.length > 0) {
-    const lastMsg = missedMessages[missedMessages.length - 1];
-    const target = resolveRoutingTarget(lastMsg, rules);
-    if (target && target !== group.folder) {
-      if (!isAuthorizedRoutingTarget(group.folder, target)) {
-        logger.warn(
-          { chatJid, source: group.folder, target },
-          'routing auth denied: not direct parent→child or cross-world',
-        );
-      } else {
-        const formatted = formatMessages(missedMessages);
-        const prevCursor = lastAgentTimestamp[chatJid] || '';
-        lastAgentTimestamp[chatJid] = lastMsg.timestamp;
-        saveState();
-        delegateToChild(target, formatted, chatJid, 0).catch((err) => {
-          lastAgentTimestamp[chatJid] = prevCursor;
-          saveState();
-          logger.error(
-            { chatJid, target, err },
-            'processGroupMessages delegate error',
-          );
-        });
-        return true;
-      }
-    }
+  // Apply routing rules recursively before spawning agent.
+  const lastMsg = missedMessages[missedMessages.length - 1];
+  const target = resolveRoutingChain(lastMsg, group.folder, registeredGroups);
+  if (target) {
+    const formatted = formatMessages(missedMessages);
+    const prevCursor = lastAgentTimestamp[chatJid] || '';
+    lastAgentTimestamp[chatJid] = lastMsg.timestamp;
+    saveState();
+    delegateToChild(target, formatted, chatJid, 0).catch((err) => {
+      lastAgentTimestamp[chatJid] = prevCursor;
+      saveState();
+      logger.error(
+        { chatJid, target, err },
+        'processGroupMessages delegate error',
+      );
+    });
+    return true;
   }
 
   if (!sessions[group.folder]) {
@@ -835,44 +826,37 @@ async function startMessageLoop(): Promise<void> {
             if (!hasTrigger) continue;
           }
 
-          // Apply routing rules on the latest message.
-          // First match routes to child group; parent skips.
-          const rules = group.routingRules ?? [];
-          if (rules.length > 0) {
+          // Apply routing rules recursively.
+          {
             const lastMsg = nonCommandMessages[nonCommandMessages.length - 1];
-            const target = resolveRoutingTarget(lastMsg, rules);
+            const target = resolveRoutingChain(
+              lastMsg,
+              group.folder,
+              registeredGroups,
+            );
             if (target) {
-              if (!isAuthorizedRoutingTarget(group.folder, target)) {
-                logger.warn(
-                  { chatJid, source: group.folder, target },
-                  'routing auth denied: not direct parent→child or cross-world',
-                );
-              } else {
-                await waitForEnrichments(nonCommandMessages.map((m) => m.id));
-                const allForRoute = getMessagesSince(
-                  chatJid,
-                  lastAgentTimestamp[chatJid] || '',
-                  ASSISTANT_NAME,
-                );
-                const toDelegate =
-                  allForRoute.length > 0 ? allForRoute : nonCommandMessages;
-                const routedPrompt = formatMessages(toDelegate);
-                const prevCursor = lastAgentTimestamp[chatJid] || '';
-                lastAgentTimestamp[chatJid] =
-                  toDelegate[toDelegate.length - 1].timestamp;
+              await waitForEnrichments(nonCommandMessages.map((m) => m.id));
+              const allForRoute = getMessagesSince(
+                chatJid,
+                lastAgentTimestamp[chatJid] || '',
+                ASSISTANT_NAME,
+              );
+              const toDelegate =
+                allForRoute.length > 0 ? allForRoute : nonCommandMessages;
+              const routedPrompt = formatMessages(toDelegate);
+              const prevCursor = lastAgentTimestamp[chatJid] || '';
+              lastAgentTimestamp[chatJid] =
+                toDelegate[toDelegate.length - 1].timestamp;
+              saveState();
+              delegateToChild(target, routedPrompt, chatJid, 0).catch((err) => {
+                lastAgentTimestamp[chatJid] = prevCursor;
                 saveState();
-                delegateToChild(target, routedPrompt, chatJid, 0).catch(
-                  (err) => {
-                    lastAgentTimestamp[chatJid] = prevCursor;
-                    saveState();
-                    logger.error(
-                      { chatJid, target, err },
-                      'routing delegate error',
-                    );
-                  },
+                logger.error(
+                  { chatJid, target, err },
+                  'routing delegate error',
                 );
-                continue;
-              }
+              });
+              continue;
             }
           }
 

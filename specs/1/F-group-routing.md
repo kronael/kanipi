@@ -51,19 +51,21 @@ rule maps a condition to a target child folder.
 ```typescript
 type RoutingRule =
   | { type: 'command'; trigger: string; target: string }
+  | { type: 'verb'; verb: string; target: string }
   | { type: 'pattern'; pattern: string; target: string }
   | { type: 'keyword'; keyword: string; target: string }
   | { type: 'sender'; pattern: string; target: string }
   | { type: 'default'; target: string };
 ```
 
-| Field     | Description                                      |
-| --------- | ------------------------------------------------ |
-| `type`    | Rule kind (command / pattern / keyword / sender) |
-| `trigger` | Command prefix (`/code`, `/research`)            |
-| `pattern` | Regex against full message text                  |
-| `keyword` | Substring match (case-insensitive)               |
-| `target`  | Target child folder (`main/code`, `team/alice`)  |
+| Field     | Description                                             |
+| --------- | ------------------------------------------------------- |
+| `type`    | Rule kind (command / verb / pattern / keyword / sender) |
+| `trigger` | Command prefix (`/code`, `@root`)                       |
+| `verb`    | Message verb match (e.g. `join`, `leave`)               |
+| `pattern` | Regex against full message text                         |
+| `keyword` | Substring match (case-insensitive)                      |
+| `target`  | Target folder (`main/code`, `atlas`, `root`)            |
 
 `sender` matches against the sender JID or display name.
 
@@ -72,11 +74,12 @@ type RoutingRule =
 For each inbound message on a parent-bound JID:
 
 1. **Exact command** — message starts with `trigger` value
-2. **Pattern** — regex matches message text
-3. **Keyword** — case-insensitive substring in message
-4. **Sender** — regex matches sender name or JID
-5. **Default** — catch-all, if present
-6. **No match** — message handled by parent group itself
+2. **Verb** — message verb matches exactly
+3. **Pattern** — regex matches message text
+4. **Keyword** — case-insensitive substring in message
+5. **Sender** — regex matches sender name or JID
+6. **Default** — catch-all, if present
+7. **No match** — message handled by parent group itself
 
 First matching rule wins. Rules evaluated in array order
 within each type tier.
@@ -102,6 +105,33 @@ uses routing rules to split traffic:
 Here `@root` matches and returns `root` (self) — delegation
 is skipped, and root's agent handles the message directly.
 All other messages delegate to `atlas`.
+
+### Recursive chain resolution
+
+The gateway resolves routing rules recursively. If root
+routes to `atlas`, and `atlas` has rules that route to
+`atlas/support`, the gateway follows the full chain and
+spawns `atlas/support` directly — no intermediate agent
+spawns.
+
+```
+root (rules: default → atlas)
+  └─ atlas (rules: default → atlas/support)
+       └─ atlas/support ← gateway spawns here directly
+```
+
+`resolveRoutingChain()` walks the chain with safeguards:
+
+- **Self-target** stops the chain (handle locally)
+- **Auth denied** stops the chain (non-root can't cross worlds)
+- **Missing group** stops the chain (target not registered)
+- **Depth limit** (8) prevents infinite loops
+
+Agents can override routing at runtime via `set_routing_rules`
+IPC action. Tier 0 (root) can set rules on any group. Tier 1
+can set rules on direct children only. Tier 2+ cannot set rules.
+The gateway reads fresh rules from DB each message loop, so
+agent-set rules take effect on the next message.
 
 ---
 
