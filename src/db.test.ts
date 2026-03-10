@@ -485,8 +485,6 @@ describe('setGroupConfig', () => {
       setGroupConfig({
         name: 'escape',
         folder: '../escape',
-        trigger: '',
-        requiresTrigger: false,
         added_at: '2024-01-01T00:00:00.000Z',
       }),
     ).toThrow();
@@ -507,8 +505,6 @@ describe('setGroupConfig', () => {
       setGroupConfig({
         name: 'bad',
         folder: 'bad',
-        trigger: '',
-        requiresTrigger: false,
         added_at: '2024-01-01T00:00:00.000Z',
         // @ts-expect-error intentional bad data
         containerConfig: { timeout: 'not-a-number' },
@@ -524,7 +520,6 @@ describe('groups round-trip', () => {
     _setTestGroupRoute('telegram:full', {
       name: 'full',
       folder: 'full',
-      trigger: '/go',
       containerConfig: {
         timeout: 120000,
         additionalMounts: [{ hostPath: '/srv/data', readonly: true }],

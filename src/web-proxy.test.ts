@@ -37,9 +37,7 @@ function makeGroup(token: string): GroupConfig & { jid: string } {
     jid: 'web:main',
     name: 'main',
     folder: 'main',
-    trigger: '',
     added_at: new Date().toISOString(),
-    requiresTrigger: false,
     slinkToken: token,
   };
 }

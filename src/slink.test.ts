@@ -43,8 +43,6 @@ function makeGroup(jid: string, token: string): GroupConfig & { jid: string } {
     jid,
     name: jid,
     folder: jid.replace(':', '-'),
-    trigger: '',
-    requiresTrigger: false,
     added_at: new Date().toISOString(),
     slinkToken: token,
   };
@@ -616,8 +614,6 @@ describe('DB: web group registration', () => {
     _setTestGroupRoute('web:test', {
       name: 'test',
       folder: 'web-test',
-      trigger: '',
-      requiresTrigger: false,
       slinkToken: token,
     });
 
@@ -645,8 +641,6 @@ describe('DB: web group registration', () => {
     _setTestGroupRoute(jid, {
       name: 'main',
       folder: 'main',
-      trigger: '',
-      requiresTrigger: false,
       slinkToken: token,
     });
 

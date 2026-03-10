@@ -155,9 +155,7 @@ describe('getAvailableGroups', () => {
         registered: {
           name: 'Registered',
           folder: 'registered',
-          trigger: '@Andy',
           added_at: '2024-01-01T00:00:00.000Z',
-          requiresTrigger: true,
         },
       },
       { 'reg@g.us': 'registered' },

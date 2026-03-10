@@ -226,53 +226,41 @@ describe('formatOutbound', () => {
   });
 });
 
-// --- Trigger gating with requiresTrigger flag ---
+// --- Trigger gating via route type ---
 
-describe('trigger gating (requiresTrigger interaction)', () => {
-  // Replicates the exact logic from processGroupMessages and startMessageLoop:
-  //   if (!isRootGroup && group.requiresTrigger !== false) { check trigger }
-  function shouldRequireTrigger(
-    isRootGroup: boolean,
-    requiresTrigger: boolean | undefined,
-  ): boolean {
-    return !isRootGroup && requiresTrigger !== false;
-  }
-
+describe('trigger gating (route-type-based)', () => {
+  // Replicates the logic from processGroupMessages and startMessageLoop:
+  //   if (!isRootGroup && jidsTrigger.has(chatJid)) { check trigger }
   function shouldProcess(
     isRootGroup: boolean,
-    requiresTrigger: boolean | undefined,
+    jidNeedsTrigger: boolean,
     messages: NewMessage[],
   ): boolean {
-    if (!shouldRequireTrigger(isRootGroup, requiresTrigger)) return true;
+    if (isRootGroup || !jidNeedsTrigger) return true;
     return messages.some((m) => TRIGGER_PATTERN.test(m.content.trim()));
   }
 
-  it('main group always processes (no trigger needed)', () => {
+  it('root group always processes (no trigger needed)', () => {
     const msgs = [makeMsg({ content: 'hello no trigger' })];
-    expect(shouldProcess(true, undefined, msgs)).toBe(true);
+    expect(shouldProcess(true, false, msgs)).toBe(true);
   });
 
-  it('main group processes even with requiresTrigger=true', () => {
+  it('root group processes even when jid is in trigger set', () => {
     const msgs = [makeMsg({ content: 'hello no trigger' })];
     expect(shouldProcess(true, true, msgs)).toBe(true);
   });
 
-  it('non-main group with requiresTrigger=undefined requires trigger (defaults to true)', () => {
-    const msgs = [makeMsg({ content: 'hello no trigger' })];
-    expect(shouldProcess(false, undefined, msgs)).toBe(false);
-  });
-
-  it('non-main group with requiresTrigger=true requires trigger', () => {
+  it('non-root group with trigger route requires trigger', () => {
     const msgs = [makeMsg({ content: 'hello no trigger' })];
     expect(shouldProcess(false, true, msgs)).toBe(false);
   });
 
-  it('non-main group with requiresTrigger=true processes when trigger present', () => {
+  it('non-root group with trigger route processes when trigger present', () => {
     const msgs = [makeMsg({ content: `@${ASSISTANT_NAME} do something` })];
     expect(shouldProcess(false, true, msgs)).toBe(true);
   });
 
-  it('non-main group with requiresTrigger=false always processes (no trigger needed)', () => {
+  it('non-root group with default route always processes', () => {
     const msgs = [makeMsg({ content: 'hello no trigger' })];
     expect(shouldProcess(false, false, msgs)).toBe(true);
   });

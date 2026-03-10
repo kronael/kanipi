@@ -40,7 +40,6 @@ function makeGroup(folder: string): GroupConfig {
   return {
     name: 'test',
     folder,
-    trigger: '',
     added_at: new Date().toISOString(),
   };
 }

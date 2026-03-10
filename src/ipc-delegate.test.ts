@@ -26,24 +26,18 @@ import {
 const ROOT: GroupConfig = {
   name: 'Root',
   folder: 'root',
-  trigger: 'always',
-  requiresTrigger: false,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
 const CODE: GroupConfig = {
   name: 'Code',
   folder: 'root/code',
-  trigger: '@Andy',
-  requiresTrigger: true,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
 const LOGS: GroupConfig = {
   name: 'Logs',
   folder: 'root/logs',
-  trigger: '@Andy',
-  requiresTrigger: true,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
@@ -184,15 +178,11 @@ describe('delegate_group IPC — real files', () => {
     const ATLAS: GroupConfig = {
       name: 'Atlas',
       folder: 'atlas',
-      trigger: 'always',
-      requiresTrigger: false,
       added_at: '2024-01-01T00:00:00.000Z',
     };
     const ATLAS_A: GroupConfig = {
       name: 'Atlas A',
       folder: 'atlas/a',
-      trigger: '@Andy',
-      requiresTrigger: true,
       added_at: '2024-01-01T00:00:00.000Z',
     };
     _setTestGroupRoute('atlas@g.us', ATLAS);

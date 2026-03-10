@@ -155,7 +155,6 @@ import type { SidecarHandle } from './types.js';
 const testGroup: GroupConfig = {
   name: 'Test Group',
   folder: 'test-group',
-  trigger: '@Andy',
   added_at: new Date().toISOString(),
 };
 
@@ -276,7 +275,6 @@ describe('container-runner timeout behavior', () => {
 const sidecarGroup: GroupConfig = {
   name: 'Sidecar Group',
   folder: 'sidecar-group',
-  trigger: '@Andy',
   added_at: new Date().toISOString(),
   containerConfig: {
     sidecars: {

@@ -20,24 +20,18 @@ import './ipc.js';
 const ROOT_GROUP: GroupConfig = {
   name: 'Root',
   folder: 'root',
-  trigger: 'always',
-  requiresTrigger: false,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
 const OTHER_GROUP: GroupConfig = {
   name: 'Other',
   folder: 'discord/other-group',
-  trigger: '@Andy',
-  requiresTrigger: true,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
 const THIRD_GROUP: GroupConfig = {
   name: 'Third',
   folder: 'discord/third-group',
-  trigger: '@Andy',
-  requiresTrigger: true,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
@@ -330,7 +324,6 @@ describe('register_group authorization', () => {
         jid: 'new@g.us',
         name: 'New Group',
         folder: 'new-group',
-        trigger: '@Andy',
       },
       'discord/other-group',
       deps,
@@ -347,7 +340,6 @@ describe('register_group authorization', () => {
         jid: 'new@g.us',
         name: 'New Group',
         folder: '../../outside',
-        trigger: '@Andy',
       },
       'root',
       deps,
@@ -617,7 +609,6 @@ describe('register_group success', () => {
         jid: 'new@g.us',
         name: 'New Group',
         folder: 'atlas/support',
-        trigger: '@Andy',
       },
       'root',
       deps,

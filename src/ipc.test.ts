@@ -216,17 +216,13 @@ describe('list_actions platform filtering', () => {
   function groupEntry(name: string): {
     name: string;
     folder: string;
-    trigger: string;
     added_at: string;
   } {
-    return { name, folder, trigger: '', added_at: '' };
+    return { name, folder, added_at: '' };
   }
 
   function listActionsDeps(
-    groups: Record<
-      string,
-      { name: string; folder: string; trigger: string; added_at: string }
-    >,
+    groups: Record<string, { name: string; folder: string; added_at: string }>,
   ): IpcDeps {
     return makeDeps({
       getJidsForFolder: (f: string) =>
@@ -306,7 +302,7 @@ describe('list_actions platform filtering', () => {
 
   it('excludes social actions when no JIDs match folder', async () => {
     const groups = {
-      'reddit:x': { name: 'x', folder: 'other', trigger: '', added_at: '' },
+      'reddit:x': { name: 'x', folder: 'other', added_at: '' },
     };
     const reply = await listActions(listActionsDeps(groups), folder);
     expect(reply.ok).toBe(true);

@@ -218,7 +218,6 @@ describe('registerGroup — max_children', () => {
           ? {
               folder: 'root',
               name: 'Root',
-              trigger: '',
               added_at: '',
               maxChildren: 3,
             }
@@ -227,7 +226,7 @@ describe('registerGroup — max_children', () => {
       getDirectChildGroupCount: vi.fn(() => 2),
     });
     const result = await registerGroup.handler(
-      { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
+      { jid: 'new@g.us', name: 'New', folder: 'root/c' },
       ctx,
     );
     expect(result).toEqual({ registered: true });
@@ -241,7 +240,6 @@ describe('registerGroup — max_children', () => {
           ? {
               folder: 'root',
               name: 'Root',
-              trigger: '',
               added_at: '',
               maxChildren: 2,
             }
@@ -250,7 +248,7 @@ describe('registerGroup — max_children', () => {
       getDirectChildGroupCount: vi.fn(() => 2),
     });
     const result = await registerGroup.handler(
-      { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
+      { jid: 'new@g.us', name: 'New', folder: 'root/c' },
       ctx,
     );
     expect(result).toEqual({
@@ -268,7 +266,6 @@ describe('registerGroup — max_children', () => {
           ? {
               folder: 'root',
               name: 'Root',
-              trigger: '',
               added_at: '',
               maxChildren: 0,
             }
@@ -276,7 +273,7 @@ describe('registerGroup — max_children', () => {
       ),
     });
     const result = await registerGroup.handler(
-      { jid: 'new@g.us', name: 'New', folder: 'root/c', trigger: '' },
+      { jid: 'new@g.us', name: 'New', folder: 'root/c' },
       ctx,
     );
     expect(result).toEqual({
@@ -291,7 +288,7 @@ describe('registerGroup — max_children', () => {
     const ctx = makeCtx('root', {
       getGroupConfig: vi.fn((folder: string) =>
         folder === 'root'
-          ? { folder: 'root', name: 'Root', trigger: '', added_at: '' }
+          ? { folder: 'root', name: 'Root', added_at: '' }
           : undefined,
       ),
       getDirectChildGroupCount: vi.fn(() => 49),
@@ -308,7 +305,7 @@ describe('registerGroup — max_children', () => {
     const ctx = makeCtx('root', {
       getGroupConfig: vi.fn((folder: string) =>
         folder === 'root'
-          ? { folder: 'root', name: 'Root', trigger: '', added_at: '' }
+          ? { folder: 'root', name: 'Root', added_at: '' }
           : undefined,
       ),
       getDirectChildGroupCount: vi.fn(() => 50),
@@ -332,7 +329,6 @@ describe('registerGroup — max_children', () => {
           ? {
               folder: 'root',
               name: 'Root',
-              trigger: '',
               added_at: '',
               maxChildren: 0,
             }
