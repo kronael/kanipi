@@ -41,7 +41,8 @@ import {
   stopContainerArgs,
 } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
-import { RegisteredGroup, SidecarHandle, SidecarSpec } from './types.js';
+import { getJidsForFolder, GroupConfig } from './db.js';
+import { SidecarHandle, SidecarSpec } from './types.js';
 
 export let _spawnProcess: (
   cmd: string,
@@ -132,7 +133,7 @@ function initSettings(dir: string, spawnEnv: Record<string, string>): void {
 }
 
 function buildVolumeMounts(
-  group: RegisteredGroup,
+  group: GroupConfig,
   delegateDepth?: number,
 ): VolumeMount[] {
   const root = isRoot(group.folder);
@@ -427,7 +428,7 @@ function probeSidecar(sockPath: string): Promise<boolean> {
 }
 
 function resolveSidecars(
-  group: RegisteredGroup,
+  group: GroupConfig,
 ): Array<SidecarSpec & { name: string }> {
   const specs: Record<string, SidecarSpec> = {};
 
@@ -519,7 +520,7 @@ async function startSidecar(
 }
 
 async function startSidecars(
-  group: RegisteredGroup,
+  group: GroupConfig,
   sockDir: string,
 ): Promise<SidecarHandle[]> {
   const specs = resolveSidecars(group);
@@ -641,7 +642,7 @@ function writeGatewayCaps(groupDir: string): void {
 // --- Agent runner ---
 
 export async function runContainerAgent(
-  group: RegisteredGroup,
+  group: GroupConfig,
   input: ContainerInput,
   onProcess: (proc: ChildProcess, containerName: string) => void,
   onOutput?: (output: ContainerOutput) => Promise<void>,
@@ -1155,17 +1156,18 @@ export function writeTasksSnapshot(
 
 export function writeActionManifest(
   groupFolder: string,
-  groups: Record<string, RegisteredGroup>,
+  _groups: Record<string, GroupConfig>,
 ): void {
   const groupIpcDir = resolveGroupIpcPath(groupFolder);
   fs.mkdirSync(groupIpcDir, { recursive: true });
   const manifestFile = path.join(groupIpcDir, 'action_manifest.json');
   const tier = permissionTier(groupFolder);
+  // Get all JIDs that route to this folder, extract platform prefixes
+  const jids = getJidsForFolder(groupFolder);
   const platforms = [
     ...new Set(
-      Object.entries(groups)
-        .filter(([, g]) => g.folder === groupFolder)
-        .map(([jid]) => jid.split(':')[0])
+      jids
+        .map((jid) => jid.split(':')[0])
         .filter((p) => p.length > 0 && !p.includes('@')),
     ),
   ];

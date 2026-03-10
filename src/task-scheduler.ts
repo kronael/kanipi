@@ -17,6 +17,7 @@ import {
   getAllTasks,
   getDueTasks,
   getTaskById,
+  GroupConfig,
   logTaskRun,
   updateTask,
   updateTaskAfterRun,
@@ -24,10 +25,10 @@ import {
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { logger } from './logger.js';
-import { RegisteredGroup, ScheduledTask } from './types.js';
+import { ScheduledTask } from './types.js';
 
 export interface SchedulerDependencies {
-  registeredGroups: () => Record<string, RegisteredGroup>;
+  registeredGroups: () => Record<string, GroupConfig>;
   getSessions: () => Record<string, string>;
   queue: GroupQueue;
   onProcess: (

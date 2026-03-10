@@ -207,12 +207,11 @@ injected by the gateway on recursive delegation (max 3).
 
 ### Routing
 
-| Action         | MCP | Input             |
-| -------------- | --- | ----------------- |
-| `get_routes`   | yes | `{ jid? }`        |
-| `set_routes`   | yes | `{ jid, routes }` |
-| `add_route`    | yes | `{ jid, route }`  |
-| `delete_route` | yes | `{ id }`          |
+| Action         | MCP | Input            |
+| -------------- | --- | ---------------- |
+| `get_routes`   | yes | `{ jid }`        |
+| `add_route`    | yes | `{ jid, route }` |
+| `delete_route` | yes | `{ id }`         |
 
 Tier 0 can modify any routes. Tier 1 can modify routes only
 if target folder is in its own subtree. Tier 2+ cannot modify

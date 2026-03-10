@@ -158,7 +158,7 @@ import {
 import { GroupQueue } from '../../src/group-queue.js';
 import {
   getAvailableGroups,
-  _setRegisteredGroups,
+  _setGroups,
   _processGroupMessages,
   _pushChannel,
   _setLastMessageDate,
@@ -166,14 +166,14 @@ import {
   _clearTestState,
   _delegateToChild,
 } from '../../src/index.js';
-import type { RegisteredGroup } from '../../src/types.js';
+import type { GroupConfig } from '../../src/db.js';
 import type { Channel } from '../../src/types.js';
 import type { ContainerInput } from '../../src/container-runner.js';
 
 beforeEach(() => {
   vi.useFakeTimers();
   _initTestDatabase();
-  _setRegisteredGroups({});
+  _setGroups({}, {});
   _clearTestState();
   vi.resetAllMocks();
 });
@@ -197,14 +197,18 @@ describe('getAvailableGroups (gateway export)', () => {
       'telegram',
       true,
     );
-    _setRegisteredGroups({
-      'g1@g.us': {
-        name: 'G1',
-        folder: 'g1',
-        trigger: '@Andy',
-        added_at: '2024-01-01T00:00:00.000Z',
+    _setGroups(
+      {
+        g1: {
+          name: 'G1',
+          folder: 'g1',
+          trigger: '@Andy',
+          added_at: '2024-01-01T00:00:00.000Z',
+          requiresTrigger: true,
+        },
       },
-    });
+      { 'g1@g.us': 'g1' },
+    );
     const groups = getAvailableGroups();
     expect(groups).toHaveLength(1);
     expect(groups[0].isRegistered).toBe(true);
@@ -374,7 +378,7 @@ function makeChannel(
 
 const TEST_JID = 'testgroup@g.us';
 const TEST_FOLDER = 'testfolder';
-const TEST_GROUP: RegisteredGroup = {
+const TEST_GROUP: GroupConfig = {
   name: 'Test Group',
   folder: TEST_FOLDER,
   trigger: '@Andy',
@@ -392,7 +396,7 @@ function setupGroup(): Channel & { sendMessage: ReturnType<typeof vi.fn> } {
     content: 'hello',
     timestamp: '2024-01-01T00:01:00.000Z',
   });
-  _setRegisteredGroups({ [TEST_JID]: TEST_GROUP });
+  _setGroups({ [TEST_FOLDER]: TEST_GROUP }, { [TEST_JID]: TEST_FOLDER });
   const ch = makeChannel(TEST_JID);
   _pushChannel(ch);
   return ch;
@@ -532,8 +536,8 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
     timestamp: ROUTED_MSG_TS,
   });
 
-  const groups: Record<string, RegisteredGroup> = {
-    [ROUTED_JID]: {
+  const groupConfigs: Record<string, GroupConfig> = {
+    root: {
       name: 'Main',
       folder: 'root',
       trigger: '@Andy',
@@ -542,16 +546,22 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
     },
   };
 
+  const jidMap: Record<string, string> = {
+    [ROUTED_JID]: 'root',
+  };
+
   if (registerChild) {
-    groups[CHILD_JID] = {
+    groupConfigs[CHILD_FOLDER] = {
       name: 'Code',
       folder: CHILD_FOLDER,
       trigger: '@Andy',
       added_at: '2024-02-01T00:00:00.000Z',
+      requiresTrigger: true,
     };
+    jidMap[CHILD_JID] = CHILD_FOLDER;
   }
 
-  _setRegisteredGroups(groups);
+  _setGroups(groupConfigs, jidMap);
 
   // Set up flat routing via routes table
   setRoutesForJid(ROUTED_JID, [

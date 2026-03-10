@@ -2,13 +2,7 @@ import { z } from 'zod';
 
 import { Action } from '../action-registry.js';
 import { writeCommandsXml } from '../commands/index.js';
-import {
-  addRoute,
-  deleteRoute,
-  getRouteById,
-  getRoutesForJid,
-  setRoutesForJid,
-} from '../db.js';
+import { addRoute, deleteRoute, getRouteById, getRoutesForJid } from '../db.js';
 import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
 import { isDirectChild } from '../permissions.js';
@@ -102,7 +96,7 @@ export const registerGroup: Action = {
       trigger: input.trigger,
       added_at: new Date().toISOString(),
       containerConfig: input.containerConfig,
-      requiresTrigger: input.requiresTrigger,
+      requiresTrigger: input.requiresTrigger ?? true,
       parent: input.parent,
     });
     writeCommandsXml(input.folder);
@@ -211,32 +205,6 @@ export const getRoutes: Action = {
     if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = GetRoutesInput.parse(raw);
     return { jid: input.jid, routes: getRoutesForJid(input.jid) };
-  },
-};
-
-const SetRoutesInput = z.object({
-  jid: z.string().min(1),
-  routes: z.array(RouteSchema),
-});
-
-export const setRoutes: Action = {
-  name: 'set_routes',
-  description: 'Replace all routing rules for a JID',
-  minTier: 1,
-  input: SetRoutesInput,
-  async handler(raw, ctx) {
-    if (ctx.tier >= 2) throw new Error('unauthorized');
-    const input = SetRoutesInput.parse(raw);
-    for (const r of input.routes) {
-      if (!isAuthorizedRoutingTarget(ctx.sourceGroup, r.target)) {
-        throw new Error(
-          `unauthorized: ${ctx.sourceGroup} cannot route to ${r.target}`,
-        );
-      }
-    }
-    logger.info({ jid: input.jid, n: input.routes.length }, 'set_routes');
-    setRoutesForJid(input.jid, input.routes);
-    return { jid: input.jid, routes: input.routes };
   },
 };
 

@@ -56,10 +56,14 @@ function normalizeJid(jid: string): string {
 // --- group commands ---
 
 interface GroupRow {
-  jid: string;
-  name: string;
   folder: string;
-  requires_trigger: number | null;
+  name: string;
+  requires_trigger: number;
+}
+
+interface RouteRow {
+  jid: string;
+  target: string;
 }
 
 interface ChatRow {
@@ -76,25 +80,37 @@ function groupList(instance: string): void {
   }
 
   const db = new Database(dbPath, { readonly: true });
-  const groups = db
-    .prepare(
-      'SELECT jid, name, folder, requires_trigger FROM registered_groups',
-    )
+  const groupRows = db
+    .prepare('SELECT folder, name, requires_trigger FROM groups')
     .all() as GroupRow[];
+  const routeRows = db
+    .prepare("SELECT jid, target FROM routes WHERE type = 'default'")
+    .all() as RouteRow[];
   const chats = db
     .prepare('SELECT jid, name, channel FROM chats WHERE is_group = 1')
     .all() as ChatRow[];
   db.close();
 
-  const registered = new Set(groups.map((g) => g.jid));
-  console.log('registered:');
-  if (!groups.length) console.log('  (none)');
-  for (const g of groups) {
-    const rt = g.requires_trigger ? 'trigger' : 'direct';
-    console.log(`  ${g.jid}  ${g.folder}  ${rt}${g.name ? '  ' + g.name : ''}`);
+  // Build folder -> JIDs map
+  const folderJids = new Map<string, string[]>();
+  for (const r of routeRows) {
+    const arr = folderJids.get(r.target) || [];
+    arr.push(r.jid);
+    folderJids.set(r.target, arr);
   }
 
-  const discovered = chats.filter((c) => !registered.has(c.jid));
+  const routedJids = new Set(routeRows.map((r) => r.jid));
+
+  console.log('groups:');
+  if (!groupRows.length) console.log('  (none)');
+  for (const g of groupRows) {
+    const rt = g.requires_trigger ? 'trigger' : 'direct';
+    const jids = folderJids.get(g.folder) || [];
+    const jidStr = jids.length > 0 ? jids.join(', ') : '(no routes)';
+    console.log(`  ${g.folder}  ${rt}  ${g.name}  [${jidStr}]`);
+  }
+
+  const discovered = chats.filter((c) => !routedJids.has(c.jid));
   if (discovered.length) {
     console.log('discovered:');
     for (const c of discovered) {
@@ -119,12 +135,10 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
   const envPath = path.join(dataDir, '.env');
   const assistant = readEnvValue(envPath, 'ASSISTANT_NAME') || instance;
 
-  const count = (
-    db.prepare('SELECT COUNT(*) as n FROM registered_groups').get() as {
-      n: number;
-    }
+  const groupCount = (
+    db.prepare('SELECT COUNT(*) as n FROM groups').get() as { n: number }
   ).n;
-  const finalFolder = folder || (count === 0 ? 'root' : '');
+  const finalFolder = folder || (groupCount === 0 ? 'root' : '');
 
   if (!finalFolder) {
     console.error('folder required (not first group)');
@@ -132,9 +146,7 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
     process.exit(1);
   }
 
-  // Multiple JIDs can share the same folder (e.g., group + DM both route to root)
-
-  const rt = count === 0 ? 0 : 1;
+  const rt = groupCount === 0 ? 0 : 1;
   const trigger = rt ? `@${assistant}` : '';
   const now = new Date().toISOString();
   const isWeb = normalizedJid.startsWith('web:');
@@ -142,6 +154,43 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
     ? crypto.randomBytes(12).toString('base64url')
     : null;
 
+  // Check if group config already exists
+  const existingGroup = db
+    .prepare('SELECT folder FROM groups WHERE folder = ?')
+    .get(finalFolder);
+
+  if (!existingGroup) {
+    // Create group config (folder-keyed)
+    db.prepare(
+      `INSERT INTO groups
+       (folder, name, added_at, container_config, parent, trigger_pattern, requires_trigger, slink_token, max_children)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      finalFolder,
+      finalFolder,
+      now,
+      null,
+      null,
+      trigger,
+      rt,
+      slinkToken,
+      50,
+    );
+  }
+
+  // Check if route already exists
+  const existingRoute = db
+    .prepare("SELECT id FROM routes WHERE jid = ? AND type = 'default'")
+    .get(normalizedJid);
+
+  if (!existingRoute) {
+    // Add default route (JID -> folder)
+    db.prepare(
+      `INSERT INTO routes (jid, seq, type, match, target) VALUES (?, 0, 'default', NULL, ?)`,
+    ).run(normalizedJid, finalFolder);
+  }
+
+  // Also insert into registered_groups for backwards compatibility during migration
   db.prepare(
     `INSERT OR REPLACE INTO registered_groups
      (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger, slink_token)
@@ -156,6 +205,7 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
     rt,
     slinkToken,
   );
+
   db.close();
 
   console.log(`added: ${normalizedJid} -> ${finalFolder}`);
@@ -184,27 +234,37 @@ function groupRm(instance: string, jid: string): void {
     process.exit(1);
   }
 
+  const normalizedJid = normalizeJid(jid);
   const db = new Database(dbPath);
-  const row = db
-    .prepare('SELECT folder FROM registered_groups WHERE jid = ?')
-    .get(jid) as { folder: string } | undefined;
 
-  if (!row) {
-    console.error(`not found: ${jid}`);
+  // Find the route for this JID
+  const route = db
+    .prepare("SELECT target FROM routes WHERE jid = ? AND type = 'default'")
+    .get(normalizedJid) as { target: string } | undefined;
+
+  if (!route) {
+    console.error(`not found: ${normalizedJid}`);
     db.close();
     process.exit(1);
   }
 
-  if (row.folder === 'root') {
+  if (route.target === 'root') {
     console.error('refused: cannot remove root group');
     db.close();
     process.exit(1);
   }
 
-  db.prepare('DELETE FROM registered_groups WHERE jid = ?').run(jid);
+  // Remove the route
+  db.prepare('DELETE FROM routes WHERE jid = ?').run(normalizedJid);
+
+  // Also remove from registered_groups for backwards compatibility
+  db.prepare('DELETE FROM registered_groups WHERE jid = ?').run(normalizedJid);
+
   db.close();
 
-  console.log(`removed: ${jid} (folder kept: groups/${row.folder})`);
+  console.log(
+    `removed: ${normalizedJid} (folder kept: groups/${route.target})`,
+  );
 }
 
 // --- mount commands ---

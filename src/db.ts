@@ -925,6 +925,23 @@ export function getJidsForFolder(folder: string): string[] {
   return rows.map((r) => r.jid);
 }
 
+/**
+ * Build a mapping from JID to default folder (for message loop polling).
+ * Returns the target of the default route for each JID.
+ */
+export function getJidToFolderMap(): Record<string, string> {
+  const rows = db
+    .prepare(
+      `SELECT jid, target FROM routes WHERE type = 'default' ORDER BY jid, seq`,
+    )
+    .all() as { jid: string; target: string }[];
+  const result: Record<string, string> = {};
+  for (const r of rows) {
+    if (!result[r.jid]) result[r.jid] = r.target;
+  }
+  return result;
+}
+
 // --- Groups table (flat routing) ---
 
 type GroupsRow = {

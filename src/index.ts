@@ -56,23 +56,27 @@ import {
   ensureContainerRuntimeRunning,
 } from './container-runtime.js';
 import {
+  addRoute,
   clearChatErrored,
   deleteSession,
   enqueueSystemMessage,
   flushSystemMessages,
   getAllChats,
-  getAllRegisteredGroups,
+  getAllGroupConfigs,
   getAllSessions,
   getAllTasks,
+  getGroupByFolder,
+  getJidToFolderMap,
   getMessagesSince,
   getNewMessages,
   getRecentSessions,
   getRouterState,
   getRoutesForJid,
+  GroupConfig,
   initDatabase,
   isChatErrored,
   markChatErrored,
-  setRegisteredGroup,
+  setGroupConfig,
   setRouterState,
   setSession,
   storeChatMetadata,
@@ -106,12 +110,13 @@ import {
   resolveRoute,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
-import { Channel, NewMessage, RegisteredGroup } from './types.js';
+import { Channel, NewMessage } from './types.js';
 import { logger } from './logger.js';
 
 let lastTimestamp = '';
 let sessions: Record<string, string> = {};
-let registeredGroups: Record<string, RegisteredGroup> = {};
+let groups: Record<string, GroupConfig> = {};
+let jidToFolder: Record<string, string> = {};
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
@@ -173,9 +178,13 @@ function loadState(): void {
     lastAgentTimestamp = {};
   }
   sessions = getAllSessions();
-  registeredGroups = getAllRegisteredGroups();
+  groups = getAllGroupConfigs();
+  jidToFolder = getJidToFolderMap();
   logger.info(
-    { groupCount: Object.keys(registeredGroups).length },
+    {
+      groupCount: Object.keys(groups).length,
+      jidCount: Object.keys(jidToFolder).length,
+    },
     'State loaded',
   );
 }
@@ -185,18 +194,22 @@ function saveState(): void {
   setRouterState('last_agent_timestamp', JSON.stringify(lastAgentTimestamp));
 }
 
-/** Refresh registeredGroups from DB and close orphaned containers */
-function refreshRegisteredGroups(): void {
-  const fresh = getAllRegisteredGroups();
-  const removed = Object.keys(registeredGroups).filter((jid) => !fresh[jid]);
-  for (const jid of removed) {
-    logger.info({ jid }, 'Group unregistered, closing container');
+/** Refresh groups and routes from DB, close orphaned containers */
+function refreshGroups(): void {
+  const freshGroups = getAllGroupConfigs();
+  const freshJidMap = getJidToFolderMap();
+  const removedJids = Object.keys(jidToFolder).filter(
+    (jid) => !freshJidMap[jid],
+  );
+  for (const jid of removedJids) {
+    logger.info({ jid }, 'Route removed, closing container');
     queue.closeStdin(jid);
   }
-  registeredGroups = fresh;
+  groups = freshGroups;
+  jidToFolder = freshJidMap;
 }
 
-function registerGroup(jid: string, group: RegisteredGroup): void {
+function registerGroup(jid: string, group: GroupConfig): void {
   let groupDir: string;
   try {
     groupDir = resolveGroupFolderPath(group.folder);
@@ -208,8 +221,20 @@ function registerGroup(jid: string, group: RegisteredGroup): void {
     return;
   }
 
-  registeredGroups[jid] = group;
-  setRegisteredGroup(jid, group);
+  // Store group config (folder-keyed)
+  groups[group.folder] = group;
+  setGroupConfig(group);
+
+  // Add default route (JID -> folder)
+  if (!jidToFolder[jid]) {
+    jidToFolder[jid] = group.folder;
+    addRoute(jid, {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: group.folder,
+    });
+  }
 
   // Create group folder
   fs.mkdirSync(path.join(groupDir, 'logs'), { recursive: true });
@@ -226,7 +251,7 @@ function registerGroup(jid: string, group: RegisteredGroup): void {
  */
 export function getAvailableGroups(): import('./container-runner.js').AvailableGroup[] {
   const chats = getAllChats();
-  const registeredJids = new Set(Object.keys(registeredGroups));
+  const routedJids = new Set(Object.keys(jidToFolder));
 
   return chats
     .filter((c) => c.jid !== '__group_sync__' && c.is_group)
@@ -234,15 +259,17 @@ export function getAvailableGroups(): import('./container-runner.js').AvailableG
       jid: c.jid,
       name: c.name,
       lastActivity: c.last_message_time,
-      isRegistered: registeredJids.has(c.jid),
+      isRegistered: routedJids.has(c.jid),
     }));
 }
 
 /** @internal - exported for testing */
-export function _setRegisteredGroups(
-  groups: Record<string, RegisteredGroup>,
+export function _setGroups(
+  g: Record<string, GroupConfig>,
+  j2f: Record<string, string>,
 ): void {
-  registeredGroups = groups;
+  groups = g;
+  jidToFolder = j2f;
 }
 
 /** @internal - exported for testing */
@@ -282,7 +309,8 @@ export function _clearTestState(): void {
 async function processGroupMessages(chatJid: string): Promise<boolean> {
   const t0 = Date.now();
   const traceId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  const group = registeredGroups[chatJid];
+  const folder = jidToFolder[chatJid];
+  const group = folder ? groups[folder] : undefined;
   if (!group) return true;
 
   const channel = findChannel(channels, chatJid);
@@ -493,18 +521,16 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
 function spawnGroupFromPrototype(
   targetFolder: string,
-): (RegisteredGroup & { jid: string }) | undefined {
+): (GroupConfig & { jid: string }) | undefined {
   const slash = targetFolder.lastIndexOf('/');
   if (slash < 0) return undefined;
   const parentFolder = targetFolder.slice(0, slash);
-  const parent = Object.values(registeredGroups).find(
-    (g) => g.folder === parentFolder,
-  );
+  const parent = groups[parentFolder];
   if (!parent) return undefined;
 
   const max = parent.maxChildren ?? 50;
   if (max === 0) return undefined;
-  const n = Object.values(registeredGroups).filter(
+  const n = Object.values(groups).filter(
     (g) => g.parent === parentFolder,
   ).length;
   if (n >= max) {
@@ -521,7 +547,7 @@ function spawnGroupFromPrototype(
   }
 
   const jid = `spawn:${targetFolder}`;
-  const group: RegisteredGroup = {
+  const group: GroupConfig = {
     name: targetFolder.split('/').pop()!,
     folder: targetFolder,
     trigger: parent.trigger,
@@ -529,8 +555,10 @@ function spawnGroupFromPrototype(
     requiresTrigger: true,
     parent: parentFolder,
   };
-  registeredGroups[jid] = group;
-  setRegisteredGroup(jid, group);
+  groups[targetFolder] = group;
+  setGroupConfig(group);
+  jidToFolder[jid] = targetFolder;
+  addRoute(jid, { seq: 0, type: 'default', match: null, target: targetFolder });
   logger.info({ parentFolder, targetFolder }, 'spawned child group');
   return { ...group, jid };
 }
@@ -542,12 +570,11 @@ async function delegateToGroup(
   depth: number,
   label: string,
 ): Promise<void> {
-  let target = Object.values(registeredGroups).find(
-    (g) => g.folder === targetFolder,
-  );
+  let target: GroupConfig | undefined = groups[targetFolder];
   if (!target) {
-    target = spawnGroupFromPrototype(targetFolder);
-    if (!target) throw new Error(`unknown ${label} group: ${targetFolder}`);
+    const spawned = spawnGroupFromPrototype(targetFolder);
+    if (!spawned) throw new Error(`unknown ${label} group: ${targetFolder}`);
+    target = spawned;
   }
 
   const channel = findChannel(channels, originJid);
@@ -558,7 +585,7 @@ async function delegateToGroup(
   const taskId = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   queue.enqueueTask(targetFolder, taskId, async () => {
-    writeActionManifest(target.folder, registeredGroups);
+    writeActionManifest(target.folder, groups);
     const output = await runContainerAgent(
       target,
       {
@@ -621,7 +648,7 @@ function delegateToParent(
 }
 
 async function runAgent(
-  group: RegisteredGroup,
+  group: GroupConfig,
   prompt: string,
   chatJid: string,
   messageCount: number,
@@ -650,11 +677,11 @@ async function runAgent(
   writeGroupsSnapshot(
     group.folder,
     availableGroups,
-    new Set(Object.keys(registeredGroups)),
+    new Set(Object.keys(jidToFolder)),
   );
 
   // Write action manifest for agent-side tool discovery
-  writeActionManifest(group.folder, registeredGroups);
+  writeActionManifest(group.folder, groups);
 
   // Inject diary summaries on session start (no existing session)
   const annotations: string[] = [];
@@ -730,10 +757,10 @@ async function startMessageLoop(): Promise<void> {
 
   while (true) {
     try {
-      // Refresh groups from DB (closes orphaned containers for unregistered JIDs)
-      refreshRegisteredGroups();
+      // Refresh groups from DB (closes orphaned containers for removed routes)
+      refreshGroups();
 
-      const jids = Object.keys(registeredGroups);
+      const jids = Object.keys(jidToFolder);
       const { messages, newTimestamp } = getNewMessages(
         jids,
         lastTimestamp,
@@ -759,7 +786,8 @@ async function startMessageLoop(): Promise<void> {
         }
 
         for (const [chatJid, groupMessages] of messagesByGroup) {
-          const group = registeredGroups[chatJid];
+          const folder = jidToFolder[chatJid];
+          const group = folder ? groups[folder] : undefined;
           if (!group) continue;
 
           const channel = findChannel(channels, chatJid);
@@ -768,8 +796,7 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          const needsTrigger =
-            !isRoot(group.folder) && group.requiresTrigger !== false;
+          const needsTrigger = !isRoot(group.folder) && group.requiresTrigger;
 
           // Intercept command messages before routing to agent
           const nonCommandMessages: NewMessage[] = [];
@@ -909,7 +936,9 @@ async function startMessageLoop(): Promise<void> {
  * Handles crash between advancing lastTimestamp and processing messages.
  */
 function recoverPendingMessages(): void {
-  for (const [chatJid, group] of Object.entries(registeredGroups)) {
+  for (const [chatJid, folder] of Object.entries(jidToFolder)) {
+    const group = groups[folder];
+    if (!group) continue;
     const sinceTimestamp = lastAgentTimestamp[chatJid] || '';
     const pending = getMessagesSince(chatJid, sinceTimestamp, ASSISTANT_NAME);
     if (pending.length > 0 && !isChatErrored(chatJid)) {
@@ -940,7 +969,7 @@ async function main(): Promise<void> {
   logger.info('Database initialized');
   loadState();
   initCommands();
-  for (const group of Object.values(registeredGroups)) {
+  for (const group of Object.values(groups)) {
     writeCommandsXml(group.folder);
   }
 
@@ -954,6 +983,16 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
+  // Build JID-keyed groups map for channel compatibility
+  const getJidGroups = () => {
+    const result: Record<string, GroupConfig> = {};
+    for (const [jid, folder] of Object.entries(jidToFolder)) {
+      const g = groups[folder];
+      if (g) result[jid] = g;
+    }
+    return result;
+  };
+
   // Channel callbacks (shared by all channels)
   const channelOpts = {
     onMessage: (
@@ -963,7 +1002,8 @@ async function main(): Promise<void> {
       download?: AttachmentDownloader,
     ) => {
       storeMessage(msg);
-      const group = registeredGroups[msg.chat_jid];
+      const folder = jidToFolder[msg.chat_jid];
+      const group = folder ? groups[folder] : undefined;
       if (attachments && download && group) {
         enqueueEnrichment(msg.id, group.folder, attachments, download);
         // Cache for /file put command — command interception reads from DB later
@@ -982,7 +1022,7 @@ async function main(): Promise<void> {
       channel?: string,
       isGroup?: boolean,
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
-    registeredGroups: () => registeredGroups,
+    registeredGroups: getJidGroups,
   };
 
   // Create and connect channels
@@ -1088,7 +1128,7 @@ async function main(): Promise<void> {
 
   // Start subsystems (independently of connection handler)
   startSchedulerLoop({
-    registeredGroups: () => registeredGroups,
+    registeredGroups: getJidGroups,
     getSessions: () => sessions,
     queue,
     onProcess: (groupJid, proc, containerName, groupFolder) =>
@@ -1121,7 +1161,7 @@ async function main(): Promise<void> {
       }
       return channel.sendDocument(jid, filePath, filename);
     },
-    registeredGroups: () => registeredGroups,
+    registeredGroups: getJidGroups,
     registerGroup,
     clearSession: (groupFolder) => {
       delete sessions[groupFolder];

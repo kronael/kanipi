@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { _initTestDatabase, storeChatMetadata } from './db.js';
-import { getAvailableGroups, _setRegisteredGroups } from './index.js';
+import { getAvailableGroups, _setGroups } from './index.js';
 import {
   isAuthorizedRoutingTarget,
   resolveRoute,
@@ -12,7 +12,7 @@ import type { NewMessage, Route } from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
-  _setRegisteredGroups({});
+  _setGroups({}, {});
 });
 
 // --- spawnFolderName ---
@@ -150,14 +150,18 @@ describe('getAvailableGroups', () => {
       true,
     );
 
-    _setRegisteredGroups({
-      'reg@g.us': {
-        name: 'Registered',
-        folder: 'registered',
-        trigger: '@Andy',
-        added_at: '2024-01-01T00:00:00.000Z',
+    _setGroups(
+      {
+        registered: {
+          name: 'Registered',
+          folder: 'registered',
+          trigger: '@Andy',
+          added_at: '2024-01-01T00:00:00.000Z',
+          requiresTrigger: true,
+        },
       },
-    });
+      { 'reg@g.us': 'registered' },
+    );
 
     const groups = getAvailableGroups();
     const reg = groups.find((g) => g.jid === 'reg@g.us');

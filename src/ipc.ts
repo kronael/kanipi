@@ -25,7 +25,6 @@ import {
   getRoutes,
   refreshGroups,
   registerGroup,
-  setRoutes,
 } from './actions/groups.js';
 import { allSocialActions } from './actions/social.js';
 import {
@@ -37,8 +36,8 @@ import {
   permissionTier,
 } from './config.js';
 import { AvailableGroup } from './container-runner.js';
+import { GroupConfig } from './db.js';
 import { logger } from './logger.js';
-import { RegisteredGroup } from './types.js';
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
@@ -47,8 +46,8 @@ export interface IpcDeps {
     filePath: string,
     filename?: string,
   ) => Promise<void>;
-  registeredGroups: () => Record<string, RegisteredGroup>;
-  registerGroup: (jid: string, group: RegisteredGroup) => void;
+  registeredGroups: () => Record<string, GroupConfig>;
+  registerGroup: (jid: string, group: GroupConfig) => void;
   syncGroupMetadata: (force: boolean) => Promise<void>;
   getAvailableGroups: () => AvailableGroup[];
   writeGroupsSnapshot: (
@@ -82,7 +81,6 @@ const allActions: Action[] = [
   refreshGroups,
   registerGroup,
   getRoutes,
-  setRoutes,
   addRouteAction,
   deleteRouteAction,
   delegateGroup,
