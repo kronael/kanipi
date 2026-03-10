@@ -100,7 +100,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **18**. If version < 18: migrations pending.
+Latest migration version: **19**. If version < 19: migrations pending.
 
 ## MCP tools
 
@@ -132,15 +132,21 @@ document attachment.
 
 Files you can create/edit in `/workspace/group/` to configure gateway behaviour:
 
-| File                | Effect                                                        |
-| ------------------- | ------------------------------------------------------------- |
-| `.whisper-language` | One ISO-639-1 code per line (e.g. `cs`, `ru`). Gateway runs   |
-|                     | one forced transcription pass per language in addition to the |
-|                     | auto-detect pass. Output labelled `[voice/cs: ...]` etc.      |
-|                     | Leave absent or empty for auto-detect only.                   |
-| `prototype/`        | Template for dynamically spawned child groups. Gateway copies |
-|                     | all files from this dir into the child folder on spawn. If    |
-|                     | missing, dynamic child spawning is refused for this group.    |
+| File                | Effect                                                          |
+| ------------------- | --------------------------------------------------------------- |
+| `.whisper-language` | One ISO-639-1 code per line (e.g. `cs`, `ru`). Gateway runs     |
+|                     | one forced transcription pass per language in addition to the   |
+|                     | auto-detect pass. Output labelled `[voice/cs: ...]` etc.        |
+|                     | Leave absent or empty for auto-detect only.                     |
+| `SOUL.md`           | Persona/voice for this group's agent.                           |
+| `CLAUDE.md`         | Group-specific instructions (supplements `~/.claude/CLAUDE.md`) |
+| `{name}/SOUL.md`    | Persona for a child group named `{name}` — e.g. to configure    |
+|                     | `atlas/support` from inside the `atlas` container, write to     |
+|                     | `/workspace/group/support/SOUL.md`. Do NOT include the world    |
+|                     | prefix — `/workspace/group` IS the world folder already.        |
+| `prototype/`        | Template for dynamically spawned child groups. Gateway copies   |
+|                     | all files from this dir into the child folder on spawn. If      |
+|                     | missing, dynamic child spawning is refused for this group.      |
 
 Example — transcribe in Czech and Russian as well as auto-detect:
 

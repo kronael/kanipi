@@ -257,28 +257,8 @@ function buildVolumeMounts(
   mounts.push({
     hostPath: hostPath(groupSessionsDir),
     containerPath: '/home/node/.claude',
-    readonly: tier >= 2,
+    readonly: tier >= 3,
   });
-
-  // Tier 2 agents: rw overrides for memory and session transcripts
-  if (tier === 2) {
-    const memDir = path.join(groupSessionsDir, 'memory');
-    fs.mkdirSync(memDir, { recursive: true });
-    chownRecursive(memDir, 1000, 1000);
-    mounts.push({
-      hostPath: hostPath(memDir),
-      containerPath: '/home/node/.claude/memory',
-      readonly: false,
-    });
-    const projDir = path.join(groupSessionsDir, 'projects');
-    fs.mkdirSync(projDir, { recursive: true });
-    chownRecursive(projDir, 1000, 1000);
-    mounts.push({
-      hostPath: hostPath(projDir),
-      containerPath: '/home/node/.claude/projects',
-      readonly: false,
-    });
-  }
 
   const groupIpcDir = resolveGroupIpcPath(group.folder);
   for (const sub of ['messages', 'tasks', 'input', 'requests', 'replies']) {
