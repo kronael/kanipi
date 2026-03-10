@@ -67,6 +67,13 @@ Group message → atlas/support.
 
 Groups are folder configs. No JID, no routing rules.
 
+## Channel JID check
+
+Channels check `isRoutedJid(jid)` — a boolean that answers "does any
+route exist for this JID?". They do not receive or use GroupConfig.
+The concept of "a group for a JID" does not exist in flat routing.
+One JID can route to different folders based on message content.
+
 ```sql
 CREATE TABLE groups (
   folder TEXT PRIMARY KEY,
