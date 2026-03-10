@@ -76,7 +76,9 @@ function groupList(instance: string): void {
     .prepare('SELECT folder, name FROM groups')
     .all() as GroupRow[];
   const routeRows = db
-    .prepare("SELECT jid, target FROM routes WHERE type = 'default'")
+    .prepare(
+      "SELECT jid, target FROM routes WHERE type IN ('default', 'trigger')",
+    )
     .all() as RouteRow[];
   const chats = db
     .prepare('SELECT jid, name, channel FROM chats WHERE is_group = 1')
@@ -117,9 +119,6 @@ function groupAdd(instance: string, folder?: string): void {
   // Ensure DB exists with schema
   const db = ensureDatabase(dbPath);
 
-  const envPath = path.join(dataDir, '.env');
-  const assistant = readEnvValue(envPath, 'ASSISTANT_NAME') || instance;
-
   const groupCount = (
     db.prepare('SELECT COUNT(*) as n FROM groups').get() as { n: number }
   ).n;
@@ -131,8 +130,6 @@ function groupAdd(instance: string, folder?: string): void {
     process.exit(1);
   }
 
-  const rt = groupCount === 0 ? 0 : 1;
-  const trigger = rt ? `@${assistant}` : '';
   const now = new Date().toISOString();
 
   const existingGroup = db
@@ -142,9 +139,9 @@ function groupAdd(instance: string, folder?: string): void {
   if (!existingGroup) {
     db.prepare(
       `INSERT INTO groups
-       (folder, name, added_at, container_config, parent, trigger_pattern, requires_trigger, slink_token, max_children)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(finalFolder, finalFolder, now, null, null, trigger, rt, null, 50);
+       (folder, name, added_at, container_config, parent, slink_token, max_children)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(finalFolder, finalFolder, now, null, null, null, 50);
   }
 
   db.close();

@@ -17,6 +17,8 @@ package-lock.json
 .ripgreprc
 .vscode
 .claude/
+!prototype/.claude/
+!prototype/.claude/**
 HEAD
 config
 hooks
