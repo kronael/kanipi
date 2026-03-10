@@ -7,7 +7,6 @@ import {
   escalateGroup,
   getRoutes,
   registerGroup,
-  setRoutes,
 } from './groups.js';
 import type { ActionContext } from '../action-registry.js';
 
@@ -494,61 +493,6 @@ describe('getRoutes', () => {
     await expect(getRoutes.handler({ jid: 'tg/-100' }, ctx)).rejects.toThrow(
       'unauthorized',
     );
-  });
-});
-
-describe('setRoutes', () => {
-  it('replaces routes for JID when tier 0 (root)', async () => {
-    const { setRoutesForJid } = await import('../db.js');
-    const { isAuthorizedRoutingTarget } = await import('../router.js');
-    vi.mocked(isAuthorizedRoutingTarget).mockReturnValue(true);
-    const ctx = makeCtx('root');
-    const newRoutes = [
-      { seq: 0, type: 'command' as const, match: 'start', target: 'root/main' },
-    ];
-    const result = await setRoutes.handler(
-      { jid: 'tg/-100', routes: newRoutes },
-      ctx,
-    );
-    expect(result).toEqual({ jid: 'tg/-100', routes: newRoutes });
-    expect(setRoutesForJid).toHaveBeenCalledWith('tg/-100', newRoutes);
-  });
-
-  it('rejects tier 2 group', async () => {
-    const ctx = makeCtx('root/code');
-    await expect(
-      setRoutes.handler(
-        {
-          jid: 'tg/-100',
-          routes: [
-            { seq: 0, type: 'default' as const, match: null, target: 'root' },
-          ],
-        },
-        ctx,
-      ),
-    ).rejects.toThrow('unauthorized');
-  });
-
-  it('denies tier 0 (root) routing to unauthorized target', async () => {
-    const { isAuthorizedRoutingTarget } = await import('../router.js');
-    vi.mocked(isAuthorizedRoutingTarget).mockReturnValue(false);
-    const ctx = makeCtx('root');
-    await expect(
-      setRoutes.handler(
-        {
-          jid: 'tg/-100',
-          routes: [
-            {
-              seq: 0,
-              type: 'default' as const,
-              match: null,
-              target: 'invalid',
-            },
-          ],
-        },
-        ctx,
-      ),
-    ).rejects.toThrow('unauthorized');
   });
 });
 

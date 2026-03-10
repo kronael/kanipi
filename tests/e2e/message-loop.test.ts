@@ -722,15 +722,18 @@ function setupUnauthorizedRouting(
     content: '/route me somewhere',
     timestamp: UNAUTH_TS,
   });
-  _setRegisteredGroups({
-    [sourceJid]: {
-      name: 'Source',
-      folder: sourceFolder,
-      trigger: '@Andy',
-      added_at: '2024-04-01T00:00:00.000Z',
-      requiresTrigger: false,
+  _setGroups(
+    {
+      [sourceFolder]: {
+        name: 'Source',
+        folder: sourceFolder,
+        trigger: '@Andy',
+        added_at: '2024-04-01T00:00:00.000Z',
+        requiresTrigger: false,
+      },
     },
-  });
+    { [sourceJid]: sourceFolder },
+  );
 
   // Set up flat routing via routes table
   setRoutesForJid(sourceJid, [

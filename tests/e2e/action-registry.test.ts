@@ -32,7 +32,6 @@ const EXPECTED_ACTIONS = [
   'delegate_group',
   'escalate_group',
   'get_routes',
-  'set_routes',
   'add_route',
   'delete_route',
   'reset_session',

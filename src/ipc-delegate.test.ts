@@ -309,7 +309,7 @@ describe('list_actions IPC', () => {
     const names = manifest.map((a) => a.name);
     expect(names).toContain('delegate_group');
     expect(names).toContain('escalate_group');
-    expect(names).toContain('set_routes');
+    expect(names).toContain('add_route');
   });
 });
 
