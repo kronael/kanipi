@@ -537,17 +537,18 @@ function create(name: string): void {
     console.log(`created: ${envDst}`);
   }
 
-  // Seed web template
-  const webTemplateSrc = path.join(templateDir, 'web');
+  // Seed web template from container/skills/web/template/
+  const webTemplateSrc = path.resolve(
+    templateDir,
+    '..',
+    'container',
+    'skills',
+    'web',
+    'template',
+  );
   const webDst = path.join(dataDir, 'web');
   if (fs.existsSync(webTemplateSrc)) {
     copyDirRecursive(webTemplateSrc, webDst);
-  }
-
-  // Seed root group content from prototype/.claude/
-  const groupTemplateSrc = path.join(templateDir, '.claude');
-  if (fs.existsSync(groupTemplateSrc)) {
-    copyDirRecursive(groupTemplateSrc, path.join(dataDir, 'groups', 'root'));
   }
 
   // Generate systemd unit

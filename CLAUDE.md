@@ -121,7 +121,6 @@ container/            agent container build
   skills/             agent-side skills
 prototype/            seed for new instances
   .claude/CLAUDE.md   default group CLAUDE.md (group-chat behavior instructions)
-  web/                vite web app template
 sidecar/              MCP server binaries
 kanipi                bash entrypoint (legacy, for docker deployments)
 specs/                design specs (see below)

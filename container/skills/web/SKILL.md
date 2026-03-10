@@ -115,3 +115,15 @@ that isn't a persistent app:
 Create `pages/index.html` on first use (minimal HTML with
 hub.css styling). Do NOT add pages to the group hub — the
 pages index is their own listing.
+
+## Scaffold
+
+If `/workspace/web/` is missing or needs to be rebuilt from scratch, scaffold
+it from the built-in template:
+
+```bash
+cp -rn /workspace/self/container/skills/web/template/. /workspace/web/
+cd /workspace/web && npm install --silent
+```
+
+Then verify vite is running (see Restart vite above).

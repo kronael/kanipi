@@ -28,6 +28,12 @@ On first container spawn, gateway copies:
 
 Canonical latest skills always at `/workspace/self/container/skills/`.
 
+## Web scaffold
+
+`/workspace/web/` is seeded at instance creation from
+`/workspace/self/container/skills/web/template/`. If missing, the agent can
+re-scaffold it (see `/web` skill).
+
 ## Sync / migrate
 
 `/migrate` skill reads from `/workspace/self/container/skills/`, compares each
@@ -94,7 +100,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **16**. If version < 16: migrations pending.
+Latest migration version: **18**. If version < 18: migrations pending.
 
 ## MCP tools
 
