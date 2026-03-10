@@ -13,7 +13,7 @@ vi.mock('../logger.js', () => ({
 const GROUP = {
   name: 'G',
   folder: 'main',
-  trigger: 'always',
+
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
