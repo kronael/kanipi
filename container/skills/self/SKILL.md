@@ -138,6 +138,9 @@ Files you can create/edit in `/workspace/group/` to configure gateway behaviour:
 |                     | one forced transcription pass per language in addition to the |
 |                     | auto-detect pass. Output labelled `[voice/cs: ...]` etc.      |
 |                     | Leave absent or empty for auto-detect only.                   |
+| `prototype/`        | Template for dynamically spawned child groups. Gateway copies |
+|                     | all files from this dir into the child folder on spawn. If    |
+|                     | missing, dynamic child spawning is refused for this group.    |
 
 Example — transcribe in Czech and Russian as well as auto-detect:
 

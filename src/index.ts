@@ -547,11 +547,21 @@ function spawnGroupFromPrototype(
   }
 
   const parentPath = resolveGroupFolderPath(parentFolder);
+  const prototypePath = path.join(parentPath, 'prototype');
+  if (!fs.existsSync(prototypePath)) {
+    logger.warn(
+      { parentFolder, targetFolder },
+      'no _prototype dir, spawn refused',
+    );
+    return undefined;
+  }
   const childPath = resolveGroupFolderPath(targetFolder);
   fs.mkdirSync(childPath, { recursive: true });
-  for (const f of ['CLAUDE.md', 'SOUL.md']) {
-    const src = path.join(parentPath, f);
-    if (fs.existsSync(src)) fs.copyFileSync(src, path.join(childPath, f));
+  for (const entry of fs.readdirSync(prototypePath)) {
+    fs.copyFileSync(
+      path.join(prototypePath, entry),
+      path.join(childPath, entry),
+    );
   }
 
   const jid = `spawn:${targetFolder}`;
