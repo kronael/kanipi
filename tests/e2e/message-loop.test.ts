@@ -29,6 +29,7 @@ vi.mock('../../src/config.js', () => ({
   MEDIA_ENABLED: false,
   POLL_INTERVAL: 50,
   SCHEDULER_POLL_INTERVAL: 60000,
+  STORE_DIR: '/tmp/kanipi-e2e-store',
   TIMEZONE: 'UTC',
   TRIGGER_PATTERN: /^@Andy\b/i,
   IPC_POLL_INTERVAL: 1000,
@@ -41,6 +42,12 @@ vi.mock('../../src/logger.js', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
+    child: vi.fn(() => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    })),
   },
 }));
 
@@ -144,6 +151,7 @@ import {
   getAllRegisteredGroups,
   getMessagesSince,
   setRegisteredGroup,
+  setRoutesForJid,
   storeMessage,
   storeChatMetadata,
 } from '../../src/db.js';
@@ -531,9 +539,6 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
       trigger: '@Andy',
       added_at: '2024-02-01T00:00:00.000Z',
       requiresTrigger: false,
-      routingRules: [
-        { type: 'command', trigger: '/code', target: CHILD_FOLDER },
-      ],
     },
   };
 
@@ -547,6 +552,11 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
   }
 
   _setRegisteredGroups(groups);
+
+  // Set up flat routing via routes table
+  setRoutesForJid(ROUTED_JID, [
+    { seq: 0, type: 'command', match: '/code', target: CHILD_FOLDER },
+  ]);
 
   const ch = makeChannel(ROUTED_JID);
   _pushChannel(ch);
@@ -670,21 +680,16 @@ describe('processGroupMessages — clone-on-missing child', () => {
   });
 });
 
-// ── Unauthorized routing regression ───────────────────────────────────────────
+// ── Flat routing behavior ─────────────────────────────────────────────────────
 //
-// Two routing-check code paths in index.ts must NOT call delegateToChild when
-// isAuthorizedRoutingTarget returns false, and must fall back to parent handling:
+// With flat routing, routes are ALWAYS followed at runtime. Authorization is
+// enforced only when routes are CREATED via IPC actions (set_routes, add_route).
+// If delegation fails (e.g., target can't be spawned because parent doesn't
+// exist), the cursor rolls back and no agent runs.
 //
-// Path 1 — processGroupMessages (lines 222-248): when the pull path runs the
-//   parent group, unauthorized target → falls through to runAgent → parent's
-//   runContainerAgent is called.
-//
-// Path 2 — startMessageLoop inline block (lines 662-699): when new messages
-//   arrive, unauthorized target → falls through to queue.enqueueMessageCheck →
-//   processGroupMessages runs (path 1). startMessageLoop is a non-exported
-//   infinite loop, so tests exercise its observable outcome: the parent group
-//   ends up handled by processGroupMessages (the queue's processMessagesFn),
-//   with runContainerAgent called for the source group, not the denied target.
+// These tests verify the delegation-failure behavior: when a route exists but
+// the target cannot be spawned (no registered parent), delegation fails and
+// the cursor is rolled back.
 
 const UNAUTH_TS = '2024-04-01T00:01:00.000Z';
 
@@ -714,11 +719,13 @@ function setupUnauthorizedRouting(
       trigger: '@Andy',
       added_at: '2024-04-01T00:00:00.000Z',
       requiresTrigger: false,
-      routingRules: [
-        { type: 'command', trigger: '/route', target: unauthorizedTarget },
-      ],
     },
   });
+
+  // Set up flat routing via routes table
+  setRoutesForJid(sourceJid, [
+    { seq: 0, type: 'command', match: '/route', target: unauthorizedTarget },
+  ]);
   _pushChannel(makeChannel(sourceJid));
   mockRunContainerAgent.mockResolvedValue({
     status: 'success',
@@ -728,7 +735,7 @@ function setupUnauthorizedRouting(
 }
 
 // Path 1: processGroupMessages called directly (pull path via queue).
-describe('unauthorized routing — path 1 (processGroupMessages): falls back to parent', () => {
+describe('flat routing — delegation failure rollback', () => {
   it('grandchild target (root → root/code/py): delegates (child unregistered, cursor rolls back)', async () => {
     setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
 
@@ -742,57 +749,40 @@ describe('unauthorized routing — path 1 (processGroupMessages): falls back to 
     expect(_getLastAgentTimestamp('src@g.us')).toBe('');
   });
 
-  it('cross-world target (root → other/code): runs source group agent', async () => {
+  it('cross-world target (root → other/code): delegates but fails, cursor rolls back', async () => {
+    // With flat routing, routes are always followed (no runtime auth check).
+    // Authorization is enforced when routes are CREATED via IPC.
+    // Here: delegation fails because parent "other" doesn't exist.
     setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
 
     const ok = await _processGroupMessages('src@g.us');
 
     expect(ok).toBe(true);
-    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
-    const [g] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
-      ...unknown[],
-    ];
-    expect(g.folder).toBe('root');
+    // Delegation attempted, no spawn possible, no agent runs
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
   });
 
-  it('cross-world target: cursor advanced', async () => {
-    setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
-
-    await _processGroupMessages('src@g.us');
-
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
-  });
-
-  it('sibling target (root/code → root/ops): runs source group agent', async () => {
+  it('sibling target (root/code → root/ops): delegates but fails, cursor rolls back', async () => {
+    // With flat routing, routes are always followed.
+    // Here: delegation fails because parent "root" isn't registered.
     setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
 
     const ok = await _processGroupMessages('src@g.us');
 
     expect(ok).toBe(true);
-    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
-    const [g] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
-      ...unknown[],
-    ];
-    expect(g.folder).toBe('root/code');
-  });
-
-  it('sibling target: cursor advanced', async () => {
-    setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
-
-    await _processGroupMessages('src@g.us');
-
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+    // Delegation attempted, no spawn possible, no agent runs
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
   });
 });
 
-// Path 2: startMessageLoop inline routing block (lines 662-699) falls through
-// to queue.enqueueMessageCheck when auth is denied, which calls processGroupMessages
-// (the queue's processMessagesFn). The tests below exercise processGroupMessages
-// as that callback — the same function the loop dispatches to — proving the
-// parent group handles the message rather than the denied child.
-describe('unauthorized routing — path 2 (startMessageLoop fallback): parent handled via queue', () => {
+// Path 2: These tests verify the same delegation-failure behavior through the
+// processGroupMessages code path (same as path 1 since startMessageLoop is
+// not directly testable).
+describe('flat routing — delegation failure (path 2)', () => {
   it('grandchild target: delegates (child unregistered, cursor rolls back)', async () => {
     // Grandchild is now authorized → delegateToChild called, but child
     // not registered → async .catch rolls back cursor.
@@ -806,33 +796,27 @@ describe('unauthorized routing — path 2 (startMessageLoop fallback): parent ha
     expect(_getLastAgentTimestamp('src@g.us')).toBe('');
   });
 
-  it('sibling target: parent runs after loop routing denied, cursor advanced', async () => {
+  it('sibling target: delegates but fails, cursor rolls back', async () => {
+    // Same behavior as path 1 - routes are followed, delegation fails
     setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
 
     const ok = await _processGroupMessages('src@g.us');
 
     expect(ok).toBe(true);
-    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
-    const [g] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
-      ...unknown[],
-    ];
-    expect(g.folder).toBe('root/code');
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
   });
 
-  it('cross-world target: parent runs after loop routing denied, cursor advanced', async () => {
+  it('cross-world target: delegates but fails, cursor rolls back', async () => {
+    // Same behavior as path 1 - routes are followed, delegation fails
     setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
 
     const ok = await _processGroupMessages('src@g.us');
 
     expect(ok).toBe(true);
-    expect(mockRunContainerAgent).toHaveBeenCalledOnce();
-    const [g] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
-      ...unknown[],
-    ];
-    expect(g.folder).toBe('root');
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
   });
 });
