@@ -48,13 +48,14 @@ worldOf('atlas/support') === 'atlas';
 
 ## Authorization boundary
 
-Current routing and task authorization use same-world checks.
+Root world groups (`root` and `root/*`) can delegate to any
+folder in any world — they stand above the world boundary.
 
-- same world: allowed where the action permits it
+All other worlds use same-world checks:
+
+- same world, descendant: allowed
 - cross world: denied
-
-Parent-to-descendant routing/delegation must also stay inside the source
-subtree.
+- sibling, ancestor, same-folder: denied
 
 ## Share mount
 

@@ -139,7 +139,8 @@ Tier 0 may still create child groups inside an existing world.
 
 `delegate_group`:
 
-- tier 0: any descendant in own subtree
+- tier 0: any folder in any world (root world privilege)
+- root/\* subgroups: any folder in any world (root world privilege)
 - tier 1: any descendant in own subtree
 - tier 2: any descendant in own subtree
 - tier 3: denied

@@ -152,7 +152,10 @@ describe('delegate_group IPC — real files', () => {
     expect(fs.existsSync(requestFile)).toBe(false);
   });
 
-  it('unauthorized sibling delegation: writes error reply', async () => {
+  it('root world sibling delegation: allowed (root world privilege)', async () => {
+    setRegisteredGroup('root@g.us', ROOT);
+    setRegisteredGroup('logs@g.us', LOGS);
+
     writeRequest('root/code', {
       id: 'req-sibling',
       type: 'delegate_group',
@@ -164,6 +167,38 @@ describe('delegate_group IPC — real files', () => {
     await drainRequests(tmpDir, 'root/code', deps);
 
     const reply = readReply('root/code', 'req-sibling');
+    expect(reply!.ok).toBe(true);
+    expect(reply!.result).toEqual({ queued: true });
+    expect(delegateToChild).toHaveBeenCalledOnce();
+  });
+
+  it('non-root sibling delegation: denied', async () => {
+    const ATLAS: RegisteredGroup = {
+      name: 'Atlas',
+      folder: 'atlas',
+      trigger: 'always',
+      added_at: '2024-01-01T00:00:00.000Z',
+    };
+    const ATLAS_A: RegisteredGroup = {
+      name: 'Atlas A',
+      folder: 'atlas/a',
+      trigger: '@Andy',
+      added_at: '2024-01-01T00:00:00.000Z',
+    };
+    setRegisteredGroup('atlas@g.us', ATLAS);
+    setRegisteredGroup('atlas-a@g.us', ATLAS_A);
+
+    writeRequest('atlas/a', {
+      id: 'req-sibling-nr',
+      type: 'delegate_group',
+      group: 'atlas/b',
+      prompt: 'check',
+      chatJid: 'tg/-100',
+    });
+
+    await drainRequests(tmpDir, 'atlas/a', deps);
+
+    const reply = readReply('atlas/a', 'req-sibling-nr');
     expect(reply!.ok).toBe(false);
     expect(reply!.error).toMatch(/unauthorized/i);
     expect(delegateToChild).not.toHaveBeenCalled();

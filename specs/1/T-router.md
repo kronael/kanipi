@@ -19,6 +19,10 @@ Queue drains -> processGroupMessages(chatJid)  (index.ts)
   2. findChannel(channels, chatJid)
   3. getMessagesSince(chatJid, cursor)
   4. trigger check (non-root)
+  4b. routing rules (resolveRoutingTarget)
+      - self-target (target === folder): skip, fall through
+      - authorized target: delegate, return
+      - unauthorized: log warn, fall through
   5. session history injection (new session only)
   6. new-day trigger
   7. flushSystemMessages(groupFolder)
