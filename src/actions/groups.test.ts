@@ -72,14 +72,22 @@ describe('delegateGroup — authorization', () => {
     expect(result).toEqual({ queued: true });
   });
 
-  it('root cannot delegate to cross-world group', async () => {
+  it('root can delegate cross-world', async () => {
     const ctx = makeCtx('root');
-    await expect(
-      delegateGroup.handler(
-        { group: 'team/alice', prompt: 'help', chatJid: 'tg/-100' },
-        ctx,
-      ),
-    ).rejects.toThrow('unauthorized');
+    const result = await delegateGroup.handler(
+      { group: 'team/alice', prompt: 'help', chatJid: 'tg/-100' },
+      ctx,
+    );
+    expect(result).toEqual({ queued: true });
+  });
+
+  it('root subgroup can delegate cross-world', async () => {
+    const ctx = makeCtx('root/code');
+    const result = await delegateGroup.handler(
+      { group: 'team/alice', prompt: 'help', chatJid: 'tg/-100' },
+      ctx,
+    );
+    expect(result).toEqual({ queued: true });
   });
 
   it('direct parent can delegate to its child', async () => {
@@ -97,28 +105,28 @@ describe('delegateGroup — authorization', () => {
     );
   });
 
-  it('child cannot delegate to sibling', async () => {
-    const ctx = makeCtx('root/code');
+  it('non-root child cannot delegate to sibling', async () => {
+    const ctx = makeCtx('atlas/code');
     await expect(
       delegateGroup.handler(
-        { group: 'root/logs', prompt: 'analyze', chatJid: 'tg/-100' },
+        { group: 'atlas/logs', prompt: 'analyze', chatJid: 'tg/-100' },
         ctx,
       ),
     ).rejects.toThrow('unauthorized');
   });
 
-  it('child cannot delegate to ancestor', async () => {
-    const ctx = makeCtx('root/code/py');
+  it('non-root child cannot delegate to ancestor', async () => {
+    const ctx = makeCtx('atlas/code/py');
     await expect(
       delegateGroup.handler(
-        { group: 'root/code', prompt: 'do something', chatJid: 'tg/-100' },
+        { group: 'atlas/code', prompt: 'do something', chatJid: 'tg/-100' },
         ctx,
       ),
     ).rejects.toThrow('unauthorized');
   });
 
-  it('child cannot delegate to unrelated root', async () => {
-    const ctx = makeCtx('root/code');
+  it('non-root cannot delegate cross-world', async () => {
+    const ctx = makeCtx('atlas/code');
     await expect(
       delegateGroup.handler(
         { group: 'team/alice', prompt: 'help', chatJid: 'tg/-100' },

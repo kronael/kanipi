@@ -11,6 +11,33 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.21] — 2026-03-10
+
+### Features
+
+- Social channels — mastodon, bluesky, reddit, twitter, facebook with verb/platform/thread/target/mentions_me on inbound events
+- Prototype spawning — clone-on-missing with max_children enforcement, template→prototype rename
+- Generic action manifest proxy — agent-runner fetches list_actions on startup, registers MCP tools dynamically
+- Filtered action manifest — agents only see actions available to their tier and platform
+- Two-level routing chain — gateway resolves routing rules two hops deep, spawns final target directly
+- Root world privilege — root and root/\* groups can delegate to any folder in any world
+- Self-targeting routing rules — enables dual-role setups (e.g. @root → root, default → atlas)
+- Routing rules modifiable at runtime via set_routing_rules IPC action
+
+### Fixes
+
+- Skip routing delegation when target is self (no spurious auth warnings)
+- Derive platforms from registered JIDs in list_actions manifest filter
+
+### Docs
+
+- Social events spec, social actions spec, prototypes spec rewrite
+- Routing spec updated for two-level chain, root world privilege, agent-overridable rules
+- Worlds spec and permissions spec aligned with root world delegation
+- Router flow spec updated with routing rules step
+
+---
+
 ## [v1.0.20] — 2026-03-09
 
 ### Features
