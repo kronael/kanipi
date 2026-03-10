@@ -205,3 +205,107 @@ describe('drainRequests', () => {
     expect(reply!.error).toBe('path outside group dir');
   });
 });
+
+describe('list_actions platform filtering', () => {
+  const folder = 'social';
+
+  function groupEntry(name: string): {
+    name: string;
+    folder: string;
+    trigger: string;
+    added_at: string;
+  } {
+    return { name, folder, trigger: '', added_at: '' };
+  }
+
+  function listActionsDeps(
+    groups: Record<
+      string,
+      { name: string; folder: string; trigger: string; added_at: string }
+    >,
+  ): IpcDeps {
+    return makeDeps({ registeredGroups: () => groups });
+  }
+
+  function writeReqFor(
+    srcFolder: string,
+    id: string,
+    data: Record<string, unknown>,
+  ): void {
+    const dir = path.join(ipcBase, srcFolder, 'requests');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify(data));
+  }
+
+  function readReplyFor(
+    srcFolder: string,
+    id: string,
+  ): Record<string, unknown> | null {
+    const p = path.join(ipcBase, srcFolder, 'replies', `${id}.json`);
+    if (!fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  }
+
+  async function listActions(
+    deps: IpcDeps,
+    srcFolder: string,
+  ): Promise<Record<string, unknown>> {
+    writeReqFor(srcFolder, 'la', { id: 'la', type: 'list_actions' });
+    await drainRequests(ipcBase, srcFolder, deps);
+    return readReplyFor(srcFolder, 'la') as Record<string, unknown>;
+  }
+
+  it('derives platforms from group JIDs', async () => {
+    const groups = {
+      'reddit:user': groupEntry('r'),
+      'twitter:123': groupEntry('t'),
+    };
+    const reply = await listActions(listActionsDeps(groups), folder);
+    expect(reply.ok).toBe(true);
+    const actions = reply.result as Array<{ name: string }>;
+    const names = actions.map((a) => a.name);
+    // post is available on reddit+twitter
+    expect(names).toContain('post');
+    // timeout is discord/twitch/youtube only — should be excluded
+    expect(names).not.toContain('timeout');
+  });
+
+  it('filters out email-style JIDs', async () => {
+    const groups = {
+      'notify@example.com': groupEntry('email'),
+    };
+    const reply = await listActions(listActionsDeps(groups), folder);
+    expect(reply.ok).toBe(true);
+    const actions = reply.result as Array<{ name: string }>;
+    const names = actions.map((a) => a.name);
+    // no valid platform derived, so platform-restricted actions excluded
+    expect(names).not.toContain('post');
+    expect(names).not.toContain('timeout');
+  });
+
+  it('deduplicates platforms', async () => {
+    const groups = {
+      'reddit:a': groupEntry('sub-a'),
+      'reddit:b': groupEntry('sub-b'),
+    };
+    const reply = await listActions(listActionsDeps(groups), folder);
+    expect(reply.ok).toBe(true);
+    const actions = reply.result as Array<{ name: string }>;
+    const postCount = actions.filter((a) => a.name === 'post').length;
+    expect(postCount).toBe(1);
+  });
+
+  it('excludes social actions when no JIDs match folder', async () => {
+    const groups = {
+      'reddit:x': { name: 'x', folder: 'other', trigger: '', added_at: '' },
+    };
+    const reply = await listActions(listActionsDeps(groups), folder);
+    expect(reply.ok).toBe(true);
+    const actions = reply.result as Array<{ name: string }>;
+    const names = actions.map((a) => a.name);
+    // no platforms for 'social' folder, so platform-restricted actions excluded
+    expect(names).not.toContain('post');
+    expect(names).not.toContain('timeout');
+    expect(names).not.toContain('set_flair');
+  });
+});

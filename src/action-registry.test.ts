@@ -7,6 +7,7 @@ import {
   getAction,
   getAllActions,
   getManifest,
+  unregisterAction,
 } from './action-registry.js';
 
 function makeAction(name: string, opts?: Partial<Action>): Action {
@@ -84,5 +85,48 @@ describe('getManifest', () => {
     // z.toJSONSchema produces an object with type/properties
     const schema = entry.input as Record<string, unknown>;
     expect(schema.type).toBe('object');
+  });
+});
+
+describe('platform filtering', () => {
+  it('action with matching platform appears', () => {
+    const name = uid();
+    registerAction(makeAction(name, { platforms: ['reddit'] }));
+    const manifest = getManifest('root', { tier: 0, platforms: ['reddit'] });
+    expect(manifest.find((m) => m.name === name)).toBeDefined();
+  });
+
+  it('action with non-matching platform is excluded', () => {
+    const name = uid();
+    registerAction(makeAction(name, { platforms: ['reddit'] }));
+    const manifest = getManifest('root', { tier: 0, platforms: ['mastodon'] });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+
+  it('action with no platforms field always appears', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: ['mastodon'],
+    });
+    expect(manifest.find((m) => m.name === name)).toBeDefined();
+  });
+
+  it('action with empty platforms array always appears', () => {
+    const name = uid();
+    registerAction(makeAction(name, { platforms: [] }));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: ['mastodon'],
+    });
+    expect(manifest.find((m) => m.name === name)).toBeDefined();
+  });
+
+  it('multi-platform action matches any platform in list', () => {
+    const name = uid();
+    registerAction(makeAction(name, { platforms: ['reddit', 'twitter'] }));
+    const manifest = getManifest('root', { tier: 0, platforms: ['twitter'] });
+    expect(manifest.find((m) => m.name === name)).toBeDefined();
   });
 });

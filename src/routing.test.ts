@@ -2,12 +2,72 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import { _initTestDatabase, getAllChats, storeChatMetadata } from './db.js';
 import { getAvailableGroups, _setRegisteredGroups } from './index.js';
-import { isAuthorizedRoutingTarget, resolveRoutingTarget } from './router.js';
+import {
+  isAuthorizedRoutingTarget,
+  resolveRoutingTarget,
+  spawnFolderName,
+  platformFromJid,
+} from './router.js';
 import type { NewMessage, RoutingRule } from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
   _setRegisteredGroups({});
+});
+
+// --- spawnFolderName ---
+
+describe('spawnFolderName', () => {
+  it('replaces non-alphanumeric with underscore', () => {
+    expect(spawnFolderName('tg:-100123456')).toBe('tg_100123456');
+  });
+
+  it('collapses consecutive underscores', () => {
+    expect(spawnFolderName('a:b::c')).toBe('a_b_c');
+  });
+
+  it('trims leading/trailing underscores', () => {
+    expect(spawnFolderName(':abc:')).toBe('abc');
+  });
+
+  it('enforces 63-char length limit', () => {
+    const long = 'a'.repeat(100);
+    expect(spawnFolderName(long).length).toBe(63);
+  });
+
+  it('handles mastodon JID', () => {
+    expect(spawnFolderName('mastodon:instance.social:12345')).toBe(
+      'mastodon_instance_social_12345',
+    );
+  });
+
+  it('empty JID returns empty string', () => {
+    expect(spawnFolderName('')).toBe('');
+  });
+
+  it('all-special-chars returns empty string', () => {
+    expect(spawnFolderName('::..--')).toBe('');
+  });
+});
+
+// --- platformFromJid ---
+
+describe('platformFromJid', () => {
+  it('extracts prefix before first colon', () => {
+    expect(platformFromJid('twitter:123')).toBe('twitter');
+  });
+
+  it('multiple colons returns first segment', () => {
+    expect(platformFromJid('mastodon:instance:id')).toBe('mastodon');
+  });
+
+  it('no colon returns full string', () => {
+    expect(platformFromJid('telegram')).toBe('telegram');
+  });
+
+  it('empty string returns empty string', () => {
+    expect(platformFromJid('')).toBe('');
+  });
 });
 
 // --- JID ownership patterns ---
