@@ -557,11 +557,9 @@ export function getGroupBySlink(
  */
 export function _setTestGroupRoute(
   jid: string,
-  group: Omit<GroupConfig, 'trigger' | 'requiresTrigger' | 'added_at'> & {
-    trigger?: string;
-    requiresTrigger?: boolean;
-    added_at?: string;
-  },
+  group: { name: string; folder: string } & Partial<
+    Omit<GroupConfig, 'name' | 'folder'>
+  >,
 ): void {
   const fullConfig: GroupConfig = {
     name: group.name,

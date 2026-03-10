@@ -91,7 +91,8 @@ function permissionTier(folder: string): 0 | 1 | 2 | 3 {
 ### Routing (gateway-level)
 
 - `get_routes` — read routes for a JID (or all)
-- `set_routes` — replace all routes for a JID
+- `add_route` — add a single route rule for a JID
+- `delete_route` — remove a route rule by ID
 
 Tier 0 can modify any routes. Tier 1 can modify routes
 targeting folders in its own subtree. Tier 2+ cannot
@@ -125,14 +126,14 @@ function isAuthorizedRoutingTarget(src: string, dst: string): boolean {
 
 ## Migration from registered_groups
 
-The old `registered_groups` table merges JID mapping,
-group config, and routing rules into one row. Migration:
+**Done** (migration 0005). The old `registered_groups` table
+merged JID mapping, group config, and routing rules into one row.
+It has been replaced by:
 
-1. Create `groups` table from `registered_groups`
-   (folder, name, container_config, parent, added_at)
-2. Create `routes` table from `routing_rules` JSON
-   column + trigger_pattern/requires_trigger fields
-3. Drop `registered_groups` (or keep as view)
+1. `groups` table — folder-keyed config (name, container_config,
+   parent, trigger_pattern, slink_token, etc.)
+2. `routes` table — flat JID → folder routing rules
+3. `registered_groups` table dropped
 
 ## Error handling
 

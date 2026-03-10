@@ -247,7 +247,7 @@ Evaluation: select routes for JID, scan by seq, first match wins.
 | `stop_sidecar`      | yes | `{ name }`                                       |
 | `list_sidecars`     | yes | --                                               |
 
-`configure_sidecar` persists sidecar config to `registered_groups.container_config`;
+`configure_sidecar` persists sidecar config to `groups.container_config`;
 takes effect on next agent spawn. `request_sidecar` starts a sidecar immediately
 for the current session. Both require root.
 
