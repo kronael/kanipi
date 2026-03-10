@@ -1,11 +1,23 @@
-import { AtpAgent } from '@atproto/api';
+import fs from 'fs';
+
+import { AtpAgent, AtpSessionData } from '@atproto/api';
 
 import { PlatformClient } from '../../actions/social.js';
+import { logger } from '../../logger.js';
 
 export interface BlueskyConfig {
   serviceUrl?: string; // default: https://bsky.social
   identifier: string; // handle or DID
   password: string; // app password
+  sessionPath?: string; // path to persist session JSON
+}
+
+// AT-URI format: at://did:plc:xxx/app.bsky.feed.post/rkey
+function parseAtUri(uri: string): { repo: string; rkey: string } {
+  const m = uri.match(/^at:\/\/([^/]+)\/[^/]+\/([^/]+)$/);
+  if (m) return { repo: m[1], rkey: m[2] };
+  const parts = uri.split('/');
+  return { repo: parts[2], rkey: parts[parts.length - 1] };
 }
 
 export class BlueskyClient implements PlatformClient {
@@ -13,12 +25,42 @@ export class BlueskyClient implements PlatformClient {
   private ready = false;
 
   constructor(private config: BlueskyConfig) {
+    const svc = config.serviceUrl ?? 'https://bsky.social';
     this.agent = new AtpAgent({
-      service: config.serviceUrl ?? 'https://bsky.social',
+      service: svc,
+      persistSession: (_evt, sess) => {
+        if (!config.sessionPath || !sess) return;
+        try {
+          fs.writeFileSync(config.sessionPath, JSON.stringify(sess));
+        } catch (e) {
+          logger.warn({ err: e }, 'bluesky: failed to persist session');
+        }
+      },
     });
   }
 
+  get did(): string | undefined {
+    return this.agent.session?.did;
+  }
+
+  get atpAgent(): AtpAgent {
+    return this.agent;
+  }
+
   async connect(): Promise<void> {
+    // Try resuming saved session first
+    if (this.config.sessionPath) {
+      try {
+        const raw = fs.readFileSync(this.config.sessionPath, 'utf-8');
+        const sess: AtpSessionData = JSON.parse(raw);
+        await this.agent.resumeSession(sess);
+        this.ready = true;
+        logger.info('bluesky: resumed saved session');
+        return;
+      } catch {
+        // fall through to login
+      }
+    }
     await this.agent.login({
       identifier: this.config.identifier,
       password: this.config.password,
@@ -38,10 +80,12 @@ export class BlueskyClient implements PlatformClient {
   async reply(target: string, content: string): Promise<unknown> {
     this.assertReady();
     const post = await this._fetchPost(target);
+    // Walk reply chain: if target is already a reply, use its root
+    const root = post.root ?? { uri: target, cid: post.cid };
     return this.agent.post({
       text: content,
       reply: {
-        root: { uri: target, cid: post.cid },
+        root,
         parent: { uri: target, cid: post.cid },
       },
     });
@@ -88,7 +132,6 @@ export class BlueskyClient implements PlatformClient {
   }
 
   async editPost(_target: string, _content: string): Promise<unknown> {
-    // Bluesky does not support editing posts
     return {
       error: 'not_implemented',
       platform: 'bluesky',
@@ -157,12 +200,15 @@ export class BlueskyClient implements PlatformClient {
     return { error: 'not_implemented', platform: 'bluesky' };
   }
 
-  private async _fetchPost(uri: string): Promise<{ cid: string }> {
-    const parts = uri.split('/');
-    const rkey = parts[parts.length - 1];
-    const repo = uri.includes('did:') ? uri.split('/')[2] : parts[2];
+  private async _fetchPost(
+    uri: string,
+  ): Promise<{ cid: string; root?: { uri: string; cid: string } }> {
+    const { repo, rkey } = parseAtUri(uri);
     const res = await this.agent.getPost({ repo, rkey });
-    return { cid: res.cid };
+    const record = res.value as {
+      reply?: { root?: { uri: string; cid: string } };
+    };
+    return { cid: res.cid, root: record.reply?.root };
   }
 }
 

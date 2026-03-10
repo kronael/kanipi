@@ -1,41 +1,93 @@
-import { Channel, ChannelOpts, SendOpts } from '../../types.js';
-import { BlueskyClient, BlueskyConfig } from './client.js';
+import { AtpAgent } from '@atproto/api';
 
-export class BlueskyWatcher implements Channel {
-  readonly name = 'bluesky';
-  private client: BlueskyClient | null = null;
+import { logger } from '../../logger.js';
+import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
 
-  constructor(
-    private config: BlueskyConfig,
-    private opts: ChannelOpts,
-  ) {}
+const POLL_INTERVAL = 10_000;
 
-  async connect(): Promise<void> {
-    this.client = new BlueskyClient(this.config);
-    await this.client.connect();
-    void this.opts;
-    // Streaming inbound events: future work
+export interface WatcherOpts {
+  agent: AtpAgent;
+  onMessage: OnInboundMessage;
+}
+
+export class BlueskyWatcher {
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private closed = false;
+  private cursor: string | undefined;
+  private opts: WatcherOpts;
+
+  constructor(opts: WatcherOpts) {
+    this.opts = opts;
   }
 
-  async disconnect(): Promise<void> {
-    this.client = null;
+  start(): void {
+    this.closed = false;
+    this.poll();
   }
 
-  isConnected(): boolean {
-    return this.client !== null;
+  stop(): void {
+    this.closed = true;
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
   }
 
-  ownsJid(jid: string): boolean {
-    return jid.startsWith('bluesky:');
+  private async poll(): Promise<void> {
+    if (this.closed) return;
+    try {
+      const res = await this.opts.agent.listNotifications({
+        reasons: ['reply', 'mention'],
+        limit: 25,
+        cursor: this.cursor,
+      });
+      const notifs = res.data.notifications;
+      if (notifs.length > 0) {
+        this.cursor = res.data.cursor;
+        for (const n of notifs) {
+          if (n.isRead) continue;
+          this.handleNotification(n);
+        }
+        await this.opts.agent.updateSeenNotifications();
+      }
+    } catch (e) {
+      logger.warn({ err: e }, 'bluesky: notification poll failed');
+    }
+    if (!this.closed) {
+      this.timer = setTimeout(() => this.poll(), POLL_INTERVAL);
+    }
   }
 
-  async sendMessage(
-    jid: string,
-    text: string,
-    _opts?: SendOpts,
-  ): Promise<void> {
-    if (!this.client) throw new Error('bluesky not connected');
-    await this.client.post(text);
-    void jid;
+  private handleNotification(n: {
+    uri: string;
+    reason: string;
+    author: { did: string; handle: string; displayName?: string };
+    record: Record<string, unknown>;
+    indexedAt: string;
+  }): void {
+    const record = n.record as {
+      text?: string;
+      reply?: { parent?: { uri: string }; root?: { uri: string } };
+      createdAt?: string;
+    };
+
+    const verb = n.reason === 'reply' ? Verb.Reply : Verb.Message;
+    const parentUri = record.reply?.parent?.uri;
+
+    const msg: NewMessage = {
+      id: n.uri,
+      chat_jid: `bluesky:${n.author.did}`,
+      sender: n.author.did,
+      sender_name: n.author.displayName || n.author.handle,
+      content: record.text ?? '',
+      timestamp: record.createdAt ?? n.indexedAt,
+      verb: verb as Verb,
+      platform: Platform.Bluesky as Platform,
+      replyTo: parentUri,
+      root: record.reply?.root?.uri,
+      parent: parentUri,
+    };
+
+    this.opts.onMessage(msg.chat_jid, msg);
   }
 }

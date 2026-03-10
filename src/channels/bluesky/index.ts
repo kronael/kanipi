@@ -1,10 +1,16 @@
+import path from 'path';
+
 import { registerClient, unregisterClient } from '../../actions/social.js';
+import { STORE_DIR } from '../../config.js';
+import { logger } from '../../logger.js';
 import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { BlueskyClient, BlueskyConfig, createClient } from './client.js';
+import { BlueskyWatcher } from './watcher.js';
 
 export class BlueskyChannel implements Channel {
   readonly name = 'bluesky';
   private client: BlueskyClient | null = null;
+  private watcher: BlueskyWatcher | null = null;
 
   constructor(
     private config: BlueskyConfig,
@@ -12,13 +18,25 @@ export class BlueskyChannel implements Channel {
   ) {}
 
   async connect(): Promise<void> {
-    this.client = createClient(this.config);
+    const cfg = {
+      ...this.config,
+      sessionPath: path.join(STORE_DIR, 'bluesky-session.json'),
+    };
+    this.client = createClient(cfg);
     await this.client.connect();
     registerClient('bluesky', this.client);
-    void this.opts;
+
+    this.watcher = new BlueskyWatcher({
+      agent: this.client.atpAgent,
+      onMessage: this.opts.onMessage,
+    });
+    this.watcher.start();
+    logger.info({ did: this.client.did }, 'bluesky: watcher started');
   }
 
   async disconnect(): Promise<void> {
+    this.watcher?.stop();
+    this.watcher = null;
     unregisterClient('bluesky');
     this.client = null;
   }

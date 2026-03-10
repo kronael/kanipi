@@ -1,4 +1,4 @@
-import generator, { MegalodonInterface } from 'megalodon';
+import { createRestAPIClient, type mastodon } from 'masto';
 
 import { PlatformClient } from '../../actions/social.js';
 
@@ -7,55 +7,43 @@ export interface MastodonConfig {
   accessToken: string;
 }
 
-export class MastodonClient implements PlatformClient {
-  private api: MegalodonInterface;
+const NI = { error: 'not_implemented', platform: 'mastodon' } as const;
 
-  constructor(private config: MastodonConfig) {
-    this.api = generator('mastodon', config.instanceUrl, config.accessToken);
+export class MastodonClient implements PlatformClient {
+  readonly api: mastodon.rest.Client;
+
+  constructor(config: MastodonConfig) {
+    this.api = createRestAPIClient({
+      url: config.instanceUrl,
+      accessToken: config.accessToken,
+    });
   }
 
   async post(content: string, _media?: string[]): Promise<unknown> {
-    const res = await this.api.postStatus(content);
-    return res.data;
+    return this.api.v1.statuses.create({ status: content });
   }
 
   async reply(target: string, content: string): Promise<unknown> {
-    const res = await this.api.postStatus(content, { in_reply_to_id: target });
-    return res.data;
+    return this.api.v1.statuses.create({
+      status: content,
+      inReplyToId: target,
+    });
   }
 
-  async react(target: string, reaction?: string): Promise<unknown> {
-    // Mastodon uses favourites for like; emoji reactions via pleroma extension
-    if (reaction) {
-      // Pleroma/Akkoma reaction — falls back to favourite on plain mastodon
-      try {
-        const res = await (
-          this.api as unknown as {
-            createEmojiReaction(id: string, emoji: string): Promise<unknown>;
-          }
-        ).createEmojiReaction(target, reaction);
-        return res;
-      } catch {
-        // fallthrough to favourite
-      }
-    }
-    const res = await this.api.favouriteStatus(target);
-    return res.data;
+  async react(target: string, _reaction?: string): Promise<unknown> {
+    return this.api.v1.statuses.$select(target).favourite();
   }
 
   async repost(target: string): Promise<unknown> {
-    const res = await this.api.reblogStatus(target);
-    return res.data;
+    return this.api.v1.statuses.$select(target).reblog();
   }
 
   async follow(target: string): Promise<unknown> {
-    const res = await this.api.followAccount(target);
-    return res.data;
+    return this.api.v1.accounts.$select(target).follow();
   }
 
   async unfollow(target: string): Promise<unknown> {
-    const res = await this.api.unfollowAccount(target);
-    return res.data;
+    return this.api.v1.accounts.$select(target).unfollow();
   }
 
   async setProfile(
@@ -63,21 +51,18 @@ export class MastodonClient implements PlatformClient {
     bio?: string,
     _avatar?: string,
   ): Promise<unknown> {
-    const res = await this.api.updateCredentials({
-      display_name: name,
+    return this.api.v1.accounts.updateCredentials({
+      displayName: name,
       note: bio,
     });
-    return res.data;
   }
 
   async deletePost(target: string): Promise<unknown> {
-    const res = await this.api.deleteStatus(target);
-    return res.data;
+    return this.api.v1.statuses.$select(target).remove();
   }
 
   async editPost(target: string, content: string): Promise<unknown> {
-    const res = await this.api.editStatus(target, { status: content });
-    return res.data;
+    return this.api.v1.statuses.$select(target).update({ status: content });
   }
 
   async ban(
@@ -85,62 +70,58 @@ export class MastodonClient implements PlatformClient {
     _duration?: number,
     reason?: string,
   ): Promise<unknown> {
-    // Mastodon admin API not available via megalodon — use report as proxy
-    const res = await this.api.report(target, { comment: reason ?? '' });
-    return res.data;
+    return this.api.v1.reports.create({
+      accountId: target,
+      comment: reason ?? '',
+    });
   }
 
   async unban(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'mastodon' };
+    return NI;
   }
 
   async timeout(_target: string, _duration: number): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'mastodon' };
+    return NI;
   }
 
   async mute(target: string): Promise<unknown> {
-    const res = await this.api.muteAccount(target, false);
-    return res.data;
+    return this.api.v1.accounts.$select(target).mute();
   }
 
   async block(target: string): Promise<unknown> {
-    const res = await this.api.blockAccount(target);
-    return res.data;
+    return this.api.v1.accounts.$select(target).block();
   }
 
   async pin(target: string): Promise<unknown> {
-    const res = await this.api.pinStatus(target);
-    return res.data;
+    return this.api.v1.statuses.$select(target).pin();
   }
 
   async unpin(target: string): Promise<unknown> {
-    const res = await this.api.unpinStatus(target);
-    return res.data;
+    return this.api.v1.statuses.$select(target).unpin();
   }
 
   async lock(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'mastodon' };
+    return NI;
   }
 
   async unlock(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'mastodon' };
+    return NI;
   }
 
   async hide(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'mastodon' };
+    return NI;
   }
 
   async approve(target: string): Promise<unknown> {
-    const res = await this.api.acceptFollowRequest(target);
-    return res.data;
+    return this.api.v1.followRequests.$select(target).authorize();
   }
 
   async setFlair(_target: string, _flair: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'mastodon' };
+    return NI;
   }
 
   async kick(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'mastodon' };
+    return NI;
   }
 }
 

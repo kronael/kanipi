@@ -1,10 +1,15 @@
 import { registerClient, unregisterClient } from '../../actions/social.js';
+import { logger } from '../../logger.js';
 import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { MastodonClient, MastodonConfig, createClient } from './client.js';
+import { MastodonWatcher } from './watcher.js';
+
+const log = logger.child({ channel: 'mastodon' });
 
 export class MastodonChannel implements Channel {
   readonly name = 'mastodon';
   private client: MastodonClient | null = null;
+  private watcher: MastodonWatcher | null = null;
 
   constructor(
     private config: MastodonConfig,
@@ -14,12 +19,28 @@ export class MastodonChannel implements Channel {
   async connect(): Promise<void> {
     this.client = createClient(this.config);
     registerClient('mastodon', this.client);
-    void this.opts;
+
+    this.watcher = new MastodonWatcher(
+      this.client,
+      this.opts,
+      this.config.instanceUrl,
+      this.config.accessToken,
+    );
+    void this.watcher.start().catch((e) => {
+      log.error('mastodon watcher failed: %s', e);
+    });
+
+    log.info('mastodon connected to %s', this.config.instanceUrl);
   }
 
   async disconnect(): Promise<void> {
+    if (this.watcher) {
+      await this.watcher.stop();
+      this.watcher = null;
+    }
     unregisterClient('mastodon');
     this.client = null;
+    log.info('mastodon disconnected');
   }
 
   isConnected(): boolean {
@@ -31,13 +52,16 @@ export class MastodonChannel implements Channel {
   }
 
   async sendMessage(
-    jid: string,
+    _jid: string,
     text: string,
-    _opts?: SendOpts,
+    opts?: SendOpts,
   ): Promise<void> {
     if (!this.client) throw new Error('mastodon not connected');
-    await this.client.post(text);
-    void jid;
+    if (opts?.replyTo) {
+      await this.client.reply(opts.replyTo, text);
+    } else {
+      await this.client.post(text);
+    }
   }
 }
 

@@ -27,6 +27,21 @@ const envConfig = readEnvFile([
   'EMAIL_ACCOUNT',
   'EMAIL_PASSWORD',
   'WEB_PUBLIC',
+  'MASTODON_INSTANCE_URL',
+  'MASTODON_ACCESS_TOKEN',
+  'BLUESKY_IDENTIFIER',
+  'BLUESKY_PASSWORD',
+  'BLUESKY_SERVICE_URL',
+  'REDDIT_CLIENT_ID',
+  'REDDIT_CLIENT_SECRET',
+  'REDDIT_USERNAME',
+  'REDDIT_PASSWORD',
+  'TWITTER_APP_KEY',
+  'TWITTER_APP_SECRET',
+  'TWITTER_ACCESS_TOKEN',
+  'TWITTER_ACCESS_SECRET',
+  'FACEBOOK_PAGE_ID',
+  'FACEBOOK_PAGE_ACCESS_TOKEN',
 ]);
 
 export const ASSISTANT_NAME =
@@ -113,6 +128,40 @@ export const TELEGRAM_BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
 export const DISCORD_BOT_TOKEN =
   process.env.DISCORD_BOT_TOKEN || envConfig.DISCORD_BOT_TOKEN || '';
+
+// Social channels — enabled by token/credential presence
+export const MASTODON_INSTANCE_URL =
+  process.env.MASTODON_INSTANCE_URL || envConfig.MASTODON_INSTANCE_URL || '';
+export const MASTODON_ACCESS_TOKEN =
+  process.env.MASTODON_ACCESS_TOKEN || envConfig.MASTODON_ACCESS_TOKEN || '';
+export const BLUESKY_IDENTIFIER =
+  process.env.BLUESKY_IDENTIFIER || envConfig.BLUESKY_IDENTIFIER || '';
+export const BLUESKY_PASSWORD =
+  process.env.BLUESKY_PASSWORD || envConfig.BLUESKY_PASSWORD || '';
+export const BLUESKY_SERVICE_URL =
+  process.env.BLUESKY_SERVICE_URL || envConfig.BLUESKY_SERVICE_URL || '';
+export const REDDIT_CLIENT_ID =
+  process.env.REDDIT_CLIENT_ID || envConfig.REDDIT_CLIENT_ID || '';
+export const REDDIT_CLIENT_SECRET =
+  process.env.REDDIT_CLIENT_SECRET || envConfig.REDDIT_CLIENT_SECRET || '';
+export const REDDIT_USERNAME =
+  process.env.REDDIT_USERNAME || envConfig.REDDIT_USERNAME || '';
+export const REDDIT_PASSWORD =
+  process.env.REDDIT_PASSWORD || envConfig.REDDIT_PASSWORD || '';
+export const TWITTER_APP_KEY =
+  process.env.TWITTER_APP_KEY || envConfig.TWITTER_APP_KEY || '';
+export const TWITTER_APP_SECRET =
+  process.env.TWITTER_APP_SECRET || envConfig.TWITTER_APP_SECRET || '';
+export const TWITTER_ACCESS_TOKEN =
+  process.env.TWITTER_ACCESS_TOKEN || envConfig.TWITTER_ACCESS_TOKEN || '';
+export const TWITTER_ACCESS_SECRET =
+  process.env.TWITTER_ACCESS_SECRET || envConfig.TWITTER_ACCESS_SECRET || '';
+export const FACEBOOK_PAGE_ID =
+  process.env.FACEBOOK_PAGE_ID || envConfig.FACEBOOK_PAGE_ID || '';
+export const FACEBOOK_PAGE_ACCESS_TOKEN =
+  process.env.FACEBOOK_PAGE_ACCESS_TOKEN ||
+  envConfig.FACEBOOK_PAGE_ACCESS_TOKEN ||
+  '';
 
 export const WEB_DIR = path.resolve(PROJECT_ROOT, 'web');
 
