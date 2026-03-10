@@ -47,7 +47,6 @@ import { startWebProxy } from './web-proxy.js';
 import {
   ContainerOutput,
   runContainerAgent,
-  writeActionManifest,
   writeGroupsSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
@@ -589,7 +588,6 @@ async function delegateToGroup(
   const taskId = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   queue.enqueueTask(targetFolder, taskId, async () => {
-    writeActionManifest(target.folder, groups);
     const output = await runContainerAgent(
       target,
       {
@@ -683,9 +681,6 @@ async function runAgent(
     availableGroups,
     new Set(Object.keys(jidToFolder)),
   );
-
-  // Write action manifest for agent-side tool discovery
-  writeActionManifest(group.folder, groups);
 
   // Inject diary summaries on session start (no existing session)
   const annotations: string[] = [];

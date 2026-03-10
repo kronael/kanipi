@@ -9,7 +9,6 @@ import path from 'path';
 
 import crypto from 'crypto';
 
-import { getManifest } from './action-registry.js';
 import { recordSessionStart, updateSessionEnd } from './db.js';
 import {
   ASSISTANT_NAME,
@@ -41,7 +40,7 @@ import {
   stopContainerArgs,
 } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
-import { getJidsForFolder, GroupConfig } from './db.js';
+import { GroupConfig } from './db.js';
 import { SidecarHandle, SidecarSpec } from './types.js';
 
 export let _spawnProcess: (
@@ -1152,29 +1151,6 @@ export function writeTasksSnapshot(
 
   const tasksFile = path.join(groupIpcDir, 'current_tasks.json');
   fs.writeFileSync(tasksFile, JSON.stringify(filteredTasks, null, 2));
-}
-
-export function writeActionManifest(
-  groupFolder: string,
-  _groups: Record<string, GroupConfig>,
-): void {
-  const groupIpcDir = resolveGroupIpcPath(groupFolder);
-  fs.mkdirSync(groupIpcDir, { recursive: true });
-  const manifestFile = path.join(groupIpcDir, 'action_manifest.json');
-  const tier = permissionTier(groupFolder);
-  // Get all JIDs that route to this folder, extract platform prefixes
-  const jids = getJidsForFolder(groupFolder);
-  const platforms = [
-    ...new Set(
-      jids
-        .map((jid) => jid.split(':')[0])
-        .filter((p) => p.length > 0 && !p.includes('@')),
-    ),
-  ];
-  fs.writeFileSync(
-    manifestFile,
-    JSON.stringify(getManifest(groupFolder, { tier, platforms }), null, 2),
-  );
 }
 
 export interface AvailableGroup {
