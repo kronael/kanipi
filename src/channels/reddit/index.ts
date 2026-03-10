@@ -2,23 +2,24 @@ import { registerClient, unregisterClient } from '../../actions/social.js';
 import { logger } from '../../logger.js';
 import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { RedditClient, RedditConfig } from './client.js';
-import { RedditWatcher } from './watcher.js';
+import { startWatcher } from './watcher.js';
 
 const log = logger.child({ channel: 'reddit' });
 
 export class RedditChannel implements Channel {
   readonly name = 'reddit';
-  private client: RedditClient | null = null;
-  private watcher: RedditWatcher | null = null;
+  private client: RedditClient;
+  private stopWatcher: (() => void) | null = null;
 
   constructor(
     private config: RedditConfig,
     private opts: ChannelOpts,
     private subreddits: string[] = [],
-  ) {}
+  ) {
+    this.client = new RedditClient(config);
+  }
 
   async connect(): Promise<void> {
-    this.client = new RedditClient(this.config);
     await this.client.authenticate();
     registerClient('reddit', this.client);
 
@@ -29,25 +30,23 @@ export class RedditChannel implements Channel {
       'reddit',
     );
 
-    this.watcher = new RedditWatcher(
+    this.stopWatcher = startWatcher(
       this.client,
       this.opts.onMessage,
       this.subreddits,
     );
-    this.watcher.start();
     log.info({ user: this.config.username }, 'connected');
   }
 
   async disconnect(): Promise<void> {
-    this.watcher?.stop();
-    this.watcher = null;
+    this.stopWatcher?.();
+    this.stopWatcher = null;
     unregisterClient('reddit');
-    this.client = null;
     log.info('disconnected');
   }
 
   isConnected(): boolean {
-    return this.client !== null;
+    return this.stopWatcher !== null;
   }
 
   ownsJid(jid: string): boolean {
@@ -59,7 +58,6 @@ export class RedditChannel implements Channel {
     text: string,
     opts?: SendOpts,
   ): Promise<void> {
-    if (!this.client) throw new Error('reddit not connected');
     if (opts?.replyTo) {
       await this.client.reply(opts.replyTo, text);
     } else {
@@ -69,4 +67,3 @@ export class RedditChannel implements Channel {
 }
 
 export { RedditClient, RedditConfig } from './client.js';
-export { RedditWatcher } from './watcher.js';

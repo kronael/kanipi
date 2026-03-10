@@ -2,22 +2,23 @@ import { registerClient, unregisterClient } from '../../actions/social.js';
 import { logger } from '../../logger.js';
 import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { MastodonClient, MastodonConfig, createClient } from './client.js';
-import { MastodonWatcher } from './watcher.js';
+import { startWatcher } from './watcher.js';
 
 const log = logger.child({ channel: 'mastodon' });
 
 export class MastodonChannel implements Channel {
   readonly name = 'mastodon';
-  private client: MastodonClient | null = null;
-  private watcher: MastodonWatcher | null = null;
+  private client: MastodonClient;
+  private stopWatcher: (() => void) | null = null;
 
   constructor(
     private config: MastodonConfig,
     private opts: ChannelOpts,
-  ) {}
+  ) {
+    this.client = createClient(config);
+  }
 
   async connect(): Promise<void> {
-    this.client = createClient(this.config);
     registerClient('mastodon', this.client);
 
     try {
@@ -33,29 +34,25 @@ export class MastodonChannel implements Channel {
       log.warn('failed to verify credentials: %s', e);
     }
 
-    this.watcher = new MastodonWatcher(
+    this.stopWatcher = await startWatcher(
       this.client,
+      this.config,
       this.opts.onMessage,
-      this.config.instanceUrl,
-      this.config.accessToken,
-    );
-    void this.watcher.start().catch((e) => {
+    ).catch((e) => {
       log.error('watcher failed: %s', e);
+      return null;
     });
   }
 
   async disconnect(): Promise<void> {
-    if (this.watcher) {
-      await this.watcher.stop();
-      this.watcher = null;
-    }
+    this.stopWatcher?.();
+    this.stopWatcher = null;
     unregisterClient('mastodon');
-    this.client = null;
     log.info('disconnected');
   }
 
   isConnected(): boolean {
-    return this.client !== null;
+    return this.stopWatcher !== null;
   }
 
   ownsJid(jid: string): boolean {
@@ -67,7 +64,6 @@ export class MastodonChannel implements Channel {
     text: string,
     opts?: SendOpts,
   ): Promise<void> {
-    if (!this.client) throw new Error('mastodon not connected');
     if (opts?.replyTo) {
       await this.client.reply(opts.replyTo, text);
     } else {

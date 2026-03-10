@@ -194,7 +194,3 @@ export class RedditClient implements PlatformClient {
     return this.api(path);
   }
 }
-
-export function createClient(cfg: RedditConfig): RedditClient {
-  return new RedditClient(cfg);
-}

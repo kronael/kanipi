@@ -84,7 +84,6 @@ import {
   formatOutbound,
   isAuthorizedRoutingTarget,
   resolveRoutingTarget,
-  spawnFolderName,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';

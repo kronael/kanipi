@@ -25,96 +25,87 @@ interface Listing {
   data: { children: RedditThing[] };
 }
 
-export class RedditWatcher {
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private closed = false;
-  private lastSeen = new Map<string, string>();
+function toMessage(thing: RedditThing, source: string): NewMessage {
+  const d = thing.data;
+  const jid =
+    source === 'inbox'
+      ? `reddit:${d.author}`
+      : `reddit:${d.subreddit ?? source}`;
+  return {
+    id: d.name,
+    chat_jid: jid,
+    sender: d.author,
+    sender_name: d.author,
+    content: d.body ?? d.selftext ?? d.title ?? '',
+    timestamp: new Date(d.created_utc * 1000).toISOString(),
+    platform: Platform.Reddit,
+    verb: thing.kind === 't1' ? Verb.Reply : Verb.Post,
+    parent: d.parent_id,
+    root: d.link_id,
+  };
+}
 
-  constructor(
-    private client: RedditClient,
-    private onMsg: OnInboundMessage,
-    private subreddits: string[] = [],
-  ) {}
-
-  start(): void {
-    this.closed = false;
-    this.poll();
+async function pollListing(
+  client: RedditClient,
+  path: string,
+  key: string,
+  lastSeen: Map<string, string>,
+  onMsg: OnInboundMessage,
+  source: string,
+): Promise<void> {
+  const before = lastSeen.get(key);
+  const qs = before ? `?before=${before}` : '?limit=25';
+  const listing = (await client.fetchJson(`${path}${qs}`)) as Listing;
+  const items = listing.data.children;
+  if (!items.length) return;
+  lastSeen.set(key, items[0].data.name);
+  if (!before) return;
+  for (const item of items.reverse()) {
+    const msg = toMessage(item, source);
+    onMsg(msg.chat_jid, msg);
   }
+}
 
-  stop(): void {
-    this.closed = true;
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
-  }
+export function startWatcher(
+  client: RedditClient,
+  onMsg: OnInboundMessage,
+  subreddits: string[] = [],
+): () => void {
+  let closed = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const lastSeen = new Map<string, string>();
 
-  private async poll(): Promise<void> {
-    if (this.closed) return;
+  async function poll(): Promise<void> {
+    if (closed) return;
     try {
-      await this.pollInbox();
-      for (const sr of this.subreddits) {
-        await this.pollSubreddit(sr);
+      await pollListing(
+        client,
+        '/message/inbox.json',
+        'inbox',
+        lastSeen,
+        onMsg,
+        'inbox',
+      );
+      for (const sr of subreddits) {
+        await pollListing(
+          client,
+          `/r/${sr}/new.json`,
+          `sr:${sr}`,
+          lastSeen,
+          onMsg,
+          sr,
+        );
       }
     } catch (err) {
       log.error({ err }, 'poll error');
     }
-    if (!this.closed) {
-      this.timer = setTimeout(() => this.poll(), POLL_MS);
-    }
+    if (!closed) timer = setTimeout(poll, POLL_MS);
   }
 
-  private async pollInbox(): Promise<void> {
-    const before = this.lastSeen.get('inbox');
-    const qs = before ? `?before=${before}` : '?limit=25';
-    const listing = (await this.client.fetchJson(
-      `/message/inbox.json${qs}`,
-    )) as Listing;
-    const items = listing.data.children;
-    if (!items.length) return;
-    this.lastSeen.set('inbox', items[0].data.name);
-    if (!before) return;
-    for (const item of items.reverse()) {
-      const msg = this.toMessage(item, 'inbox');
-      this.onMsg(msg.chat_jid, msg);
-    }
-  }
+  poll();
 
-  private async pollSubreddit(sr: string): Promise<void> {
-    const key = `sr:${sr}`;
-    const before = this.lastSeen.get(key);
-    const qs = before ? `?before=${before}` : '?limit=25';
-    const listing = (await this.client.fetchJson(
-      `/r/${sr}/new.json${qs}`,
-    )) as Listing;
-    const items = listing.data.children;
-    if (!items.length) return;
-    this.lastSeen.set(key, items[0].data.name);
-    if (!before) return;
-    for (const item of items.reverse()) {
-      const msg = this.toMessage(item, sr);
-      this.onMsg(msg.chat_jid, msg);
-    }
-  }
-
-  private toMessage(thing: RedditThing, source: string): NewMessage {
-    const d = thing.data;
-    const content = d.body ?? d.selftext ?? d.title ?? '';
-    const jid =
-      source === 'inbox'
-        ? `reddit:${d.author}`
-        : `reddit:${d.subreddit ?? source}`;
-    return {
-      id: d.name,
-      chat_jid: jid,
-      sender: d.author,
-      sender_name: d.author,
-      content,
-      timestamp: new Date(d.created_utc * 1000).toISOString(),
-      platform: Platform.Reddit,
-      verb: thing.kind === 't1' ? Verb.Reply : Verb.Post,
-      parent: d.parent_id,
-      root: d.link_id,
-    };
-  }
+  return () => {
+    closed = true;
+    if (timer) clearTimeout(timer);
+  };
 }

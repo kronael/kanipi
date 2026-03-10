@@ -55,10 +55,10 @@ export class TwitterClient implements PlatformClient {
   }
 
   async setProfile(name?: string, bio?: string): Promise<unknown> {
-    const params: Record<string, string> = {};
-    if (name) params.name = name;
-    if (bio) params.description = bio;
-    return this.api.v1.updateAccountProfile(params);
+    return this.api.v1.updateAccountProfile({
+      ...(name && { name }),
+      ...(bio && { description: bio }),
+    });
   }
 
   async deletePost(target: string): Promise<unknown> {

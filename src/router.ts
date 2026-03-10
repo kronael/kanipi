@@ -11,10 +11,8 @@ export function spawnFolderName(jid: string): string {
     .slice(0, 63);
 }
 
-// JID format: "platform:identifier" — e.g. "mastodon:@user@instance.social"
 export function platformFromJid(jid: string): Platform {
-  const prefix = jid.split(':')[0] as Platform;
-  return prefix;
+  return jid.split(':')[0] as Platform;
 }
 
 export function escapeXml(s: string): string {
@@ -58,9 +56,7 @@ export function stripInternalTags(text: string): string {
 }
 
 export function formatOutbound(rawText: string): string {
-  const text = stripInternalTags(rawText);
-  if (!text) return '';
-  return text;
+  return stripInternalTags(rawText);
 }
 
 export function routeOutbound(

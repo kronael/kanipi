@@ -1,30 +1,28 @@
-import path from 'path';
-
 import { registerClient, unregisterClient } from '../../actions/social.js';
 import { STORE_DIR } from '../../config.js';
 import { logger } from '../../logger.js';
 import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { BlueskyClient, BlueskyConfig, createClient } from './client.js';
-import { BlueskyWatcher } from './watcher.js';
+import { startWatcher } from './watcher.js';
 
 const log = logger.child({ channel: 'bluesky' });
 
 export class BlueskyChannel implements Channel {
   readonly name = 'bluesky';
-  private client: BlueskyClient | null = null;
-  private watcher: BlueskyWatcher | null = null;
+  private client: BlueskyClient;
+  private stopWatcher: (() => void) | null = null;
 
   constructor(
     private config: BlueskyConfig,
     private opts: ChannelOpts,
-  ) {}
+  ) {
+    this.client = createClient({
+      ...config,
+      sessionPath: `${STORE_DIR}/bluesky-session.json`,
+    });
+  }
 
   async connect(): Promise<void> {
-    const cfg = {
-      ...this.config,
-      sessionPath: path.join(STORE_DIR, 'bluesky-session.json'),
-    };
-    this.client = createClient(cfg);
     await this.client.connect();
     registerClient('bluesky', this.client);
 
@@ -37,24 +35,19 @@ export class BlueskyChannel implements Channel {
       );
     }
 
-    this.watcher = new BlueskyWatcher(
-      this.client.atpAgent,
-      this.opts.onMessage,
-    );
-    this.watcher.start();
+    this.stopWatcher = startWatcher(this.client.agent, this.opts.onMessage);
     log.info({ did: this.client.did }, 'watcher started');
   }
 
   async disconnect(): Promise<void> {
-    this.watcher?.stop();
-    this.watcher = null;
+    this.stopWatcher?.();
+    this.stopWatcher = null;
     unregisterClient('bluesky');
-    this.client = null;
     log.info('disconnected');
   }
 
   isConnected(): boolean {
-    return this.client !== null;
+    return this.stopWatcher !== null;
   }
 
   ownsJid(jid: string): boolean {
@@ -66,7 +59,6 @@ export class BlueskyChannel implements Channel {
     text: string,
     opts?: SendOpts,
   ): Promise<void> {
-    if (!this.client) throw new Error('bluesky not connected');
     if (opts?.replyTo) {
       await this.client.reply(opts.replyTo, text);
     } else {

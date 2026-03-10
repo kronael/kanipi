@@ -22,16 +22,22 @@ function parseAtUri(uri: string): { repo: string; rkey: string } {
 }
 
 export class BlueskyClient implements PlatformClient {
-  private agent: AtpAgent;
+  readonly agent: AtpAgent;
   private ready = false;
+  private sessionPath?: string;
+  private identifier: string;
+  private password: string;
 
-  constructor(private cfg: BlueskyConfig) {
+  constructor(cfg: BlueskyConfig) {
+    this.sessionPath = cfg.sessionPath;
+    this.identifier = cfg.identifier;
+    this.password = cfg.password;
     this.agent = new AtpAgent({
       service: cfg.serviceUrl ?? 'https://bsky.social',
       persistSession: (_evt, sess) => {
-        if (!cfg.sessionPath || !sess) return;
+        if (!this.sessionPath || !sess) return;
         try {
-          fs.writeFileSync(cfg.sessionPath, JSON.stringify(sess));
+          fs.writeFileSync(this.sessionPath, JSON.stringify(sess));
         } catch (e) {
           logger.warn({ err: e }, 'bluesky: failed to persist session');
         }
@@ -43,14 +49,10 @@ export class BlueskyClient implements PlatformClient {
     return this.agent.session?.did;
   }
 
-  get atpAgent(): AtpAgent {
-    return this.agent;
-  }
-
   async connect(): Promise<void> {
-    if (this.cfg.sessionPath) {
+    if (this.sessionPath) {
       try {
-        const raw = fs.readFileSync(this.cfg.sessionPath, 'utf-8');
+        const raw = fs.readFileSync(this.sessionPath, 'utf-8');
         const sess: AtpSessionData = JSON.parse(raw);
         await this.agent.resumeSession(sess);
         this.ready = true;
@@ -61,8 +63,8 @@ export class BlueskyClient implements PlatformClient {
       }
     }
     await this.agent.login({
-      identifier: this.cfg.identifier,
-      password: this.cfg.password,
+      identifier: this.identifier,
+      password: this.password,
     });
     this.ready = true;
   }

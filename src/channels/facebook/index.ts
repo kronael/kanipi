@@ -2,22 +2,23 @@ import { registerClient, unregisterClient } from '../../actions/social.js';
 import { logger } from '../../logger.js';
 import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { FacebookClient, FacebookConfig, createClient } from './client.js';
-import { FacebookWatcher } from './watcher.js';
+import { startWatcher } from './watcher.js';
 
 const log = logger.child({ channel: 'facebook' });
 
 export class FacebookChannel implements Channel {
   readonly name = 'facebook';
-  private client: FacebookClient | null = null;
-  private watcher: FacebookWatcher | null = null;
+  private client: FacebookClient;
+  private stopWatcher: (() => void) | null = null;
 
   constructor(
     private config: FacebookConfig,
     private opts: ChannelOpts,
-  ) {}
+  ) {
+    this.client = createClient(config);
+  }
 
   async connect(): Promise<void> {
-    this.client = createClient(this.config);
     registerClient('facebook', this.client);
 
     this.opts.onChatMetadata(
@@ -28,21 +29,19 @@ export class FacebookChannel implements Channel {
       true,
     );
 
-    this.watcher = new FacebookWatcher(this.config, this.opts.onMessage);
-    this.watcher.start();
+    this.stopWatcher = startWatcher(this.config, this.opts.onMessage);
     log.info({ pageId: this.config.pageId }, 'connected');
   }
 
   async disconnect(): Promise<void> {
-    this.watcher?.stop();
-    this.watcher = null;
+    this.stopWatcher?.();
+    this.stopWatcher = null;
     unregisterClient('facebook');
-    this.client = null;
     log.info('disconnected');
   }
 
   isConnected(): boolean {
-    return this.client !== null;
+    return this.stopWatcher !== null;
   }
 
   ownsJid(jid: string): boolean {
@@ -54,7 +53,6 @@ export class FacebookChannel implements Channel {
     text: string,
     opts?: SendOpts,
   ): Promise<void> {
-    if (!this.client) throw new Error('facebook not connected');
     if (opts?.replyTo) {
       await this.client.reply(opts.replyTo, text);
     } else {
