@@ -149,9 +149,10 @@ import {
   reconcileSidecarSettings,
   ContainerOutput,
 } from './container-runner.js';
-import type { RegisteredGroup, SidecarHandle } from './types.js';
+import type { GroupConfig } from './db.js';
+import type { SidecarHandle } from './types.js';
 
-const testGroup: RegisteredGroup = {
+const testGroup: GroupConfig = {
   name: 'Test Group',
   folder: 'test-group',
   trigger: '@Andy',
@@ -272,7 +273,7 @@ describe('container-runner timeout behavior', () => {
 
 // --- Sidecar lifecycle ---
 
-const sidecarGroup: RegisteredGroup = {
+const sidecarGroup: GroupConfig = {
   name: 'Sidecar Group',
   folder: 'sidecar-group',
   trigger: '@Andy',

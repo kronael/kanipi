@@ -9,7 +9,6 @@ import { createTestDatabase, ensureDatabase } from './migrations.js';
 import {
   ContainerConfigSchema,
   NewMessage,
-  RegisteredGroup,
   Route,
   ScheduledTask,
   TaskRunLog,
@@ -631,14 +630,24 @@ function migrateJsonState(): void {
   }
 
   // Migrate registered_groups.json to groups + routes tables
+  type LegacyGroup = {
+    folder: string;
+    name: string;
+    added_at: string;
+    trigger: string;
+    requiresTrigger?: boolean;
+    containerConfig?: import('./types.js').ContainerConfig;
+    slinkToken?: string;
+    parent?: string;
+    maxChildren?: number;
+  };
   const legacyGroups = migrateFile('registered_groups.json') as Record<
     string,
-    RegisteredGroup
+    LegacyGroup
   > | null;
   if (legacyGroups) {
     for (const [jid, group] of Object.entries(legacyGroups)) {
       try {
-        // Convert RegisteredGroup to GroupConfig
         const config: GroupConfig = {
           folder: group.folder,
           name: group.name,

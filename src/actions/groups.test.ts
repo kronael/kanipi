@@ -301,7 +301,7 @@ describe('registerGroup — max_children', () => {
   });
 
   it('uses default max_children=50 when not configured', async () => {
-    const groups: Record<string, import('../types.js').RegisteredGroup> = {
+    const groups: Record<string, import('../db.js').GroupConfig> = {
       'root@g.us': { folder: 'root', name: 'Root', trigger: '', added_at: '' },
     };
     for (let i = 0; i < 49; i++) {
@@ -322,7 +322,7 @@ describe('registerGroup — max_children', () => {
   });
 
   it('blocks at default limit of 50', async () => {
-    const groups: Record<string, import('../types.js').RegisteredGroup> = {
+    const groups: Record<string, import('../db.js').GroupConfig> = {
       'root@g.us': { folder: 'root', name: 'Root', trigger: '', added_at: '' },
     };
     for (let i = 0; i < 50; i++) {

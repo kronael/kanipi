@@ -6,7 +6,8 @@ import type {
   AttachmentType,
   RawAttachment,
 } from './mime.js';
-import type { OnInboundMessage, RegisteredGroup } from './types.js';
+import type { GroupConfig } from './db.js';
+import type { OnInboundMessage } from './types.js';
 
 type Bucket = [count: number, resetAt: number];
 
@@ -76,7 +77,7 @@ export interface SlinkRequest {
   ip: string;
   authHeader?: string;
   authSecret?: string;
-  group: (RegisteredGroup & { jid: string }) | undefined;
+  group: (GroupConfig & { jid: string }) | undefined;
   onMessage: OnInboundMessage;
   anonRpm?: number;
   authRpm?: number;

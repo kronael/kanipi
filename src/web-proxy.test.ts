@@ -24,14 +24,15 @@ vi.mock('./logger.js', () => ({
 import { getGroupBySlink } from './db.js';
 import { handleSlinkPost } from './slink.js';
 import { startWebProxy } from './web-proxy.js';
-import type { OnInboundMessage, RegisteredGroup } from './types.js';
+import type { GroupConfig } from './db.js';
+import type { OnInboundMessage } from './types.js';
 
 const mockGetGroup = vi.mocked(getGroupBySlink);
 const mockHandleSlink = vi.mocked(handleSlinkPost);
 const mockAddSse = vi.mocked(addSseListener);
 const mockRemoveSse = vi.mocked(removeSseListener);
 
-function makeGroup(token: string): RegisteredGroup & { jid: string } {
+function makeGroup(token: string): GroupConfig & { jid: string } {
   return {
     jid: 'web:main',
     name: 'main',

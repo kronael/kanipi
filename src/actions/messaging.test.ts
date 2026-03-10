@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ActionContext } from '../action-registry.js';
-import { RegisteredGroup } from '../types.js';
+import { GroupConfig } from '../db.js';
 
 vi.mock('../logger.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn() },
@@ -12,7 +12,7 @@ import { sendMessage, sendFile } from './messaging.js';
 function makeCtx(
   tier: 0 | 1 | 2 | 3,
   sourceGroup = 'main',
-  groups?: Record<string, RegisteredGroup>,
+  groups?: Record<string, GroupConfig>,
 ): ActionContext {
   return {
     sourceGroup,
@@ -31,7 +31,7 @@ function makeCtx(
   };
 }
 
-function makeGroup(folder: string): RegisteredGroup {
+function makeGroup(folder: string): GroupConfig {
   return {
     name: 'test',
     folder,

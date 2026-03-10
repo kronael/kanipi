@@ -326,7 +326,7 @@ describe('_drainGroup — full IPC pipeline with real fs', () => {
   it('unauthorized legacy message is blocked (non-root group)', async () => {
     // Create a child group that only owns its own folder
     const childJid = 'child@g.us';
-    const childGroup: RegisteredGroup = {
+    const childGroup: GroupConfig = {
       name: 'Child',
       folder: 'main/child',
       trigger: '@Andy',

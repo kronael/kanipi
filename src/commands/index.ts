@@ -3,10 +3,11 @@ import path from 'path';
 
 import { DATA_DIR } from '../config.js';
 import { AttachmentDownloader, RawAttachment } from '../mime.js';
-import { Channel, NewMessage, RegisteredGroup } from '../types.js';
+import { GroupConfig } from '../db.js';
+import { Channel, NewMessage } from '../types.js';
 
 export interface CommandContext {
-  group: RegisteredGroup;
+  group: GroupConfig;
   groupJid: string;
   message: NewMessage;
   channel: Channel;

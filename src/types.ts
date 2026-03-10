@@ -117,18 +117,6 @@ export const ContainerConfigSchema = z.object({
   sidecars: z.record(z.string(), SidecarSpecSchema).optional(),
 });
 
-export interface RegisteredGroup {
-  name: string;
-  folder: string;
-  trigger: string;
-  added_at: string;
-  containerConfig?: ContainerConfig;
-  requiresTrigger?: boolean; // Default: true for groups, false for solo chats
-  slinkToken?: string; // Only set for web: groups
-  parent?: string; // Parent folder, undefined for roots
-  maxChildren?: number; // Max spawned children (default: 50, 0 = no spawning)
-}
-
 export interface SendOpts {
   replyTo?: string;
 }

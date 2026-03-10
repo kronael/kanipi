@@ -121,9 +121,9 @@ vi.mock('child_process', async () => {
 });
 
 import { runContainerAgent } from '../../src/container-runner.js';
-import type { RegisteredGroup } from '../../src/types.js';
+import type { GroupConfig } from '../../src/db.js';
 
-const testGroup: RegisteredGroup = {
+const testGroup: GroupConfig = {
   name: 'E2E Group',
   folder: 'e2e-group',
   trigger: '@Andy',
