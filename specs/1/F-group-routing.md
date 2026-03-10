@@ -161,6 +161,11 @@ target → error reply via IPC. The agent handles it.
 
 ## Open
 
+- **IpcDeps callback injection** — `ipc.ts` receives a bundle of callbacks
+  (`getDefaultTarget`, `sendMessage`, etc.) rather than importing db/channel
+  modules directly. The indirection exists for test isolation but adds
+  duplication. Future: collapse into direct imports, test via integration
+  tests against real db + fake channels instead.
 - Strip command prefix before child sees it: per-rule
   flag or always-strip?
 - Circular delegation: detect via depth counter (max 3).
