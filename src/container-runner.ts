@@ -260,16 +260,11 @@ function buildVolumeMounts(
     readonly: false,
   });
 
-  // Restricted tiers: overlay skills/ and CLAUDE.md as readonly on top of rw .claude
+  // Restricted tiers: overlay skills/ as readonly on top of rw .claude
   if (tier >= 2) {
     mounts.push({
       hostPath: hostPath(path.join(groupSessionsDir, 'skills')),
       containerPath: '/home/node/.claude/skills',
-      readonly: true,
-    });
-    mounts.push({
-      hostPath: hostPath(path.join(groupSessionsDir, 'CLAUDE.md')),
-      containerPath: '/home/node/.claude/CLAUDE.md',
       readonly: true,
     });
   }
