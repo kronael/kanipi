@@ -46,13 +46,6 @@ function readEnvValue(envPath: string, key: string): string | undefined {
   return undefined;
 }
 
-function normalizeJid(jid: string): string {
-  return jid
-    .replace(/^tg:/, 'telegram:')
-    .replace(/^wa:/, 'whatsapp:')
-    .replace(/^dc:/, 'discord:');
-}
-
 // --- group commands ---
 
 interface GroupRow {
@@ -119,15 +112,9 @@ function groupList(instance: string): void {
   }
 }
 
-function groupAdd(instance: string, jid: string, folder?: string): void {
-  if (!jid) {
-    console.error('usage: kanipi config <instance> group add <jid> [folder]');
-    process.exit(1);
-  }
-
+function groupAdd(instance: string, folder?: string): void {
   const dataDir = getDataDir(instance);
   const dbPath = getDbPath(instance);
-  const normalizedJid = normalizeJid(jid);
 
   // Ensure DB exists with schema
   const db = ensureDatabase(dbPath);
@@ -141,7 +128,7 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
   const finalFolder = folder || (groupCount === 0 ? 'root' : '');
 
   if (!finalFolder) {
-    console.error('folder required (not first group)');
+    console.error('usage: kanipi config <instance> group add <folder>');
     db.close();
     process.exit(1);
   }
@@ -149,66 +136,31 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
   const rt = groupCount === 0 ? 0 : 1;
   const trigger = rt ? `@${assistant}` : '';
   const now = new Date().toISOString();
-  const isWeb = normalizedJid.startsWith('web:');
-  const slinkToken = isWeb
-    ? crypto.randomBytes(12).toString('base64url')
-    : null;
 
-  // Check if group config already exists
   const existingGroup = db
     .prepare('SELECT folder FROM groups WHERE folder = ?')
     .get(finalFolder);
 
   if (!existingGroup) {
-    // Create group config (folder-keyed)
     db.prepare(
       `INSERT INTO groups
        (folder, name, added_at, container_config, parent, trigger_pattern, requires_trigger, slink_token, max_children)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      finalFolder,
-      finalFolder,
-      now,
-      null,
-      null,
-      trigger,
-      rt,
-      slinkToken,
-      50,
-    );
-  }
-
-  // Check if route already exists
-  const existingRoute = db
-    .prepare("SELECT id FROM routes WHERE jid = ? AND type = 'default'")
-    .get(normalizedJid);
-
-  if (!existingRoute) {
-    // Add default route (JID -> folder)
-    db.prepare(
-      `INSERT INTO routes (jid, seq, type, match, target) VALUES (?, 0, 'default', NULL, ?)`,
-    ).run(normalizedJid, finalFolder);
+    ).run(finalFolder, finalFolder, now, null, null, trigger, rt, null, 50);
   }
 
   db.close();
 
-  console.log(`added: ${normalizedJid} -> ${finalFolder}`);
-
-  if (slinkToken) {
-    const webHost = readEnvValue(envPath, 'WEB_HOST') || '<WEB_HOST>';
-    console.log(
-      `slink token: ${slinkToken}  url: https://${webHost}/pub/s/${slinkToken}`,
-    );
-  }
-
   fs.mkdirSync(path.join(dataDir, 'groups', finalFolder, 'logs'), {
     recursive: true,
   });
+
+  console.log(`added: ${finalFolder}`);
 }
 
-function groupRm(instance: string, jid: string): void {
-  if (!jid) {
-    console.error('usage: kanipi config <instance> group rm <jid>');
+function groupRm(instance: string, folder: string): void {
+  if (!folder) {
+    console.error('usage: kanipi config <instance> group rm <folder>');
     process.exit(1);
   }
 
@@ -218,34 +170,28 @@ function groupRm(instance: string, jid: string): void {
     process.exit(1);
   }
 
-  const normalizedJid = normalizeJid(jid);
+  if (folder === 'root') {
+    console.error('refused: cannot remove root group');
+    process.exit(1);
+  }
+
   const db = new Database(dbPath);
 
-  // Find the route for this JID
-  const route = db
-    .prepare("SELECT target FROM routes WHERE jid = ? AND type = 'default'")
-    .get(normalizedJid) as { target: string } | undefined;
+  const existing = db
+    .prepare('SELECT folder FROM groups WHERE folder = ?')
+    .get(folder);
 
-  if (!route) {
-    console.error(`not found: ${normalizedJid}`);
+  if (!existing) {
+    console.error(`not found: ${folder}`);
     db.close();
     process.exit(1);
   }
 
-  if (route.target === 'root') {
-    console.error('refused: cannot remove root group');
-    db.close();
-    process.exit(1);
-  }
-
-  // Remove the route
-  db.prepare('DELETE FROM routes WHERE jid = ?').run(normalizedJid);
-
+  db.prepare('DELETE FROM routes WHERE target = ?').run(folder);
+  db.prepare('DELETE FROM groups WHERE folder = ?').run(folder);
   db.close();
 
-  console.log(
-    `removed: ${normalizedJid} (folder kept: groups/${route.target})`,
-  );
+  console.log(`removed: ${folder} (folder kept: groups/${folder})`);
 }
 
 // --- mount commands ---
@@ -779,7 +725,7 @@ function startServices(
 function printUsage(): void {
   console.log('usage: kanipi <instance>');
   console.log('       kanipi create <name>');
-  console.log('       kanipi config <instance> group {list|add|rm} ...');
+  console.log('       kanipi config <instance> group list');
   console.log('       kanipi config <instance> user {list|add|rm|passwd} ...');
   console.log('       kanipi config <instance> mount {list|add|rm} ...');
 }
@@ -801,7 +747,7 @@ function handleConfig(args: string[]): void {
           groupList(instance);
           break;
         case 'add':
-          groupAdd(instance, args[3], args[4]);
+          groupAdd(instance, args[3]);
           break;
         case 'rm':
           groupRm(instance, args[3]);
@@ -890,7 +836,7 @@ function main(): void {
             groupList(instance);
             break;
           case 'add':
-            groupAdd(instance, args[3], args[4]);
+            groupAdd(instance, args[3]);
             break;
           case 'rm':
             groupRm(instance, args[3]);

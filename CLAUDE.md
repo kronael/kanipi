@@ -182,8 +182,8 @@ but still works for production docker deployments.
 ```bash
 kanipi create <name>                      # seed data dir, .env, systemd unit
 kanipi config <instance> group list       # list registered/discovered groups
-kanipi config <instance> group add <jid> [folder]  # register a group
-kanipi config <instance> group rm <jid>   # unregister (keeps folder)
+kanipi config <instance> group add [folder]        # register a group (folder only)
+kanipi config <instance> group rm <folder>         # unregister (keeps folder on disk)
 kanipi config <instance> user list|add|rm|passwd   # manage web auth users
 kanipi config <instance> mount list|add|rm         # manage container mounts
 kanipi <instance>                         # run gateway + vite
