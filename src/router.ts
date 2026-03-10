@@ -77,11 +77,12 @@ export function findChannel(
 }
 
 // Returns true if source group may delegate/route to target:
-// same world and target is any descendant of source.
+// root can delegate to any folder; otherwise same world + descendant.
 export function isAuthorizedRoutingTarget(
   sourceFolder: string,
   targetFolder: string,
 ): boolean {
+  if (sourceFolder === 'root') return true;
   const sourceRoot = sourceFolder.split('/')[0];
   const targetRoot = targetFolder.split('/')[0];
   if (sourceRoot !== targetRoot) return false;
