@@ -736,23 +736,24 @@ function setupUnauthorizedRouting(
 
 // Path 1: processGroupMessages called directly (pull path via queue).
 describe('flat routing — delegation failure rollback', () => {
-  it('grandchild target (root → root/code/py): delegates (child unregistered, cursor rolls back)', async () => {
+  it('grandchild target (root → root/code/py): delegates but fails, cursor advances (dropped)', async () => {
     setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
 
     const ok = await _processGroupMessages('src@g.us');
 
     expect(ok).toBe(true);
-    // Grandchild is now authorized — delegateToChild called, not parent agent
+    // Grandchild delegation attempted, but parent (root/code) not registered
     expect(mockRunContainerAgent).not.toHaveBeenCalled();
-    // Flush async .catch rollback
     await Promise.resolve();
-    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
+    // Cursor advances - message dropped, not retried
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 
-  it('cross-world target (root → other/code): delegates but fails, cursor rolls back', async () => {
+  it('cross-world target (root → other/code): delegates but fails, cursor advances (dropped)', async () => {
     // With flat routing, routes are always followed (no runtime auth check).
     // Authorization is enforced when routes are CREATED via IPC.
     // Here: delegation fails because parent "other" doesn't exist.
+    // Cursor advances (message marked as processed but failed delivery).
     setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
 
     const ok = await _processGroupMessages('src@g.us');
@@ -761,12 +762,14 @@ describe('flat routing — delegation failure rollback', () => {
     // Delegation attempted, no spawn possible, no agent runs
     expect(mockRunContainerAgent).not.toHaveBeenCalled();
     await Promise.resolve();
-    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
+    // Cursor advances - message dropped, not retried
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 
-  it('sibling target (root/code → root/ops): delegates but fails, cursor rolls back', async () => {
+  it('sibling target (root/code → root/ops): delegates but fails, cursor advances (dropped)', async () => {
     // With flat routing, routes are always followed.
     // Here: delegation fails because parent "root" isn't registered.
+    // Cursor advances (message marked as processed but failed delivery).
     setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
 
     const ok = await _processGroupMessages('src@g.us');
@@ -775,7 +778,8 @@ describe('flat routing — delegation failure rollback', () => {
     // Delegation attempted, no spawn possible, no agent runs
     expect(mockRunContainerAgent).not.toHaveBeenCalled();
     await Promise.resolve();
-    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
+    // Cursor advances - message dropped, not retried
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 });
 
@@ -783,9 +787,9 @@ describe('flat routing — delegation failure rollback', () => {
 // processGroupMessages code path (same as path 1 since startMessageLoop is
 // not directly testable).
 describe('flat routing — delegation failure (path 2)', () => {
-  it('grandchild target: delegates (child unregistered, cursor rolls back)', async () => {
-    // Grandchild is now authorized → delegateToChild called, but child
-    // not registered → async .catch rolls back cursor.
+  it('grandchild target: delegates but fails, cursor advances (dropped)', async () => {
+    // Grandchild can spawn from parent, but grandparent (root/code) doesn't exist.
+    // Cursor advances - message dropped.
     setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
 
     const ok = await _processGroupMessages('src@g.us');
@@ -793,11 +797,11 @@ describe('flat routing — delegation failure (path 2)', () => {
     expect(ok).toBe(true);
     expect(mockRunContainerAgent).not.toHaveBeenCalled();
     await Promise.resolve();
-    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 
-  it('sibling target: delegates but fails, cursor rolls back', async () => {
-    // Same behavior as path 1 - routes are followed, delegation fails
+  it('sibling target: delegates but fails, cursor advances (dropped)', async () => {
+    // Same behavior as path 1 - routes followed, delegation fails
     setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
 
     const ok = await _processGroupMessages('src@g.us');
@@ -805,11 +809,11 @@ describe('flat routing — delegation failure (path 2)', () => {
     expect(ok).toBe(true);
     expect(mockRunContainerAgent).not.toHaveBeenCalled();
     await Promise.resolve();
-    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 
-  it('cross-world target: delegates but fails, cursor rolls back', async () => {
-    // Same behavior as path 1 - routes are followed, delegation fails
+  it('cross-world target: delegates but fails, cursor advances (dropped)', async () => {
+    // Same behavior as path 1 - routes followed, delegation fails
     setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
 
     const ok = await _processGroupMessages('src@g.us');
@@ -817,6 +821,6 @@ describe('flat routing — delegation failure (path 2)', () => {
     expect(ok).toBe(true);
     expect(mockRunContainerAgent).not.toHaveBeenCalled();
     await Promise.resolve();
-    expect(_getLastAgentTimestamp('src@g.us')).toBe('');
+    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 });

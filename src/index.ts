@@ -318,11 +318,11 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
     saveState();
     delegateToChild(target, formatted, chatJid, 0).catch((err) => {
-      lastAgentTimestamp[chatJid] = prevCursor;
-      saveState();
+      // Don't roll back cursor - message is marked as processed but failed.
+      // Parent can still fetch it via MCP message history tools.
       logger.error(
-        { chatJid, target, err },
-        'processGroupMessages delegate error',
+        { chatJid, target, err: String(err) },
+        'routing failed, message dropped',
       );
     });
     return true;
@@ -848,11 +848,11 @@ async function startMessageLoop(): Promise<void> {
                 toDelegate[toDelegate.length - 1].timestamp;
               saveState();
               delegateToChild(target, routedPrompt, chatJid, 0).catch((err) => {
-                lastAgentTimestamp[chatJid] = prevCursor;
-                saveState();
+                // Don't roll back cursor - message is marked as processed but failed.
+                // Parent can still fetch it via MCP message history tools.
                 logger.error(
-                  { chatJid, target, err },
-                  'routing delegate error',
+                  { chatJid, target, err: String(err) },
+                  'routing failed, message dropped',
                 );
               });
               continue;
