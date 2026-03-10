@@ -119,7 +119,8 @@ container/            agent container build
   agent-runner/       in-container agent entrypoint
   build.sh            agent image builder
   skills/             agent-side skills
-template/             seed for new instances
+prototype/            seed for new instances
+  .claude/CLAUDE.md   default group CLAUDE.md (group-chat behavior instructions)
   web/                vite web app template
 sidecar/              MCP server binaries
 kanipi                bash entrypoint (legacy, for docker deployments)
