@@ -544,6 +544,12 @@ function create(name: string): void {
     copyDirRecursive(webTemplateSrc, webDst);
   }
 
+  // Seed root group content from prototype/.claude/
+  const groupTemplateSrc = path.join(templateDir, '.claude');
+  if (fs.existsSync(groupTemplateSrc)) {
+    copyDirRecursive(groupTemplateSrc, path.join(dataDir, 'groups', 'root'));
+  }
+
   // Generate systemd unit
   const servicePath = path.join(dataDir, `kanipi_${name}.service`);
   const serviceContent = `[Unit]
