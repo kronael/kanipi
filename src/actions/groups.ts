@@ -234,6 +234,32 @@ export const delegateGroup: Action = {
   },
 };
 
+const GetRoutingRulesInput = z.object({
+  folder: z.string().min(1),
+});
+
+export const getRoutingRules: Action = {
+  name: 'get_routing_rules',
+  description: 'Get routing rules for a group',
+  input: GetRoutingRulesInput,
+  async handler(raw, ctx) {
+    if (ctx.tier >= 2) throw new Error('unauthorized');
+    const input = GetRoutingRulesInput.parse(raw);
+    const groups = ctx.registeredGroups();
+    const group = Object.values(groups).find((g) => g.folder === input.folder);
+    if (!group) throw new Error(`group not found: ${input.folder}`);
+    if (ctx.tier === 1) {
+      if (
+        input.folder !== ctx.sourceGroup &&
+        !isDirectChild(ctx.sourceGroup, input.folder)
+      ) {
+        throw new Error('unauthorized');
+      }
+    }
+    return { folder: input.folder, rules: group.routingRules ?? [] };
+  },
+};
+
 const SetRoutingRulesInput = z.object({
   folder: z.string().min(1),
   rules: z.array(RoutingRuleSchema),
@@ -241,7 +267,7 @@ const SetRoutingRulesInput = z.object({
 
 export const setRoutingRules: Action = {
   name: 'set_routing_rules',
-  description: 'Set routing rules for a parent group',
+  description: 'Set routing rules for a group',
   input: SetRoutingRulesInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
@@ -252,8 +278,10 @@ export const setRoutingRules: Action = {
     );
     if (!jid) throw new Error(`group not found: ${input.folder}`);
     if (ctx.tier === 1) {
-      const target = groups[jid];
-      if (!target || !isDirectChild(ctx.sourceGroup, target.folder)) {
+      if (
+        input.folder !== ctx.sourceGroup &&
+        !isDirectChild(ctx.sourceGroup, input.folder)
+      ) {
         throw new Error('unauthorized');
       }
     }
@@ -265,6 +293,6 @@ export const setRoutingRules: Action = {
       ...groups[jid],
       routingRules: input.rules,
     });
-    return { updated: true, ruleCount: input.rules.length };
+    return { folder: input.folder, rules: input.rules };
   },
 };

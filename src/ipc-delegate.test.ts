@@ -354,7 +354,8 @@ describe('set_routing_rules IPC — DB-backed', () => {
 
     const reply = readReply('root', 'req-rules');
     expect(reply!.ok).toBe(true);
-    expect(reply!.result).toMatchObject({ updated: true, ruleCount: 2 });
+    expect(reply!.result.folder).toBe('root');
+    expect(reply!.result.rules).toHaveLength(2);
 
     // Routing rules must be persisted to the real in-memory SQLite DB
     const groups = getAllRegisteredGroups();

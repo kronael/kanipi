@@ -20,6 +20,7 @@ import {
 import {
   delegateGroup,
   escalateGroup,
+  getRoutingRules,
   refreshGroups,
   registerGroup,
   setRoutingRules,
@@ -78,6 +79,7 @@ const allActions: Action[] = [
   cancelTask,
   refreshGroups,
   registerGroup,
+  getRoutingRules,
   setRoutingRules,
   delegateGroup,
   escalateGroup,
