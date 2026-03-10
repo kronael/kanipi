@@ -1,17 +1,21 @@
 import { logger } from '../../logger.js';
-import { ChannelOpts, NewMessage, Verb, Platform } from '../../types.js';
+import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
 import { FacebookConfig } from './client.js';
 
+const log = logger.child({ channel: 'facebook' });
+const POLL_MS = 30_000;
+
 export class FacebookWatcher {
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private closed = false;
   private lastTs = '';
   private base: string;
   private token: string;
   private pageId: string;
 
   constructor(
-    private config: FacebookConfig,
-    private opts: ChannelOpts,
+    config: FacebookConfig,
+    private onMsg: OnInboundMessage,
   ) {
     const v = config.graphApiVersion ?? 'v21.0';
     this.base = `https://graph.facebook.com/${v}`;
@@ -20,18 +24,20 @@ export class FacebookWatcher {
   }
 
   start(): void {
+    this.closed = false;
     this.poll();
-    this.timer = setInterval(() => this.poll(), 30_000);
   }
 
   stop(): void {
+    this.closed = true;
     if (this.timer) {
-      clearInterval(this.timer);
+      clearTimeout(this.timer);
       this.timer = null;
     }
   }
 
   private async poll(): Promise<void> {
+    if (this.closed) return;
     try {
       const fields = 'id,message,from,created_time';
       const url =
@@ -39,39 +45,42 @@ export class FacebookWatcher {
         `?fields=${fields}&limit=10&access_token=${this.token}`;
       const res = await fetch(url);
       if (!res.ok) {
-        logger.warn({ status: res.status }, 'facebook feed fetch failed');
-        return;
-      }
-      const data = (await res.json()) as {
-        data: Array<{
-          id: string;
-          message?: string;
-          from?: { id: string; name: string };
-          created_time: string;
-        }>;
-      };
-      for (const post of data.data) {
-        if (!post.message || !post.from) continue;
-        if (post.from.id === this.pageId) continue; // skip own posts
-        if (this.lastTs && post.created_time <= this.lastTs) continue;
-
-        const msg: NewMessage = {
-          id: `fb-${post.id}`,
-          chat_jid: `facebook:${this.pageId}`,
-          sender: post.from.id,
-          sender_name: post.from.name,
-          content: post.message,
-          timestamp: post.created_time,
-          verb: Verb.Message,
-          platform: Platform.Facebook,
+        log.warn({ status: res.status }, 'feed fetch failed');
+      } else {
+        const data = (await res.json()) as {
+          data: Array<{
+            id: string;
+            message?: string;
+            from?: { id: string; name: string };
+            created_time: string;
+          }>;
         };
-        this.opts.onMessage(`facebook:${this.pageId}`, msg);
-      }
-      if (data.data.length > 0) {
-        this.lastTs = data.data[0].created_time;
+        for (const p of data.data) {
+          if (!p.message || !p.from) continue;
+          if (p.from.id === this.pageId) continue;
+          if (this.lastTs && p.created_time <= this.lastTs) continue;
+
+          const msg: NewMessage = {
+            id: p.id,
+            chat_jid: `facebook:${this.pageId}`,
+            sender: p.from.id,
+            sender_name: p.from.name,
+            content: p.message,
+            timestamp: p.created_time,
+            verb: Verb.Message,
+            platform: Platform.Facebook,
+          };
+          this.onMsg(msg.chat_jid, msg);
+        }
+        if (data.data.length > 0) {
+          this.lastTs = data.data[0].created_time;
+        }
       }
     } catch (err) {
-      logger.warn({ err }, 'facebook poll error');
+      log.warn({ err }, 'poll error');
+    }
+    if (!this.closed) {
+      this.timer = setTimeout(() => this.poll(), POLL_MS);
     }
   }
 }

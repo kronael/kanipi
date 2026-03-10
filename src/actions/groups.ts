@@ -111,36 +111,26 @@ export const registerGroup: Action = {
       throw new Error('invalid folder name');
     }
 
-    // Enforce max_children on the source group when registering a direct child.
     if (isDirectChild(ctx.sourceGroup, input.folder)) {
       const groups = ctx.registeredGroups();
-      const sourceEntry = Object.values(groups).find(
+      const src = Object.values(groups).find(
         (g) => g.folder === ctx.sourceGroup,
       );
-      const maxChildren = sourceEntry?.maxChildren ?? 50;
-      if (maxChildren === 0) {
-        logger.warn(
-          { sourceGroup: ctx.sourceGroup, folder: input.folder },
-          'spawning disabled (max_children=0), falling back to prototype',
-        );
+      const max = src?.maxChildren ?? 50;
+      if (max === 0) {
         return {
           registered: false,
           reason: 'spawning_disabled',
           fallback: ctx.sourceGroup,
         };
       }
-      const childCount = Object.values(groups).filter((g) =>
+      const n = Object.values(groups).filter((g) =>
         isDirectChild(ctx.sourceGroup, g.folder),
       ).length;
-      if (childCount >= maxChildren) {
+      if (n >= max) {
         logger.warn(
-          {
-            sourceGroup: ctx.sourceGroup,
-            childCount,
-            maxChildren,
-            folder: input.folder,
-          },
-          'max_children limit reached, falling back to prototype',
+          { sourceGroup: ctx.sourceGroup, n, max },
+          'max_children reached',
         );
         return {
           registered: false,

@@ -20,17 +20,28 @@ export class MastodonChannel implements Channel {
     this.client = createClient(this.config);
     registerClient('mastodon', this.client);
 
+    try {
+      const me = await this.client.api.v1.accounts.verifyCredentials();
+      this.opts.onChatMetadata(
+        `mastodon:${me.id}`,
+        new Date().toISOString(),
+        me.displayName || me.username,
+        'mastodon',
+      );
+      log.info('connected as @%s', me.username);
+    } catch (e) {
+      log.warn('failed to verify credentials: %s', e);
+    }
+
     this.watcher = new MastodonWatcher(
       this.client,
-      this.opts,
+      this.opts.onMessage,
       this.config.instanceUrl,
       this.config.accessToken,
     );
     void this.watcher.start().catch((e) => {
-      log.error('mastodon watcher failed: %s', e);
+      log.error('watcher failed: %s', e);
     });
-
-    log.info('mastodon connected to %s', this.config.instanceUrl);
   }
 
   async disconnect(): Promise<void> {
@@ -40,7 +51,7 @@ export class MastodonChannel implements Channel {
     }
     unregisterClient('mastodon');
     this.client = null;
-    log.info('mastodon disconnected');
+    log.info('disconnected');
   }
 
   isConnected(): boolean {

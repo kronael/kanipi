@@ -7,6 +7,8 @@ import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { BlueskyClient, BlueskyConfig, createClient } from './client.js';
 import { BlueskyWatcher } from './watcher.js';
 
+const log = logger.child({ channel: 'bluesky' });
+
 export class BlueskyChannel implements Channel {
   readonly name = 'bluesky';
   private client: BlueskyClient | null = null;
@@ -35,12 +37,12 @@ export class BlueskyChannel implements Channel {
       );
     }
 
-    this.watcher = new BlueskyWatcher({
-      agent: this.client.atpAgent,
-      onMessage: this.opts.onMessage,
-    });
+    this.watcher = new BlueskyWatcher(
+      this.client.atpAgent,
+      this.opts.onMessage,
+    );
     this.watcher.start();
-    logger.info({ did: this.client.did }, 'bluesky: watcher started');
+    log.info({ did: this.client.did }, 'watcher started');
   }
 
   async disconnect(): Promise<void> {
@@ -48,7 +50,7 @@ export class BlueskyChannel implements Channel {
     this.watcher = null;
     unregisterClient('bluesky');
     this.client = null;
-    logger.info('bluesky disconnected');
+    log.info('disconnected');
   }
 
   isConnected(): boolean {

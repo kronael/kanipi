@@ -1,7 +1,7 @@
 import { createStreamingAPIClient, type mastodon } from 'masto';
 
 import { logger } from '../../logger.js';
-import { ChannelOpts, NewMessage, Platform, Verb } from '../../types.js';
+import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
 import { MastodonClient } from './client.js';
 
 const log = logger.child({ channel: 'mastodon' });
@@ -25,59 +25,46 @@ export class MastodonWatcher {
 
   constructor(
     private client: MastodonClient,
-    private opts: ChannelOpts,
+    private onMsg: OnInboundMessage,
     private instanceUrl: string,
     private accessToken: string,
   ) {}
 
   async start(): Promise<void> {
-    try {
-      const me = await this.client.api.v1.accounts.verifyCredentials();
-      this.opts.onChatMetadata(
-        `mastodon:${me.id}`,
-        new Date().toISOString(),
-        me.displayName || me.username,
-        'mastodon',
-      );
-      log.info('mastodon bot account: %s (@%s)', me.id, me.username);
-    } catch (e) {
-      log.warn('failed to verify mastodon credentials: %s', e);
-    }
-
-    let streamingUrl = this.instanceUrl;
+    let streamUrl = this.instanceUrl;
     try {
       const inst = await this.client.api.v2.instance.fetch();
       if (inst.configuration?.urls?.streaming) {
-        streamingUrl = inst.configuration.urls.streaming;
+        streamUrl = inst.configuration.urls.streaming;
       }
     } catch {
       log.warn('failed to fetch instance info, using base URL for streaming');
     }
 
     this.streaming = createStreamingAPIClient({
-      streamingApiUrl: streamingUrl,
+      streamingApiUrl: streamUrl,
       accessToken: this.accessToken,
     });
 
     this.sub = this.streaming.user.subscribe();
-    log.info('mastodon streaming connected');
+    log.info('streaming connected');
     void this.consume();
   }
 
   private async consume(): Promise<void> {
     if (!this.sub) return;
     try {
-      for await (const event of this.sub) {
-        this.handleEvent(event);
+      for await (const ev of this.sub) {
+        this.handleEvent(ev);
       }
     } catch (e) {
-      log.error('mastodon streaming error: %s', e);
+      log.error('streaming error: %s', e);
     }
   }
 
-  private handleEvent(event: mastodon.streaming.Event): void {
-    if (event.event !== 'notification') return;
-    const n = event.payload as mastodon.v1.Notification;
+  private handleEvent(ev: mastodon.streaming.Event): void {
+    if (ev.event !== 'notification') return;
+    const n = ev.payload as mastodon.v1.Notification;
     if (n.type !== 'mention' || !n.status) return;
 
     const msg: NewMessage = {
@@ -92,8 +79,8 @@ export class MastodonWatcher {
       replyTo: n.status.inReplyToId ?? undefined,
     };
 
-    log.debug('mastodon mention from @%s: %s', n.account.acct, msg.content);
-    this.opts.onMessage(msg.chat_jid, msg);
+    log.debug('mention from @%s: %s', n.account.acct, msg.content);
+    this.onMsg(msg.chat_jid, msg);
   }
 
   async stop(): Promise<void> {

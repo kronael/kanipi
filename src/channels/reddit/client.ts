@@ -11,29 +11,30 @@ export interface RedditConfig {
 
 const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const API = 'https://oauth.reddit.com';
-const TOKEN_MARGIN_MS = 60_000; // refresh 1min early
+const TOKEN_MARGIN_MS = 60_000;
+const NI = { error: 'not_implemented', platform: 'reddit' } as const;
 
 export class RedditClient implements PlatformClient {
   private token = '';
   private tokenExpiresAt = 0;
 
-  constructor(private config: RedditConfig) {}
+  constructor(private cfg: RedditConfig) {}
 
   async authenticate(): Promise<void> {
     const creds = Buffer.from(
-      `${this.config.clientId}:${this.config.clientSecret}`,
+      `${this.cfg.clientId}:${this.cfg.clientSecret}`,
     ).toString('base64');
     const body = new URLSearchParams({
       grant_type: 'password',
-      username: this.config.username,
-      password: this.config.password,
+      username: this.cfg.username,
+      password: this.cfg.password,
     });
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${creds}`,
         'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': this.config.userAgent,
+        'User-Agent': this.cfg.userAgent,
       },
       body,
     });
@@ -58,7 +59,7 @@ export class RedditClient implements PlatformClient {
     await this.ensureToken();
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.token}`,
-      'User-Agent': this.config.userAgent,
+      'User-Agent': this.cfg.userAgent,
     };
     if (body) headers['Content-Type'] = 'application/x-www-form-urlencoded';
     const res = await fetch(`${API}${path}`, { method, headers, body });
@@ -75,16 +76,13 @@ export class RedditClient implements PlatformClient {
     return res.json();
   }
 
-  // --- PlatformClient ---
-
   async post(content: string, _media?: string[]): Promise<unknown> {
-    // self post to user profile
     return this.api(
       '/api/submit',
       'POST',
       new URLSearchParams({
         kind: 'self',
-        sr: `u_${this.config.username}`,
+        sr: `u_${this.cfg.username}`,
         title: content.slice(0, 300),
         text: content,
       }),
@@ -114,7 +112,7 @@ export class RedditClient implements PlatformClient {
       'POST',
       new URLSearchParams({
         kind: 'crosspost',
-        sr: `u_${this.config.username}`,
+        sr: `u_${this.cfg.username}`,
         title: 'crosspost',
         crosspost_fullname: target,
       }),
@@ -149,57 +147,54 @@ export class RedditClient implements PlatformClient {
     );
   }
 
-  // --- Not implemented ---
-
-  private ni(): Promise<unknown> {
-    return Promise.resolve({ error: 'not_implemented', platform: 'reddit' });
-  }
-
   async setProfile(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async ban(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async unban(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async timeout(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async mute(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async block(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async pin(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async unpin(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async lock(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async unlock(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async hide(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async approve(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async setFlair(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
   async kick(): Promise<unknown> {
-    return this.ni();
+    return NI;
   }
 
-  // Exposed for watcher
   async fetchJson(path: string): Promise<unknown> {
     return this.api(path);
   }
+}
+
+export function createClient(cfg: RedditConfig): RedditClient {
+  return new RedditClient(cfg);
 }

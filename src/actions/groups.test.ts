@@ -307,8 +307,6 @@ describe('registerGroup — max_children', () => {
   });
 
   it('does not apply max_children check for non-direct-child folders', async () => {
-    // root registering root/a/b — not a direct child of root, so no max_children check
-    // But tier=0 allows creating folders with slashes, so it should pass the tier check
     const ctx = makeCtx('root', {
       registeredGroups: vi.fn(() => ({
         'root@g.us': {
@@ -320,7 +318,6 @@ describe('registerGroup — max_children', () => {
         },
       })),
     });
-    // 'root/a/b' is not a direct child of 'root' — max_children check skipped
     const result = await registerGroup.handler(
       { jid: 'new@g.us', name: 'New', folder: 'root/a/b', trigger: '' },
       ctx,
@@ -397,16 +394,6 @@ describe('delegateGroup — depth limit', () => {
     await expect(
       delegateGroup.handler(
         { group: 'root/sub', prompt: 'task', chatJid: 'tg/-100', depth: 3 },
-        ctx,
-      ),
-    ).rejects.toThrow('depth');
-  });
-
-  it('rejects at depth 4 as well', async () => {
-    const ctx = makeCtx('root');
-    await expect(
-      delegateGroup.handler(
-        { group: 'root/sub', prompt: 'task', chatJid: 'tg/-100', depth: 4 },
         ctx,
       ),
     ).rejects.toThrow('depth');

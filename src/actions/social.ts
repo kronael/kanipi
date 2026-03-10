@@ -52,8 +52,22 @@ function getClient(jid: string): ClientResult {
 
 const JidTarget = z.object({ jid: z.string(), target: z.string() });
 
+const ALL_CONTENT: Platform[] = [
+  Platform.Reddit,
+  Platform.Twitter,
+  Platform.Mastodon,
+  Platform.Bluesky,
+  Platform.Facebook,
+  Platform.Threads,
+  Platform.Discord,
+  Platform.Twitch,
+  Platform.YouTube,
+  Platform.Instagram,
+  Platform.LinkedIn,
+];
+
 function targetAction(
-  method: keyof PlatformClient & string,
+  method: keyof PlatformClient,
   description: string,
   platforms: Platform[],
   actionName?: string,
@@ -107,19 +121,7 @@ const ReplyInput = z.object({
 export const reply: Action = {
   name: 'reply',
   description: 'Reply to existing content on a social platform',
-  platforms: [
-    Platform.Reddit,
-    Platform.Twitter,
-    Platform.Mastodon,
-    Platform.Bluesky,
-    Platform.Facebook,
-    Platform.Threads,
-    Platform.Discord,
-    Platform.Twitch,
-    Platform.YouTube,
-    Platform.Instagram,
-    Platform.LinkedIn,
-  ],
+  platforms: ALL_CONTENT,
   input: ReplyInput,
   async handler(raw) {
     const { jid, target, content } = ReplyInput.parse(raw);
@@ -138,19 +140,7 @@ const ReactInput = z.object({
 export const react: Action = {
   name: 'react',
   description: 'Like, upvote, or favourite content on a social platform',
-  platforms: [
-    Platform.Reddit,
-    Platform.Twitter,
-    Platform.Mastodon,
-    Platform.Bluesky,
-    Platform.Facebook,
-    Platform.Threads,
-    Platform.Discord,
-    Platform.Twitch,
-    Platform.YouTube,
-    Platform.Instagram,
-    Platform.LinkedIn,
-  ],
+  platforms: ALL_CONTENT,
   input: ReactInput,
   async handler(raw) {
     const { jid, target, reaction } = ReactInput.parse(raw);
@@ -198,20 +188,6 @@ export const set_profile: Action = {
   },
 };
 
-const ALL_CONTENT = [
-  Platform.Reddit,
-  Platform.Twitter,
-  Platform.Mastodon,
-  Platform.Bluesky,
-  Platform.Facebook,
-  Platform.Threads,
-  Platform.Discord,
-  Platform.Twitch,
-  Platform.YouTube,
-  Platform.Instagram,
-  Platform.LinkedIn,
-];
-
 export const delete_post = targetAction(
   'deletePost',
   'Delete content on a social platform',
@@ -222,7 +198,7 @@ export const delete_post = targetAction(
 const EditInput = z.object({
   jid: z.string(),
   target: z.string(),
-  content: z.string().optional(),
+  content: z.string(),
 });
 
 export const edit_post: Action = {
@@ -234,7 +210,7 @@ export const edit_post: Action = {
     const { jid, target, content } = EditInput.parse(raw);
     const r = getClient(jid);
     if ('error' in r) return r;
-    return r.client.editPost(target, content ?? '');
+    return r.client.editPost(target, content);
   },
 };
 

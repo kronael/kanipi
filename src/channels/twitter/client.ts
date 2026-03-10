@@ -15,12 +15,12 @@ export class TwitterClient implements PlatformClient {
   readonly api: TwitterApi;
   userId = '';
 
-  constructor(config: TwitterConfig) {
+  constructor(cfg: TwitterConfig) {
     this.api = new TwitterApi({
-      appKey: config.appKey,
-      appSecret: config.appSecret,
-      accessToken: config.accessToken,
-      accessSecret: config.accessSecret,
+      appKey: cfg.appKey,
+      appSecret: cfg.appSecret,
+      accessToken: cfg.accessToken,
+      accessSecret: cfg.accessSecret,
     });
   }
 
@@ -54,11 +54,7 @@ export class TwitterClient implements PlatformClient {
     return this.api.v2.unfollow(this.userId, target);
   }
 
-  async setProfile(
-    name?: string,
-    bio?: string,
-    _avatar?: string,
-  ): Promise<unknown> {
+  async setProfile(name?: string, bio?: string): Promise<unknown> {
     const params: Record<string, string> = {};
     if (name) params.name = name;
     if (bio) params.description = bio;
@@ -69,67 +65,50 @@ export class TwitterClient implements PlatformClient {
     return this.api.v2.deleteTweet(target);
   }
 
-  async editPost(_target: string, _content: string): Promise<unknown> {
+  async editPost(): Promise<unknown> {
     return NI;
   }
-
-  async ban(
-    _target: string,
-    _duration?: number,
-    _reason?: string,
-  ): Promise<unknown> {
+  async ban(): Promise<unknown> {
     return NI;
   }
-
-  async unban(_target: string): Promise<unknown> {
+  async unban(): Promise<unknown> {
     return NI;
   }
-
-  async timeout(_target: string, _duration: number): Promise<unknown> {
+  async timeout(): Promise<unknown> {
     return NI;
   }
-
-  async mute(_target: string): Promise<unknown> {
+  async mute(): Promise<unknown> {
     return NI;
   }
-
-  async block(_target: string): Promise<unknown> {
+  async block(): Promise<unknown> {
     return NI;
   }
-
-  async pin(_target: string): Promise<unknown> {
+  async pin(): Promise<unknown> {
     return NI;
   }
-
-  async unpin(_target: string): Promise<unknown> {
+  async unpin(): Promise<unknown> {
     return NI;
   }
-
-  async lock(_target: string): Promise<unknown> {
+  async lock(): Promise<unknown> {
     return NI;
   }
-
-  async unlock(_target: string): Promise<unknown> {
+  async unlock(): Promise<unknown> {
     return NI;
   }
-
-  async hide(_target: string): Promise<unknown> {
+  async hide(): Promise<unknown> {
     return NI;
   }
-
-  async approve(_target: string): Promise<unknown> {
+  async approve(): Promise<unknown> {
     return NI;
   }
-
-  async setFlair(_target: string, _flair: string): Promise<unknown> {
+  async setFlair(): Promise<unknown> {
     return NI;
   }
-
-  async kick(_target: string): Promise<unknown> {
+  async kick(): Promise<unknown> {
     return NI;
   }
 }
 
-export function createClient(config: TwitterConfig): TwitterClient {
-  return new TwitterClient(config);
+export function createClient(cfg: TwitterConfig): TwitterClient {
+  return new TwitterClient(cfg);
 }

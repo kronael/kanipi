@@ -3,7 +3,7 @@ import { createRestAPIClient, type mastodon } from 'masto';
 import { PlatformClient } from '../../actions/social.js';
 
 export interface MastodonConfig {
-  instanceUrl: string; // e.g. https://mastodon.social
+  instanceUrl: string;
   accessToken: string;
 }
 
@@ -12,10 +12,10 @@ const NI = { error: 'not_implemented', platform: 'mastodon' } as const;
 export class MastodonClient implements PlatformClient {
   readonly api: mastodon.rest.Client;
 
-  constructor(config: MastodonConfig) {
+  constructor(cfg: MastodonConfig) {
     this.api = createRestAPIClient({
-      url: config.instanceUrl,
-      accessToken: config.accessToken,
+      url: cfg.instanceUrl,
+      accessToken: cfg.accessToken,
     });
   }
 
@@ -46,11 +46,7 @@ export class MastodonClient implements PlatformClient {
     return this.api.v1.accounts.$select(target).unfollow();
   }
 
-  async setProfile(
-    name?: string,
-    bio?: string,
-    _avatar?: string,
-  ): Promise<unknown> {
+  async setProfile(name?: string, bio?: string): Promise<unknown> {
     return this.api.v1.accounts.updateCredentials({
       displayName: name,
       note: bio,
@@ -76,14 +72,6 @@ export class MastodonClient implements PlatformClient {
     });
   }
 
-  async unban(_target: string): Promise<unknown> {
-    return NI;
-  }
-
-  async timeout(_target: string, _duration: number): Promise<unknown> {
-    return NI;
-  }
-
   async mute(target: string): Promise<unknown> {
     return this.api.v1.accounts.$select(target).mute();
   }
@@ -100,31 +88,33 @@ export class MastodonClient implements PlatformClient {
     return this.api.v1.statuses.$select(target).unpin();
   }
 
-  async lock(_target: string): Promise<unknown> {
-    return NI;
-  }
-
-  async unlock(_target: string): Promise<unknown> {
-    return NI;
-  }
-
-  async hide(_target: string): Promise<unknown> {
-    return NI;
-  }
-
   async approve(target: string): Promise<unknown> {
     return this.api.v1.followRequests.$select(target).authorize();
   }
 
-  async setFlair(_target: string, _flair: string): Promise<unknown> {
+  async unban(): Promise<unknown> {
     return NI;
   }
-
-  async kick(_target: string): Promise<unknown> {
+  async timeout(): Promise<unknown> {
+    return NI;
+  }
+  async lock(): Promise<unknown> {
+    return NI;
+  }
+  async unlock(): Promise<unknown> {
+    return NI;
+  }
+  async hide(): Promise<unknown> {
+    return NI;
+  }
+  async setFlair(): Promise<unknown> {
+    return NI;
+  }
+  async kick(): Promise<unknown> {
     return NI;
   }
 }
 
-export function createClient(config: MastodonConfig): MastodonClient {
-  return new MastodonClient(config);
+export function createClient(cfg: MastodonConfig): MastodonClient {
+  return new MastodonClient(cfg);
 }

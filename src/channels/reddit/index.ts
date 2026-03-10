@@ -4,6 +4,8 @@ import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { RedditClient, RedditConfig } from './client.js';
 import { RedditWatcher } from './watcher.js';
 
+const log = logger.child({ channel: 'reddit' });
+
 export class RedditChannel implements Channel {
   readonly name = 'reddit';
   private client: RedditClient | null = null;
@@ -19,7 +21,6 @@ export class RedditChannel implements Channel {
     this.client = new RedditClient(this.config);
     await this.client.authenticate();
     registerClient('reddit', this.client);
-    logger.info({ user: this.config.username }, 'reddit: connected');
 
     this.opts.onChatMetadata(
       `reddit:${this.config.username}`,
@@ -28,12 +29,13 @@ export class RedditChannel implements Channel {
       'reddit',
     );
 
-    this.watcher = new RedditWatcher({
-      client: this.client,
-      subreddits: this.subreddits,
-      onMessage: (msg) => this.opts.onMessage(msg.chat_jid, msg),
-    });
+    this.watcher = new RedditWatcher(
+      this.client,
+      this.opts.onMessage,
+      this.subreddits,
+    );
     this.watcher.start();
+    log.info({ user: this.config.username }, 'connected');
   }
 
   async disconnect(): Promise<void> {
@@ -41,7 +43,7 @@ export class RedditChannel implements Channel {
     this.watcher = null;
     unregisterClient('reddit');
     this.client = null;
-    logger.info('reddit disconnected');
+    log.info('disconnected');
   }
 
   isConnected(): boolean {

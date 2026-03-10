@@ -4,6 +4,8 @@ import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { FacebookClient, FacebookConfig, createClient } from './client.js';
 import { FacebookWatcher } from './watcher.js';
 
+const log = logger.child({ channel: 'facebook' });
+
 export class FacebookChannel implements Channel {
   readonly name = 'facebook';
   private client: FacebookClient | null = null;
@@ -17,9 +19,7 @@ export class FacebookChannel implements Channel {
   async connect(): Promise<void> {
     this.client = createClient(this.config);
     registerClient('facebook', this.client);
-    logger.info({ pageId: this.config.pageId }, 'facebook: connected');
-    this.watcher = new FacebookWatcher(this.config, this.opts);
-    this.watcher.start();
+
     this.opts.onChatMetadata(
       `facebook:${this.config.pageId}`,
       new Date().toISOString(),
@@ -27,6 +27,10 @@ export class FacebookChannel implements Channel {
       'facebook',
       true,
     );
+
+    this.watcher = new FacebookWatcher(this.config, this.opts.onMessage);
+    this.watcher.start();
+    log.info({ pageId: this.config.pageId }, 'connected');
   }
 
   async disconnect(): Promise<void> {
@@ -34,7 +38,7 @@ export class FacebookChannel implements Channel {
     this.watcher = null;
     unregisterClient('facebook');
     this.client = null;
-    logger.info('facebook disconnected');
+    log.info('disconnected');
   }
 
   isConnected(): boolean {

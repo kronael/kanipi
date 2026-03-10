@@ -4,21 +4,21 @@ import { logger } from '../../logger.js';
 export interface FacebookConfig {
   pageId: string;
   pageAccessToken: string;
-  graphApiVersion?: string; // default: v21.0
+  graphApiVersion?: string;
 }
 
-const NI = { error: 'not_implemented', platform: 'facebook' };
+const NI = { error: 'not_implemented', platform: 'facebook' } as const;
 
 export class FacebookClient implements PlatformClient {
   private base: string;
   private token: string;
   private pageId: string;
 
-  constructor(config: FacebookConfig) {
-    const v = config.graphApiVersion ?? 'v21.0';
+  constructor(cfg: FacebookConfig) {
+    const v = cfg.graphApiVersion ?? 'v21.0';
     this.base = `https://graph.facebook.com/${v}`;
-    this.token = config.pageAccessToken;
-    this.pageId = config.pageId;
+    this.token = cfg.pageAccessToken;
+    this.pageId = cfg.pageId;
   }
 
   private async api(
@@ -32,10 +32,7 @@ export class FacebookClient implements PlatformClient {
       headers: { Authorization: `Bearer ${this.token}` },
     };
     if (body && method !== 'GET') {
-      opts.headers = {
-        ...opts.headers,
-        'Content-Type': 'application/json',
-      };
+      opts.headers = { ...opts.headers, 'Content-Type': 'application/json' };
       opts.body = JSON.stringify(body);
     }
     const res = await fetch(url, opts);
@@ -60,22 +57,6 @@ export class FacebookClient implements PlatformClient {
     return this.api(`/${target}/reactions`, 'POST', { type });
   }
 
-  async repost(_target: string): Promise<unknown> {
-    return NI; // Facebook has share but no API for it
-  }
-
-  async follow(_target: string): Promise<unknown> {
-    return NI;
-  }
-
-  async unfollow(_target: string): Promise<unknown> {
-    return NI;
-  }
-
-  async setProfile(_name?: string, _bio?: string): Promise<unknown> {
-    return NI;
-  }
-
   async deletePost(target: string): Promise<unknown> {
     return this.api(`/${target}`, 'DELETE');
   }
@@ -84,11 +65,7 @@ export class FacebookClient implements PlatformClient {
     return this.api(`/${target}`, 'POST', { message: content });
   }
 
-  async ban(
-    target: string,
-    _duration?: number,
-    _reason?: string,
-  ): Promise<unknown> {
+  async ban(target: string): Promise<unknown> {
     return this.api(`/${this.pageId}/blocked`, 'POST', { user: target });
   }
 
@@ -96,51 +73,55 @@ export class FacebookClient implements PlatformClient {
     return this.api(`/${this.pageId}/blocked`, 'DELETE', { user: target });
   }
 
-  async timeout(_target: string, _duration: number): Promise<unknown> {
-    return NI;
-  }
-
-  async mute(_target: string): Promise<unknown> {
-    return NI;
-  }
-
   async block(target: string): Promise<unknown> {
     return this.ban(target);
-  }
-
-  async pin(_target: string): Promise<unknown> {
-    return NI;
-  }
-
-  async unpin(_target: string): Promise<unknown> {
-    return NI;
-  }
-
-  async lock(_target: string): Promise<unknown> {
-    return NI;
-  }
-
-  async unlock(_target: string): Promise<unknown> {
-    return NI;
   }
 
   async hide(target: string): Promise<unknown> {
     return this.api(`/${target}`, 'POST', { is_hidden: true });
   }
 
-  async approve(_target: string): Promise<unknown> {
+  async repost(): Promise<unknown> {
     return NI;
   }
-
-  async setFlair(_target: string, _flair: string): Promise<unknown> {
+  async follow(): Promise<unknown> {
     return NI;
   }
-
-  async kick(_target: string): Promise<unknown> {
+  async unfollow(): Promise<unknown> {
+    return NI;
+  }
+  async setProfile(): Promise<unknown> {
+    return NI;
+  }
+  async timeout(): Promise<unknown> {
+    return NI;
+  }
+  async mute(): Promise<unknown> {
+    return NI;
+  }
+  async pin(): Promise<unknown> {
+    return NI;
+  }
+  async unpin(): Promise<unknown> {
+    return NI;
+  }
+  async lock(): Promise<unknown> {
+    return NI;
+  }
+  async unlock(): Promise<unknown> {
+    return NI;
+  }
+  async approve(): Promise<unknown> {
+    return NI;
+  }
+  async setFlair(): Promise<unknown> {
+    return NI;
+  }
+  async kick(): Promise<unknown> {
     return NI;
   }
 }
 
-export function createClient(config: FacebookConfig): FacebookClient {
-  return new FacebookClient(config);
+export function createClient(cfg: FacebookConfig): FacebookClient {
+  return new FacebookClient(cfg);
 }

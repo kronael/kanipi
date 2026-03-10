@@ -484,50 +484,35 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 function spawnGroupFromPrototype(
   targetFolder: string,
 ): (RegisteredGroup & { jid: string }) | undefined {
-  // Find parent group whose folder is the direct parent of targetFolder
-  const parentSlash = targetFolder.lastIndexOf('/');
-  if (parentSlash < 0) return undefined;
-  const parentFolder = targetFolder.slice(0, parentSlash);
-  const parentEntry = Object.entries(registeredGroups).find(
-    ([, g]) => g.folder === parentFolder,
+  const slash = targetFolder.lastIndexOf('/');
+  if (slash < 0) return undefined;
+  const parentFolder = targetFolder.slice(0, slash);
+  const parent = Object.values(registeredGroups).find(
+    (g) => g.folder === parentFolder,
   );
-  if (!parentEntry) return undefined;
-  const [, parent] = parentEntry;
+  if (!parent) return undefined;
 
   const max = parent.maxChildren ?? 50;
-  if (max === 0) {
-    logger.warn(
-      { parentFolder, targetFolder },
-      'spawning disabled (max_children=0)',
-    );
-    return undefined;
-  }
-  const childCount = Object.values(registeredGroups).filter(
+  if (max === 0) return undefined;
+  const n = Object.values(registeredGroups).filter(
     (g) => g.parent === parentFolder,
   ).length;
-  if (childCount >= max) {
-    logger.warn(
-      { parentFolder, targetFolder, childCount, max },
-      'max_children reached',
-    );
+  if (n >= max) {
+    logger.warn({ parentFolder, n, max }, 'max_children reached');
     return undefined;
   }
 
-  // Clone: copy CLAUDE.md and SOUL.md from parent folder
   const parentPath = resolveGroupFolderPath(parentFolder);
   const childPath = resolveGroupFolderPath(targetFolder);
   fs.mkdirSync(childPath, { recursive: true });
   for (const f of ['CLAUDE.md', 'SOUL.md']) {
     const src = path.join(parentPath, f);
-    if (fs.existsSync(src)) {
-      fs.copyFileSync(src, path.join(childPath, f));
-    }
+    if (fs.existsSync(src)) fs.copyFileSync(src, path.join(childPath, f));
   }
 
-  // Register in DB — use a synthetic JID so we don't overwrite the parent's entry
   const jid = `spawn:${targetFolder}`;
   const group: RegisteredGroup = {
-    name: targetFolder.split('/').pop() || targetFolder,
+    name: targetFolder.split('/').pop()!,
     folder: targetFolder,
     trigger: parent.trigger,
     added_at: new Date().toISOString(),
@@ -536,10 +521,7 @@ function spawnGroupFromPrototype(
   };
   registeredGroups[jid] = group;
   setRegisteredGroup(jid, group);
-  logger.info(
-    { parentFolder, targetFolder, jid },
-    'spawned child group from prototype',
-  );
+  logger.info({ parentFolder, targetFolder }, 'spawned child group');
   return { ...group, jid };
 }
 

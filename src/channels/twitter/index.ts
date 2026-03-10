@@ -4,6 +4,8 @@ import { Channel, ChannelOpts, SendOpts } from '../../types.js';
 import { TwitterClient, TwitterConfig, createClient } from './client.js';
 import { TwitterWatcher } from './watcher.js';
 
+const log = logger.child({ channel: 'twitter' });
+
 export class TwitterChannel implements Channel {
   readonly name = 'twitter';
   private client: TwitterClient | null = null;
@@ -17,7 +19,6 @@ export class TwitterChannel implements Channel {
   async connect(): Promise<void> {
     this.client = createClient(this.config);
     const me = await this.client.verifyCredentials();
-    logger.info({ user: me.username }, 'twitter: connected');
     registerClient('twitter', this.client);
 
     this.opts.onChatMetadata(
@@ -29,6 +30,7 @@ export class TwitterChannel implements Channel {
 
     this.watcher = new TwitterWatcher(this.client, this.opts.onMessage);
     await this.watcher.start();
+    log.info({ user: me.username }, 'connected');
   }
 
   async disconnect(): Promise<void> {
@@ -36,7 +38,7 @@ export class TwitterChannel implements Channel {
     this.watcher = null;
     unregisterClient('twitter');
     this.client = null;
-    logger.info('twitter disconnected');
+    log.info('disconnected');
   }
 
   isConnected(): boolean {

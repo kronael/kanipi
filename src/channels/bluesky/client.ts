@@ -6,13 +6,14 @@ import { PlatformClient } from '../../actions/social.js';
 import { logger } from '../../logger.js';
 
 export interface BlueskyConfig {
-  serviceUrl?: string; // default: https://bsky.social
-  identifier: string; // handle or DID
-  password: string; // app password
-  sessionPath?: string; // path to persist session JSON
+  serviceUrl?: string;
+  identifier: string;
+  password: string;
+  sessionPath?: string;
 }
 
-// AT-URI format: at://did:plc:xxx/app.bsky.feed.post/rkey
+const NI = { error: 'not_implemented', platform: 'bluesky' } as const;
+
 function parseAtUri(uri: string): { repo: string; rkey: string } {
   const m = uri.match(/^at:\/\/([^/]+)\/[^/]+\/([^/]+)$/);
   if (m) return { repo: m[1], rkey: m[2] };
@@ -24,14 +25,13 @@ export class BlueskyClient implements PlatformClient {
   private agent: AtpAgent;
   private ready = false;
 
-  constructor(private config: BlueskyConfig) {
-    const svc = config.serviceUrl ?? 'https://bsky.social';
+  constructor(private cfg: BlueskyConfig) {
     this.agent = new AtpAgent({
-      service: svc,
+      service: cfg.serviceUrl ?? 'https://bsky.social',
       persistSession: (_evt, sess) => {
-        if (!config.sessionPath || !sess) return;
+        if (!cfg.sessionPath || !sess) return;
         try {
-          fs.writeFileSync(config.sessionPath, JSON.stringify(sess));
+          fs.writeFileSync(cfg.sessionPath, JSON.stringify(sess));
         } catch (e) {
           logger.warn({ err: e }, 'bluesky: failed to persist session');
         }
@@ -48,10 +48,9 @@ export class BlueskyClient implements PlatformClient {
   }
 
   async connect(): Promise<void> {
-    // Try resuming saved session first
-    if (this.config.sessionPath) {
+    if (this.cfg.sessionPath) {
       try {
-        const raw = fs.readFileSync(this.config.sessionPath, 'utf-8');
+        const raw = fs.readFileSync(this.cfg.sessionPath, 'utf-8');
         const sess: AtpSessionData = JSON.parse(raw);
         await this.agent.resumeSession(sess);
         this.ready = true;
@@ -62,8 +61,8 @@ export class BlueskyClient implements PlatformClient {
       }
     }
     await this.agent.login({
-      identifier: this.config.identifier,
-      password: this.config.password,
+      identifier: this.cfg.identifier,
+      password: this.cfg.password,
     });
     this.ready = true;
   }
@@ -79,28 +78,24 @@ export class BlueskyClient implements PlatformClient {
 
   async reply(target: string, content: string): Promise<unknown> {
     this.assertReady();
-    const post = await this._fetchPost(target);
-    // Walk reply chain: if target is already a reply, use its root
-    const root = post.root ?? { uri: target, cid: post.cid };
+    const p = await this.fetchPost(target);
+    const root = p.root ?? { uri: target, cid: p.cid };
     return this.agent.post({
       text: content,
-      reply: {
-        root,
-        parent: { uri: target, cid: post.cid },
-      },
+      reply: { root, parent: { uri: target, cid: p.cid } },
     });
   }
 
   async react(target: string, _reaction?: string): Promise<unknown> {
     this.assertReady();
-    const post = await this._fetchPost(target);
-    return this.agent.like(target, post.cid);
+    const p = await this.fetchPost(target);
+    return this.agent.like(target, p.cid);
   }
 
   async repost(target: string): Promise<unknown> {
     this.assertReady();
-    const post = await this._fetchPost(target);
-    return this.agent.repost(target, post.cid);
+    const p = await this.fetchPost(target);
+    return this.agent.repost(target, p.cid);
   }
 
   async follow(target: string): Promise<unknown> {
@@ -113,11 +108,7 @@ export class BlueskyClient implements PlatformClient {
     return this.agent.deleteFollow(target);
   }
 
-  async setProfile(
-    name?: string,
-    bio?: string,
-    _avatar?: string,
-  ): Promise<unknown> {
+  async setProfile(name?: string, bio?: string): Promise<unknown> {
     this.assertReady();
     return this.agent.upsertProfile((existing) => ({
       ...existing,
@@ -129,30 +120,6 @@ export class BlueskyClient implements PlatformClient {
   async deletePost(target: string): Promise<unknown> {
     this.assertReady();
     return this.agent.deletePost(target);
-  }
-
-  async editPost(_target: string, _content: string): Promise<unknown> {
-    return {
-      error: 'not_implemented',
-      platform: 'bluesky',
-      reason: 'editing not supported',
-    };
-  }
-
-  async ban(
-    _target: string,
-    _duration?: number,
-    _reason?: string,
-  ): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  async unban(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  async timeout(_target: string, _duration: number): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
   }
 
   async mute(target: string): Promise<unknown> {
@@ -168,50 +135,55 @@ export class BlueskyClient implements PlatformClient {
     );
   }
 
-  async pin(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
+  async editPost(): Promise<unknown> {
+    return NI;
+  }
+  async ban(): Promise<unknown> {
+    return NI;
+  }
+  async unban(): Promise<unknown> {
+    return NI;
+  }
+  async timeout(): Promise<unknown> {
+    return NI;
+  }
+  async pin(): Promise<unknown> {
+    return NI;
+  }
+  async unpin(): Promise<unknown> {
+    return NI;
+  }
+  async lock(): Promise<unknown> {
+    return NI;
+  }
+  async unlock(): Promise<unknown> {
+    return NI;
+  }
+  async hide(): Promise<unknown> {
+    return NI;
+  }
+  async approve(): Promise<unknown> {
+    return NI;
+  }
+  async setFlair(): Promise<unknown> {
+    return NI;
+  }
+  async kick(): Promise<unknown> {
+    return NI;
   }
 
-  async unpin(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  async lock(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  async unlock(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  async hide(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  async approve(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  async setFlair(_target: string, _flair: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  async kick(_target: string): Promise<unknown> {
-    return { error: 'not_implemented', platform: 'bluesky' };
-  }
-
-  private async _fetchPost(
+  private async fetchPost(
     uri: string,
   ): Promise<{ cid: string; root?: { uri: string; cid: string } }> {
     const { repo, rkey } = parseAtUri(uri);
     const res = await this.agent.getPost({ repo, rkey });
-    const record = res.value as {
+    const rec = res.value as {
       reply?: { root?: { uri: string; cid: string } };
     };
-    return { cid: res.cid, root: record.reply?.root };
+    return { cid: res.cid, root: rec.reply?.root };
   }
 }
 
-export function createClient(config: BlueskyConfig): BlueskyClient {
-  return new BlueskyClient(config);
+export function createClient(cfg: BlueskyConfig): BlueskyClient {
+  return new BlueskyClient(cfg);
 }
