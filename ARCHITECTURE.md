@@ -43,17 +43,21 @@ Test helpers `_overrideConfig`/`_resetConfig` gated behind
 
 ### db.ts
 
-SQLite database. Stores messages, registered groups, chat
+SQLite database. Stores messages, groups, routing table, chat
 metadata, sessions, and scheduled tasks. All access is
 synchronous (better-sqlite3). Key functions: `storeMessage`,
-`getNewMessages`, `getAllRegisteredGroups`, `setSession`.
+`getNewMessages`, `getGroupByFolder`, `setSession`.
 
-Tables: `messages`, `registered_groups`, `session_history`,
+Tables: `messages`, `groups`, `routes`, `chats`, `session_history`,
 `system_messages`, `scheduled_tasks`, `task_run_logs`,
 `email_threads`, `auth_users`, `auth_sessions`.
 
-`registered_groups` includes `parent`, `routing_rules`, and
-`slink_token` columns for hierarchical routing and web channel.
+`groups` holds group config (folder, name, container_config,
+slink_token, max_children). `routes` is a flat JID→target
+routing table: `getDefaultTarget(jid)` returns the default
+target folder for a JID; `getRoutedJids()` lists all registered
+JIDs; `getDirectChildGroupCount(parentFolder)` counts direct
+children by folder depth.
 
 `system_messages` stores pending events per group; flushed as
 XML before agent stdin.
@@ -84,6 +88,9 @@ One file per channel. Each implements `Channel` interface:
 
 Each channel stores incoming messages via `storeMessage` and
 provides `sendMessage(jid, text)` for outbound delivery.
+`ChannelOpts` supplies `isRoutedJid(jid)` (DB routes lookup)
+and `hasAlwaysOnGroup()` (any group with `requires_trigger=0`)
+so channels can decide whether to filter unregistered JIDs.
 
 `telegram.ts` converts agent markdown to Telegram HTML via
 `mdToHtml()`. Typing indicator refreshes every 4s (Telegram
@@ -133,10 +140,11 @@ Output shape: `{ status, result, newSessionId, error }`.
 `_spawnProcess` is an exported `let` binding (default: `spawn`) that
 tests replace to mock docker without a running daemon.
 
-Also writes `groups.json`, `tasks.json`, and `action_manifest.json`
-snapshots into the group IPC directory before each agent run. Runs `chownRecursive`
+Also writes `groups.json` and `tasks.json` snapshots into the
+group IPC directory before each agent run. Runs `chownRecursive`
 on `WEB_DIR` before mounting so the agent (uid 1000) can write
-web files.
+web files. Action manifest is no longer written to disk — the
+MCP server fetches it via `list_actions` IPC at startup.
 
 ### container-runtime.ts
 
@@ -179,8 +187,12 @@ Actions: `send_message`, `send_file`, `schedule_task`, `pause_task`,
 `resume_task`, `cancel_task`, `refresh_groups`, `register_group`,
 `reset_session`, `delegate_group`, `set_routing_rules`.
 
+`ActionContext` provides `getDefaultTarget`, `getRoutedJids`,
+`getGroupConfig`, and `getDirectChildGroupCount` for routing
+decisions inside action handlers.
+
 `getManifest()` serializes all MCP-exposed actions as JSON Schema
-for agent-side tool discovery.
+for agent-side tool discovery (fetched via `list_actions` IPC).
 
 ### ipc.ts
 
@@ -289,7 +301,7 @@ Claude to summarise progress, prompts user to say "continue".
 
 ## State
 
-- Registered groups → SQLite (`registered_groups` table; includes `parent`, `routing_rules`, `slink_token`)
+- Registered groups → SQLite (`groups` table + `routes` table; routes map JIDs to target folders)
 - Message history → SQLite (`messages` table)
 - Sessions → SQLite (`session_history` table) + filesystem. On agent error, the DB
   pointer is evicted so the next run starts a fresh session; JSONL remains on

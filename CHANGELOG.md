@@ -9,6 +9,27 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Refactor
+
+- Flat routing complete — `RegisteredGroup` interface removed; `ChannelOpts`
+  now uses `isRoutedJid(jid)` and `hasAlwaysOnGroup()` replacing
+  `registeredGroups()`
+- `db.ts`: removed `getJidToGroupMap()` (wrong concept); added
+  `getDefaultTarget(jid)`, `getRoutedJids()`, `getDirectChildGroupCount(parentFolder)`
+  as the canonical routing query interface
+- `ActionContext`, `IpcDeps`, `SchedulerDependencies`: use
+  `getDefaultTarget`/`getGroupConfig`/`getDirectChildGroupCount` instead of
+  `registeredGroups()`
+- `container-runner.ts`: removed dead `writeActionManifest` /
+  `action_manifest.json` write — the MCP server fetches `list_actions` IPC
+  directly at agent startup
+
+### Breaking
+
+- `registered_groups.json` auto-migration removed. Operators on very old
+  instances must migrate manually: run `kanipi config <instance> group add`
+  for each group to re-register it in the DB.
+
 ---
 
 ## [v1.0.21] — 2026-03-10
