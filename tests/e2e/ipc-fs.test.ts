@@ -54,22 +54,23 @@ vi.mock('../../src/commands/index.js', () => ({
 
 import {
   _initTestDatabase,
+  _setTestGroupRoute,
   getTasksForGroup,
-  setRegisteredGroup,
+  GroupConfig,
 } from '../../src/db.js';
 // Side-effect import: registers all IPC actions into the action registry.
 import '../../src/ipc.js';
 import { drainRequests, _drainGroup } from '../../src/ipc.js';
 import type { IpcDeps } from '../../src/ipc.js';
-import type { RegisteredGroup } from '../../src/types.js';
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
 const MAIN_JID = 'main@g.us';
-const MAIN_GROUP: RegisteredGroup = {
+const MAIN_GROUP: GroupConfig = {
   name: 'Main',
   folder: 'main',
   trigger: 'always',
+  requiresTrigger: false,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
@@ -130,7 +131,7 @@ function listDir(dir: string): string[] {
 
 beforeEach(() => {
   _initTestDatabase();
-  setRegisteredGroup(MAIN_JID, MAIN_GROUP);
+  _setTestGroupRoute(MAIN_JID, MAIN_GROUP);
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kanipi-ipc-fs-'));
   ipcDir = path.join(tmpDir, 'ipc');
   fs.mkdirSync(ipcDir, { recursive: true });

@@ -148,9 +148,10 @@ vi.mock('../../src/container-runner.js', () => ({
 
 import {
   _initTestDatabase,
-  getAllRegisteredGroups,
+  _setTestGroupRoute,
+  getAllGroupConfigs,
+  getJidToFolderMap,
   getMessagesSince,
-  setRegisteredGroup,
   setRoutesForJid,
   storeMessage,
   storeChatMetadata,
@@ -347,17 +348,17 @@ describe('DB state for gateway routing', () => {
     expect(msgs[0].content).toBe('@Andy help me');
   });
 
-  it('setRegisteredGroup persists across getAllRegisteredGroups', () => {
-    const group: RegisteredGroup = {
+  it('_setTestGroupRoute persists across getAllGroupConfigs', () => {
+    _setTestGroupRoute('g@g.us', {
       name: 'Test',
       folder: 'test',
       trigger: '@Andy',
-      added_at: '2024-01-01T00:00:00.000Z',
-    };
-    setRegisteredGroup('g@g.us', group);
-    const all = getAllRegisteredGroups();
-    expect(all['g@g.us']).toBeDefined();
-    expect(all['g@g.us'].name).toBe('Test');
+    });
+    const all = getAllGroupConfigs();
+    const jidMap = getJidToFolderMap();
+    expect(jidMap['g@g.us']).toBe('test');
+    expect(all['test']).toBeDefined();
+    expect(all['test'].name).toBe('Test');
   });
 });
 
@@ -597,7 +598,7 @@ describe('processGroupMessages — routing delegate', () => {
     // (enqueueTask → runTask → task.fn() runs sync up to first await)
     expect(mockRunContainerAgent).toHaveBeenCalled();
     const [calledGroup, calledInput] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
+      GroupConfig,
       ContainerInput,
       ...unknown[],
     ];
@@ -616,7 +617,7 @@ describe('processGroupMessages — routing delegate', () => {
     await _processGroupMessages(ROUTED_JID);
 
     for (const call of mockRunContainerAgent.mock.calls) {
-      const [g] = call as [RegisteredGroup, ...unknown[]];
+      const [g] = call as [GroupConfig, ...unknown[]];
       expect(g.folder).not.toBe('root');
     }
   });
@@ -639,7 +640,7 @@ describe('delegateToChild — depth propagation', () => {
 
     expect(mockRunContainerAgent).toHaveBeenCalled();
     const [, input] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
+      GroupConfig,
       ContainerInput,
       ...unknown[],
     ];
@@ -664,7 +665,7 @@ describe('delegateToChild — depth propagation', () => {
     await _delegateToChild(CHILD_FOLDER, 'task', ROUTED_JID, ipcDepth);
 
     const [, input] = mockRunContainerAgent.mock.calls[0] as [
-      RegisteredGroup,
+      GroupConfig,
       ContainerInput,
       ...unknown[],
     ];

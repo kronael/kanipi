@@ -12,33 +12,37 @@ import { drainRequests, _drainGroup, IpcDeps } from './ipc.js';
 import './ipc.js';
 import {
   _initTestDatabase,
-  getAllRegisteredGroups,
-  setRegisteredGroup,
+  _setTestGroupRoute,
+  getAllGroupConfigs,
+  getJidToFolderMap,
+  GroupConfig,
 } from './db.js';
-import type { RegisteredGroup } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
 // ---------------------------------------------------------------------------
 
-const ROOT: RegisteredGroup = {
+const ROOT: GroupConfig = {
   name: 'Root',
   folder: 'root',
   trigger: 'always',
+  requiresTrigger: false,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
-const CODE: RegisteredGroup = {
+const CODE: GroupConfig = {
   name: 'Code',
   folder: 'root/code',
   trigger: '@Andy',
+  requiresTrigger: true,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
-const LOGS: RegisteredGroup = {
+const LOGS: GroupConfig = {
   name: 'Logs',
   folder: 'root/logs',
   trigger: '@Andy',
+  requiresTrigger: true,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
@@ -63,9 +67,18 @@ beforeEach(() => {
   deps = {
     sendMessage: vi.fn(async () => {}),
     sendDocument: vi.fn(async () => {}),
-    // registeredGroups reads live from the in-memory SQLite DB
-    registeredGroups: getAllRegisteredGroups,
-    registerGroup: (jid, group) => setRegisteredGroup(jid, group),
+    // registeredGroups returns JID-keyed map built from groups + routes
+    registeredGroups: () => {
+      const groups = getAllGroupConfigs();
+      const jidMap = getJidToFolderMap();
+      const result: Record<string, GroupConfig> = {};
+      for (const [jid, folder] of Object.entries(jidMap)) {
+        const g = groups[folder];
+        if (g) result[jid] = g;
+      }
+      return result;
+    },
+    registerGroup: (jid, group) => _setTestGroupRoute(jid, group),
     syncGroupMetadata: vi.fn(async () => {}),
     getAvailableGroups: vi.fn(() => []),
     writeGroupsSnapshot: vi.fn(),
@@ -107,8 +120,8 @@ function readReply(
 
 describe('delegate_group IPC — real files', () => {
   it('authorized parent→child: writes ok reply, calls delegateToChild', async () => {
-    setRegisteredGroup('root@g.us', ROOT);
-    setRegisteredGroup('child@g.us', CODE);
+    _setTestGroupRoute('root@g.us', ROOT);
+    _setTestGroupRoute('child@g.us', CODE);
 
     writeRequest('root', {
       id: 'req-1',
@@ -134,7 +147,7 @@ describe('delegate_group IPC — real files', () => {
   });
 
   it('request file deleted after processing', async () => {
-    setRegisteredGroup('root@g.us', ROOT);
+    _setTestGroupRoute('root@g.us', ROOT);
 
     writeRequest('root', {
       id: 'req-del',
@@ -153,8 +166,8 @@ describe('delegate_group IPC — real files', () => {
   });
 
   it('root world sibling delegation: allowed (root world privilege)', async () => {
-    setRegisteredGroup('root@g.us', ROOT);
-    setRegisteredGroup('logs@g.us', LOGS);
+    _setTestGroupRoute('root@g.us', ROOT);
+    _setTestGroupRoute('logs@g.us', LOGS);
 
     writeRequest('root/code', {
       id: 'req-sibling',
@@ -173,20 +186,22 @@ describe('delegate_group IPC — real files', () => {
   });
 
   it('non-root sibling delegation: denied', async () => {
-    const ATLAS: RegisteredGroup = {
+    const ATLAS: GroupConfig = {
       name: 'Atlas',
       folder: 'atlas',
       trigger: 'always',
+      requiresTrigger: false,
       added_at: '2024-01-01T00:00:00.000Z',
     };
-    const ATLAS_A: RegisteredGroup = {
+    const ATLAS_A: GroupConfig = {
       name: 'Atlas A',
       folder: 'atlas/a',
       trigger: '@Andy',
+      requiresTrigger: true,
       added_at: '2024-01-01T00:00:00.000Z',
     };
-    setRegisteredGroup('atlas@g.us', ATLAS);
-    setRegisteredGroup('atlas-a@g.us', ATLAS_A);
+    _setTestGroupRoute('atlas@g.us', ATLAS);
+    _setTestGroupRoute('atlas-a@g.us', ATLAS_A);
 
     writeRequest('atlas/a', {
       id: 'req-sibling-nr',
@@ -240,7 +255,7 @@ describe('delegate_group IPC — real files', () => {
   });
 
   it('explicit depth 0 delegates and passes depth 1 to child', async () => {
-    setRegisteredGroup('root@g.us', ROOT);
+    _setTestGroupRoute('root@g.us', ROOT);
 
     writeRequest('root', {
       id: 'req-d0',
@@ -262,7 +277,7 @@ describe('delegate_group IPC — real files', () => {
   });
 
   it('multiple requests processed in one drain', async () => {
-    setRegisteredGroup('root@g.us', ROOT);
+    _setTestGroupRoute('root@g.us', ROOT);
 
     for (let i = 0; i < 3; i++) {
       writeRequest('root', {
@@ -338,10 +353,10 @@ describe('unknown action type', () => {
 
 describe('DB-backed registeredGroups — live reads', () => {
   it('registeredGroups dep reflects DB state at call time', () => {
-    setRegisteredGroup('root@g.us', ROOT);
+    _setTestGroupRoute('root@g.us', ROOT);
     expect(deps.registeredGroups()['root@g.us']).toBeDefined();
 
-    setRegisteredGroup('child@g.us', CODE);
+    _setTestGroupRoute('child@g.us', CODE);
     const after = deps.registeredGroups();
     expect(after['child@g.us']).toBeDefined();
     expect(Object.keys(after)).toHaveLength(2);
@@ -349,8 +364,8 @@ describe('DB-backed registeredGroups — live reads', () => {
 
   it('delegate from non-root parent uses correct child path check', async () => {
     // main/code delegates to main/code/py — direct child, should succeed
-    setRegisteredGroup('root@g.us', ROOT);
-    setRegisteredGroup('child@g.us', CODE);
+    _setTestGroupRoute('root@g.us', ROOT);
+    _setTestGroupRoute('child@g.us', CODE);
 
     writeRequest('root/code', {
       id: 'req-nested',
@@ -381,7 +396,7 @@ describe('DB-backed registeredGroups — live reads', () => {
 
 describe('full drain pipeline (_drainGroup)', () => {
   it('processes legacy message and request in single drain pass', async () => {
-    setRegisteredGroup('root@g.us', ROOT);
+    _setTestGroupRoute('root@g.us', ROOT);
 
     // Write a legacy message IPC file
     const messagesDir = path.join(tmpDir, 'root', 'messages');
@@ -414,7 +429,7 @@ describe('full drain pipeline (_drainGroup)', () => {
   });
 
   it('concurrent drain for same group is serialized (lock prevents double-process)', async () => {
-    setRegisteredGroup('root@g.us', ROOT);
+    _setTestGroupRoute('root@g.us', ROOT);
 
     writeRequest('root', {
       id: 'req-lock',

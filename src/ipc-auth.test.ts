@@ -2,65 +2,77 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import {
   _initTestDatabase,
+  _setTestGroupRoute,
   createTask,
+  getAllGroupConfigs,
   getAllTasks,
-  getRegisteredGroup,
+  getGroupByFolder,
+  getJidToFolderMap,
   getTaskById,
-  setRegisteredGroup,
+  GroupConfig,
 } from './db.js';
 import { processTaskIpc, IpcDeps } from './ipc-compat.js';
 // Ensure actions are registered (ipc.ts side-effect)
 import './ipc.js';
-import { RegisteredGroup } from './types.js';
 
 // Set up registered groups used across tests
-const ROOT_GROUP: RegisteredGroup = {
+const ROOT_GROUP: GroupConfig = {
   name: 'Root',
   folder: 'root',
   trigger: 'always',
+  requiresTrigger: false,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
-const OTHER_GROUP: RegisteredGroup = {
+const OTHER_GROUP: GroupConfig = {
   name: 'Other',
   folder: 'discord/other-group',
   trigger: '@Andy',
+  requiresTrigger: true,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
-const THIRD_GROUP: RegisteredGroup = {
+const THIRD_GROUP: GroupConfig = {
   name: 'Third',
   folder: 'discord/third-group',
   trigger: '@Andy',
+  requiresTrigger: true,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
-let groups: Record<string, RegisteredGroup>;
+let groups: Record<string, GroupConfig>;
 let deps: IpcDeps;
 
 beforeEach(() => {
   _initTestDatabase();
 
-  groups = {
-    'root@g.us': ROOT_GROUP,
-    'other@g.us': OTHER_GROUP,
-    'third@g.us': THIRD_GROUP,
+  // Populate DB
+  _setTestGroupRoute('root@g.us', ROOT_GROUP);
+  _setTestGroupRoute('other@g.us', OTHER_GROUP);
+  _setTestGroupRoute('third@g.us', THIRD_GROUP);
+
+  // Build JID-keyed map from DB
+  const getGroups = () => {
+    const allGroups = getAllGroupConfigs();
+    const jidMap = getJidToFolderMap();
+    const result: Record<string, GroupConfig> = {};
+    for (const [jid, folder] of Object.entries(jidMap)) {
+      const g = allGroups[folder];
+      if (g) result[jid] = g;
+    }
+    return result;
   };
 
-  // Populate DB as well
-  setRegisteredGroup('root@g.us', ROOT_GROUP);
-  setRegisteredGroup('other@g.us', OTHER_GROUP);
-  setRegisteredGroup('third@g.us', THIRD_GROUP);
+  groups = getGroups();
 
   deps = {
     sendMessage: async () => {},
     clearSession: vi.fn(),
     sendDocument: async () => {},
-    registeredGroups: () => groups,
+    registeredGroups: getGroups,
     registerGroup: (jid, group) => {
-      groups[jid] = group;
-      setRegisteredGroup(jid, group);
-      // Mock the fs.mkdirSync that registerGroup does
+      _setTestGroupRoute(jid, group);
+      groups = getGroups();
     },
     syncGroupMetadata: async () => {},
     getAvailableGroups: () => [],
@@ -383,7 +395,7 @@ describe('IPC message authorization', () => {
   function isMessageAuthorized(
     sourceGroup: string,
     targetChatJid: string,
-    registeredGroups: Record<string, RegisteredGroup>,
+    registeredGroups: Record<string, GroupConfig>,
   ): boolean {
     const targetGroup = registeredGroups[targetChatJid];
     return (
@@ -631,7 +643,7 @@ describe('register_group success', () => {
     );
 
     // Verify group was registered in DB
-    const group = getRegisteredGroup('new@g.us');
+    const group = getGroupByFolder('atlas/support');
     expect(group).toBeDefined();
     expect(group!.name).toBe('New Group');
     expect(group!.folder).toBe('atlas/support');
@@ -650,7 +662,7 @@ describe('register_group success', () => {
       deps,
     );
 
-    expect(getRegisteredGroup('partial@g.us')).toBeUndefined();
+    expect(getGroupByFolder('partial')).toBeUndefined();
   });
 });
 

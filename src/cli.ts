@@ -190,22 +190,6 @@ function groupAdd(instance: string, jid: string, folder?: string): void {
     ).run(normalizedJid, finalFolder);
   }
 
-  // Also insert into registered_groups for backwards compatibility during migration
-  db.prepare(
-    `INSERT OR REPLACE INTO registered_groups
-     (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger, slink_token)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    normalizedJid,
-    finalFolder,
-    finalFolder,
-    trigger,
-    now,
-    null,
-    rt,
-    slinkToken,
-  );
-
   db.close();
 
   console.log(`added: ${normalizedJid} -> ${finalFolder}`);
@@ -257,9 +241,6 @@ function groupRm(instance: string, jid: string): void {
   // Remove the route
   db.prepare('DELETE FROM routes WHERE jid = ?').run(normalizedJid);
 
-  // Also remove from registered_groups for backwards compatibility
-  db.prepare('DELETE FROM registered_groups WHERE jid = ?').run(normalizedJid);
-
   db.close();
 
   console.log(
@@ -289,7 +270,7 @@ function mountList(instance: string): void {
   const db = new Database(dbPath, { readonly: true });
   const rows = db
     .prepare(
-      'SELECT folder, container_config FROM registered_groups WHERE container_config IS NOT NULL',
+      'SELECT folder, container_config FROM groups WHERE container_config IS NOT NULL',
     )
     .all() as Array<{ folder: string; container_config: string }>;
   db.close();
@@ -337,7 +318,7 @@ function mountAdd(
 
   const db = new Database(dbPath);
   const row = db
-    .prepare('SELECT container_config FROM registered_groups WHERE folder = ?')
+    .prepare('SELECT container_config FROM groups WHERE folder = ?')
     .get(folder) as { container_config: string | null } | undefined;
 
   if (!row) {
@@ -365,9 +346,10 @@ function mountAdd(
   const readonly = rw !== 'rw';
   cfg.additionalMounts.push({ hostPath, containerPath: cname, readonly });
 
-  db.prepare(
-    'UPDATE registered_groups SET container_config = ? WHERE folder = ?',
-  ).run(JSON.stringify(cfg), folder);
+  db.prepare('UPDATE groups SET container_config = ? WHERE folder = ?').run(
+    JSON.stringify(cfg),
+    folder,
+  );
   db.close();
 
   console.log(
@@ -395,7 +377,7 @@ function mountRm(
 
   const db = new Database(dbPath);
   const row = db
-    .prepare('SELECT container_config FROM registered_groups WHERE folder = ?')
+    .prepare('SELECT container_config FROM groups WHERE folder = ?')
     .get(folder) as { container_config: string | null } | undefined;
 
   if (!row) {
@@ -426,9 +408,10 @@ function mountRm(
   }
 
   const val = cfg.additionalMounts.length ? JSON.stringify(cfg) : null;
-  db.prepare(
-    'UPDATE registered_groups SET container_config = ? WHERE folder = ?',
-  ).run(val, folder);
+  db.prepare('UPDATE groups SET container_config = ? WHERE folder = ?').run(
+    val,
+    folder,
+  );
   db.close();
 
   console.log(`removed: ${containerName}`);

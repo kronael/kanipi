@@ -9,7 +9,11 @@ import os from 'os';
 import path from 'path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { _initTestDatabase, setRegisteredGroup } from '../../src/db.js';
+import {
+  _initTestDatabase,
+  _setTestGroupRoute,
+  GroupConfig,
+} from '../../src/db.js';
 // Import ipc.ts to trigger action registration side-effect
 import '../../src/ipc.js';
 import {
@@ -17,7 +21,6 @@ import {
   getAllActions,
   getManifest,
 } from '../../src/action-registry.js';
-import type { RegisteredGroup } from '../../src/types.js';
 import type { IpcDeps } from '../../src/ipc-compat.js';
 
 const EXPECTED_ACTIONS = [
@@ -37,10 +40,11 @@ const EXPECTED_ACTIONS = [
   'reset_session',
 ];
 
-const MAIN_GROUP: RegisteredGroup = {
+const MAIN_GROUP: GroupConfig = {
   name: 'Main',
   folder: 'main',
   trigger: 'always',
+  requiresTrigger: false,
   added_at: '2024-01-01T00:00:00.000Z',
 };
 
@@ -49,7 +53,7 @@ let deps: IpcDeps;
 
 beforeEach(() => {
   _initTestDatabase();
-  setRegisteredGroup('main@g.us', MAIN_GROUP);
+  _setTestGroupRoute('main@g.us', MAIN_GROUP);
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kanipi-action-test-'));
 
   deps = {

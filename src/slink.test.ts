@@ -2,15 +2,16 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import {
   _initTestDatabase,
+  _setTestGroupRoute,
   getGroupBySlink,
-  setRegisteredGroup,
+  GroupConfig,
 } from './db.js';
 import {
   _resetRateLimitBuckets,
   generateSlinkToken,
   handleSlinkPost,
 } from './slink.js';
-import type { NewMessage, OnInboundMessage, RegisteredGroup } from './types.js';
+import type { NewMessage, OnInboundMessage } from './types.js';
 
 import crypto from 'crypto';
 
@@ -37,17 +38,14 @@ function makeSignedJwt(
   return `${header}.${body}.${sig}`;
 }
 
-function makeGroup(
-  jid: string,
-  token: string,
-): RegisteredGroup & { jid: string } {
+function makeGroup(jid: string, token: string): GroupConfig & { jid: string } {
   return {
     jid,
     name: jid,
     folder: jid.replace(':', '-'),
     trigger: '',
-    added_at: new Date().toISOString(),
     requiresTrigger: false,
+    added_at: new Date().toISOString(),
     slinkToken: token,
   };
 }
@@ -613,13 +611,12 @@ describe('guessType with query string', () => {
 // --- DB: kanipi group add web:test inserts non-null slink_token ---
 
 describe('DB: web group registration', () => {
-  it('setRegisteredGroup with slinkToken stores and retrieves token', () => {
+  it('_setTestGroupRoute with slinkToken stores and retrieves token', () => {
     const token = generateSlinkToken();
-    setRegisteredGroup('web:test', {
+    _setTestGroupRoute('web:test', {
       name: 'test',
       folder: 'web-test',
       trigger: '',
-      added_at: new Date().toISOString(),
       requiresTrigger: false,
       slinkToken: token,
     });
@@ -645,11 +642,10 @@ describe('DB: web group registration', () => {
     const token = generateSlinkToken();
     expect(token).toBeTruthy();
 
-    setRegisteredGroup(jid, {
+    _setTestGroupRoute(jid, {
       name: 'main',
       folder: 'main',
       trigger: '',
-      added_at: new Date().toISOString(),
       requiresTrigger: false,
       slinkToken: token,
     });

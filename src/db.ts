@@ -34,19 +34,17 @@ export function _initTestDatabase(): void {
 }
 
 export function _setRawGroupColumns(
-  jid: string,
+  folder: string,
   cols: { container_config?: string },
 ): void {
   db.prepare(
-    `INSERT OR REPLACE INTO registered_groups
-       (jid, name, folder, trigger_pattern, added_at, container_config,
-        requires_trigger, slink_token, parent, routing_rules)
-     VALUES (?, ?, ?, ?, ?, ?, 1, NULL, NULL, NULL)`,
+    `INSERT OR REPLACE INTO groups
+       (folder, name, added_at, container_config,
+        parent, trigger_pattern, requires_trigger, slink_token, max_children)
+     VALUES (?, ?, ?, ?, NULL, '', 1, NULL, NULL)`,
   ).run(
-    jid,
+    folder,
     'test',
-    'test',
-    '',
     '2024-01-01T00:00:00.000Z',
     cols.container_config ?? null,
   );
@@ -531,127 +529,64 @@ export function getRecentSessions(
     .all(groupId, limit) as SessionRecord[];
 }
 
-// --- Registered group accessors ---
-
-type GroupRow = {
-  jid: string;
-  name: string;
-  folder: string;
-  trigger_pattern: string;
-  added_at: string;
-  container_config: string | null;
-  requires_trigger: number | null;
-  slink_token: string | null;
-  parent: string | null;
-  max_children: number | null;
-};
-
-function parseContainerConfig(raw: string, jid: string) {
-  try {
-    const r = ContainerConfigSchema.safeParse(JSON.parse(raw));
-    if (!r.success) {
-      logger.warn(
-        { jid, errors: r.error.issues },
-        'container_config schema invalid, ignoring',
-      );
-      return undefined;
-    }
-    return r.data;
-  } catch {
-    logger.warn({ jid }, 'container_config is not valid JSON, ignoring');
-    return undefined;
-  }
-}
-
-function rowToGroup(row: GroupRow): RegisteredGroup & { jid: string } {
-  return {
-    jid: row.jid,
-    name: row.name,
-    folder: row.folder,
-    trigger: row.trigger_pattern,
-    added_at: row.added_at,
-    containerConfig: row.container_config
-      ? parseContainerConfig(row.container_config, row.jid)
-      : undefined,
-    requiresTrigger:
-      row.requires_trigger === null ? undefined : row.requires_trigger === 1,
-    slinkToken: row.slink_token ?? undefined,
-    parent: row.parent ?? undefined,
-    maxChildren: row.max_children ?? undefined,
-  };
-}
-
-export function getRegisteredGroup(
-  jid: string,
-): (RegisteredGroup & { jid: string }) | undefined {
-  const row = db
-    .prepare('SELECT * FROM registered_groups WHERE jid = ?')
-    .get(jid) as GroupRow | undefined;
-  if (!row) return undefined;
-  if (!isValidGroupFolder(row.folder)) {
-    logger.warn(
-      { jid: row.jid, folder: row.folder },
-      'Skipping registered group with invalid folder',
-    );
-    return undefined;
-  }
-  return rowToGroup(row);
-}
+// --- Group lookup by slink token ---
 
 export function getGroupBySlink(
   token: string,
-): (RegisteredGroup & { jid: string }) | undefined {
+): (GroupConfig & { jid: string }) | undefined {
   const row = db
-    .prepare('SELECT * FROM registered_groups WHERE slink_token = ?')
-    .get(token) as GroupRow | undefined;
+    .prepare('SELECT * FROM groups WHERE slink_token = ?')
+    .get(token) as GroupsRow | undefined;
   if (!row) return undefined;
-  return rowToGroup(row);
+
+  // Find a JID that routes to this folder
+  const route = db
+    .prepare(
+      "SELECT jid FROM routes WHERE target = ? AND type = 'default' LIMIT 1",
+    )
+    .get(row.folder) as { jid: string } | undefined;
+
+  // Web groups may not have routes yet if just created
+  const jid = route?.jid ?? `web:${row.folder}`;
+  return { ...rowToGroupConfig(row), jid };
 }
 
-export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
-  if (!isValidGroupFolder(group.folder)) {
-    throw new Error(`Invalid group folder "${group.folder}" for JID ${jid}`);
+/**
+ * Test helper: set up a group config + default route in one call.
+ * Used by tests that need to register a JID → folder mapping.
+ */
+export function _setTestGroupRoute(
+  jid: string,
+  group: Omit<GroupConfig, 'trigger' | 'requiresTrigger' | 'added_at'> & {
+    trigger?: string;
+    requiresTrigger?: boolean;
+    added_at?: string;
+  },
+): void {
+  const fullConfig: GroupConfig = {
+    name: group.name,
+    folder: group.folder,
+    trigger: group.trigger ?? '',
+    requiresTrigger: group.requiresTrigger ?? true,
+    added_at: group.added_at ?? new Date().toISOString(),
+    containerConfig: group.containerConfig,
+    slinkToken: group.slinkToken,
+    parent: group.parent,
+    maxChildren: group.maxChildren,
+  };
+  setGroupConfig(fullConfig);
+  // Avoid duplicate routes
+  const existing = db
+    .prepare("SELECT id FROM routes WHERE jid = ? AND type = 'default'")
+    .get(jid);
+  if (!existing) {
+    addRoute(jid, {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: group.folder,
+    });
   }
-  if (group.containerConfig !== undefined) {
-    ContainerConfigSchema.parse(group.containerConfig);
-  }
-  db.prepare(
-    `INSERT OR REPLACE INTO registered_groups
-       (jid, name, folder, trigger_pattern, added_at, container_config,
-        requires_trigger, slink_token, parent, routing_rules, max_children)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    jid,
-    group.name,
-    group.folder,
-    group.trigger,
-    group.added_at,
-    group.containerConfig ? JSON.stringify(group.containerConfig) : null,
-    group.requiresTrigger === undefined ? 1 : group.requiresTrigger ? 1 : 0,
-    group.slinkToken ?? null,
-    group.parent ?? null,
-    null, // routing_rules deprecated, use routes table
-    group.maxChildren ?? null,
-  );
-}
-
-export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
-  const rows = db
-    .prepare('SELECT * FROM registered_groups')
-    .all() as GroupRow[];
-  const result: Record<string, RegisteredGroup> = {};
-  for (const row of rows) {
-    if (!isValidGroupFolder(row.folder)) {
-      logger.warn(
-        { jid: row.jid, folder: row.folder },
-        'Skipping registered group with invalid folder',
-      );
-      continue;
-    }
-    const { jid: _jid, ...group } = rowToGroup(row);
-    result[row.jid] = group;
-  }
-  return result;
 }
 
 // --- JSON migration ---
@@ -697,15 +632,33 @@ function migrateJsonState(): void {
     }
   }
 
-  // Migrate registered_groups.json
-  const groups = migrateFile('registered_groups.json') as Record<
+  // Migrate registered_groups.json to groups + routes tables
+  const legacyGroups = migrateFile('registered_groups.json') as Record<
     string,
     RegisteredGroup
   > | null;
-  if (groups) {
-    for (const [jid, group] of Object.entries(groups)) {
+  if (legacyGroups) {
+    for (const [jid, group] of Object.entries(legacyGroups)) {
       try {
-        setRegisteredGroup(jid, group);
+        // Convert RegisteredGroup to GroupConfig
+        const config: GroupConfig = {
+          folder: group.folder,
+          name: group.name,
+          added_at: group.added_at,
+          containerConfig: group.containerConfig,
+          parent: group.parent,
+          trigger: group.trigger,
+          requiresTrigger: group.requiresTrigger ?? true,
+          slinkToken: group.slinkToken,
+          maxChildren: group.maxChildren,
+        };
+        setGroupConfig(config);
+        addRoute(jid, {
+          seq: 0,
+          type: 'default',
+          match: null,
+          target: group.folder,
+        });
       } catch (err) {
         logger.warn(
           { jid, folder: group.folder, err },
@@ -966,6 +919,23 @@ export interface GroupConfig {
   requiresTrigger: boolean;
   slinkToken?: string;
   maxChildren?: number;
+}
+
+function parseContainerConfig(raw: string, key: string) {
+  try {
+    const r = ContainerConfigSchema.safeParse(JSON.parse(raw));
+    if (!r.success) {
+      logger.warn(
+        { key, errors: r.error.issues },
+        'container_config schema invalid, ignoring',
+      );
+      return undefined;
+    }
+    return r.data;
+  } catch {
+    logger.warn({ key }, 'container_config is not valid JSON, ignoring');
+    return undefined;
+  }
 }
 
 function rowToGroupConfig(row: GroupsRow): GroupConfig {

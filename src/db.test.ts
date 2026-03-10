@@ -3,21 +3,22 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   _initTestDatabase,
   _setRawGroupColumns,
+  _setTestGroupRoute,
   createTask,
   deleteTask,
   enqueueSystemMessage,
   flushSystemMessages,
   getAllChats,
-  getAllRegisteredGroups,
+  getAllGroupConfigs,
   getDueTasks,
+  getGroupByFolder,
   getMessagesSince,
   getNewMessages,
   getRecentSessions,
-  getRegisteredGroup,
   getTaskById,
   pruneExpiredSessions,
   recordSessionStart,
-  setRegisteredGroup,
+  setGroupConfig,
   storeChatMetadata,
   storeMessage,
   updateSessionEnd,
@@ -476,39 +477,38 @@ describe('getNewMessages edge cases', () => {
   });
 });
 
-// --- setRegisteredGroup ---
+// --- setGroupConfig ---
 
-describe('setRegisteredGroup', () => {
+describe('setGroupConfig', () => {
   it('throws on invalid folder path', () => {
     expect(() =>
-      setRegisteredGroup('telegram:1', {
+      setGroupConfig({
         name: 'escape',
         folder: '../escape',
         trigger: '',
-        added_at: '2024-01-01T00:00:00.000Z',
         requiresTrigger: false,
+        added_at: '2024-01-01T00:00:00.000Z',
       }),
     ).toThrow();
   });
 
   it('stores and retrieves containerConfig', () => {
-    setRegisteredGroup('telegram:cc', {
+    _setTestGroupRoute('telegram:cc', {
       name: 'cfg',
       folder: 'cfg',
-      trigger: '',
-      added_at: '2024-01-01T00:00:00.000Z',
       containerConfig: { timeout: 60000 },
     });
-    const g = getRegisteredGroup('telegram:cc');
+    const g = getGroupByFolder('cfg');
     expect(g?.containerConfig?.timeout).toBe(60000);
   });
 
   it('throws on invalid containerConfig schema', () => {
     expect(() =>
-      setRegisteredGroup('telegram:bad-cc', {
+      setGroupConfig({
         name: 'bad',
         folder: 'bad',
         trigger: '',
+        requiresTrigger: false,
         added_at: '2024-01-01T00:00:00.000Z',
         // @ts-expect-error intentional bad data
         containerConfig: { timeout: 'not-a-number' },
@@ -517,22 +517,21 @@ describe('setRegisteredGroup', () => {
   });
 });
 
-// --- registered_groups round-trip ---
+// --- groups round-trip ---
 
-describe('registered_groups round-trip', () => {
+describe('groups round-trip', () => {
   it('preserves containerConfig fields through set/get', () => {
-    setRegisteredGroup('telegram:full', {
+    _setTestGroupRoute('telegram:full', {
       name: 'full',
       folder: 'full',
       trigger: '/go',
-      added_at: '2024-01-01T00:00:00.000Z',
       containerConfig: {
         timeout: 120000,
         additionalMounts: [{ hostPath: '/srv/data', readonly: true }],
       },
     });
-    const all = getAllRegisteredGroups();
-    const g = all['telegram:full'];
+    const all = getAllGroupConfigs();
+    const g = all['full'];
     expect(g?.containerConfig?.timeout).toBe(120000);
     expect(g?.containerConfig?.additionalMounts?.[0].hostPath).toBe(
       '/srv/data',
@@ -540,36 +539,36 @@ describe('registered_groups round-trip', () => {
   });
 });
 
-// --- registered_groups malformed JSON fallback ---
+// --- groups malformed JSON fallback ---
 
-describe('registered_groups malformed JSON fallback', () => {
+describe('groups malformed JSON fallback', () => {
   it('returns undefined containerConfig for invalid JSON', () => {
-    _setRawGroupColumns('telegram:bad-json-cc', {
+    _setRawGroupColumns('bad-json-cc', {
       container_config: '{not valid json',
     });
-    const g = getRegisteredGroup('telegram:bad-json-cc');
+    const g = getGroupByFolder('bad-json-cc');
     expect(g).toBeDefined();
     expect(g!.containerConfig).toBeUndefined();
   });
 
   it('returns undefined containerConfig for schema-invalid JSON', () => {
-    _setRawGroupColumns('telegram:schema-cc', {
+    _setRawGroupColumns('schema-cc', {
       container_config: JSON.stringify({ timeout: 'not-a-number' }),
     });
-    const g = getRegisteredGroup('telegram:schema-cc');
+    const g = getGroupByFolder('schema-cc');
     expect(g).toBeDefined();
     expect(g!.containerConfig).toBeUndefined();
   });
 
-  it('getAllRegisteredGroups skips malformed fields without throwing', () => {
-    _setRawGroupColumns('telegram:all-bad', {
+  it('getAllGroupConfigs skips malformed fields without throwing', () => {
+    _setRawGroupColumns('all-bad', {
       container_config: '{bad',
     });
     let all: Record<string, unknown> | undefined;
     expect(() => {
-      all = getAllRegisteredGroups();
+      all = getAllGroupConfigs();
     }).not.toThrow();
-    expect(all!['telegram:all-bad']).toBeDefined();
+    expect(all!['all-bad']).toBeDefined();
   });
 });
 
@@ -625,23 +624,23 @@ describe('system_messages', () => {
   });
 });
 
-// --- DB-boundary: malformed registered_groups JSON ---
+// --- DB-boundary: malformed groups JSON ---
 
-describe('registered_groups DB-boundary: malformed JSON', () => {
-  it('invalid JSON in container_config: getRegisteredGroup returns undefined for field', () => {
-    _setRawGroupColumns('telegram:bad-cc-json', {
+describe('groups DB-boundary: malformed JSON', () => {
+  it('invalid JSON in container_config: getGroupByFolder returns undefined for field', () => {
+    _setRawGroupColumns('bad-cc-json', {
       container_config: 'not-json',
     });
-    const g = getRegisteredGroup('telegram:bad-cc-json');
+    const g = getGroupByFolder('bad-cc-json');
     expect(g).toBeDefined();
     expect(g!.containerConfig).toBeUndefined();
   });
 
-  it('schema-invalid JSON in container_config: getRegisteredGroup returns undefined for field', () => {
-    _setRawGroupColumns('telegram:bad-cc-schema', {
+  it('schema-invalid JSON in container_config: getGroupByFolder returns undefined for field', () => {
+    _setRawGroupColumns('bad-cc-schema', {
       container_config: JSON.stringify({ timeout: 'not-a-number' }),
     });
-    const g = getRegisteredGroup('telegram:bad-cc-schema');
+    const g = getGroupByFolder('bad-cc-schema');
     expect(g).toBeDefined();
     expect(g!.containerConfig).toBeUndefined();
   });
