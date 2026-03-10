@@ -1,72 +1,44 @@
-# Facebook Messenger channel (v2) — speculative
+# Facebook Page channel
 
-Inbound/outbound via fca-unofficial — no Graph API, no app review.
-Same approach as Baileys for WhatsApp: unofficial, cookie-based auth.
+Inbound/outbound via Graph API raw fetch. Page Access Token auth.
+No app review needed for page-scoped tokens.
 
 ## Source and sink
 
-- **Inbound**: `api.listenMqtt(callback)` — persistent MQTT connection, fires on new messages
-- **Outbound**: `api.sendMessage(text, threadID)`
-- Enabled by: `FACEBOOK_EMAIL` + `FACEBOOK_PASSWORD` in .env
-- AppState (session cookies) cached to `store/fb-appstate.json` after first login
+- **Inbound**: poll page feed every 30s, skip own posts
+- **Outbound**: post, reply (comment), react, delete, edit, ban/unban, hide
+- Enabled by: `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_ACCESS_TOKEN`
 
 ## JID format
 
-`fb:{threadID}`
-
-threadID is Facebook's internal thread identifier, stable across sessions.
+`facebook:{pageId}`
 
 ## Library
 
-`fca-unofficial` — reverse-engineered Facebook Chat API for Node.js.
-No webhook, no public URL needed.
+Raw fetch against Graph API (v21.0 default). No SDK — page token
+in query params, JSON responses.
 
 ## Auth flow
 
-1. First run: login with email + password → save AppState to `store/fb-appstate.json`
-2. Subsequent runs: load AppState, skip login
-3. If AppState stale: fall back to password login, refresh AppState
-
-## Risk
-
-Medium. Violates Meta ToS. Use a dedicated account.
-Less aggressive enforcement than Twitter but account bans are possible.
-Do not use personal credentials.
-
-## Phase 1 — feed events (synthetic inbound)
-
-Beyond DMs, adapter polls for:
-
-- `mention` — @mention in a post
-- `timeline_post` — posts from watched accounts
-- `reply_to_us` — replies to posts we made
-
-All converted to IPC input messages with an `event_type` field.
-
-## Outbound action types
-
-Outbound IPC message `type` field controls action:
-
-- `reply` — reply to a thread
-- `react` — react to a post
-- `post` — new post
+1. Create Facebook App → get page access token (long-lived)
+2. Token + page ID in .env, no login flow needed
+3. Page access tokens don't expire if generated correctly
 
 ## Config
 
 ```env
-FACEBOOK_EMAIL=...
-FACEBOOK_PASSWORD=...
-FACEBOOK_WATCH_ACCOUNTS=...   # comma-separated, phase 1
+FACEBOOK_PAGE_ID=...
+FACEBOOK_PAGE_ACCESS_TOKEN=...
 ```
 
-## V1 scope (DMs only)
+## V1 scope (current)
 
-- Text messages only (no attachments)
-- DMs only (no group chats, no feed)
-- AppState cached on first login, reused on restart
-- Graceful degradation: disable channel on repeated auth failures
+- Page feed polling (posts from others on the page)
+- Post, reply, react (with type), delete, edit, ban/unban, hide
+- Single page per instance
 
-## V2 scope (feed)
+## V2 scope (future)
 
-- Timeline + mention monitoring (phase 1 feed events above)
-- Group chat support
+- Webhook-based inbound (real-time, requires public URL)
+- Messenger DM support (requires app review)
+- Instagram cross-posting via same Graph API

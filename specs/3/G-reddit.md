@@ -1,18 +1,18 @@
-# Reddit channel (v2) — speculative
+# Reddit channel
 
-Reddit DMs (private messages) as inbound/outbound channel.
-Subreddit comment monitoring as optional source (v2).
-Polling via snoowrap. Free under 100 req/min.
+Reddit inbox (private messages + comment replies) as inbound/outbound.
+Subreddit monitoring as optional source (v2).
+Raw fetch with OAuth2 script app. Free under 100 req/min.
 
 ## Source and sink
 
-- **Inbound**: poll `r/me/messages` inbox, process unread, mark read
-- **Outbound**: `redditor.message()` for DM replies
-- Enabled by: `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` + credentials in .env
+- **Inbound**: poll inbox + subreddit /new, process unread
+- **Outbound**: comment, post, vote, crosspost, subscribe
+- Enabled by: `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` + credentials
 
 ## JID format
 
-`reddit:u_{username}` for DMs.
+`reddit:{username}` for DMs/inbox.
 `reddit:r_{subreddit}` for subreddit threads (v2).
 
 ## OAuth / app registration
@@ -21,23 +21,16 @@ App type: `script` (self-use, no user OAuth flow needed).
 Register at reddit.com/prefs/apps → script app → get client_id + secret.
 Use bot account credentials (username + password) directly in config.
 
-**Approval required** since 2025 — submit via Reddit developer portal.
-Personal/hobby use is rarely approved for new apps; use an established
-developer account. Once approved, free within rate limits.
+## Library
 
-**Karma / age requirement**: many subreddits require 10-100 post karma
-and 2+ week old account. New accounts hit spam filters. Document
-requirement; fail gracefully (log warning, skip subreddit).
-
-## Libraries
-
-- `snoowrap` — full Reddit API wrapper (Promise-based)
-- `snoostorm` — event-based streaming on top of snoowrap (v2, subreddits)
+Raw fetch with OAuth2 password grant. No wrapper library —
+token refresh, rate limit retry, and API calls implemented directly.
+User-Agent required by Reddit API policy.
 
 ## Rate limits
 
-100 requests / minute (free). Snoowrap handles backoff automatically.
-Poll inbox every 15s (4 req/min, well within limit).
+100 requests / minute (free). Client handles token refresh
+and Retry-After headers. Poll inbox every 30s.
 
 ## Config
 
@@ -46,19 +39,16 @@ REDDIT_CLIENT_ID=...
 REDDIT_CLIENT_SECRET=...
 REDDIT_USERNAME=bot_account
 REDDIT_PASSWORD=...
-REDDIT_POLL_INTERVAL_MS=15000
 ```
 
-## V1 scope
+## V1 scope (current)
 
-- DMs only (no subreddit monitoring)
-- Poll inbox every 15s, mark messages read after processing
-- No karma/age check in code — documented requirement only
+- Inbox polling (DMs + comment replies)
+- Post, reply, vote, crosspost, subscribe/unsubscribe, delete, edit
 - One bot account per instance
 
-## V2 additions
+## V2 scope (future)
 
-- Subreddit comment monitoring via snoostorm (configurable list)
+- Subreddit new post monitoring (configurable list)
 - Relevance scoring before routing to agent
-- JID: `reddit:r_{subreddit}` for subreddit threads
 - Config: `REDDIT_SUBREDDITS=r/claudeai,r/LocalLLaMA`
