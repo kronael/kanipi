@@ -260,14 +260,7 @@ function buildVolumeMounts(
     readonly: false,
   });
 
-  // Restricted tiers: overlay skills/ as readonly on top of rw .claude
-  if (tier >= 2) {
-    mounts.push({
-      hostPath: hostPath(path.join(groupSessionsDir, 'skills')),
-      containerPath: '/home/node/.claude/skills',
-      readonly: true,
-    });
-  }
+  // TODO: overlay skills/ as ro for tier >= 2 (disabled while debugging mount issue)
 
   const groupIpcDir = resolveGroupIpcPath(group.folder);
   for (const sub of ['messages', 'tasks', 'input', 'requests', 'replies']) {
