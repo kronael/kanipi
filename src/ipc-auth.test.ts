@@ -4,10 +4,9 @@ import {
   _initTestDatabase,
   _setTestGroupRoute,
   createTask,
-  getAllGroupConfigs,
   getAllTasks,
   getGroupByFolder,
-  getJidToFolderMap,
+  getJidToGroupMap,
   getTaskById,
   GroupConfig,
 } from './db.js';
@@ -51,28 +50,16 @@ beforeEach(() => {
   _setTestGroupRoute('other@g.us', OTHER_GROUP);
   _setTestGroupRoute('third@g.us', THIRD_GROUP);
 
-  // Build JID-keyed map from DB
-  const getGroups = () => {
-    const allGroups = getAllGroupConfigs();
-    const jidMap = getJidToFolderMap();
-    const result: Record<string, GroupConfig> = {};
-    for (const [jid, folder] of Object.entries(jidMap)) {
-      const g = allGroups[folder];
-      if (g) result[jid] = g;
-    }
-    return result;
-  };
-
-  groups = getGroups();
+  groups = getJidToGroupMap();
 
   deps = {
     sendMessage: async () => {},
     clearSession: vi.fn(),
     sendDocument: async () => {},
-    registeredGroups: getGroups,
+    registeredGroups: getJidToGroupMap,
     registerGroup: (jid, group) => {
       _setTestGroupRoute(jid, group);
-      groups = getGroups();
+      groups = getJidToGroupMap();
     },
     syncGroupMetadata: async () => {},
     getAvailableGroups: () => [],

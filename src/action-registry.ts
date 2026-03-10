@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { AvailableGroup } from './container-runner.js';
-import { RegisteredGroup } from './types.js';
+import { GroupConfig } from './db.js';
 
 export interface ActionContext {
   sourceGroup: string;
@@ -9,8 +9,8 @@ export interface ActionContext {
   tier: 0 | 1 | 2 | 3;
   sendMessage(jid: string, text: string): Promise<void>;
   sendDocument(jid: string, path: string, name?: string): Promise<void>;
-  registeredGroups(): Record<string, RegisteredGroup>;
-  registerGroup(jid: string, group: RegisteredGroup): void;
+  registeredGroups(): Record<string, GroupConfig>;
+  registerGroup(jid: string, group: GroupConfig): void;
   syncGroupMetadata(force: boolean): Promise<void>;
   getAvailableGroups(): AvailableGroup[];
   writeGroupsSnapshot(

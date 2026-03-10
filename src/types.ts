@@ -221,7 +221,7 @@ export type OnChatMetadata = (
 export interface ChannelOpts {
   onMessage: OnInboundMessage;
   onChatMetadata: OnChatMetadata;
-  registeredGroups: () => Record<string, RegisteredGroup>;
+  registeredGroups: () => Record<string, import('./db.js').GroupConfig>;
 }
 
 export type InboundEvent = NewMessage;

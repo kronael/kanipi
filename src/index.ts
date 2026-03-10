@@ -67,6 +67,7 @@ import {
   getAllTasks,
   getGroupByFolder,
   getJidToFolderMap,
+  getJidToGroupMap,
   getMessagesSince,
   getNewMessages,
   getRecentSessions,
@@ -983,16 +984,6 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  // Build JID-keyed groups map for channel compatibility
-  const getJidGroups = () => {
-    const result: Record<string, GroupConfig> = {};
-    for (const [jid, folder] of Object.entries(jidToFolder)) {
-      const g = groups[folder];
-      if (g) result[jid] = g;
-    }
-    return result;
-  };
-
   // Channel callbacks (shared by all channels)
   const channelOpts = {
     onMessage: (
@@ -1022,7 +1013,7 @@ async function main(): Promise<void> {
       channel?: string,
       isGroup?: boolean,
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
-    registeredGroups: getJidGroups,
+    registeredGroups: getJidToGroupMap,
   };
 
   // Create and connect channels
@@ -1128,7 +1119,7 @@ async function main(): Promise<void> {
 
   // Start subsystems (independently of connection handler)
   startSchedulerLoop({
-    registeredGroups: getJidGroups,
+    registeredGroups: getJidToGroupMap,
     getSessions: () => sessions,
     queue,
     onProcess: (groupJid, proc, containerName, groupFolder) =>
@@ -1161,7 +1152,7 @@ async function main(): Promise<void> {
       }
       return channel.sendDocument(jid, filePath, filename);
     },
-    registeredGroups: getJidGroups,
+    registeredGroups: getJidToGroupMap,
     registerGroup,
     clearSession: (groupFolder) => {
       delete sessions[groupFolder];

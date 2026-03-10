@@ -149,8 +149,7 @@ vi.mock('../../src/container-runner.js', () => ({
 import {
   _initTestDatabase,
   _setTestGroupRoute,
-  getAllGroupConfigs,
-  getJidToFolderMap,
+  getJidToGroupMap,
   getMessagesSince,
   setRoutesForJid,
   storeMessage,
@@ -348,17 +347,16 @@ describe('DB state for gateway routing', () => {
     expect(msgs[0].content).toBe('@Andy help me');
   });
 
-  it('_setTestGroupRoute persists across getAllGroupConfigs', () => {
+  it('_setTestGroupRoute persists via getJidToGroupMap', () => {
     _setTestGroupRoute('g@g.us', {
       name: 'Test',
       folder: 'test',
       trigger: '@Andy',
     });
-    const all = getAllGroupConfigs();
-    const jidMap = getJidToFolderMap();
-    expect(jidMap['g@g.us']).toBe('test');
-    expect(all['test']).toBeDefined();
-    expect(all['test'].name).toBe('Test');
+    const map = getJidToGroupMap();
+    expect(map['g@g.us']).toBeDefined();
+    expect(map['g@g.us'].name).toBe('Test');
+    expect(map['g@g.us'].folder).toBe('test');
   });
 });
 

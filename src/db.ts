@@ -893,6 +893,26 @@ export function getJidToFolderMap(): Record<string, string> {
   return result;
 }
 
+/**
+ * Build a JID-keyed map of GroupConfig objects (for channel + IPC use).
+ * Joins routes (default type) with groups to produce { jid → GroupConfig }.
+ */
+export function getJidToGroupMap(): Record<string, GroupConfig> {
+  const rows = db
+    .prepare(
+      `SELECT r.jid, g.*
+       FROM routes r JOIN groups g ON r.target = g.folder
+       WHERE r.type = 'default'
+       ORDER BY r.jid, r.seq`,
+    )
+    .all() as (GroupsRow & { jid: string })[];
+  const result: Record<string, GroupConfig> = {};
+  for (const row of rows) {
+    if (!result[row.jid]) result[row.jid] = rowToGroupConfig(row);
+  }
+  return result;
+}
+
 // --- Groups table (flat routing) ---
 
 type GroupsRow = {

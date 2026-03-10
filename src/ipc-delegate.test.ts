@@ -13,8 +13,7 @@ import './ipc.js';
 import {
   _initTestDatabase,
   _setTestGroupRoute,
-  getAllGroupConfigs,
-  getJidToFolderMap,
+  getJidToGroupMap,
   GroupConfig,
 } from './db.js';
 
@@ -67,17 +66,7 @@ beforeEach(() => {
   deps = {
     sendMessage: vi.fn(async () => {}),
     sendDocument: vi.fn(async () => {}),
-    // registeredGroups returns JID-keyed map built from groups + routes
-    registeredGroups: () => {
-      const groups = getAllGroupConfigs();
-      const jidMap = getJidToFolderMap();
-      const result: Record<string, GroupConfig> = {};
-      for (const [jid, folder] of Object.entries(jidMap)) {
-        const g = groups[folder];
-        if (g) result[jid] = g;
-      }
-      return result;
-    },
+    registeredGroups: getJidToGroupMap,
     registerGroup: (jid, group) => _setTestGroupRoute(jid, group),
     syncGroupMetadata: vi.fn(async () => {}),
     getAvailableGroups: vi.fn(() => []),
