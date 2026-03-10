@@ -214,14 +214,10 @@ function buildVolumeMounts(
     readonly: tier >= 2,
   });
 
-  const groupSessionsDir = path.join(
-    DATA_DIR,
-    'sessions',
-    group.folder,
-    '.claude',
-  );
+  const groupSessionDir = path.join(DATA_DIR, 'sessions', group.folder);
+  const groupSessionsDir = path.join(groupSessionDir, '.claude');
   fs.mkdirSync(groupSessionsDir, { recursive: true });
-  chownRecursive(groupSessionsDir, 1000, 1000);
+  chownRecursive(groupSessionDir, 1000, 1000);
   initSettings(groupSessionsDir, {
     WEB_HOST,
     NANOCLAW_ASSISTANT_NAME: ASSISTANT_NAME,
