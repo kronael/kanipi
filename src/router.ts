@@ -82,7 +82,7 @@ export function isAuthorizedRoutingTarget(
   sourceFolder: string,
   targetFolder: string,
 ): boolean {
-  if (sourceFolder === 'root') return true;
+  if (sourceFolder.split('/')[0] === 'root') return true;
   const sourceRoot = sourceFolder.split('/')[0];
   const targetRoot = targetFolder.split('/')[0];
   if (sourceRoot !== targetRoot) return false;
