@@ -313,7 +313,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   if (rules.length > 0) {
     const lastMsg = missedMessages[missedMessages.length - 1];
     const target = resolveRoutingTarget(lastMsg, rules);
-    if (target) {
+    if (target && target !== group.folder) {
       if (!isAuthorizedRoutingTarget(group.folder, target)) {
         logger.warn(
           { chatJid, source: group.folder, target },
