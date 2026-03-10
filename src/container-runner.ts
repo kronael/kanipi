@@ -257,7 +257,7 @@ function buildVolumeMounts(
   mounts.push({
     hostPath: hostPath(groupSessionsDir),
     containerPath: '/home/node/.claude',
-    readonly: tier >= 3,
+    readonly: false,
   });
 
   const groupIpcDir = resolveGroupIpcPath(group.folder);
