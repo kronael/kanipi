@@ -32,12 +32,11 @@ atlas/support           tier 2 — agent
 atlas/support/web       tier 3 — worker
 ```
 
-`root` is also accepted as a tier-0 alias during migration. Existing
-instances still use `main`.
+`root` is the tier-0 folder name.
 
 ```typescript
 function isRoot(folder: string): boolean {
-  return folder === 'root' || folder === 'main';
+  return folder === 'root';
 }
 
 function permissionTier(folder: string): 0 | 1 | 2 | 3 {
@@ -175,6 +174,20 @@ The container runner enforces practical mount restrictions.
 | `/workspace/self`          | ro     | no     | no                                                        | no                            |
 | `/home/node/.claude`       | rw     | rw     | base mount ro with rw overrides for memory/projects       | ro                            |
 | `/workspace/data/sessions` | rw     | no     | no                                                        | no                            |
+
+## Agent env vars
+
+The gateway injects these environment variables into every agent container:
+
+| Variable                  | Value                              |
+| ------------------------- | ---------------------------------- |
+| `NANOCLAW_GROUP_NAME`     | display name of the group          |
+| `NANOCLAW_GROUP_FOLDER`   | folder path (e.g. `atlas/support`) |
+| `NANOCLAW_TIER`           | permission tier (0-3)              |
+| `NANOCLAW_IS_ROOT`        | `"1"` if tier 0, absent otherwise  |
+| `NANOCLAW_IS_WORLD_ADMIN` | `"1"` if tier 1, absent otherwise  |
+| `NANOCLAW_ASSISTANT_NAME` | bot name from config               |
+| `NANOCLAW_DELEGATE_DEPTH` | current delegation depth           |
 
 ## What shipped in this pass
 

@@ -81,7 +81,7 @@ and store on the message row. `formatMessages()` emits
 Public-facing agent with restricted permissions using the tier model:
 
 ```
-atlas/               → tier 1: admin
+atlas/               → tier 1: world admin
   atlas/support      → tier 2: research backend (rw facts/)
     atlas/support/web → tier 3: user-facing (ro, escalate-only)
 ```

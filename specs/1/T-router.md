@@ -59,18 +59,19 @@ On resume: system messages (if queued) + raw user message.
 
 ### Volume mount assembly
 
-| Mount              | containerPath              | Condition   |
-| ------------------ | -------------------------- | ----------- |
-| group folder       | `/workspace/group`         | always      |
-| media dir          | `/workspace/media`         | always      |
-| kanipi source      | `/workspace/self`          | always (ro) |
-| world share dir    | `/workspace/share`         | always      |
-| .claude (sessions) | `/home/node/.claude`       | always      |
-| IPC dir            | `/workspace/ipc`           | always      |
-| agent-runner src   | `/app/src`                 | always      |
-| additional mounts  | `/workspace/extra/<name>`  | config      |
-| web dir            | `/workspace/web`           | WEB_DIR     |
-| sessions dir       | `/workspace/data/sessions` | root only   |
+| Mount              | containerPath               | Tier 0 | Tier 1 | Tier 2 | Tier 3 |
+| ------------------ | --------------------------- | ------ | ------ | ------ | ------ |
+| group folder       | `/workspace/group`          | rw     | rw     | rw     | ro     |
+| media dir          | `/workspace/media`          | rw     | rw     | rw     | ro     |
+| kanipi source      | `/workspace/self`           | ro     | —      | —      | —      |
+| world share dir    | `/workspace/share`          | rw     | rw     | ro     | ro     |
+| .claude (sessions) | `/home/node/.claude`        | rw     | rw     | rw     | rw     |
+| IPC dir            | `/workspace/ipc`            | rw     | rw     | rw     | rw     |
+| agent-runner src   | `/app/src`                  | rw     | rw     | rw     | rw     |
+| additional mounts  | `/workspace/extra/<name>`   | config | config | config | config |
+| web dir            | `/workspace/web`            | rw     | rw     | —      | —      |
+| sessions dir       | `/workspace/data/sessions`  | rw     | —      | —      | —      |
+| parent skills/     | `/home/node/.claude/skills` | —      | —      | ro     | ro     |
 
 Skills seeded into `.claude/skills/` on first spawn.
 
