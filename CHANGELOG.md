@@ -11,6 +11,37 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.24] — 2026-03-11
+
+### Features
+
+- Agent identity: `NANOCLAW_GROUP_NAME`, `NANOCLAW_GROUP_FOLDER`,
+  `NANOCLAW_IS_WORLD_ADMIN` env vars injected into agent settings.json
+- `NANOCLAW_CHAT_JID` documented in self skill — agents know their chat JID
+- `get_routes` action: `jid` now optional — omit to list all routes
+- IPC watcher discovers nested group folders recursively (fixes IPC drain
+  for groups like `atlas/support`)
+
+### Fixes
+
+- Stale `set_routes` entry removed from self skill MCP tools table
+  (action never existed)
+- Mount table in router spec updated to show per-tier permissions
+
+### Docs
+
+- Permissions spec: removed stale `main` alias from pseudocode, added
+  agent env vars section
+- Self skill: group identity, worlds, tiers documented
+- Router spec: volume mount table shows tier 0-3 permissions
+
+### Agent
+
+- Migration 020: group identity env vars, routing action changes
+- `MIGRATION_VERSION` bumped to 020
+
+---
+
 ## [v1.0.23] — 2026-03-10
 
 ### Features

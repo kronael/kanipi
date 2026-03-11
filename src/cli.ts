@@ -815,7 +815,7 @@ function main(): void {
   }
 
   if (args[0] === '--version' || args[0] === '-V') {
-    console.log('1.0.23');
+    console.log('1.0.24');
     process.exit(0);
   }
 

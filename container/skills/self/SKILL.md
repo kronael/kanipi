@@ -125,7 +125,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **19**. If version < 19: migrations pending.
+Latest migration version: **20**. If version < 20: migrations pending.
 
 ## MCP tools
 
@@ -141,9 +141,8 @@ Latest migration version: **19**. If version < 19: migrations pending.
 | `refresh_groups` | Sync group metadata from channel (root only)                |
 | `delegate_group` | Forward a message to a child group for processing           |
 | `escalate_group` | Escalate a prompt to the parent group                       |
-| `get_routes`     | Get routing rules for a JID                                 |
-| `set_routes`     | Replace all routing rules for a JID                         |
-| `add_route`      | Add a single routing rule for a JID                         |
+| `get_routes`     | Get routing rules (pass jid to filter, omit for all)        |
+| `add_route`      | Add a routing rule — use `$NANOCLAW_CHAT_JID` for jid       |
 | `delete_route`   | Delete a routing rule by ID                                 |
 | `reset_session`  | Clear this group's session and start fresh                  |
 
