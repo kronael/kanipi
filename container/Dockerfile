@@ -67,6 +67,6 @@ USER node
 # Set working directory to group workspace
 WORKDIR /home/node
 
-# Clear inherited ENTRYPOINT from base image — gateway supplies command via docker args.
-# Agent default: /app/entrypoint.sh (reads JSON from stdin, outputs JSON to stdout)
-ENTRYPOINT []
+# Override inherited ENTRYPOINT — gateway supplies script path via docker args.
+# With ENTRYPOINT ["/bin/bash"], docker runs: /bin/bash /app/entrypoint.sh
+ENTRYPOINT ["/bin/bash"]
