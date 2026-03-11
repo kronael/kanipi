@@ -174,6 +174,8 @@ The container runner enforces practical mount restrictions.
 | `~/.claude/settings.json` | —      | —      | ro overlay       | ro (from parent) |
 | `~/.claude/output-styles` | —      | —      | ro overlay       | ro (from parent) |
 | `~/.claude/projects`      | —      | —      | rw (from parent) | rw overlay       |
+| `/home/node/media`        | —      | —      | rw (from parent) | rw overlay       |
+| `/home/node/tmp`          | —      | —      | rw (from parent) | rw overlay       |
 | `/workspace/share`        | rw     | rw     | ro               | ro               |
 | `/workspace/ipc`          | rw     | rw     | rw               | rw               |
 | `/workspace/web`          | rw     | rw     | no               | no               |

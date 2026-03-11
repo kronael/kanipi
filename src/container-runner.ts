@@ -174,16 +174,17 @@ function buildVolumeMounts(
     }
   }
 
-  // Tier 3: only .claude/projects/ is RW (session transcripts + memory).
-  // Everything else in .claude/ (CLAUDE.md, skills, settings) stays RO.
+  // Tier 3: RO home with RW overlays for data the agent must write.
   if (tier === 3) {
-    const projectsDir = path.join(groupDir, '.claude', 'projects');
-    fs.mkdirSync(projectsDir, { recursive: true });
-    mounts.push({
-      hostPath: hostPath(projectsDir),
-      containerPath: '/home/node/.claude/projects',
-      readonly: false,
-    });
+    for (const d of ['.claude/projects', 'media', 'tmp']) {
+      const dir = path.join(groupDir, d);
+      fs.mkdirSync(dir, { recursive: true });
+      mounts.push({
+        hostPath: hostPath(dir),
+        containerPath: `/home/node/${d}`,
+        readonly: false,
+      });
+    }
   }
 
   // Spawned groups: mount prototype's skills/ read-only (not copied to child)

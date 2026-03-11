@@ -415,12 +415,14 @@ describe('unified home mount behavior', () => {
     );
     expect(roHome).toBe(true);
 
-    // Only .claude/projects is RW (not all of .claude/)
-    const projectsMount = args.find(
-      (a) => typeof a === 'string' && a.includes('/home/node/.claude/projects'),
-    );
-    expect(projectsMount).toBeDefined();
-    expect(projectsMount).not.toContain(':ro');
+    // RW overlays for .claude/projects, media, tmp
+    for (const d of ['.claude/projects', 'media', 'tmp']) {
+      const mount = args.find(
+        (a) => typeof a === 'string' && a.includes(`/home/node/${d}`),
+      );
+      expect(mount, `${d} should be mounted`).toBeDefined();
+      expect(mount, `${d} should be RW`).not.toContain(':ro');
+    }
 
     // No full .claude/ RW mount
     const fullClaudeMount = args.find(

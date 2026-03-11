@@ -65,12 +65,12 @@ A **world** is the first path segment of a group folder. All groups
 under the same world share `/workspace/share`. The world admin
 (tier 1) is the main group for that world.
 
-| Tier | Role        | Folder example    | Access                                        |
-| ---- | ----------- | ----------------- | --------------------------------------------- |
-| 0    | root        | (system)          | Full system admin, runs migrations            |
-| 1    | world admin | `atlas`           | Manages child groups, rw group + share        |
-| 2    | child       | `atlas/support`   | Home rw, setup files ro, share ro             |
-| 3    | grandchild+ | `atlas/ops/infra` | Home ro, only ~/.claude/projects rw, share ro |
+| Tier | Role        | Folder example    | Access                                    |
+| ---- | ----------- | ----------------- | ----------------------------------------- |
+| 0    | root        | (system)          | Full system admin, runs migrations        |
+| 1    | world admin | `atlas`           | Manages child groups, rw group + share    |
+| 2    | child       | `atlas/support`   | Home rw, setup files ro, share ro         |
+| 3    | grandchild+ | `atlas/ops/infra` | Home ro, rw: .claude/projects, media, tmp |
 
 ```bash
 echo "tier=$NANOCLAW_TIER"  # 0=root, 1=world, 2=child, 3=grandchild+
