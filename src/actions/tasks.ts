@@ -9,12 +9,38 @@ import { logger } from '../logger.js';
 import { isInWorld } from '../permissions.js';
 
 const ScheduleTaskInput = z.object({
-  targetJid: z.string(),
-  prompt: z.string(),
-  command: z.string().optional(),
-  schedule_type: z.enum(['cron', 'interval', 'once']),
-  schedule_value: z.string(),
-  context_mode: z.enum(['group', 'isolated']).optional(),
+  targetJid: z
+    .string()
+    .describe(
+      'The JID (Jabber ID) to route task execution to. Format: phone@channel or groupid@channel.',
+    ),
+  prompt: z
+    .string()
+    .describe(
+      'Agent prompt - spawns a full Claude Code agent with reasoning, tool use, and context. Use for tasks requiring analysis, decision-making, or multi-step operations. Mutually exclusive with command.',
+    ),
+  command: z
+    .string()
+    .optional()
+    .describe(
+      'Bash command to run directly without agent ceremony. Use for simple maintenance scripts (git pull, file cleanup, backups). Mutually exclusive with prompt. When provided, context_mode is forced to isolated.',
+    ),
+  schedule_type: z
+    .enum(['cron', 'interval', 'once'])
+    .describe(
+      'How to schedule: "cron" for cron expressions, "interval" for recurring milliseconds, "once" for a single future execution.',
+    ),
+  schedule_value: z
+    .string()
+    .describe(
+      'Schedule specification: cron expression (e.g., "0 2 * * *" for 2am daily), milliseconds as string (e.g., "3600000" for hourly), or ISO timestamp (e.g., "2026-03-11T15:30:00Z") for once.',
+    ),
+  context_mode: z
+    .enum(['group', 'isolated'])
+    .optional()
+    .describe(
+      'Execution context: "group" shares conversation history with the target group (agent sees past messages), "isolated" provides fresh context per run (no history). Defaults to isolated. Only applies to prompt mode; command mode is always isolated.',
+    ),
 });
 
 export const scheduleTask: Action = {
