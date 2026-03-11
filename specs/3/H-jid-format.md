@@ -49,25 +49,24 @@ After: `telegram:1112184352`. Stored in `messages.sender`.
 Full metadata on each `<message>` tag:
 
 ```xml
-<message sender="Alice" sender_jid="telegram:1112184352"
-         chat_jid="telegram:-1001234567890" chat_name="Support"
+<message sender="Alice" sender_id="telegram:1112184352"
+         chat="Support" chat_id="telegram:-1001234567890"
          platform="telegram" time="2026-03-11T14:00:00Z">
   Hello
 </message>
 ```
 
-| Attribute    | Source            | Present                           |
-| ------------ | ----------------- | --------------------------------- |
-| `sender`     | sender_name col   | always (falls back to sender JID) |
-| `sender_jid` | messages.sender   | always                            |
-| `chat_jid`   | messages.chat_jid | always                            |
-| `chat_name`  | chats.name        | when is_group                     |
-| `platform`   | platform          | always                            |
-| `time`       | timestamp         | always                            |
+| Attribute   | Source            | Present                          |
+| ----------- | ----------------- | -------------------------------- |
+| `sender`    | sender_name col   | always (falls back to sender ID) |
+| `sender_id` | messages.sender   | always                           |
+| `chat`      | chats.name        | when is_group                    |
+| `chat_id`   | messages.chat_jid | always                           |
+| `platform`  | platform          | always                           |
+| `time`      | timestamp         | always                           |
 
-`sender` is the display name (backward compatible). `sender_jid`
-is the JID. `chat_name` is the chat group's display name (message
-origin), not the agent's run group.
+`sender` = display name, `sender_id` = JID. `chat` = chat
+group name (message origin, not agent run group), `chat_id` = JID.
 
 ## Session context injection
 
