@@ -15,6 +15,9 @@ vi.mock('./config.js', () => ({
   DATA_DIR: '/tmp/nanoclaw-test-data',
   GROUPS_DIR: '/tmp/nanoclaw-test-groups',
   HOST_APP_DIR: '/tmp/nanoclaw-test-app',
+  HOST_DATA_DIR: '/tmp/nanoclaw-test-root/data',
+  HOST_GROUPS_DIR: '/tmp/nanoclaw-test-root/groups',
+  HOST_WEB_DIR: '/tmp/nanoclaw-test-root/web',
   HOST_PROJECT_ROOT_PATH: '/tmp/nanoclaw-test-root',
   IDLE_TIMEOUT: 1800000,
   TIMEZONE: 'America/Los_Angeles',
@@ -280,12 +283,12 @@ describe('volume mount paths for nested folders', () => {
     expect(agentCall).toBeDefined();
     const args = agentCall![1] as string[];
 
-    // Find the /home/node mount — should use HOST_PROJECT_ROOT_PATH
+    // Find the /home/node mount — should use HOST_GROUPS_DIR
     const homeMount = args.find(
       (a) => typeof a === 'string' && a.includes(':/home/node'),
     );
     expect(homeMount).toBeDefined();
-    // hostPath replaces GATEWAY_ROOT (/tmp) with HOST_PROJECT_ROOT_PATH
+    // Verify host path uses HOST_GROUPS_DIR translation
     expect(homeMount).toContain('groups/atlas/support:/home/node');
 
     await closeAndAwait(resultPromise);

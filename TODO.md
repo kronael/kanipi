@@ -10,7 +10,7 @@ would become .publick_html like system
 
 Partial specs, close to done. Finish these first.
 
-- [ ] paths: hostPath() elimination (HOST\_\* exports done)
+- [x] paths: hostPath() elimination (HOST\_\* exports done)
 - [ ] autotesting: IPC drain + voice roundtrip test gaps
 - [x] session-recovery: diary recovery entries on error/crash
 - [ ] errored chat flag: shipped this session (don't auto-retry on restart)

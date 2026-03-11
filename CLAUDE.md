@@ -107,9 +107,9 @@ runs in docker, `process.cwd()` paths are container-internal.
 find the host-side path of `PROJECT_ROOT` so child containers
 receive correct host mount paths. `HOST_PROJECT_ROOT_PATH` is
 the translated value (falls back to `process.cwd()` on bare metal).
-`container-runner.ts:hostPath()` applies the same translation for
-mount paths; `chownRecursive()` ensures they are writable by
-node uid 1000 inside agent containers.
+Mount paths use explicit `HOST_GROUPS_DIR`, `HOST_DATA_DIR`, and
+`HOST_APP_DIR` exports from config. `chownRecursive()` ensures they
+are writable by node uid 1000 inside agent containers.
 
 ## Layout
 

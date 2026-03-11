@@ -17,6 +17,8 @@ import {
   DATA_DIR,
   GROUPS_DIR,
   HOST_APP_DIR,
+  HOST_DATA_DIR,
+  HOST_GROUPS_DIR,
   HOST_PROJECT_ROOT_PATH,
   IDLE_TIMEOUT,
   MEDIA_ENABLED,
@@ -105,13 +107,6 @@ const LATEST_MIGRATION_VERSION = fs.existsSync(_mvFile)
   ? parseInt(fs.readFileSync(_mvFile, 'utf-8').trim(), 10) || 0
   : 0;
 
-// Translate container-local path to host-side path for docker mounts.
-// DATA_DIR parent = PROJECT_ROOT (/srv/app/home); HOST_PROJECT_ROOT_PATH = /srv/data/kanipi_<name>
-const GATEWAY_ROOT = path.dirname(DATA_DIR);
-function hostPath(localPath: string): string {
-  return localPath.replace(GATEWAY_ROOT, HOST_PROJECT_ROOT_PATH);
-}
-
 const DEFAULT_SETTINGS = {
   env: {
     CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
@@ -137,10 +132,11 @@ function buildVolumeMounts(
   const tier = permissionTier(group.folder);
   const mounts: VolumeMount[] = [];
   const groupDir = resolveGroupFolderPath(group.folder);
+  const hostGroupDir = path.join(HOST_GROUPS_DIR, group.folder);
 
   // Group folder IS the agent's home directory
   mounts.push({
-    hostPath: hostPath(groupDir),
+    hostPath: hostGroupDir,
     containerPath: '/home/node',
     readonly: tier === 3,
   });
@@ -153,7 +149,7 @@ function buildVolumeMounts(
       const p = path.join(groupDir, f);
       if (fs.existsSync(p)) {
         mounts.push({
-          hostPath: hostPath(p),
+          hostPath: path.join(hostGroupDir, f),
           containerPath: `/home/node/${f}`,
           readonly: true,
         });
@@ -164,7 +160,7 @@ function buildVolumeMounts(
       const p = path.join(groupDir, '.claude', f);
       if (fs.existsSync(p)) {
         mounts.push({
-          hostPath: hostPath(p),
+          hostPath: path.join(hostGroupDir, '.claude', f),
           containerPath: `/home/node/.claude/${f}`,
           readonly: true,
         });
@@ -178,7 +174,7 @@ function buildVolumeMounts(
       const dir = path.join(groupDir, d);
       fs.mkdirSync(dir, { recursive: true });
       mounts.push({
-        hostPath: hostPath(dir),
+        hostPath: path.join(hostGroupDir, d),
         containerPath: `/home/node/${d}`,
         readonly: false,
       });
@@ -194,7 +190,7 @@ function buildVolumeMounts(
       );
       if (fs.existsSync(protoSkillsDir)) {
         mounts.push({
-          hostPath: hostPath(protoSkillsDir),
+          hostPath: path.join(HOST_GROUPS_DIR, group.parent, 'skills'),
           containerPath: '/home/node/skills',
           readonly: true,
         });
@@ -225,7 +221,7 @@ function buildVolumeMounts(
   const shareDir = path.join(GROUPS_DIR, world, 'share');
   fs.mkdirSync(shareDir, { recursive: true });
   mounts.push({
-    hostPath: hostPath(shareDir),
+    hostPath: path.join(HOST_GROUPS_DIR, world, 'share'),
     containerPath: '/workspace/share',
     readonly: tier >= 2,
   });
@@ -284,7 +280,7 @@ function buildVolumeMounts(
   }
   chownRecursive(groupIpcDir, 1000, 1000);
   mounts.push({
-    hostPath: hostPath(groupIpcDir),
+    hostPath: path.join(HOST_DATA_DIR, 'ipc', group.folder),
     containerPath: '/workspace/ipc',
     readonly: false,
   });
@@ -307,7 +303,7 @@ function buildVolumeMounts(
   if (fs.existsSync(WEB_DIR) && tier <= 1) {
     chownRecursive(WEB_DIR, 1000, 1000);
     mounts.push({
-      hostPath: hostPath(WEB_DIR),
+      hostPath: path.resolve(HOST_PROJECT_ROOT_PATH, 'web'),
       containerPath: '/workspace/web',
       readonly: false,
     });
@@ -316,7 +312,7 @@ function buildVolumeMounts(
   // Root (tier 0) gets GROUPS_DIR rw so migrate skill can sync across groups
   if (tier === 0) {
     mounts.push({
-      hostPath: hostPath(GROUPS_DIR),
+      hostPath: HOST_GROUPS_DIR,
       containerPath: '/home/node/groups',
       readonly: false,
     });
@@ -332,6 +328,7 @@ function readSecrets(): Record<string, string> {
 function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
+  command: string[] = ['/app/entrypoint.sh'],
 ): string[] {
   const args: string[] = [
     'run',
@@ -363,7 +360,7 @@ function buildContainerArgs(
     }
   }
 
-  args.push(CONTAINER_IMAGE);
+  args.push(CONTAINER_IMAGE, ...command);
 
   return args;
 }

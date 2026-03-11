@@ -63,7 +63,7 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 | 1-atlas-capabilities    | Facts, researcher, verifier    | partial    |
 | 2-autotesting           | Subsystem test strategy        | spec       |
 | 3-memory-facts          | Persistent knowledge (v2)      | open       |
-| 4-paths                 | Path translation cleanup       | open       |
+| 4-paths                 | Path translation cleanup       | shipped    |
 | 5-permissions           | Tier 0-3 hierarchy             | partial    |
 | 7-user-context          | Per-user memory files          | open       |
 | 8-web-virtual-hosts     | Per-group web serving          | spec draft |
