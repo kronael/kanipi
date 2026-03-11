@@ -68,6 +68,56 @@ Full metadata on each `<message>` tag:
 `sender` is the JID (`telegram:1112184352`), not the display
 name. Display name is in `sender_name`.
 
+## Session context injection
+
+**Status: phase 3 — not yet implemented**
+
+When the gateway builds the prompt for an agent invocation, prepend
+a `<context>` block before `<messages>`. This replaces the agent's
+need to read env vars and settings.json for identity/location info.
+
+```xml
+<context>
+  <agent group="atlas/support" name="Atlas Support" tier="2" world="atlas"/>
+  <chat jid="telegram:-1001234567890" name="Support" platform="telegram" is_group="true"/>
+</context>
+<messages>
+  ...
+</messages>
+```
+
+### `<agent>` attributes
+
+| Attribute | Source                | Present |
+| --------- | --------------------- | ------- |
+| `group`   | NANOCLAW_GROUP_FOLDER | always  |
+| `name`    | NANOCLAW_GROUP_NAME   | always  |
+| `tier`    | NANOCLAW_TIER         | always  |
+| `world`   | folder.split('/')[0]  | always  |
+
+### `<chat>` attributes
+
+| Attribute  | Source               | Present        |
+| ---------- | -------------------- | -------------- |
+| `jid`      | NANOCLAW_CHAT_JID    | always         |
+| `name`     | chats.name           | when available |
+| `platform` | platformFromJid(jid) | always         |
+| `is_group` | chats.is_group       | always         |
+
+### Injection point
+
+`index.ts` builds the prompt string passed to `container-runner`.
+The `<context>` block is prepended before the `formatMessages()`
+output. `formatMessages()` in `router.ts` is unchanged — it still
+returns `<messages>...</messages>`. The gateway concatenates:
+
+```
+<context>...</context>\n<messages>...</messages>
+```
+
+The agent sees a self-contained prompt with identity, location,
+and conversation in one XML document.
+
 ## Migration (0007-jid-format.sql)
 
 ```sql
