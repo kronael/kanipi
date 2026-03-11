@@ -209,9 +209,10 @@ function buildVolumeMounts(
     }
   }
 
-  // Media + diary dirs — ensure they exist inside group folder
-  fs.mkdirSync(path.join(groupDir, 'media'), { recursive: true });
-  fs.mkdirSync(path.join(groupDir, 'diary'), { recursive: true });
+  // Ensure media + diary dirs exist (tier 3 already created media above)
+  for (const d of ['media', 'diary']) {
+    fs.mkdirSync(path.join(groupDir, d), { recursive: true });
+  }
 
   // Only root (tier 0) sees gateway source
   if (tier === 0) {

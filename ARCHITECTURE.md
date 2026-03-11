@@ -70,12 +70,8 @@ JWT verification (HMAC-SHA256), `media_url` attachments. Returns
 
 ### commands/
 
-Pluggable command registry. Each command implements `CommandHandler`
-(name, description, handle). Commands are registered at startup and
-intercepted before messages reach the agent queue. `writeCommandsXml`
-serializes the registry to each group's IPC directory so agents can
-discover available commands. Built-in: `/new` (clear session), `/ping`,
-`/chatid`.
+Pluggable command registry. Commands intercepted before agent queue.
+Built-in: `/new` (clear session), `/ping`, `/chatid`.
 
 ### channels/
 
@@ -92,25 +88,11 @@ provides `sendMessage(jid, text)` for outbound delivery.
 and `hasAlwaysOnGroup()` (any group with `requires_trigger=0`)
 so channels can decide whether to filter unregistered JIDs.
 
-`telegram.ts` converts agent markdown to Telegram HTML via
-`mdToHtml()`. Typing indicator refreshes every 4s (Telegram
-expires at ~5s), stops on `status=success` output — not on
-container exit.
-
 ### web-proxy.ts
 
-HTTP server sitting in front of Vite. Handles:
-
-- `POST /pub/s/:token` — delegates to `handleSlinkPost` (unauthenticated)
-- `GET /pub/sloth.js` — serves the public slink client script (unauthenticated)
-- `GET /_sloth/stream?group=<n>` — SSE stream; pushes agent responses to
-  browser clients via `addSseListener`/`removeSseListener` in `channels/web.ts`
-- `POST /_sloth/message` — receives messages from authenticated web UI
-- Everything else — proxied to Vite; HTML responses have `/_sloth/sloth.js`
-  injected before `</body>`
-
-Auth boundary: `/pub/` and `/_sloth/` prefixes bypass basic auth.
-All other paths require `SLOTH_USERS` credentials (if configured).
+HTTP server in front of Vite. Routes slink endpoints (`/pub/s/:token`,
+`/_sloth/stream`, `/_sloth/message`), proxies everything else to Vite.
+Auth boundary: `/pub/` and `/_sloth/` bypass basic auth.
 
 ### mime.ts + mime-enricher.ts + mime-handlers/
 
@@ -127,24 +109,13 @@ Handlers: `voice.ts` (multi-pass whisper transcription per
 
 ### container-runner.ts
 
-Spawns docker containers per agent invocation. Builds volume
-mounts (group folder, state, web dir), writes prompt to stdin,
-reads JSON output from stdout between sentinel markers.
+Spawns docker containers per agent invocation. Builds tier-aware
+volume mounts, writes prompt to stdin, reads JSON output from
+stdout between sentinel markers (`---NANOCLAW_OUTPUT_START---` /
+`---NANOCLAW_OUTPUT_END---`). Output: `{ status, result, newSessionId, error }`.
 
-Sentinel markers (`---NANOCLAW_OUTPUT_START---` /
-`---NANOCLAW_OUTPUT_END---`) delimit structured output from
-agent log noise.
-
-Output shape: `{ status, result, newSessionId, error }`.
-
-`_spawnProcess` is an exported `let` binding (default: `spawn`) that
-tests replace to mock docker without a running daemon.
-
-Also writes `groups.json` and `tasks.json` snapshots into the
-group IPC directory before each agent run. Runs `chownRecursive`
-on `WEB_DIR` before mounting so the agent (uid 1000) can write
-web files. Action manifest is no longer written to disk — the
-MCP server fetches it via `list_actions` IPC at startup.
+Writes `groups.json` and `tasks.json` snapshots into group IPC
+directory before each run. `_spawnProcess` is a test seam.
 
 ### container-runtime.ts
 
@@ -186,15 +157,7 @@ Unified action system. Each action has name, Zod schema, handler,
 and optional command/MCP flags. Registry is the single source of
 truth — IPC dispatch, MCP tools, and commands all reference it.
 
-Actions: `send_message`, `send_file`, `schedule_task`, `pause_task`,
-`resume_task`, `cancel_task`, `refresh_groups`, `register_group`,
-`reset_session`, `delegate_group`, `set_routing_rules`.
-
-`ActionContext` provides `getDefaultTarget`, `getRoutedJids`,
-`getGroupConfig`, and `getDirectChildGroupCount` for routing
-decisions inside action handlers.
-
-`getManifest()` serializes all MCP-exposed actions as JSON Schema
+`getManifest()` serializes MCP-exposed actions as JSON Schema
 for agent-side tool discovery (fetched via `list_actions` IPC).
 
 ### ipc.ts
@@ -209,18 +172,6 @@ File-based IPC between gateway and agent containers. Two modes:
    compat during rollout.
 
 File sends serialized per group via drain lock.
-
-### ipc-compat.ts
-
-Backwards compatibility shim. Exports `processTaskIpc` for legacy
-fire-and-forget task IPC during rollout.
-
-### auth.ts
-
-Authentication utilities. JWT minting/verification (HMAC-SHA256),
-cookie parsing, session management. Used by `web-proxy.ts` for
-auth endpoints (`/auth/login`, `/auth/refresh`) and by slink for
-JWT-authenticated requests.
 
 ### task-scheduler.ts
 
@@ -240,9 +191,15 @@ Each agent invocation runs in a fresh docker container:
 
 ```
 docker run
-  -v groups/<folder>:/home/node          # home + cwd — group files, .claude/ (rw)
+  -v groups/<folder>:/home/node          # home + cwd (rw; tier 3: ro)
+  -v groups/<folder>/CLAUDE.md:ro        # tier 2+3: setup files locked
+  -v groups/<folder>/.claude/skills:ro   # tier 2+3: skills locked
+  -v groups/<folder>/.claude/projects:rw # tier 3: RW overlay
+  -v groups/<folder>/media:rw            # tier 3: RW overlay
+  -v groups/<folder>/tmp:rw              # tier 3: RW overlay
+  -v GROUPS_DIR:/home/node/groups        # tier 0 only: cross-group access
   -v kanipi/:/workspace/self             # kanipi source (ro, tier 0 only)
-  -v share/:/workspace/share             # cross-group shared state (ro/rw)
+  -v share/:/workspace/share             # cross-group shared state (ro tier 2+3)
   -v web/:/workspace/web                 # web output (rw, tier 0/1 only)
   -v data/ipc/<folder>:/workspace/ipc    # IPC directory (rw)
   -v <additional>:/workspace/extra/...   # allowlisted mounts (ro)
@@ -252,6 +209,14 @@ The group folder IS the agent's home directory (`/home/node`).
 SDK state (`.claude/`), diary, media, and child group folders all
 live inside it. Workspace mounts (`self`, `share`, `web`, `ipc`,
 `extra`) are separate plumbing directories.
+
+**Tier-based mount permissions**: tier 0 (root) gets full RW
+everywhere plus `~/groups` for cross-group sync. Tier 1 (world
+admin) gets RW home and share. Tier 2 gets RW home but setup
+files (CLAUDE.md, SOUL.md, `.claude/skills`, `settings.json`,
+`output-styles`) are locked RO via more-specific overlays. Tier 3
+gets RO home with explicit RW overlays for `.claude/projects`,
+`media`, and `tmp` only.
 
 The container entrypoint (`container/agent-runner/`) reads the
 prompt from stdin and writes JSON output to stdout. The agent-side
@@ -330,19 +295,4 @@ Claude to summarise progress, prompts user to say "continue".
 
 ## Repository Layout
 
-```
-src/              gateway source (TypeScript)
-  actions/        action handlers by domain (messaging, tasks, groups, session)
-  channels/       telegram, whatsapp, discord, email
-  commands/       slash command handlers (/new, /ping, /chatid)
-container/        agent container build (make image → kanipi-agent)
-  agent-runner/   in-container entrypoint
-  skills/         agent-side skills
-template/         seed for new instances
-  web/            vite web app template
-  workspace/      mcporter config seed
-sidecar/          MCP server binaries
-  whisper/        whisper sidecar (make image → kanipi-whisper)
-specs/            versioned API/behavior specs
-kanipi            bash entrypoint (create/run/group/vite)
-```
+See CLAUDE.md Layout section.

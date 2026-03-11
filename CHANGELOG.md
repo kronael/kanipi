@@ -17,6 +17,36 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
   SOUL.md at group root (no copy to `~/.claude/`). Existing deployments
   need manual migration (move `data/sessions/*/.claude` into `groups/*/`).
 
+### Features
+
+- **Tiered mount security**: tier 2/3 agents get read-only overlays on
+  setup files (CLAUDE.md, SOUL.md, .claude/skills, settings.json,
+  output-styles). Tier 3 home is fully RO with RW overlays for
+  `.claude/projects`, `media`, and `tmp` only.
+- Root (tier 0) gets `GROUPS_DIR` mounted at `~/groups` for cross-group
+  skill sync via `/migrate`.
+
+### Fixes
+
+- **Facebook**: `unban` uses query params instead of DELETE body
+- **Reddit**: rate limit retry capped at 3 attempts
+- **Twitter**: snowflake ID comparison uses BigInt (was string compare)
+- **Social actions**: aligned platform lists — Facebook ban/unban/block,
+  Reddit repost, removed Twitter unfollow
+
+### Tests
+
+- Container-runner: new unified home mount tests, `closeAndAwait`
+  helper, hoisted setup for cleaner test structure
+
+### Docs
+
+- Specs updated: stale `/workspace/group` paths replaced with
+  `/home/node` across `specs/1/`, `specs/2/j-social-actions.md`,
+  `specs/3/5-permissions.md`
+- Agent self skill: updated workspace layout and tier tables
+- Migrations 015, 022: updated for new mount behavior
+
 ---
 
 ## [v1.0.24] — 2026-03-11

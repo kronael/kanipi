@@ -173,16 +173,26 @@ function emitOutputMarker(
   proc.stdout.push(`${OUTPUT_START_MARKER}\n${json}\n${OUTPUT_END_MARKER}\n`);
 }
 
+async function closeAndAwait(
+  promise: Promise<ContainerOutput>,
+  code = 1,
+): Promise<ContainerOutput> {
+  fakeProc.emit('close', code);
+  await vi.advanceTimersByTimeAsync(10);
+  return promise;
+}
+
+// Shared setup for all describe blocks using fake timers
+beforeEach(() => {
+  vi.useFakeTimers();
+  fakeProc = createFakeProcess();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('container-runner timeout behavior', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    fakeProc = createFakeProcess();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('timeout after output resolves as success', async () => {
     const onOutput = vi.fn(async () => {});
     const resultPromise = runContainerAgent(
@@ -285,15 +295,6 @@ const sidecarGroup: GroupConfig = {
 };
 
 describe('volume mount paths for nested folders', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    fakeProc = createFakeProcess();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('nested folder gets correct .claude host mount path', async () => {
     const cp = await import('child_process');
     const fs = await import('fs');
@@ -338,23 +339,11 @@ describe('volume mount paths for nested folders', () => {
     // hostPath replaces GATEWAY_ROOT (/tmp) with HOST_PROJECT_ROOT_PATH
     expect(homeMount).toContain('groups/atlas/support:/home/node');
 
-    // Clean up
-    fakeProc.emit('close', 1);
-    await vi.advanceTimersByTimeAsync(10);
-    await resultPromise;
+    await closeAndAwait(resultPromise);
   });
 });
 
 describe('unified home mount behavior', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    fakeProc = createFakeProcess();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   async function getAgentArgs(): Promise<string[]> {
     const cp = await import('child_process');
     const calls = vi.mocked(cp.spawn).mock.calls;
@@ -384,9 +373,7 @@ describe('unified home mount behavior', () => {
     );
     expect(oldMount).toBeUndefined();
 
-    fakeProc.emit('close', 1);
-    await vi.advanceTimersByTimeAsync(10);
-    await resultPromise;
+    await closeAndAwait(resultPromise);
   });
 
   it('tier 3 group gets RO home with RW .claude overlay', async () => {
@@ -433,9 +420,7 @@ describe('unified home mount behavior', () => {
     );
     expect(fullClaudeMount).toBeUndefined();
 
-    fakeProc.emit('close', 1);
-    await vi.advanceTimersByTimeAsync(10);
-    await resultPromise;
+    await closeAndAwait(resultPromise);
   });
 
   it('root tier 0 gets ~/groups mount', async () => {
@@ -458,9 +443,7 @@ describe('unified home mount behavior', () => {
     );
     expect(groupsMount).toBeDefined();
 
-    fakeProc.emit('close', 1);
-    await vi.advanceTimersByTimeAsync(10);
-    await resultPromise;
+    await closeAndAwait(resultPromise);
   });
 
   it('seeds output-styles from source into .claude/', async () => {
@@ -481,9 +464,7 @@ describe('unified home mount behavior', () => {
       { recursive: true },
     );
 
-    fakeProc.emit('close', 1);
-    await vi.advanceTimersByTimeAsync(10);
-    await resultPromise;
+    await closeAndAwait(resultPromise);
   });
 
   it('no separate media mount (media inside home)', async () => {
@@ -497,22 +478,11 @@ describe('unified home mount behavior', () => {
     );
     expect(mediaMount).toBeUndefined();
 
-    fakeProc.emit('close', 1);
-    await vi.advanceTimersByTimeAsync(10);
-    await resultPromise;
+    await closeAndAwait(resultPromise);
   });
 });
 
 describe('sidecar startup failure fallback', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    fakeProc = createFakeProcess();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('agent still runs when sidecar docker run fails', async () => {
     const cp = await import('child_process');
     // First spawn call is for sidecar (stdio: ignore) — make it fail
@@ -576,18 +546,15 @@ describe('sidecar startup failure fallback', () => {
 });
 
 describe('sidecar cleanup behavior', () => {
-  beforeEach(() => {
-    fakeProc = createFakeProcess();
-  });
+  // These tests use real timers (probeSidecar needs real setTimeout)
+  beforeEach(() => vi.useRealTimers());
 
-  it('stop is called for sidecars when agent exits normally', async () => {
+  async function setupSidecarSpySpawn(): Promise<string[][]> {
     const cp = await import('child_process');
     const fs = await import('fs');
-
     vi.mocked(fs.default.existsSync).mockImplementation(
       (p: unknown) => typeof p === 'string' && p.endsWith('.sock'),
     );
-
     const stopArgs: string[][] = [];
     vi.mocked(cp.spawn).mockImplementation(
       (_cmd: string, args: string[], opts?: { stdio?: unknown }) => {
@@ -604,6 +571,19 @@ describe('sidecar cleanup behavior', () => {
         return fakeProc as ReturnType<typeof cp.spawn>;
       },
     );
+    return stopArgs;
+  }
+
+  function expectSidecarStopped(stopArgs: string[][]): void {
+    expect(
+      stopArgs.some(
+        (a) => a.includes('stop') && a.some((x) => x.includes('sidecar')),
+      ),
+    ).toBe(true);
+  }
+
+  it('stop is called for sidecars when agent exits normally', async () => {
+    const stopArgs = await setupSidecarSpySpawn();
 
     const onOutput = vi.fn(async () => {});
     const resultPromise = runContainerAgent(
@@ -613,45 +593,17 @@ describe('sidecar cleanup behavior', () => {
       onOutput,
     );
 
-    // Wait for sidecar startup (probeSidecar uses setTimeout)
     await new Promise((r) => setTimeout(r, 50));
-
     emitOutputMarker(fakeProc, { status: 'success', result: 'done' });
     await new Promise((r) => setTimeout(r, 10));
     fakeProc.emit('close', 0);
 
     await resultPromise;
-    expect(
-      stopArgs.some(
-        (a) => a.includes('stop') && a.some((x) => x.includes('sidecar')),
-      ),
-    ).toBe(true);
+    expectSidecarStopped(stopArgs);
   });
 
   it('stop is called for sidecars when agent exits with error', async () => {
-    const cp = await import('child_process');
-    const fs = await import('fs');
-
-    vi.mocked(fs.default.existsSync).mockImplementation(
-      (p: unknown) => typeof p === 'string' && p.endsWith('.sock'),
-    );
-
-    const stopArgs: string[][] = [];
-    vi.mocked(cp.spawn).mockImplementation(
-      (_cmd: string, args: string[], opts?: { stdio?: unknown }) => {
-        const isIgnored =
-          opts?.stdio === 'ignore' ||
-          (Array.isArray(opts?.stdio) && opts.stdio[0] === 'ignore');
-        if (isIgnored) {
-          if (args.includes('stop')) stopArgs.push(args);
-          const p = new EventEmitter() as EventEmitter & { pid: number };
-          p.pid = 99999;
-          process.nextTick(() => p.emit('close', 0));
-          return p as ReturnType<typeof cp.spawn>;
-        }
-        return fakeProc as ReturnType<typeof cp.spawn>;
-      },
-    );
+    const stopArgs = await setupSidecarSpySpawn();
 
     const resultPromise = runContainerAgent(
       sidecarGroup,
@@ -664,11 +616,7 @@ describe('sidecar cleanup behavior', () => {
 
     const result = await resultPromise;
     expect(result.status).toBe('error');
-    expect(
-      stopArgs.some(
-        (a) => a.includes('stop') && a.some((x) => x.includes('sidecar')),
-      ),
-    ).toBe(true);
+    expectSidecarStopped(stopArgs);
   });
 });
 
