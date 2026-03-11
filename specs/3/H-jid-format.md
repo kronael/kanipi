@@ -1,7 +1,7 @@
 # JID Format Normalization — spec
 
 Strip WhatsApp transport suffixes, add platform prefix to
-senders, add group name to message XML.
+senders, enrich message XML attributes, add clock header.
 
 ## Format
 
@@ -44,29 +44,48 @@ Display names are NOT in the JID. They stay in
 All senders get `scheme:` prefix. Before: bare `1112184352`.
 After: `telegram:1112184352`. Stored in `messages.sender`.
 
+### Clock header
+
+Injected once per agent invocation, before all messages:
+
+```xml
+<clock time="2026-03-11T17:23:00.000Z" tz="Europe/Prague" />
+```
+
+| Attribute | Source             | Present |
+| --------- | ------------------ | ------- |
+| `time`    | `new Date()` (UTC) | always  |
+| `tz`      | `TIMEZONE` env var | always  |
+
+Injection point: `index.ts` prompt assembly, prepended before
+system messages and `<messages>`. Not injected on piped
+messages (only the initial prompt gets the clock).
+
 ### Message XML attributes
 
 Full metadata on each `<message>` tag:
 
 ```xml
 <message sender="Alice" sender_id="telegram:1112184352"
-         chat="Support" chat_id="telegram:-1001234567890"
-         platform="telegram" time="2026-03-11T14:00:00Z">
+         chat_id="telegram:-1001234567890" chat="Support"
+         platform="telegram" time="2026-03-11T14:00:00Z" ago="3h">
   Hello
 </message>
 ```
 
-| Attribute   | Source            | Present                          |
-| ----------- | ----------------- | -------------------------------- |
-| `sender`    | sender_name col   | always (falls back to sender ID) |
-| `sender_id` | messages.sender   | always                           |
-| `chat`      | chats.name        | when is_group                    |
-| `chat_id`   | messages.chat_jid | always                           |
-| `platform`  | platform          | always                           |
-| `time`      | timestamp         | always                           |
+| Attribute   | Source             | Present                          |
+| ----------- | ------------------ | -------------------------------- |
+| `sender`    | sender_name col    | always (falls back to sender ID) |
+| `sender_id` | messages.sender    | always                           |
+| `chat_id`   | messages.chat_jid  | always                           |
+| `chat`      | chats.name         | when is_group                    |
+| `platform`  | platform           | always                           |
+| `time`      | timestamp          | always                           |
+| `ago`       | computed at format | always                           |
 
 `sender` = display name, `sender_id` = JID. `chat` = chat
 group name (message origin, not agent run group), `chat_id` = JID.
+`ago` = human-readable relative time (e.g. `3h`, `2d`, `1w`).
 
 ## Session context injection
 
@@ -153,6 +172,10 @@ UPDATE messages SET sender = 'email:' || sender
 1. WhatsApp: `bareJid()` strips suffixes, `toWaJid()` restores
    them for Baileys using `jidSuffixMap`
 2. All channels: sender = `scheme:${platformId}`
-3. `formatMessages()`: adds `group` attr from `m.group_name`
-4. `platformFromJid()`: unchanged (split on `:`)
-5. `sender_name` column: unchanged, carries display name
+3. `formatMessages()`: emits `sender`, `sender_id`, `chat_id`,
+   `chat` (when group), `platform`, `time`, `ago` per message
+4. `clockXml()`: returns `<clock>` tag with UTC time and timezone
+5. `timeAgo()`: computes human-readable relative time (s/m/h/d/w)
+6. `index.ts`: prepends clock to initial prompt assembly
+7. `platformFromJid()`: unchanged (split on `:`)
+8. `sender_name` column: unchanged, carries display name

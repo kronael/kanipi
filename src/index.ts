@@ -31,6 +31,7 @@ import {
   FACEBOOK_PAGE_ID,
   FACEBOOK_PAGE_ACCESS_TOKEN,
   isRoot,
+  TIMEZONE,
   whatsappEnabled,
 } from './config.js';
 import { BlueskyChannel } from './channels/bluesky/index.js';
@@ -108,6 +109,7 @@ import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
 import {
+  clockXml,
   findChannel,
   formatMessages,
   formatOutbound,
@@ -413,7 +415,10 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     ASSISTANT_NAME,
   );
   const formatted = formatMessages(userMessages);
+  const clock = clockXml(TIMEZONE);
   const prompt =
+    clock +
+    '\n' +
     (sysXml ? sysXml + '\n' : '') +
     (pendingArgs ? pendingArgs + '\n' : '') +
     formatted;

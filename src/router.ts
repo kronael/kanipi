@@ -24,7 +24,22 @@ export function escapeXml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function formatMessages(messages: NewMessage[]): string {
+export function timeAgo(iso: string, now?: number): string {
+  const ms = (now ?? Date.now()) - new Date(iso).getTime();
+  if (ms < 0) return '0s';
+  if (ms < 60_000) return `${Math.floor(ms / 1000)}s`;
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m`;
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h`;
+  if (ms < 604_800_000) return `${Math.floor(ms / 86_400_000)}d`;
+  return `${Math.floor(ms / 604_800_000)}w`;
+}
+
+export function clockXml(tz: string): string {
+  return `<clock time="${new Date().toISOString()}" tz="${escapeXml(tz)}" />`;
+}
+
+export function formatMessages(messages: NewMessage[], now?: number): string {
+  const t = now ?? Date.now();
   const lines = messages.map((m) => {
     const parts: string[] = [];
     if (m.forwarded_from) {
@@ -38,10 +53,13 @@ export function formatMessages(messages: NewMessage[]): string {
     }
     parts.push(escapeXml(m.content));
     const inner = parts.join('\n');
-    let attrs = `sender="${escapeXml(m.sender_name ?? m.sender)}" time="${m.timestamp}"`;
+    let attrs = `sender="${escapeXml(m.sender_name ?? m.sender)}"`;
+    attrs += ` sender_id="${escapeXml(m.sender)}"`;
+    attrs += ` chat_id="${escapeXml(m.chat_jid)}"`;
+    if (m.group_name) attrs += ` chat="${escapeXml(m.group_name)}"`;
     if (m.platform) attrs += ` platform="${escapeXml(m.platform)}"`;
+    attrs += ` time="${m.timestamp}" ago="${timeAgo(m.timestamp, t)}"`;
     if (m.verb) attrs += ` verb="${escapeXml(m.verb)}"`;
-    if (m.group_name) attrs += ` group="${escapeXml(m.group_name)}"`;
     if (m.mentions_me === true) attrs += ` mentions_me="true"`;
     if (m.thread) attrs += ` thread="${escapeXml(m.thread)}"`;
     if (m.target) attrs += ` target="${escapeXml(m.target)}"`;
