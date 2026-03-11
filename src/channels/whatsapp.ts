@@ -31,8 +31,11 @@ import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
 
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-function bareJid(jid: string): string {
-  return jid.replace(/^whatsapp:/, '');
+function stripWaSuffix(jid: string): string {
+  return jid
+    .replace(/@g\.us$/, '')
+    .replace(/@s\.whatsapp\.net$/, '')
+    .replace(/@lid$/, '');
 }
 
 /** Convert markdown formatting to WhatsApp formatting */
@@ -53,6 +56,7 @@ export class WhatsAppChannel implements Channel {
   private sock!: WASocket;
   private connected = false;
   private lidToPhoneMap: Record<string, string> = {};
+  private jidSuffixMap: Record<string, string> = {};
   private outgoingQueue: Array<{ jid: string; text: string }> = [];
   private flushing = false;
   private groupSyncTimerStarted = false;
@@ -61,6 +65,13 @@ export class WhatsAppChannel implements Channel {
 
   constructor(opts: ChannelOpts) {
     this.opts = opts;
+  }
+
+  private toWaJid(jid: string): string {
+    const bare = jid.replace(/^whatsapp:/, '');
+    if (bare.includes('@')) return bare;
+    const suffix = this.jidSuffixMap[bare] || '@s.whatsapp.net';
+    return `${bare}${suffix}`;
   }
 
   async connect(): Promise<void> {
@@ -190,14 +201,17 @@ export class WhatsAppChannel implements Channel {
         if (!rawJid || rawJid === 'status@broadcast') continue;
 
         // Translate LID JID to phone JID if applicable
-        const chatJid = `whatsapp:${await this.translateJid(rawJid)}`;
+        const translated = await this.translateJid(rawJid);
+        const isGroup = translated.endsWith('@g.us');
+        const strippedId = stripWaSuffix(translated);
+        const chatJid = `whatsapp:${strippedId}`;
+        if (isGroup) this.jidSuffixMap[strippedId] = '@g.us';
+        else if (translated.endsWith('@s.whatsapp.net'))
+          this.jidSuffixMap[strippedId] = '@s.whatsapp.net';
 
         const timestamp = new Date(
           Number(msg.messageTimestamp) * 1000,
         ).toISOString();
-
-        // Always notify about chat metadata for group discovery
-        const isGroup = bareJid(chatJid).endsWith('@g.us');
         this.opts.onChatMetadata(
           chatJid,
           timestamp,
@@ -287,8 +301,10 @@ export class WhatsAppChannel implements Channel {
           // Skip protocol messages with no text and no media
           if (!content && attachments.length === 0) continue;
 
-          const sender = msg.key.participant || msg.key.remoteJid || '';
-          const senderName = msg.pushName || sender.split('@')[0];
+          const rawSender = msg.key.participant || msg.key.remoteJid || '';
+          const senderId = rawSender.split('@')[0];
+          const senderName = msg.pushName || senderId;
+          const sender = `whatsapp:~${senderId}#${senderName}`;
 
           const fromMe = msg.key.fromMe || false;
           // Detect bot messages: with own number, fromMe is reliable
@@ -389,7 +405,7 @@ export class WhatsAppChannel implements Channel {
       return;
     }
     try {
-      await this.sock.sendMessage(bareJid(jid), { text: prefixed });
+      await this.sock.sendMessage(this.toWaJid(jid), { text: prefixed });
       logger.info({ jid, length: prefixed.length }, 'Message sent');
     } catch (err) {
       // If send fails, queue it for retry on reconnect
@@ -411,7 +427,7 @@ export class WhatsAppChannel implements Channel {
       return;
     }
     try {
-      const bare = bareJid(jid);
+      const bare = this.toWaJid(jid);
       const name = filename ?? path.basename(filePath);
       const mimetype = await mimeFromFile(filePath);
       const buf = fs.readFileSync(filePath);
@@ -463,7 +479,7 @@ export class WhatsAppChannel implements Channel {
     try {
       const status = isTyping ? 'composing' : 'paused';
       logger.debug({ jid, status }, 'Sending presence update');
-      await this.sock.sendPresenceUpdate(status, bareJid(jid));
+      await this.sock.sendPresenceUpdate(status, this.toWaJid(jid));
     } catch (err) {
       logger.debug({ jid, err }, 'Failed to update typing status');
     }
@@ -493,7 +509,7 @@ export class WhatsAppChannel implements Channel {
       let count = 0;
       for (const [jid, metadata] of Object.entries(groups)) {
         if (metadata.subject) {
-          updateChatName(`whatsapp:${jid}`, metadata.subject);
+          updateChatName(`whatsapp:${stripWaSuffix(jid)}`, metadata.subject);
           count++;
         }
       }
@@ -549,7 +565,9 @@ export class WhatsAppChannel implements Channel {
       while (this.outgoingQueue.length > 0) {
         const item = this.outgoingQueue.shift()!;
         // Send directly — queued items are already prefixed by sendMessage
-        await this.sock.sendMessage(bareJid(item.jid), { text: item.text });
+        await this.sock.sendMessage(this.toWaJid(item.jid), {
+          text: item.text,
+        });
         logger.info(
           { jid: item.jid, length: item.text.length },
           'Queued message sent',

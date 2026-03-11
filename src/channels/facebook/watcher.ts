@@ -40,7 +40,7 @@ export function startWatcher(
           const msg: NewMessage = {
             id: p.id,
             chat_jid: `facebook:${cfg.pageId}`,
-            sender: p.from.id,
+            sender: `facebook:~${p.from.id}#${p.from.name}`,
             sender_name: p.from.name,
             content: p.message,
             timestamp: p.created_time,

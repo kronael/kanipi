@@ -150,6 +150,7 @@ export interface NewMessage {
   root?: string;
   target?: string;
   target_author?: string;
+  group_name?: string;
 }
 
 export interface ScheduledTask {

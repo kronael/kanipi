@@ -97,6 +97,13 @@ export interface ChatInfo {
   is_group: number;
 }
 
+export function getChatName(chatJid: string): string | null {
+  const row = db
+    .prepare('SELECT name FROM chats WHERE jid = ?')
+    .get(chatJid) as { name: string } | undefined;
+  return row?.name ?? null;
+}
+
 /**
  * Get all known chats, ordered by most recent activity.
  */
@@ -221,12 +228,15 @@ export function getMessagesSince(
   // prefix as a backstop for messages written before the migration ran.
   const since = sinceTimestamp || '';
   const sql = `
-    SELECT id, chat_jid, sender, sender_name, content, timestamp, forwarded_from, reply_to_text, reply_to_sender
-    FROM messages
-    WHERE chat_jid = ? AND timestamp > ?
-      AND is_bot_message = 0 AND content NOT LIKE ?
-      AND content != '' AND content IS NOT NULL
-    ORDER BY timestamp DESC
+    SELECT m.id, m.chat_jid, m.sender, m.sender_name, m.content, m.timestamp,
+           m.forwarded_from, m.reply_to_text, m.reply_to_sender,
+           CASE WHEN c.is_group = 1 THEN c.name ELSE NULL END AS group_name
+    FROM messages m
+    LEFT JOIN chats c ON c.jid = m.chat_jid
+    WHERE m.chat_jid = ? AND m.timestamp > ?
+      AND m.is_bot_message = 0 AND m.content NOT LIKE ?
+      AND m.content != '' AND m.content IS NOT NULL
+    ORDER BY m.timestamp DESC
     LIMIT ?
   `;
   const rows = db

@@ -34,7 +34,7 @@ function toMessage(thing: RedditThing, source: string): NewMessage {
   return {
     id: d.name,
     chat_jid: jid,
-    sender: d.author,
+    sender: `reddit:~${d.author}#${d.author}`,
     sender_name: d.author,
     content: d.body ?? d.selftext ?? d.title ?? '',
     timestamp: new Date(d.created_utc * 1000).toISOString(),
