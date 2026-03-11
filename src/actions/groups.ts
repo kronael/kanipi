@@ -2,7 +2,13 @@ import { z } from 'zod';
 
 import { Action } from '../action-registry.js';
 import { writeCommandsXml } from '../commands/index.js';
-import { addRoute, deleteRoute, getRouteById, getRoutesForJid } from '../db.js';
+import {
+  addRoute,
+  deleteRoute,
+  getAllRoutes,
+  getRouteById,
+  getRoutesForJid,
+} from '../db.js';
 import { isValidGroupFolder } from '../group-folder.js';
 import { logger } from '../logger.js';
 import { isDirectChild } from '../permissions.js';
@@ -184,19 +190,22 @@ const RouteSchema = z.object({
 });
 
 const GetRoutesInput = z.object({
-  jid: z.string().min(1),
+  jid: z.string().min(1).optional(),
 });
 
 export const getRoutes: Action = {
   name: 'get_routes',
   description:
-    'Get routing rules for a JID. Use $NANOCLAW_CHAT_JID for the current chat.',
+    'Get routing rules. Pass jid ($NANOCLAW_CHAT_JID) to filter, omit for all routes.',
   minTier: 1,
   input: GetRoutesInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = GetRoutesInput.parse(raw);
-    return { jid: input.jid, routes: getRoutesForJid(input.jid) };
+    if (input.jid) {
+      return { jid: input.jid, routes: getRoutesForJid(input.jid) };
+    }
+    return { routes: getAllRoutes() };
   },
 };
 
