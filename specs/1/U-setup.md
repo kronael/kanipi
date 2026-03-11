@@ -76,7 +76,7 @@ Contains: liquid-staking-program, marinade-ts-sdk, validator-bonds,
 psr-dashboard, ds-sam, ds-sam-pipeline, delegation-strategy-2, ssr
 
 Docker resolves the symlink at mount time, so the agent sees
-real files at `/workspace/group/refs/codebase/`.
+real files at `/home/node/refs/codebase/`.
 
 ## Facts
 

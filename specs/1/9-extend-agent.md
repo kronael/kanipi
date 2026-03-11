@@ -30,7 +30,7 @@ Agent-runner merges with built-in `nanoclaw` server.
   "mcpServers": {
     "mytools": {
       "command": "node",
-      "args": ["/workspace/group/tools/myserver.js"]
+      "args": ["/home/node/tools/myserver.js"]
     }
   }
 }
@@ -73,9 +73,8 @@ Agent-runner source (`container/agent-runner/src/`) is mounted
 into the container at `/app/src`. The entrypoint recompiles
 with `tsc` on every spawn to pick up agent self-modifications.
 
-Gateway copies source to `data/sessions/<group>/agent-runner-src/`
-on first spawn. Agent can modify its own runner code; changes
-take effect on next spawn after recompilation.
+Agent can modify its own runner code; changes take effect on
+next spawn after recompilation.
 
 **Build pipeline**: `make build` compiles agent-runner locally.
 `make lint` and pre-commit typecheck it. The Dockerfile also

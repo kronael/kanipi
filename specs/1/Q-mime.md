@@ -113,10 +113,10 @@ handler needed.
 ## Prompt assembly
 
 ```xml
-<attachment index="0" type="voice" path="/workspace/media/...">
+<attachment index="0" type="voice" path="/home/node/media/...">
   <transcript>...</transcript>
 </attachment>
-<attachment index="1" type="image" path="/workspace/media/...">
+<attachment index="1" type="image" path="/home/node/media/...">
   <description>file saved</description>
 </attachment>
 

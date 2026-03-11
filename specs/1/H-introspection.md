@@ -21,7 +21,7 @@ spec formalises both.
 
 ## Gateway capabilities manifest
 
-Gateway writes `/workspace/group/.gateway-caps` on each container spawn.
+Gateway writes `/home/node/.gateway-caps` on each container spawn.
 TOML format. Agent reads it to know what's enabled and configurable.
 
 ```toml
@@ -48,7 +48,7 @@ spawn). Agent uses it to give accurate answers about capabilities.
 
 ## Agent-writable configuration files
 
-Files the agent creates/edits in `/workspace/group/`:
+Files the agent creates/edits in `/home/node/`:
 
 | File                | Type        | Effect                                       |
 | ------------------- | ----------- | -------------------------------------------- |

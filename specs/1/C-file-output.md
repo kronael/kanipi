@@ -13,11 +13,11 @@ the agent to finish.
 Call `send_file` with an absolute path inside the workspace:
 
 ```
-send_file(filepath="/workspace/group/main/media/20260304/report.csv")
-send_file(filepath="/workspace/group/main/media/20260304/chart.png", filename="Monthly Spend")
+send_file(filepath="/home/node/media/20260304/report.csv")
+send_file(filepath="/home/node/media/20260304/chart.png", filename="Monthly Spend")
 ```
 
-Store files you want to keep under `/workspace/group/{folder}/media/YYYYMMDD/`.
+Store files you want to keep under `/home/node/media/YYYYMMDD/`.
 All file types are supported. Files are not cleaned up by the gateway —
 agent manages its own workspace.
 
@@ -29,7 +29,7 @@ IPC message type `file` in `src/ipc.ts`:
 { type: 'file', chatJid, filepath, filename?, groupFolder, timestamp }
 ```
 
-Path safety: container path `/workspace/group/X/...` is resolved to host
+Path safety: container path `/home/node/X/...` is resolved to host
 `GROUPS_DIR/X/...`. Paths that escape `GROUPS_DIR` are blocked.
 
 `Channel` interface has an optional `sendDocument?` method. Channels that

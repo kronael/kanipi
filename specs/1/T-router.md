@@ -63,7 +63,7 @@ On resume: system messages (if queued) + raw user message.
 
 | Mount              | containerPath               | Tier 0 | Tier 1 | Tier 2 | Tier 3 |
 | ------------------ | --------------------------- | ------ | ------ | ------ | ------ |
-| group folder       | `/workspace/group`          | rw     | rw     | rw     | ro     |
+| group folder       | `/home/node`                | rw     | rw     | rw     | ro     |
 | media dir          | `/workspace/media`          | rw     | rw     | rw     | ro     |
 | kanipi source      | `/workspace/self`           | ro     | —      | —      | —      |
 | world share dir    | `/workspace/share`          | rw     | rw     | ro     | ro     |
@@ -72,7 +72,6 @@ On resume: system messages (if queued) + raw user message.
 | agent-runner src   | `/app/src`                  | rw     | rw     | rw     | rw     |
 | additional mounts  | `/workspace/extra/<name>`   | config | config | config | config |
 | web dir            | `/workspace/web`            | rw     | rw     | —      | —      |
-| sessions dir       | `/workspace/data/sessions`  | rw     | —      | —      | —      |
 | parent skills/     | `/home/node/.claude/skills` | —      | —      | ro     | ro     |
 
 Skills seeded into `.claude/skills/` on first spawn.

@@ -19,7 +19,7 @@ must be reported to the user verbatim. MEMORY.md stays under
 ## Path
 
 `groups/<folder>/diary/YYYYMMDD.md` — mounted rw at
-`/workspace/group/diary/`.
+`/home/node/diary/`.
 
 ## File format
 

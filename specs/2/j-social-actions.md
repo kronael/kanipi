@@ -13,19 +13,19 @@ Gateway resolves platform from JID prefix.
 | `post`        | reddit, twitter, mastodon, bluesky, fb, threads |
 | `reply`       | all                                             |
 | `react`       | all                                             |
-| `repost`      | twitter, mastodon, bluesky                      |
+| `repost`      | twitter, mastodon, bluesky, reddit              |
 | `follow`      | reddit, twitter, mastodon, bluesky              |
-| `unfollow`    | reddit, twitter, mastodon, bluesky              |
+| `unfollow`    | reddit, mastodon, bluesky                       |
 | `set_profile` | mastodon, bluesky, reddit                       |
 | `delete_post` | all                                             |
 | `edit_post`   | reddit, mastodon, fb                            |
 | `close`       | gateway (marks thread group closed)             |
 | `delete`      | gateway (removes thread group)                  |
-| `ban`         | reddit, discord, twitch, youtube, mastodon      |
-| `unban`       | reddit, discord, twitch, mastodon               |
+| `ban`         | reddit, discord, twitch, youtube, mastodon, fb  |
+| `unban`       | reddit, discord, twitch, mastodon, fb           |
 | `timeout`     | discord, twitch, youtube                        |
 | `mute`        | reddit, twitter, mastodon, bluesky              |
-| `block`       | twitter, mastodon, bluesky, twitch              |
+| `block`       | twitter, mastodon, bluesky, twitch, fb          |
 | `pin`         | reddit, mastodon, discord                       |
 | `unpin`       | reddit, mastodon, discord                       |
 | `lock`        | reddit, discord                                 |
