@@ -1013,7 +1013,11 @@ async function main(): Promise<void> {
       const folder = jidToFolder[msg.chat_jid];
       const group = folder ? groups[folder] : undefined;
       if (attachments && download && group) {
-        enqueueEnrichment(msg.id, group.folder, attachments, download);
+        // Resolve routing to determine final target folder for media storage
+        const routes = getRoutesForJid(msg.chat_jid);
+        const targetFolder = resolveRoute(msg, routes) || group.folder;
+
+        enqueueEnrichment(msg.id, targetFolder, attachments, download);
         // Cache for /file put command — command interception reads from DB later
         attachmentCache.set(msg.id, {
           attachments,
