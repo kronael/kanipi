@@ -1,7 +1,7 @@
 # Cross-channel identity — open
 
 Link a single user across multiple channels and auth providers.
-Prerequisite: `3/H-jid-format.md` (compact JIDs with sender prefix).
+Prerequisite: `3/H-jid-format.md` (platform-prefixed sender JIDs).
 
 ## Identity record
 
@@ -16,7 +16,7 @@ CREATE TABLE identities (
 );
 
 CREATE TABLE identity_claims (
-  sub         TEXT PRIMARY KEY,   -- e.g. "telegram:~123456", "local:<uuid>"
+  sub         TEXT PRIMARY KEY,   -- e.g. "telegram:123456", "local:<uuid>"
   identity_id TEXT NOT NULL REFERENCES identities(id),
   claimed_at  TEXT NOT NULL
 );
@@ -42,7 +42,7 @@ sending a one-time code:
 2. User sends the code in Telegram/Discord/WhatsApp.
 3. Gateway matches code → links the channel sender to the JWT sub.
 
-This bridges `local:<uuid>` (web password login) to `telegram:~123456`
+This bridges `local:<uuid>` (web password login) to `telegram:123456`
 (Telegram sender) without requiring OAuth.
 
 ## Scope
@@ -62,7 +62,7 @@ valid claim sub in this model.
 **What exists:**
 
 - `auth_users` + `auth_sessions` tables in `db.ts`
-- `messages.sender` stores raw channel sender per message
+- `messages.sender` stores platform-prefixed sender per message
 
 **What is missing:**
 
