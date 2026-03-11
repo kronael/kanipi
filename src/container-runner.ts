@@ -19,7 +19,6 @@ import {
   HOST_APP_DIR,
   HOST_DATA_DIR,
   HOST_GROUPS_DIR,
-  HOST_PROJECT_ROOT_PATH,
   IDLE_TIMEOUT,
   MEDIA_ENABLED,
   MEDIA_MAX_FILE_BYTES,
@@ -303,7 +302,7 @@ function buildVolumeMounts(
   if (fs.existsSync(WEB_DIR) && tier <= 1) {
     chownRecursive(WEB_DIR, 1000, 1000);
     mounts.push({
-      hostPath: path.resolve(HOST_PROJECT_ROOT_PATH, 'web'),
+      hostPath: path.resolve(HOST_DATA_DIR, '../web'),
       containerPath: '/workspace/web',
       readonly: false,
     });

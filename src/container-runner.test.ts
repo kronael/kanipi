@@ -18,7 +18,6 @@ vi.mock('./config.js', () => ({
   HOST_DATA_DIR: '/tmp/nanoclaw-test-root/data',
   HOST_GROUPS_DIR: '/tmp/nanoclaw-test-root/groups',
   HOST_WEB_DIR: '/tmp/nanoclaw-test-root/web',
-  HOST_PROJECT_ROOT_PATH: '/tmp/nanoclaw-test-root',
   IDLE_TIMEOUT: 1800000,
   TIMEZONE: 'America/Los_Angeles',
   WEB_DIR: '/tmp/nanoclaw-test-web',
