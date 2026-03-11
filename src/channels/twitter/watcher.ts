@@ -12,7 +12,7 @@ function toMessage(tweet: Tweet): NewMessage {
   return {
     id: tweet.id ?? `${Date.now()}`,
     chat_jid: `twitter:${tweet.userId ?? 'unknown'}`,
-    sender: `twitter:~${tweet.userId ?? 'unknown'}#${handle}`,
+    sender: `twitter:${tweet.userId ?? 'unknown'}`,
     sender_name: tweet.name ?? handle,
     content: tweet.text ?? '',
     timestamp: tweet.timeParsed?.toISOString() ?? new Date().toISOString(),

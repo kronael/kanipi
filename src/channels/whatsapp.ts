@@ -304,7 +304,7 @@ export class WhatsAppChannel implements Channel {
           const rawSender = msg.key.participant || msg.key.remoteJid || '';
           const senderId = rawSender.split('@')[0];
           const senderName = msg.pushName || senderId;
-          const sender = `whatsapp:~${senderId}#${senderName}`;
+          const sender = `whatsapp:${senderId}`;
 
           const fromMe = msg.key.fromMe || false;
           // Detect bot messages: with own number, fromMe is reliable

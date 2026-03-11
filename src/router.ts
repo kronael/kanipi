@@ -15,28 +15,6 @@ export function platformFromJid(jid: string): Platform {
   return jid.split(':')[0] as Platform;
 }
 
-export function parseJid(jid: string): {
-  scheme: string;
-  id: string;
-  name?: string;
-  isSender: boolean;
-} {
-  const colonIdx = jid.indexOf(':');
-  if (colonIdx === -1) return { scheme: '', id: jid, isSender: false };
-  const scheme = jid.slice(0, colonIdx);
-  let rest = jid.slice(colonIdx + 1);
-  const isSender = rest.startsWith('~');
-  if (isSender) rest = rest.slice(1);
-  const hashIdx = rest.indexOf('#');
-  if (hashIdx === -1) return { scheme, id: rest, isSender };
-  return {
-    scheme,
-    id: rest.slice(0, hashIdx),
-    name: rest.slice(hashIdx + 1),
-    isSender,
-  };
-}
-
 export function escapeXml(s: string): string {
   if (!s) return '';
   return s

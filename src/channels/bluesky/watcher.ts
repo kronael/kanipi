@@ -22,7 +22,7 @@ function toMessage(n: {
   return {
     id: n.uri,
     chat_jid: `bluesky:${n.author.did}`,
-    sender: `bluesky:~${n.author.did}#${n.author.displayName || n.author.handle}`,
+    sender: `bluesky:${n.author.did}`,
     sender_name: n.author.displayName || n.author.handle,
     content: rec.text ?? '',
     timestamp: rec.createdAt ?? n.indexedAt,

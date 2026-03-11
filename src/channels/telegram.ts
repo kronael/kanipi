@@ -67,7 +67,7 @@ export class TelegramChannel implements Channel {
         ctx.from?.id.toString() ||
         'Unknown';
       const senderId = ctx.from?.id.toString() || '';
-      const sender = `telegram:~${senderId}#${senderName}`;
+      const sender = `telegram:${senderId}`;
       const msgId = ctx.message.message_id.toString();
 
       // Determine chat name
@@ -245,7 +245,7 @@ export class TelegramChannel implements Channel {
         {
           id: ctx.message.message_id.toString(),
           chat_jid: chatJid,
-          sender: `telegram:~${ctx.from?.id?.toString() || ''}#${senderName}`,
+          sender: `telegram:${ctx.from?.id?.toString() || ''}`,
           sender_name: senderName,
           content: `${placeholder}${caption}`,
           timestamp,

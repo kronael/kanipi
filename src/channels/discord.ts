@@ -64,7 +64,7 @@ export class DiscordChannel implements Channel {
     const chatJid = `discord:${msg.channelId}`;
     const timestamp = msg.createdAt.toISOString();
     const senderName = msg.member?.displayName || msg.author.displayName;
-    const sender = `discord:~${msg.author.id}#${senderName}`;
+    const sender = `discord:${msg.author.id}`;
     const isGroup = msg.guild !== null;
     const chatName = isGroup
       ? `#${(msg.channel as TextChannel).name}`

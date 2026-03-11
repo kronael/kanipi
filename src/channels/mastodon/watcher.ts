@@ -30,7 +30,7 @@ function handleEvent(
   const msg: NewMessage = {
     id: n.status.id,
     chat_jid: `mastodon:${n.account.id}`,
-    sender: `mastodon:~${n.account.id}#${n.account.displayName || n.account.username}`,
+    sender: `mastodon:${n.account.id}`,
     sender_name: n.account.displayName || n.account.username,
     content: stripHtml(n.status.content),
     timestamp: n.status.createdAt ?? new Date().toISOString(),
