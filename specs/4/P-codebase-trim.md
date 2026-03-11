@@ -7,11 +7,11 @@ Estimated ~900 lines removable without behavior change.
 
 ## 1. Dead modules (~210 lines)
 
-### impulse.ts — unused module (~92 lines)
+### ~~impulse.ts~~ — KEEP
 
-`src/impulse.ts` exports `defaultConfig()`, `emptyState()`,
-`accumulate()`, `checkTimeout()`. Not imported anywhere in
-production code. Delete module + test.
+Impulse is the event batching/weighting system for social
+channels (verb-based accumulation, threshold flush). Not
+yet wired but planned for social integrations (specs/3/).
 
 ### Legacy IPC drain (~120 lines)
 
