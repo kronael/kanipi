@@ -50,10 +50,10 @@ echo $NANOCLAW_TIER           # outputs: 2 (your permission tier)
 **Child groups:**
 
 Subdirectories in `/home/node/` can be child groups. For example, if you are
-the `atlas` agent (tier 1), you might have:
+a tier 1 world agent, you might have:
 
-- `~/support/` — child group `atlas/support` (tier 2)
-- `~/ops/` — child group `atlas/ops` (tier 2)
+- `~/research/` — child group (tier 2)
+- `~/dev/` — child group (tier 2)
 
 ```bash
 # List immediate child groups
