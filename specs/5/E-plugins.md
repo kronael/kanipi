@@ -5,7 +5,7 @@
 ## Overview
 
 Main group can extend kanipi (new skills, gateway patches,
-MCP sidecars) without operator shell access. Security:
+MCP servers) without operator shell access. Security:
 **agent proposes, operator approves**.
 
 ## Trust Boundary
@@ -31,7 +31,7 @@ Unified diff applied as git commit after operator review.
 Agent writes `.patch` file, emits `plugin-propose` with
 `type=patch`.
 
-### 3. MCP sidecars
+### 3. MCP servers
 
 New MCP server binary. Agent writes config + binary,
 emits `plugin-propose` with `kind=mcp`. Requires gateway

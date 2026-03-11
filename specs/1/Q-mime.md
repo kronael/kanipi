@@ -123,7 +123,7 @@ handler needed.
 hey check this out
 ```
 
-Sidecar files: `-whisper.txt` / `-<enricher>.txt`.
+Enricher output files: `-whisper.txt` / `-<enricher>.txt`.
 
 ## Config
 
@@ -155,7 +155,7 @@ src/
 groups/<folder>/media/ -> /workspace/media/
   <YYYYMMDD>/
     <msg-id>-<idx>.<ext>            -- raw download
-    <msg-id>-<idx>-<enricher>.txt   -- enricher sidecar
+    <msg-id>-<idx>-<enricher>.txt   -- enricher output
 ```
 
 ## Extension

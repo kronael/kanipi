@@ -11,5 +11,5 @@ available in all groups.
 
 ## No agent-side action required
 
-The tool is provided automatically by the gateway's MCP sidecar. No skill
+The tool is provided automatically by the gateway's MCP server. No skill
 files need updating.

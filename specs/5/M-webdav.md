@@ -17,7 +17,7 @@ are provisioned per-VM and stored in the platform DB.
 
 ## Scope
 
-Kanipi adaptation: one Caddy sidecar per kanipi instance (not per group),
+Kanipi adaptation: one Caddy container per kanipi instance (not per group),
 serving `GROUPS_DIR` as root. Auth reuses the existing kanipi user accounts
 (`auth.ts`). Access is proxied through the existing web layer.
 
@@ -31,7 +31,7 @@ WebDAV client (Finder / Cyberduck)
         │  path: /dav/<group>/
         │  validates webdav_token against DB
         ▼
-  Caddy sidecar  (kanipi-webdav container)
+  Caddy container  (kanipi-webdav)
         │  no-auth (trusted internal network only)
         │  root: GROUPS_DIR
         ▼
@@ -91,7 +91,7 @@ All other paths under `<group>/` are read-write.
 **Cyberduck**: WebDAV (HTTPS), same URL and credentials
 **rclone**: `rclone config` → WebDAV → URL `https://<host>/dav/main/`
 
-## Caddy sidecar
+## Caddy container
 
 Single `kanipi-webdav` container, no auth (internal only), full WebDAV:
 
@@ -106,7 +106,7 @@ Single `kanipi-webdav` container, no auth (internal only), full WebDAV:
 ```
 
 Requires Caddy with the `mholt/caddy-webdav` module (not in stock Caddy).
-Built as a separate image: `sidecar/webdav/Dockerfile`.
+Built as a separate image.
 
 Mount: `-v /srv/data/kanipi_<name>/groups:/srv/groups:rw`
 
@@ -123,7 +123,7 @@ New route: `ALL /dav/:group/*`
 2. Look up username in `auth_users`; verify webdav_token (SHA-256 compare).
 3. Check `webdav_groups` includes `:group`.
 4. Check `logs/` prefix → strip write methods (PUT/MKCOL/DELETE/COPY/MOVE/LOCK).
-5. Rewrite to `http://webdav-sidecar:8179/<group>/<rest>`.
+5. Rewrite to `http://localhost:8179/<group>/<rest>`.
 6. Proxy with `http-proxy` or `node-http-proxy` (same lib used elsewhere).
 
 ### `db.ts`
@@ -137,7 +137,7 @@ ALTER TABLE auth_users ADD COLUMN webdav_groups TEXT DEFAULT '["main"]';
 
 ```
 WEBDAV_ENABLED=true          # disables /dav/* routes when false
-WEBDAV_SIDECAR_URL=http://localhost:8179
+WEBDAV_URL=http://localhost:8179
 ```
 
 ## Ansible
@@ -152,11 +152,11 @@ Add `kanipi-webdav` service entry to `host_vars/hel1v5.../vars`:
     -p 127.0.0.1:8179:8179
 ```
 
-One sidecar per instance (separate port per instance if multiple).
+One container per instance (separate port per instance if multiple).
 
 ## Security
 
-- Caddy sidecar binds `127.0.0.1` only — never exposed directly.
+- Caddy container binds `127.0.0.1` only — never exposed directly.
 - All auth happens in the gateway proxy before Caddy sees the request.
 - WebDAV token is separate from the login password — compromise of one
   doesn't expose the other.

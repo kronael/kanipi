@@ -25,8 +25,7 @@ Status key:
   not evidenced in current `src/`.
 - Session continuity, system-message injection, task scheduling, slink, and
   request/reply IPC are implemented.
-- Sidecars are only partially shipped: gateway-managed sidecars exist, but the
-  agent-requested lifecycle/actions in the spec are not wired.
+- Isolated MCP containers are not implemented (whisper runs as a standalone service).
 - The permission model exists in code, but does not match the full phase 2
   `permissions.md` design.
 - SSE works today, but it broadcasts per group and does not scope by sender.
@@ -37,7 +36,7 @@ Status key:
 
 | Spec                   | Status    | Notes                                                                                                                                                                                                                                                                            |
 | ---------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------------------------------------------- |
-| `README.md`            | partial   | Useful index, but status labels rely on stale `todo.md`; `sidecars` is listed as partial, `router/channels` are documentation-only, and some status claims are broader than code evidence.                                                                                       |
+| `README.md`            | partial   | Useful index, but status labels rely on stale `todo.md`; `router/channels` are documentation-only, and some status claims are broader than code evidence.                                                                                                                        |
 | `actions.md`           | shipped   | Action registry, Zod validation, manifest, and request/reply IPC are implemented in `src/action-registry.ts`, `src/ipc.ts`, and `src/actions/*`.                                                                                                                                 |
 | `agent-routing.md`     | open      | Worker-agents-within-a-group model is not implemented.                                                                                                                                                                                                                           |
 | `auth.md`              | partial   | Local auth is shipped in `src/auth.ts` and `src/web-proxy.ts`; OAuth providers, provider routes, and the broader provider matrix are not implemented. Cookie path/security details in spec do not match code exactly.                                                            |
@@ -64,7 +63,7 @@ Status key:
 | `prompt-format.md`     | shipped   | Current container input/output shape matches implementation closely.                                                                                                                                                                                                             |
 | `reference-systems.md` | reference | Research/reference doc.                                                                                                                                                                                                                                                          |
 | `router.md`            | partial   | High-level flow is correct, but it still references worlds/glob behavior more broadly than current code evidence supports.                                                                                                                                                       |
-| `sidecars.md`          | partial   | Gateway-managed sidecars are implemented; agent-requested sidecars/actions are not.                                                                                                                                                                                              |
+| `sidecars.md`          | removed   | Spec and code removed; whisper runs as standalone service. Isolated MCP containers deferred to phase 3.                                                                                                                                                                          |
 | `slink.md`             | shipped   | Tokenized web POST endpoint, auth-aware rate limits, and media URL handling ship.                                                                                                                                                                                                |
 | `sync.md`              | shipped   | Skill migration/version flow exists.                                                                                                                                                                                                                                             |
 | `system-messages.md`   | shipped   | DB-backed queued system messages and flush-before-prompt behavior ship.                                                                                                                                                                                                          |
@@ -82,7 +81,7 @@ Status key:
 - Rewrite `specs/1/d-voice.md` to describe the actual MIME/whisper path.
 - Split `commands/files-in` docs between shipped file commands and older draft
   naming.
-- Rename or reconcile `isolation` vs `sidecars` references in `todo.md`.
+- Reconcile `isolation` references in `todo.md`.
 
 ## Phase 2 Audit
 
@@ -121,7 +120,7 @@ Status key:
 1. OAuth and provider-based auth remain unimplemented despite broad auth docs.
 2. Sender-scoped SSE is missing; current stream model can leak replies across
    listeners on the same group.
-3. Sidecar actions/lifecycle are only half shipped.
+3. Isolated MCP containers are not implemented.
 4. Versioned DB migrations are still missing.
 5. Session recovery notes and `work.md` are not implemented.
 6. The permission model and docs are not yet aligned.

@@ -12,7 +12,7 @@ channel message
   -> attachment detected
   -> attachment saved under group media dir
   -> MIME handler runs
-  -> whisper sidecar HTTP call
+  -> whisper service HTTP call
   -> transcription lines appended to stored message
   -> prompt re-fetched after enrichment
 ```
@@ -44,5 +44,5 @@ normal message history rather than through a separate voice-specific API.
 
 ## Notes
 
-- current implementation is whisper-sidecar HTTP, not direct SDK media tools
+- current implementation is whisper service HTTP, not direct SDK media tools
 - current behavior is described more fully in `specs/1/Q-mime.md`

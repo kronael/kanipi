@@ -84,7 +84,7 @@ Use `debug` level for non-critical (presence), `warn` for important (receipts).
 OpenClaw transcribes voice messages via Whisper before processing.
 
 **Current kanipi**: Voice messages passed as attachments, transcription
-handled by agent (whisper MCP sidecar).
+handled by agent (whisper service).
 
 **Improvement**: Gateway-level transcription for:
 

@@ -41,7 +41,7 @@ ALWAYS follow before answering:
 
 Nanoclaw fork — multitenant Claude agent gateway with
 multi-channel support (telegram, whatsapp, discord, email).
-systemd-managed instances, MCP sidecar extensibility.
+systemd-managed instances, MCP extensibility.
 
 ## Build & Test
 
@@ -50,7 +50,6 @@ make build          # tsc compile (src/ → dist/)
 make lint           # typecheck without emitting
 make image                     # gateway docker image
 make -C container image        # agent docker image
-make -C sidecar/whisper image  # whisper sidecar image
 npm run dev         # tsx dev mode
 ```
 
@@ -123,7 +122,6 @@ container/            agent container build
   skills/             agent-side skills
 prototype/            seed for new instances
   .claude/CLAUDE.md   default group CLAUDE.md (group-chat behavior instructions)
-sidecar/              MCP server binaries
 kanipi                bash entrypoint (legacy, for docker deployments)
 specs/                design specs (see below)
 ```

@@ -10,7 +10,7 @@ Functional multi-channel agent gateway.
 - Containerized Claude Code agents (docker, stdin/stdout JSON)
 - Group routing + delegation (5 rule types, depth limit)
 - Skills system (diary, migrate, facts researcher)
-- Voice transcription (whisper sidecar)
+- Voice transcription (whisper service)
 - File I/O (send/receive documents, images, audio, video)
 - Per-channel output styles (telegram, discord, email, web)
 - Action registry (Zod schemas, authorization)
@@ -76,6 +76,6 @@ Gateway rewrite in Go. Agent container stays TypeScript.
 Product-specific roadmap.
 
 - User context: per-user memory, gateway injection
-- Semantic search: embeddings MCP sidecar
+- Semantic search: embeddings MCP server
 - Gateway fact injection (top-N relevant)
 - v2 sandboxed support: frontend/backend agent split

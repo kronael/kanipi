@@ -21,7 +21,7 @@ automatic similarity search or injection.
 
 **Options:**
 
-- MCP sidecar with embedding model (nomic-embed-text via Ollama)
+- MCP server with embedding model (nomic-embed-text via Ollama)
 - Simple keyword/TF-IDF search as a skill (no embeddings needed)
 - Agent-side: `/facts <query>` skill that searches and returns matches
 - Gateway-side: inject top-N facts into prompt (like diary injection)

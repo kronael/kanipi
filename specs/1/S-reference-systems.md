@@ -365,10 +365,10 @@ Builds on: takopi ThreadScheduler (FIFO per thread), brainpro
 ChannelSessionMap (session per target). Groups form a tree;
 parent routes to children by command/pattern/delegation.
 
-**MCP sidecar isolation** (see `specs/1/isolation.md`)
-Builds on: kanipi `sidecar/whisper/`, brainpro MCP config.toml,
-eliza-atlas service model. Each MCP server in its own container
-with unix socket transport. Gateway manages lifecycle.
+**MCP server isolation** (see `specs/1/isolation.md`)
+Builds on: brainpro MCP config.toml, eliza-atlas service model.
+Each MCP server in its own container with unix socket transport.
+Gateway manages lifecycle.
 
 ### P1
 
@@ -419,7 +419,7 @@ Research shows Claude parses XML structure better than plain
 text for prompt sections (see `specs/res/xml-vs-json-llm.md`).
 
 **Two-phase fact verification** — from eliza-atlas.
-When agent writes to `facts/`, gateway or a sidecar runs
+When agent writes to `facts/`, gateway or a verifier runs
 Sonnet to attempt refutation. Rejects findings without
 source evidence. Prevents fact file pollution.
 

@@ -62,26 +62,9 @@ export interface AllowedRoot {
   description?: string;
 }
 
-export interface SidecarSpec {
-  image: string;
-  env?: Record<string, string>;
-  memoryMb?: number; // --memory (default: 256)
-  cpus?: number; // --cpus (default: 0.5)
-  network?: 'bridge' | 'none'; // default: none
-  allowedTools?: string[]; // ["search", "fetch"] or ["*"]
-}
-
-export interface SidecarHandle {
-  containerName: string;
-  specName: string;
-  sockPath: string;
-  allowedTools?: string[];
-}
-
 export interface ContainerConfig {
   additionalMounts?: AdditionalMount[];
   timeout?: number; // Default: 300000 (5 minutes)
-  sidecars?: Record<string, SidecarSpec>;
 }
 
 // Flat routing table row
@@ -109,19 +92,9 @@ export const AdditionalMountSchema = z.object({
   readonly: z.boolean().optional(),
 });
 
-export const SidecarSpecSchema = z.object({
-  image: z.string(),
-  env: z.record(z.string(), z.string()).optional(),
-  memoryMb: z.number().optional(),
-  cpus: z.number().optional(),
-  network: z.enum(['bridge', 'none']).optional(),
-  allowedTools: z.array(z.string()).optional(),
-});
-
 export const ContainerConfigSchema = z.object({
   additionalMounts: z.array(AdditionalMountSchema).optional(),
   timeout: z.number().optional(),
-  sidecars: z.record(z.string(), SidecarSpecSchema).optional(),
 });
 
 export interface SendOpts {

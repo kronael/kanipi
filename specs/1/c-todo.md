@@ -14,7 +14,7 @@
 | extend-skills   | v0.4.0  | Skill seeding, /migrate, MIGRATION_VERSION                 |
 | file-output     | v0.5.0  | send_file IPC action, sendDocument on channels             |
 | group-routing   | v0.6.0  | Hierarchical routing, delegate_group, routing_rules        |
-| sidecars        | v0.6.0  | Gateway-managed sidecars shipped; agent-requested open     |
+| whisper         | v0.6.0  | Whisper transcription service, HTTP client                 |
 | ipc-signal      | v0.5.0  | SIGUSR1 wakeup, fs.watch gateway-side                      |
 | memory-messages | v0.4.0  | Stdin XML envelope, 100 msg limit (MSG_LIMIT)              |
 | memory-session  | v0.4.0  | Session recording, error notification, cursor rollback     |
@@ -54,8 +54,7 @@
 
 ## Not in scope for v1
 
-- **sidecar actions** — specced in sidecars.md + actions.md,
-  container-runner has lifecycle code, action handlers not yet wired
+- **isolated MCP servers** — container-based MCP isolation deferred to phase 3
 
 ## Shipped (late additions)
 

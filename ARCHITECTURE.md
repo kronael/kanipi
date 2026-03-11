@@ -17,7 +17,6 @@ Channel (telegram/whatsapp/discord/email)
   -> trigger check (direct mode or @name mention)
   -> routing rules (resolveRoutingTarget: delegate to child group if matched)
   -> GroupQueue (per-group serialization)
-  -> startSidecars (per-group MCP servers)
   -> runContainerAgent (docker run)
   -> stream output back to channel
 ```
@@ -105,7 +104,7 @@ present when the prompt is assembled.
 
 Handlers: `voice.ts` (multi-pass whisper transcription per
 `.whisper-language`), `video.ts` (audio track extraction),
-`whisper.ts` (shared HTTP client to sidecar, 60s timeout).
+`whisper.ts` (shared HTTP client to whisper service, 60s timeout).
 
 ### container-runner.ts
 
@@ -249,14 +248,6 @@ contains numbered migration files (`NNN-desc.md`). The `/migrate`
 skill syncs all groups from the canonical source when the version
 changes.
 
-**Sidecar lifecycle**: per-group MCP sidecars are started before the
-agent (`startSidecars`), probed for readiness, and their socket paths
-merged into the agent's `settings.json` (`reconcileSidecarSettings`).
-Sidecar images are discovered from `SIDECAR_<NAME>_IMAGE` env vars.
-Sockets live at `/workspace/ipc/sidecars/<name>.sock`. Stopped after
-agent exit (`stopSidecars`). Stale sidecar entries in `settings.json`
-are purged on remove/disable.
-
 **Signal-driven IPC**: gateway writes IPC file then sends SIGUSR1
 to the container; agent wakes immediately on signal rather than
 waiting for the 500ms poll interval.
@@ -283,15 +274,15 @@ Claude to summarise progress, prompts user to say "continue".
 
 ## External Systems
 
-| System   | Library       | Role                                               |
-| -------- | ------------- | -------------------------------------------------- |
-| Telegram | grammy        | message channel                                    |
-| WhatsApp | baileys       | message channel                                    |
-| Discord  | discord.js    | message channel                                    |
-| Email    | IMAP/SMTP     | message channel (IDLE + reply threading)           |
-| Docker   | child_process | agent container runtime                            |
-| Claude   | claude-code   | agent (runs in container)                          |
-| Whisper  | fetch (HTTP)  | voice/video transcription (kanipi-whisper sidecar) |
+| System   | Library       | Role                                       |
+| -------- | ------------- | ------------------------------------------ |
+| Telegram | grammy        | message channel                            |
+| WhatsApp | baileys       | message channel                            |
+| Discord  | discord.js    | message channel                            |
+| Email    | IMAP/SMTP     | message channel (IDLE + reply threading)   |
+| Docker   | child_process | agent container runtime                    |
+| Claude   | claude-code   | agent (runs in container)                  |
+| Whisper  | fetch (HTTP)  | voice/video transcription (kanipi-whisper) |
 
 ## Repository Layout
 

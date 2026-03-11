@@ -2,7 +2,7 @@
 
 Multitenant Claude agent gateway. Routes messages from any channel
 (Telegram, WhatsApp, Discord, Email, Web) to containerized Claude
-Code agents. systemd-managed instances, MCP sidecar extensibility.
+Code agents. systemd-managed instances, MCP extensibility.
 
 ## Why
 
@@ -227,17 +227,6 @@ Set via `set_routing_rules` action; delegate via `delegate_group` action.
 Routing is parent-to-child by registered group folder. Glob-based JID routing
 is not currently implemented.
 
-## MCP Sidecars
-
-Per-group MCP servers can run as sidecar containers alongside the agent.
-The shipped part is gateway-managed sidecars stored in
-`container_config.sidecars` on `registered_groups`. Sidecars communicate via
-Unix sockets at `/workspace/ipc/sidecars/<name>.sock`. The gateway starts
-sidecars before the agent, probes readiness, and merges them into the agent's
-`settings.json` as MCP servers.
-
-Agent-requested sidecar actions are still planned, not shipped.
-
 ## Instance Layout
 
 `${PREFIX}/data/kanipi_<name>/` (PREFIX defaults to `/srv`):
@@ -277,13 +266,12 @@ All via `.env` (seeded from `template/env.example`):
 | WEB_HOST                  | vite host binding                             |
 | SLOTH_USERS               | basic auth users (alice:pw,bob:pw2)           |
 | AUTH_SECRET               | HMAC secret for JWT verification (slink)      |
-| WHISPER_BASE_URL          | whisper sidecar URL for transcription         |
+| WHISPER_BASE_URL          | whisper service URL for transcription         |
 | EMAIL_IMAP_HOST           | enables email channel (IMAP IDLE)             |
 | EMAIL_SMTP_HOST           | SMTP for reply threading (defaults from IMAP) |
 | EMAIL_ACCOUNT             | email account address                         |
 | EMAIL_PASSWORD            | email account password                        |
 | MEDIA_ENABLED             | enable attachment pipeline (default false)    |
-| SIDECAR\_\*\_IMAGE        | per-name sidecar docker image                 |
 | TIMEZONE                  | cron timezone (validated, fallback UTC)       |
 
 Channels enabled by token presence (telegram/discord),
@@ -344,7 +332,7 @@ Common issues:
 - **agent hangs**: check `CLAUDE_CODE_OAUTH_TOKEN` is set in `.env`
 - **no media processing**: set `MEDIA_ENABLED=true` in `.env`
 - **voice not transcribed**: set `VOICE_TRANSCRIPTION_ENABLED=true`,
-  ensure whisper sidecar is running
+  ensure whisper service is running
 
 ## Development
 

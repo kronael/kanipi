@@ -30,5 +30,5 @@ For v2, parent channel ID passed explicitly.
 
 ## Open
 
-- MCP sidecar interface design
+- MCP server interface design
 - Auth: agent can only query own group's messages

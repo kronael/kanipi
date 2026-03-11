@@ -14,7 +14,7 @@ Agents run in `node:22-slim` with:
 - **curl**, **git**, **bun**, **node**
 - **claude-code** — Claude Agent SDK
 
-Missing from container (need apt or sidecar):
+Missing from container (need apt install):
 
 - `yt-dlp` — YouTube/video download
 - `ffmpeg` — audio/video conversion
@@ -27,7 +27,7 @@ Missing from container (need apt or sidecar):
 
 Gateway processes media before it reaches the agent:
 
-- **Voice messages** → whisper sidecar transcribes, text injected
+- **Voice messages** → whisper service transcribes, text injected
 - **Video messages** → ffmpeg extracts audio → whisper transcribes
 - **Images** → passed as attachments (Claude vision reads them)
 - **Documents** → saved to group's `media/` dir, path in message
@@ -72,7 +72,7 @@ Gateway processes media before it reaches the agent:
 
 | Source                  | Method                   | Notes                       |
 | ----------------------- | ------------------------ | --------------------------- |
-| Audio transcription     | ffmpeg + whisper sidecar | extract → transcribe        |
+| Audio transcription     | ffmpeg + whisper service | extract → transcribe        |
 | Video frame extraction  | ffmpeg -ss               | screenshot at timestamp     |
 | Audio format conversion | ffmpeg                   | any format to wav/mp3       |
 | Media metadata          | ffprobe                  | duration, codec, resolution |
@@ -154,9 +154,9 @@ RUN pip3 install --break-system-packages yt-dlp
 
 This unlocks tier 2 + tier 3 sources. ~150MB image size increase.
 
-Alternative: sidecar model (like whisper). Heavier to set up but
-keeps agent container slim. Recommendation: just add to container —
-these are standard unix tools, not heavy ML models.
+Alternative: separate service container (like whisper). Heavier to
+set up but keeps agent container slim. Recommendation: just add to
+container — these are standard unix tools, not heavy ML models.
 
 ### Phase 2: skill for data collection
 
@@ -185,12 +185,12 @@ sections to mention:
 ### Phase 4: audio steering
 
 Agent-side audio output (text-to-speech) for voice-first channels.
-Requires TTS sidecar or API. Out of scope for v1m1 — note for v1m2.
+Requires TTS service or API. Out of scope for v1m1 — note for v1m2.
 
 ## Open questions
 
-1. **yt-dlp in container vs sidecar** — container is simpler,
-   sidecar keeps image small. yt-dlp binary is ~30MB.
+1. **yt-dlp in container vs service** — container is simpler,
+   separate service keeps image small. yt-dlp binary is ~30MB.
 2. **Whisper from agent** — currently gateway-only. Should agents
    be able to call whisper directly for downloaded audio?
 3. **Gallery-dl** — worth including for image-heavy scraping?

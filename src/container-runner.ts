@@ -4,7 +4,6 @@ import {
   spawn,
 } from 'child_process';
 import fs from 'fs';
-import net from 'net';
 import path from 'path';
 
 import crypto from 'crypto';
@@ -41,7 +40,6 @@ import {
 } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { GroupConfig } from './db.js';
-import { SidecarHandle, SidecarSpec } from './types.js';
 
 export let _spawnProcess: (
   cmd: string,
@@ -370,215 +368,6 @@ function buildContainerArgs(
   return args;
 }
 
-// --- Sidecar lifecycle ---
-
-function execArgs(bin: string, args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const p = spawn(bin, args, { stdio: 'ignore' });
-    p.on('close', (code) =>
-      code === 0 ? resolve() : reject(new Error(`${bin} exited ${code}`)),
-    );
-    p.on('error', reject);
-  });
-}
-
-async function waitForSocket(
-  sockPath: string,
-  timeoutMs: number,
-): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (fs.existsSync(sockPath)) return;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  throw new Error(`timed out waiting for socket: ${sockPath}`);
-}
-
-function probeSidecar(sockPath: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const sock = net.createConnection(sockPath);
-    const timer = setTimeout(() => {
-      sock.destroy();
-      resolve(false);
-    }, 1000);
-    sock.on('connect', () => {
-      clearTimeout(timer);
-      sock.destroy();
-      resolve(true);
-    });
-    sock.on('error', () => {
-      clearTimeout(timer);
-      resolve(false);
-    });
-  });
-}
-
-function resolveSidecars(
-  group: GroupConfig,
-): Array<SidecarSpec & { name: string }> {
-  const specs: Record<string, SidecarSpec> = {};
-
-  for (const [key, val] of Object.entries(process.env)) {
-    const m = key.match(/^SIDECAR_([A-Z0-9]+(?:_[A-Z0-9]+)*)_IMAGE$/);
-    if (m && val) {
-      const name = m[1].toLowerCase().replace(/_/g, '-');
-      specs[name] = { image: val };
-    }
-  }
-
-  if (group.containerConfig?.sidecars) {
-    for (const [name, spec] of Object.entries(group.containerConfig.sidecars)) {
-      if (spec.image) {
-        specs[name] = { ...specs[name], ...spec };
-      } else {
-        delete specs[name]; // empty image = disabled
-      }
-    }
-  }
-
-  return Object.entries(specs).map(([name, spec]) => ({ name, ...spec }));
-}
-
-async function startSidecar(
-  name: string,
-  spec: SidecarSpec,
-  sockDir: string,
-  groupFolder: string,
-): Promise<SidecarHandle | null> {
-  const safeName = groupFolder.replace(/[^a-zA-Z0-9-]/g, '-');
-  const containerName = `nanoclaw-sidecar-${name}-${safeName}`;
-  const sockPath = path.join(sockDir, `${name}.sock`);
-
-  if (fs.existsSync(sockPath)) {
-    try {
-      fs.unlinkSync(sockPath);
-    } catch (e: unknown) {
-      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-    }
-  }
-
-  const args = [
-    'run',
-    '-d',
-    '--rm',
-    '--name',
-    containerName,
-    `--memory=${spec.memoryMb ?? 256}m`,
-    `--cpus=${spec.cpus ?? 0.5}`,
-    `--network=${spec.network ?? 'none'}`,
-    '-v',
-    `${hostPath(sockDir)}:/run/socks`,
-    '-e',
-    `MCP_SOCK=/run/socks/${name}.sock`,
-  ];
-
-  if (spec.env) {
-    for (const [k, v] of Object.entries(spec.env)) {
-      args.push('-e', `${k}=${v}`);
-    }
-  }
-
-  args.push(spec.image);
-
-  try {
-    await execArgs(CONTAINER_RUNTIME_BIN, args);
-    await waitForSocket(sockPath, 5000);
-    const ok = await probeSidecar(sockPath);
-    if (!ok) {
-      logger.warn(
-        { name, containerName },
-        'sidecar probe failed, excluding from settings',
-      );
-      execArgs(CONTAINER_RUNTIME_BIN, ['stop', containerName]).catch(() => {});
-      return null;
-    }
-    logger.info({ name, containerName }, 'sidecar ready');
-    return {
-      containerName,
-      specName: name,
-      sockPath,
-      allowedTools: spec.allowedTools,
-    };
-  } catch (err) {
-    logger.warn({ name, containerName, err }, 'sidecar start failed, skipping');
-    return null;
-  }
-}
-
-async function startSidecars(
-  group: GroupConfig,
-  sockDir: string,
-): Promise<SidecarHandle[]> {
-  const specs = resolveSidecars(group);
-  if (specs.length === 0) return [];
-
-  const results = await Promise.all(
-    specs.map((s) => startSidecar(s.name, s, sockDir, group.folder)),
-  );
-  return results.filter((h): h is SidecarHandle => h !== null);
-}
-
-export function reconcileSidecarSettings(
-  settingsFile: string,
-  handles: SidecarHandle[],
-): void {
-  const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
-
-  // Purge entries for previously managed sidecars (covers remove/disable).
-  const prev: string[] = settings._managedSidecars ?? [];
-  if (prev.length > 0) {
-    settings.mcpServers = settings.mcpServers ?? {};
-    for (const name of prev) {
-      delete settings.mcpServers[name];
-    }
-    if (Array.isArray(settings.allowedTools)) {
-      settings.allowedTools = settings.allowedTools.filter(
-        (t: string) => !prev.some((name) => t.startsWith(`mcp__${name}__`)),
-      );
-    }
-  }
-
-  // Inject active handles.
-  if (handles.length > 0) {
-    settings.mcpServers = settings.mcpServers ?? {};
-    if (!Array.isArray(settings.allowedTools)) {
-      settings.allowedTools = [];
-    }
-    for (const h of handles) {
-      settings.mcpServers[h.specName] = {
-        command: 'socat',
-        args: [
-          `UNIX-CONNECT:/workspace/ipc/sidecars/${h.specName}.sock`,
-          'STDIO',
-        ],
-      };
-      if (!h.allowedTools || h.allowedTools.includes('*')) {
-        settings.allowedTools.push(`mcp__${h.specName}__*`);
-      } else {
-        for (const t of h.allowedTools) {
-          settings.allowedTools.push(`mcp__${h.specName}__${t}`);
-        }
-      }
-    }
-    settings.allowedTools = [...new Set(settings.allowedTools)];
-  }
-
-  // Track managed names so next reconcile can purge removed sidecars.
-  settings._managedSidecars = handles.map((h) => h.specName);
-
-  fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
-}
-
-async function stopSidecars(handles: SidecarHandle[]): Promise<void> {
-  await Promise.all(
-    handles.map((h) =>
-      execArgs(CONTAINER_RUNTIME_BIN, ['stop', h.containerName]).catch(
-        () => {},
-      ),
-    ),
-  );
-}
-
 // --- Gateway capabilities manifest ---
 
 function writeGatewayCaps(groupDir: string): void {
@@ -640,18 +429,10 @@ export async function runContainerAgent(
 
   const mounts = buildVolumeMounts(group, input.delegateDepth);
 
-  // Start sidecars before agent; socket dir lives under IPC dir (already mounted)
-  const sockDir = path.join(resolveGroupIpcPath(group.folder), 'sidecars');
-  fs.mkdirSync(sockDir, { recursive: true });
-  chownRecursive(sockDir, 1000, 1000);
-  const sidecarHandles = await startSidecars(group, sockDir);
-
-  const settingsFile = path.join(groupDir, '.claude', 'settings.json');
-  reconcileSidecarSettings(settingsFile, sidecarHandles);
-
   // Activate per-channel output style if the channel has a matching style file.
   // Style files are baked into the agent image at /home/node/.claude/output-styles/.
   {
+    const settingsFile = path.join(groupDir, '.claude', 'settings.json');
     const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
     if (input.channelName) {
       settings.outputStyle = input.channelName;
@@ -876,7 +657,6 @@ export async function runContainerAgent(
 
     container.on('close', (code) => {
       clearTimeout(timeout);
-      stopSidecars(sidecarHandles).catch(() => {});
       const duration = Date.now() - startTime;
 
       if (timedOut) {

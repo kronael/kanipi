@@ -35,7 +35,7 @@ schemas, explicit action set.
 ## Three MCP layers
 
 - **Gateway MCP** -- actions (send_message, schedule_task)
-- **Sidecar MCP** -- extensions (whisper, etc.), proxy
+- **Extension MCP** -- extensions (whisper, etc.), proxy
   multiplexes
 - **Agent MCP** -- agent's own tools, container-local
 

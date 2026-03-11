@@ -16,19 +16,7 @@ kanipi-<name>/
 │       ├── CLAUDE.md     # agent instructions
 │       ├── character.json  # per-group override (optional)
 │       └── facts/        # knowledge files (YAML markdown)
-├── refs.txt              # git URLs of codebase repos to clone
 └── README.md             # what this agent does, how to deploy
-```
-
-## refs.txt
-
-One git URL per line. `kanipi create` clones each into
-`groups/main/refs/<repo-name>/`. Supports shallow clones.
-
-```
-https://github.com/marinade-finance/liquid-staking-program
-https://github.com/marinade-finance/validator-bonds
-https://github.com/marinade-finance/psr-dashboard
 ```
 
 ## CLI
@@ -44,48 +32,36 @@ kanipi create <name> --from /path/to/local/repo
 # 3. Copy .env.example → .env (user fills secrets)
 # 4. Copy groups/ → groups/
 # 5. Copy character.json → groups/main/character.json (if not per-group)
-# 6. Clone each URL in refs.txt → groups/main/refs/<name>/
-# 7. Generate systemd unit
-# 8. Register groups from repo structure
+# 6. Generate systemd unit
+# 7. Register groups from repo structure
 
 # Update from repo (pull new facts, CLAUDE.md changes)
 kanipi update <name> --from <repo-url>
 # Merges groups/ content, preserves .env and local state
 ```
 
-## Example: kanipi-marinade
+## Refs management (decided: not a gateway feature)
 
-```
-kanipi-marinade/
-├── .env.example
-│   ASSISTANT_NAME=marinade
-│   TELEGRAM_BOT_TOKEN=<your-token>
-│   CONTAINER_IMAGE=kanipi-agent:latest
-│   CLAUDE_CODE_OAUTH_TOKEN=<your-oauth>
-│   MAX_CONCURRENT_CONTAINERS=2
-│   MEDIA_ENABLED=true
-│   VOICE_TRANSCRIPTION_ENABLED=true
-│   WHISPER_BASE_URL=http://localhost:8178
-├── character.json        # Marinade Atlas identity
-├── groups/
-│   └── main/
-│       ├── CLAUDE.md     # Marinade codebase guide instructions
-│       └── facts/        # 50+ institutional knowledge files
-│           ├── sam-*.md
-│           ├── validator-bonds-*.md
-│           └── ...
-├── refs.txt
-│   https://github.com/marinade-finance/liquid-staking-program
-│   https://github.com/marinade-finance/validator-bonds
-│   https://github.com/marinade-finance/marinade-ts-sdk
-│   https://github.com/marinade-finance/psr-dashboard
-│   https://github.com/marinade-finance/ds-sam
-└── README.md
-```
+Code references (git repos the agent searches) live inside the
+group folder at `refs/<repo-name>/`. Since the group folder IS
+the agent's home (`/home/node`), refs are automatically visible
+at `/home/node/refs/` — no special mount config needed.
+
+Management is manual: clone repos into the group's `refs/` dir,
+chown to 1000:1000. Updates via cron or scheduled bash task
+(see `specs/3/J-container-commands.md`). The gateway does not
+auto-clone or manage refs — that's operator responsibility.
+
+Parent groups can share dirs with children via the nested folder
+structure (e.g. `atlas/refs/` is visible to `atlas/support/`
+since support's home is inside atlas's tree).
+
+No `refs.txt` file. No gateway-level refs sync. No CLI refs
+subcommand. Keep it simple.
 
 ## Scope
 
-This is a v2 feature. For now, instance setup is manual
-(as documented in specs/atlas/setup.md). The repo structure
-is the target format — we can extract kanipi-marinade as the
-first instance repo once the CLI supports `--from`.
+This is a v2 feature. For now, instance setup is manual.
+The repo structure is the target format — we can extract
+kanipi-marinade as the first instance repo once the CLI
+supports `--from`.

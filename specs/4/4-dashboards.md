@@ -70,7 +70,7 @@ export function register(app: Express, db: Database) {
 Pro: Simple, shared state, no IPC
 Con: Couples dashboard code to gateway, restart gateway to update
 
-### Option B: Sidecar processes
+### Option B: Companion processes
 
 Dashboards run as separate processes, connect to gateway via
 HTTP API or shared DB.

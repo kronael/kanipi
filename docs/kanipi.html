@@ -343,7 +343,7 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
 
       <h3>Voice transcription</h3>
       <p>
-        Whisper sidecar (<code>kanipi-whisper</code> Docker image) transcribes voice messages before agent delivery.
+        Whisper service (<code>kanipi-whisper</code> Docker image) transcribes voice messages before agent delivery.
         Per-group language hints via <code>.whisper-language</code> file (one BCP-47 code per line).
         Parallel passes: auto-detect + each configured language. Output labeled
         <code>[voice/auto&rarr;en]</code> or <code>[voice/cs]</code>.
@@ -399,19 +399,6 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
         Agents request scheduled tasks via <code>schedule_task</code> IPC action.
         Two context modes: <code>group</code> (shares conversation history) or <code>isolated</code> (fresh context per run).
         Run log with per-task status and last result. <code>TIMEZONE</code> validated via <code>Intl.DateTimeFormat</code>.
-      </p>
-    </section>
-
-    <!-- MCP -->
-    <section id="mcp">
-      <h2>MCP Sidecars</h2>
-
-      <p>
-        Per-group MCP server configuration. Sidecar containers run alongside agents, exposed via Unix sockets
-        at <code>/workspace/ipc/sidecars/&lt;name&gt;.sock</code>. Gateway manages lifecycle: start, probe readiness,
-        merge into agent <code>settings.json</code>, cleanup. Configured via <code>SIDECAR_&lt;NAME&gt;_IMAGE</code> env vars.
-        Whisper transcription is itself an MCP sidecar. Agents can self-register additional MCP servers
-        by writing to <code>settings.json</code>.
       </p>
     </section>
 
@@ -508,7 +495,7 @@ npm run dev</pre>
           <tr><td><code>MAX_CONCURRENT_CONTAINERS</code></td><td>parallel agent limit (default 5)</td></tr>
           <tr><td><code>MEDIA_ENABLED</code></td><td>attachment pipeline (default false)</td></tr>
           <tr><td><code>VITE_PORT</code></td><td>enables web serving</td></tr>
-          <tr><td><code>WHISPER_BASE_URL</code></td><td>whisper sidecar URL</td></tr>
+          <tr><td><code>WHISPER_BASE_URL</code></td><td>whisper service URL</td></tr>
           <tr><td><code>TIMEZONE</code></td><td>cron timezone (validated, fallback UTC)</td></tr>
         </table>
       </div>
@@ -529,7 +516,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           <tr>
             <td>v1</td>
             <td><span style="color: var(--green, #4caf50);">shipped</span></td>
-            <td>5 channels, routing, actions, diary, sidecars, auth, 560 tests</td>
+            <td>5 channels, routing, actions, diary, auth, 560 tests</td>
           </tr>
           <tr>
             <td>v1m1</td>
@@ -635,10 +622,9 @@ sudo systemctl enable --now kanipi_foo</pre>
           Groups: CLI registration, world-scoped authorization, hierarchical delegation (5 rule types, max depth 3),
           trigger mode for non-root groups, multi-JID per folder.
           Actions: messaging (send, inject), tasks (schedule/cancel), groups (delegate, routing rules), session (reset).
-          Media: whisper sidecar voice transcription (multi-language, per-group .whisper-language),
+          Media: whisper voice transcription (multi-language, per-group .whisper-language),
           file sending (sendDocument, path-safe), file commands (/put /get /ls), magic bytes MIME detection,
           .gateway-caps TOML introspection manifest.
-          MCP sidecars: per-group config, gateway-managed lifecycle, Unix socket transport.
           Task scheduler: cron/interval/once, group or isolated context modes.
           Web: vite dev server, /pub/ (public) vs /priv/ (auth), argon2 + JWT auth.
           Error handling: circuit breaker (3 failures), session eviction, no auto-retry.
@@ -669,8 +655,7 @@ skills: container/skills/ seeded to ~/.claude/skills/ per group; SOUL.md for ide
 ipc: signal-driven (SIGUSR1), 500ms fallback, file-based request/response
 memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (shipped, gateway injection), facts (planned), episodes (planned)
 actions: messaging (send, inject), tasks (schedule/cancel), groups (delegate, routing-rules), session (reset) — Zod-validated, tier-based auth
-mcp: per-group sidecar config, gateway-managed lifecycle, unix socket transport
-media: voice transcription (whisper sidecar, multi-language), file sending (sendDocument), file commands (/put /get /ls), magic bytes mime detection
+media: voice transcription (whisper, multi-language), file sending (sendDocument), file commands (/put /get /ls), magic bytes mime detection
 error-handling: circuit breaker (3 failures), session eviction, no auto-retry
 hot-patching: agent-runner TS mounted, bunx tsc at runtime
 groups: cli registration, world-scoped auth, hierarchical delegation (5 rule types, max depth 3), trigger mode, multi-jid per folder

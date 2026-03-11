@@ -59,8 +59,7 @@ const allowedTools = [...builtinTools, ...mcpWildcards];
 - Agent can only run binaries inside container (sandboxed)
 - `nanoclaw` cannot be overridden (spread order)
 - Agent MCP servers are container-local, no gateway access
-- For isolated MCP servers (own containers), see `mcp-sidecar.md`
-  — agent requests sidecars via `request_sidecar` IPC action
+- For isolated MCP servers (own containers), see phase 3 specs
 
 ### Gateway settings preservation
 

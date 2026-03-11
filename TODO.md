@@ -32,7 +32,7 @@ Partial specs, close to done. Finish these first.
 
 - [ ] dash-status: health dashboard (containers, queues, errors)
 - [ ] dash-memory: memory/diary viewer and editor
-- [ ] webdav: WebDAV file access via Caddy sidecar
+- [ ] webdav: WebDAV file access via Caddy container
 
 ## Future — memory layers, agent teams, feed adapters
 
@@ -54,7 +54,7 @@ Partial specs, close to done. Finish these first.
 ## Atlas
 
 - [ ] user context: per-user memory, gateway injection
-- [ ] semantic search: embeddings MCP sidecar
+- [ ] semantic search: embeddings MCP server
 - [ ] gateway fact injection (top-N relevant)
 - [ ] knowledge gap detection -> auto-trigger research
 - [ ] scheduled research (cron)

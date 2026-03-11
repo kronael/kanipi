@@ -83,10 +83,9 @@ these specs define its structure.
 ## IPC & Container
 
 Agent execution environment. Container lifecycle, IPC protocol,
-MCP sidecar isolation.
+Container lifecycle, IPC protocol.
 
 - [J-ipc-signal.md](J-ipc-signal.md) — SIGUSR1 wakeup replacing 500ms polling (shipped)
-- [V-sidecars.md](V-sidecars.md) — MCP servers in isolated containers: gateway-managed + agent-requested (partial)
 
 ## Actions & Commands
 
