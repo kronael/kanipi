@@ -25,6 +25,46 @@ Tier 2/3 setup files mounted ro: `CLAUDE.md`, `SOUL.md` (group root),
 `~/.claude/output-styles`. Agent can write diary, media, facts (tier 2)
 but cannot modify its own instructions, skills, or settings.
 
+## Where am I?
+
+**Your working directory is `/home/node/`** — this is both your cwd and home directory (`~`).
+
+The gateway mounts your group folder (e.g., `groups/atlas/support/` on the host)
+as `/home/node/` inside your container. Everything you create here persists
+between sessions.
+
+```bash
+pwd                           # outputs: /home/node
+echo ~                        # outputs: /home/node
+echo $NANOCLAW_GROUP_FOLDER   # outputs: atlas/support (or your folder)
+echo $NANOCLAW_TIER           # outputs: 2 (your permission tier)
+```
+
+**Gateway-managed directories:**
+
+- `~/diary/` — daily work log
+- `~/media/` — message attachments (images, audio, etc.)
+- `~/logs/` — container logs
+- `~/.claude/` — SDK state, skills, sessions, memory
+
+**Child groups:**
+
+Subdirectories in `/home/node/` can be child groups. For example, if you are
+the `atlas` agent (tier 1), you might have:
+
+- `~/support/` — child group `atlas/support` (tier 2)
+- `~/ops/` — child group `atlas/ops` (tier 2)
+
+```bash
+# List immediate child groups
+ls -d */ 2>/dev/null | grep -vE '^(diary|media|logs|bin|tmp)/'
+
+# Check if a specific child exists
+[ -d ~/support ] && echo "support child exists"
+```
+
+Use `delegate_group` to forward messages to child groups.
+
 ## Skill seeding
 
 On first container spawn, gateway copies:
