@@ -143,9 +143,9 @@ specs/res/ resources (examples, research)
 ```
 
 Naming: `<phase>/<base58>-<topic>.md` e.g. `1/0-actions.md`,
-`2/5-permissions.md`. The user controls releases and tags —
-TODO.md may suggest which specs a version should cover, but
-the user decides what ships when.
+`2/5-permissions.md`. `specs/INDEX.md` is the master index of all specs with status.
+The user controls releases and tags — TODO.md may suggest which specs
+a version should cover, but the user decides what ships when.
 
 ## Data Dir
 
