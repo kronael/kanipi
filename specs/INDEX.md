@@ -90,23 +90,23 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 
 14 specs. Focus: agent-to-agent, self-modification, workflows.
 
-| Spec                      | Topic                         | Status            |
-| ------------------------- | ----------------------------- | ----------------- |
-| 0-agent-code-modification | Gateway staging area          | not started       |
-| 1-agent-messaging         | Sloth links as inboxes        | spec              |
-| 2-agent-pipeline          | Inter-agent workflows         | product config    |
-| 3-agent-teams             | Multi-agent patterns          | decided (use SDK) |
-| 6-extend-gateway-self     | Root agent modifies gateway   | open              |
-| 9-identities              | Cross-channel identity        | open              |
-| A-ipc-mcp-proxy           | Unix socket replaces file IPC | spec              |
-| C-message-mcp             | Agent-side history queries    | spec              |
-| D-message-wal             | Write-ahead log delivery      | spec              |
-| E-plugins                 | Agent-proposed plugins        | not implemented   |
-| F-prototypes              | Group spawn from routing      | open              |
-| J-sse                     | Per-group SSE stream          | incomplete        |
-| K-topicrouting            | @agent #topic routing         | open              |
-| M-webdav                  | WebDAV workspace access       | spec              |
-| N-workflows               | Media MCP, delegation         | spec              |
+| Spec                      | Topic                               | Status            |
+| ------------------------- | ----------------------------------- | ----------------- |
+| 0-agent-code-modification | Gateway staging area                | not started       |
+| 1-agent-messaging         | Sloth links as inboxes              | spec              |
+| 2-agent-pipeline          | Inter-agent workflows               | product config    |
+| 3-agent-teams             | Multi-agent patterns                | decided (use SDK) |
+| 6-extend-gateway-self     | Root agent modifies gateway         | open              |
+| 9-identities              | JID format + cross-channel identity | open              |
+| A-ipc-mcp-proxy           | Unix socket replaces file IPC       | spec              |
+| C-message-mcp             | Agent-side history queries          | spec              |
+| D-message-wal             | Write-ahead log delivery            | spec              |
+| E-plugins                 | Agent-proposed plugins              | not implemented   |
+| F-prototypes              | Group spawn from routing            | open              |
+| J-sse                     | Per-group SSE stream                | incomplete        |
+| K-topicrouting            | @agent #topic routing               | open              |
+| M-webdav                  | WebDAV workspace access             | spec              |
+| N-workflows               | Media MCP, delegation               | spec              |
 
 ## Phase 5-7 — Products (deferred)
 
@@ -124,5 +124,4 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 | res/ex-1                 | SDK stale session experiment (done)    |
 | res/ex-2                 | Auto-compact session experiment (done) |
 | res/social-platform-libs | Platform library recommendations       |
-| res/worlds-rooms         | Threading/room models (research)       |
 | res/xml-vs-json-llm      | LLM prompt format research             |
