@@ -11,6 +11,25 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.2.1] — 2026-03-11
+
+### Fixed
+
+- **ENTRYPOINT**: Changed from `ENTRYPOINT []` to `ENTRYPOINT ["/bin/bash"]` to fix agent container crashes. Empty ENTRYPOINT caused docker to fall back to base image CMD (node), resulting in `node /app/entrypoint.sh` instead of `bash /app/entrypoint.sh` and MODULE_NOT_FOUND errors.
+- **Media routing**: Fixed media being saved to wrong folder during message routing. Routing resolution now happens in `onMessage` before `enqueueEnrichment` to ensure media saves to final routed target folder (e.g., `atlas/support/media/` instead of `atlas/media/`).
+
+### Added
+
+- **Schedule task schema**: Added comprehensive `.describe()` field documentation to `schedule_task` action Zod schema. Agents now understand when to use `prompt` (agent mode) vs `command` (raw bash mode).
+- **Session transcript reading**: Strengthened all session continuity nudges from passive "if needed" to active "MUST read BEFORE responding". Updated CLAUDE.md files in root, container, agent-runner, and self skill. Added migration 023.
+- **Agent context awareness**: Added "Where am I?" section to self skill explaining that `/home/node/` is both cwd and home directory, how to find child groups, and standard directory patterns.
+
+### Changed
+
+- Self skill migration version: 22 → 23
+
+---
+
 ## [v1.2.0] — 2026-03-11
 
 ### Refactor
