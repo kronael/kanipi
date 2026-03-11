@@ -40,25 +40,6 @@ kanipi update <name> --from <repo-url>
 # Merges groups/ content, preserves .env and local state
 ```
 
-## Refs management (decided: not a gateway feature)
-
-Code references (git repos the agent searches) live inside the
-group folder at `refs/<repo-name>/`. Since the group folder IS
-the agent's home (`/home/node`), refs are automatically visible
-at `/home/node/refs/` — no special mount config needed.
-
-Management is manual: clone repos into the group's `refs/` dir,
-chown to 1000:1000. Updates via cron or scheduled bash task
-(see `specs/3/J-container-commands.md`). The gateway does not
-auto-clone or manage refs — that's operator responsibility.
-
-Parent groups can share dirs with children via the nested folder
-structure (e.g. `atlas/refs/` is visible to `atlas/support/`
-since support's home is inside atlas's tree).
-
-No `refs.txt` file. No gateway-level refs sync. No CLI refs
-subcommand. Keep it simple.
-
 ## Scope
 
 This is a v2 feature. For now, instance setup is manual.
