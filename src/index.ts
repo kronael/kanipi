@@ -47,7 +47,7 @@ import { WhatsAppChannel } from './channels/whatsapp.js';
 import { startWebProxy } from './web-proxy.js';
 import {
   ContainerOutput,
-  runContainerAgent,
+  runContainerCommand,
   writeGroupsSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
@@ -606,7 +606,7 @@ async function delegateToGroup(
   const taskId = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   queue.enqueueTask(targetFolder, taskId, async () => {
-    const output = await runContainerAgent(
+    const output = await runContainerCommand(
       target,
       {
         prompt,
@@ -711,7 +711,7 @@ async function runAgent(
   queue.preemptFolderIfNeeded(group.folder, chatJid);
 
   try {
-    const output = await runContainerAgent(
+    const output = await runContainerCommand(
       group,
       {
         prompt,

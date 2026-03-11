@@ -67,5 +67,5 @@ USER node
 # Set working directory to group workspace
 WORKDIR /home/node
 
-# Entry point reads JSON from stdin, outputs JSON to stdout
-ENTRYPOINT ["/app/entrypoint.sh"]
+# No ENTRYPOINT — gateway supplies command via docker args.
+# Agent default: /app/entrypoint.sh (reads JSON from stdin, outputs JSON to stdout)

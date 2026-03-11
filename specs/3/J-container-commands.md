@@ -1,6 +1,6 @@
 # Generic Container Commands
 
-**Status**: spec
+**Status**: shipped
 
 ## Overview
 

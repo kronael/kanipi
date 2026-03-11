@@ -112,7 +112,7 @@ vi.mock('child_process', async () => {
   };
 });
 
-import { runContainerAgent, ContainerOutput } from './container-runner.js';
+import { runContainerCommand, ContainerOutput } from './container-runner.js';
 import type { GroupConfig } from './db.js';
 
 const testGroup: GroupConfig = {
@@ -157,7 +157,7 @@ afterEach(() => {
 describe('container-runner timeout behavior', () => {
   it('timeout after output resolves as success', async () => {
     const onOutput = vi.fn(async () => {});
-    const resultPromise = runContainerAgent(
+    const resultPromise = runContainerCommand(
       testGroup,
       testInput,
       () => {},
@@ -193,7 +193,7 @@ describe('container-runner timeout behavior', () => {
 
   it('timeout with no output resolves as error', async () => {
     const onOutput = vi.fn(async () => {});
-    const resultPromise = runContainerAgent(
+    const resultPromise = runContainerCommand(
       testGroup,
       testInput,
       () => {},
@@ -216,7 +216,7 @@ describe('container-runner timeout behavior', () => {
 
   it('normal exit after output resolves as success', async () => {
     const onOutput = vi.fn(async () => {});
-    const resultPromise = runContainerAgent(
+    const resultPromise = runContainerCommand(
       testGroup,
       testInput,
       () => {},
@@ -259,7 +259,7 @@ describe('volume mount paths for nested folders', () => {
       added_at: new Date().toISOString(),
     };
 
-    const resultPromise = runContainerAgent(
+    const resultPromise = runContainerCommand(
       nestedGroup,
       { prompt: 'test', groupFolder: 'atlas/support', chatJid: 'test@g.us' },
       () => {},
@@ -308,7 +308,7 @@ describe('unified home mount behavior', () => {
   }
 
   it('mounts group folder as /home/node (not /workspace/group)', async () => {
-    const resultPromise = runContainerAgent(testGroup, testInput, () => {});
+    const resultPromise = runContainerCommand(testGroup, testInput, () => {});
     await vi.advanceTimersByTimeAsync(10);
 
     const args = await getAgentArgs();
@@ -332,7 +332,7 @@ describe('unified home mount behavior', () => {
       added_at: new Date().toISOString(),
     };
 
-    const resultPromise = runContainerAgent(
+    const resultPromise = runContainerCommand(
       tier3Group,
       { prompt: 'test', groupFolder: 'world/a/b/c', chatJid: 'test@g.us' },
       () => {},
@@ -379,7 +379,7 @@ describe('unified home mount behavior', () => {
       added_at: new Date().toISOString(),
     };
 
-    const resultPromise = runContainerAgent(
+    const resultPromise = runContainerCommand(
       rootGroup,
       { prompt: 'test', groupFolder: 'main', chatJid: 'test@g.us' },
       () => {},
@@ -403,7 +403,7 @@ describe('unified home mount behavior', () => {
       return false;
     });
 
-    const resultPromise = runContainerAgent(testGroup, testInput, () => {});
+    const resultPromise = runContainerCommand(testGroup, testInput, () => {});
     await vi.advanceTimersByTimeAsync(10);
 
     // Verify cpSync was called for output-styles
@@ -417,7 +417,7 @@ describe('unified home mount behavior', () => {
   });
 
   it('no separate media mount (media inside home)', async () => {
-    const resultPromise = runContainerAgent(testGroup, testInput, () => {});
+    const resultPromise = runContainerCommand(testGroup, testInput, () => {});
     await vi.advanceTimersByTimeAsync(10);
 
     const args = await getAgentArgs();
@@ -428,5 +428,88 @@ describe('unified home mount behavior', () => {
     expect(mediaMount).toBeUndefined();
 
     await closeAndAwait(resultPromise);
+  });
+});
+
+describe('raw command mode', () => {
+  it('skips agent ceremony and captures stdout as result', async () => {
+    const db = await import('./db.js');
+    vi.mocked(db.recordSessionStart).mockClear();
+
+    const resultPromise = runContainerCommand(
+      testGroup,
+      'input text',
+      () => {},
+      undefined,
+      ['bash', '-c', 'echo hello'],
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Emit stdout
+    fakeProc.stdout.push('hello world\n');
+
+    // Exit successfully
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result.status).toBe('success');
+    expect(result.result).toBe('hello world');
+
+    // Should NOT have called recordSessionStart (no session tracking)
+    expect(db.recordSessionStart).not.toHaveBeenCalled();
+  });
+
+  it('returns error on non-zero exit code', async () => {
+    const resultPromise = runContainerCommand(
+      testGroup,
+      '',
+      () => {},
+      undefined,
+      ['bash', '-c', 'exit 1'],
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    fakeProc.stderr.push('command failed\n');
+    fakeProc.emit('close', 1);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('code 1');
+  });
+
+  it('passes command array to buildContainerArgs', async () => {
+    const cp = await import('child_process');
+    vi.mocked(cp.spawn).mockClear();
+
+    const resultPromise = runContainerCommand(
+      testGroup,
+      '',
+      () => {},
+      undefined,
+      ['bash', '-c', 'git pull'],
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    const spawnCalls = vi.mocked(cp.spawn).mock.calls;
+    const call = spawnCalls.find(
+      (c) => Array.isArray(c[1]) && c[1].some((a: string) => a === 'bash'),
+    );
+    expect(call).toBeDefined();
+    const args = call![1] as string[];
+    // Command should appear after image name
+    const imgIdx = args.indexOf('nanoclaw-agent:latest');
+    expect(imgIdx).toBeGreaterThan(-1);
+    expect(args[imgIdx + 1]).toBe('bash');
+    expect(args[imgIdx + 2]).toBe('-c');
+    expect(args[imgIdx + 3]).toBe('git pull');
+
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
   });
 });

@@ -74,7 +74,7 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 | E-memory-session        | SDK sessions, .jl files        | partial    |
 | G-codebase-trim         | Dead code removal (~900 lines) | spec       |
 | H-jid-format            | Compact JID URIs, sender IDs   | spec       |
-| J-container-commands    | Generic container commands     | spec       |
+| J-container-commands    | Generic container commands     | shipped    |
 
 ## Phase 4 — Dashboards, Memory, Products (planned)
 

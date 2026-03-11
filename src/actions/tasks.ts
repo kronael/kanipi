@@ -11,6 +11,7 @@ import { isInWorld } from '../permissions.js';
 const ScheduleTaskInput = z.object({
   targetJid: z.string(),
   prompt: z.string(),
+  command: z.string().optional(),
   schedule_type: z.enum(['cron', 'interval', 'once']),
   schedule_value: z.string(),
   context_mode: z.enum(['group', 'isolated']).optional(),
@@ -22,6 +23,9 @@ export const scheduleTask: Action = {
   input: ScheduleTaskInput,
   async handler(raw, ctx) {
     const input = ScheduleTaskInput.parse(raw);
+    if (input.prompt && input.command) {
+      throw new Error('prompt and command are mutually exclusive');
+    }
     const targetFolder = ctx.getDefaultTarget(input.targetJid);
     if (!targetFolder) {
       throw new Error('target JID has no route');
@@ -51,12 +55,17 @@ export const scheduleTask: Action = {
     }
 
     const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const contextMode = input.context_mode === 'group' ? 'group' : 'isolated';
+    const contextMode = input.command
+      ? 'isolated'
+      : input.context_mode === 'group'
+        ? 'group'
+        : 'isolated';
     createTask({
       id: taskId,
       group_folder: targetFolder,
       chat_jid: input.targetJid,
       prompt: input.prompt,
+      command: input.command ?? null,
       schedule_type: input.schedule_type,
       schedule_value: input.schedule_value,
       context_mode: contextMode,

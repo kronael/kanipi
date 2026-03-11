@@ -332,6 +332,7 @@ function readSecrets(): Record<string, string> {
 function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
+  command: string[] = ['/app/entrypoint.sh'],
 ): string[] {
   const args: string[] = [
     'run',
@@ -363,7 +364,7 @@ function buildContainerArgs(
     }
   }
 
-  args.push(CONTAINER_IMAGE);
+  args.push(CONTAINER_IMAGE, ...command);
 
   return args;
 }
@@ -416,7 +417,156 @@ function writeGatewayCaps(groupDir: string): void {
 
 // --- Agent runner ---
 
-export async function runContainerAgent(
+export async function runContainerCommand(
+  group: GroupConfig,
+  input: ContainerInput | string,
+  onProcess: (proc: ChildProcess, containerName: string) => void,
+  onOutput?: (output: ContainerOutput) => Promise<void>,
+  command?: string[],
+): Promise<ContainerOutput> {
+  if (command) {
+    return runRawCommand(group, input, onProcess, command);
+  }
+  if (typeof input === 'string') {
+    throw new Error('agent mode requires ContainerInput object');
+  }
+  return runAgentMode(group, input, onProcess, onOutput);
+}
+
+async function runRawCommand(
+  group: GroupConfig,
+  input: ContainerInput | string,
+  onProcess: (proc: ChildProcess, containerName: string) => void,
+  command: string[],
+): Promise<ContainerOutput> {
+  const startTime = Date.now();
+  const groupDir = resolveGroupFolderPath(group.folder);
+  fs.mkdirSync(groupDir, { recursive: true });
+
+  const mounts = buildVolumeMounts(group);
+  const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
+  const containerName = `nanoclaw-${safeName}-${Date.now()}`;
+  const containerArgs = buildContainerArgs(mounts, containerName, command);
+
+  logger.info(
+    { group: group.name, containerName, command },
+    'Spawning raw container command',
+  );
+
+  return new Promise((resolve) => {
+    const container = _spawnProcess(CONTAINER_RUNTIME_BIN, containerArgs, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    onProcess(container, containerName);
+
+    let stdout = '';
+    let stderr = '';
+    let stdoutTruncated = false;
+    let stderrTruncated = false;
+
+    // Optionally pipe plain text to stdin
+    if (typeof input === 'string' && input) {
+      container.stdin.write(input);
+    }
+    container.stdin.end();
+
+    container.stdout.on('data', (data) => {
+      const chunk = data.toString();
+      if (!stdoutTruncated) {
+        const remaining = CONTAINER_MAX_OUTPUT_SIZE - stdout.length;
+        if (chunk.length > remaining) {
+          stdout += chunk.slice(0, remaining);
+          stdoutTruncated = true;
+        } else {
+          stdout += chunk;
+        }
+      }
+    });
+
+    container.stderr.on('data', (data) => {
+      const chunk = data.toString();
+      for (const line of chunk.trim().split('\n')) {
+        if (line) logger.debug({ container: group.folder }, line);
+      }
+      if (stderrTruncated) return;
+      const remaining = CONTAINER_MAX_OUTPUT_SIZE - stderr.length;
+      if (chunk.length > remaining) {
+        stderr += chunk.slice(0, remaining);
+        stderrTruncated = true;
+      } else {
+        stderr += chunk;
+      }
+    });
+
+    let timedOut = false;
+    const configTimeout = group.containerConfig?.timeout || CONTAINER_TIMEOUT;
+    const timeoutMs = Math.max(configTimeout, IDLE_TIMEOUT + 30_000);
+
+    const killOnTimeout = () => {
+      timedOut = true;
+      logger.error(
+        { group: group.name, containerName },
+        'Raw command timeout, stopping',
+      );
+      const stopArgs = stopContainerArgs(containerName);
+      const stop = spawn(CONTAINER_RUNTIME_BIN, stopArgs, {
+        stdio: 'ignore',
+        timeout: 15000,
+      });
+      stop.on('close', (code) => {
+        if (code !== 0) container.kill('SIGKILL');
+      });
+      stop.on('error', () => container.kill('SIGKILL'));
+    };
+
+    const timeout = setTimeout(killOnTimeout, timeoutMs);
+
+    container.on('close', (code) => {
+      clearTimeout(timeout);
+      const duration = Date.now() - startTime;
+
+      if (timedOut) {
+        resolve({
+          status: 'error',
+          result: null,
+          error: `Raw command timed out after ${configTimeout}ms`,
+        });
+        return;
+      }
+
+      if (code !== 0) {
+        logger.error(
+          { group: group.name, code, duration, stderr },
+          'Raw command exited with error',
+        );
+        resolve({
+          status: 'error',
+          result: null,
+          error: `Raw command exited with code ${code}: ${stderr.slice(-200)}`,
+        });
+        return;
+      }
+
+      logger.info({ group: group.name, duration }, 'Raw command completed');
+      resolve({
+        status: 'success',
+        result: stdout.trim() || null,
+      });
+    });
+
+    container.on('error', (err) => {
+      clearTimeout(timeout);
+      resolve({
+        status: 'error',
+        result: null,
+        error: `Raw command spawn error: ${err.message}`,
+      });
+    });
+  });
+}
+
+async function runAgentMode(
   group: GroupConfig,
   input: ContainerInput,
   onProcess: (proc: ChildProcess, containerName: string) => void,

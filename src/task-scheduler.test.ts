@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./container-runner.js', () => ({
-  runContainerAgent: vi.fn(),
+  runContainerCommand: vi.fn(),
   writeTasksSnapshot: vi.fn(),
 }));
 
@@ -14,14 +14,14 @@ vi.mock('fs', async () => {
   return { ...actual, default: { ...actual, mkdirSync: vi.fn() } };
 });
 
-import { runContainerAgent } from './container-runner.js';
+import { runContainerCommand } from './container-runner.js';
 import { _initTestDatabase, createTask, getTaskById } from './db.js';
 import {
   _resetSchedulerLoopForTests,
   startSchedulerLoop,
 } from './task-scheduler.js';
 
-const mockRunContainerAgent = vi.mocked(runContainerAgent);
+const mockRunContainerAgent = vi.mocked(runContainerCommand);
 
 describe('task scheduler', () => {
   beforeEach(() => {

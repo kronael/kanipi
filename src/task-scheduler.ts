@@ -10,7 +10,7 @@ import {
 } from './config.js';
 import {
   ContainerOutput,
-  runContainerAgent,
+  runContainerCommand,
   writeTasksSnapshot,
 } from './container-runner.js';
 import {
@@ -109,71 +109,104 @@ async function runTask(
   let result: string | null = null;
   let error: string | null = null;
 
-  // For group context mode, use the group's current session
-  const sessions = deps.getSessions();
-  const sessionId =
-    task.context_mode === 'group' ? sessions[task.group_folder] : undefined;
+  // Raw command mode: run command directly, skip agent ceremony
+  if (task.command) {
+    try {
+      const output = await runContainerCommand(
+        group,
+        task.prompt || '',
+        (proc, containerName) =>
+          deps.onProcess(task.chat_jid, proc, containerName, task.group_folder),
+        undefined,
+        ['bash', '-c', task.command],
+      );
 
-  // After the task produces a result, close the container promptly.
-  // Tasks are single-turn — no need to wait IDLE_TIMEOUT (30 min) for the
-  // query loop to time out. A short delay handles any final MCP calls.
-  const TASK_CLOSE_DELAY_MS = 10000;
-  let closeTimer: ReturnType<typeof setTimeout> | null = null;
+      if (output.status === 'error') {
+        error = output.error || 'Unknown error';
+      } else if (output.result) {
+        result = output.result;
+        await deps.sendMessage(task.chat_jid, output.result);
+      }
 
-  const scheduleClose = () => {
-    if (closeTimer) return; // already scheduled
-    closeTimer = setTimeout(() => {
-      logger.debug({ taskId: task.id }, 'Closing task container after result');
-      deps.queue.closeStdin(task.chat_jid);
-    }, TASK_CLOSE_DELAY_MS);
-  };
-
-  try {
-    const output = await runContainerAgent(
-      group,
-      {
-        prompt: task.prompt,
-        sessionId,
-        groupFolder: task.group_folder,
-        chatJid: task.chat_jid,
-        isScheduledTask: true,
-        assistantName: ASSISTANT_NAME,
-      },
-      (proc, containerName) =>
-        deps.onProcess(task.chat_jid, proc, containerName, task.group_folder),
-      async (streamedOutput: ContainerOutput) => {
-        if (streamedOutput.result) {
-          result = streamedOutput.result;
-          // Forward result to user (sendMessage handles formatting)
-          await deps.sendMessage(task.chat_jid, streamedOutput.result);
-          scheduleClose();
-        }
-        if (streamedOutput.status === 'success') {
-          deps.queue.notifyIdle(task.chat_jid);
-        }
-        if (streamedOutput.status === 'error') {
-          error = streamedOutput.error || 'Unknown error';
-        }
-      },
-    );
-
-    if (closeTimer) clearTimeout(closeTimer);
-
-    if (output.status === 'error') {
-      error = output.error || 'Unknown error';
-    } else if (output.result) {
-      // Messages are sent via MCP tool (IPC), result text is just logged
-      result = output.result;
+      logger.info(
+        { taskId: task.id, durationMs: Date.now() - startTime },
+        'Task completed (raw command)',
+      );
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+      logger.error({ taskId: task.id, error }, 'Task failed (raw command)');
     }
+  } else {
+    // Agent mode: full agent ceremony
+    // For group context mode, use the group's current session
+    const sessions = deps.getSessions();
+    const sessionId =
+      task.context_mode === 'group' ? sessions[task.group_folder] : undefined;
 
-    logger.info(
-      { taskId: task.id, durationMs: Date.now() - startTime },
-      'Task completed',
-    );
-  } catch (err) {
-    if (closeTimer) clearTimeout(closeTimer);
-    error = err instanceof Error ? err.message : String(err);
-    logger.error({ taskId: task.id, error }, 'Task failed');
+    // After the task produces a result, close the container promptly.
+    // Tasks are single-turn — no need to wait IDLE_TIMEOUT (30 min) for the
+    // query loop to time out. A short delay handles any final MCP calls.
+    const TASK_CLOSE_DELAY_MS = 10000;
+    let closeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleClose = () => {
+      if (closeTimer) return; // already scheduled
+      closeTimer = setTimeout(() => {
+        logger.debug(
+          { taskId: task.id },
+          'Closing task container after result',
+        );
+        deps.queue.closeStdin(task.chat_jid);
+      }, TASK_CLOSE_DELAY_MS);
+    };
+
+    try {
+      const output = await runContainerCommand(
+        group,
+        {
+          prompt: task.prompt,
+          sessionId,
+          groupFolder: task.group_folder,
+          chatJid: task.chat_jid,
+          isScheduledTask: true,
+          assistantName: ASSISTANT_NAME,
+        },
+        (proc, containerName) =>
+          deps.onProcess(task.chat_jid, proc, containerName, task.group_folder),
+        async (streamedOutput: ContainerOutput) => {
+          if (streamedOutput.result) {
+            result = streamedOutput.result;
+            // Forward result to user (sendMessage handles formatting)
+            await deps.sendMessage(task.chat_jid, streamedOutput.result);
+            scheduleClose();
+          }
+          if (streamedOutput.status === 'success') {
+            deps.queue.notifyIdle(task.chat_jid);
+          }
+          if (streamedOutput.status === 'error') {
+            error = streamedOutput.error || 'Unknown error';
+          }
+        },
+      );
+
+      if (closeTimer) clearTimeout(closeTimer);
+
+      if (output.status === 'error') {
+        error = output.error || 'Unknown error';
+      } else if (output.result) {
+        // Messages are sent via MCP tool (IPC), result text is just logged
+        result = output.result;
+      }
+
+      logger.info(
+        { taskId: task.id, durationMs: Date.now() - startTime },
+        'Task completed',
+      );
+    } catch (err) {
+      if (closeTimer) clearTimeout(closeTimer);
+      error = err instanceof Error ? err.message : String(err);
+      logger.error({ taskId: task.id, error }, 'Task failed');
+    }
   }
 
   const durationMs = Date.now() - startTime;
