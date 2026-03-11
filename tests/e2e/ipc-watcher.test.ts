@@ -133,8 +133,7 @@ describe('startIpcWatcher — startup drain', () => {
   });
 
   it('drains multiple pre-existing group folders on startup', async () => {
-    // Both groups must be direct subdirs of ipcBaseDir — scanGroupFolders
-    // only does a flat readdirSync, so nested paths are not discovered.
+    // scanGroupFolders walks recursively; any dir with a requests/ subdir is a group.
     writeRequest('groupA', { type: 'reset_session' });
     writeRequest('groupB', { type: 'reset_session' });
 

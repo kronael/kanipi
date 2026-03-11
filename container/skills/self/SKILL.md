@@ -40,11 +40,35 @@ re-scaffold it (see `/web` skill).
 skill's SKILL.md to `~/.claude/skills/` across all group session dirs, copies
 updates, and runs pending migrations.
 
-## Permission tier
+## Group identity
+
+The gateway injects group identity via `settings.json` env vars:
+
+| Variable                  | Example         | Meaning                         |
+| ------------------------- | --------------- | ------------------------------- |
+| `NANOCLAW_GROUP_NAME`     | `Atlas`         | Display name                    |
+| `NANOCLAW_GROUP_FOLDER`   | `atlas/support` | Folder path (relative to world) |
+| `NANOCLAW_TIER`           | `2`             | Permission tier (0-3)           |
+| `NANOCLAW_IS_ROOT`        | `1`             | Set if root group               |
+| `NANOCLAW_IS_WORLD_ADMIN` | `1`             | Set if tier 1 (world admin)     |
+
+## Worlds and tiers
+
+A **world** is the first path segment of a group folder. All groups
+under the same world share `/workspace/share`. The world admin
+(tier 1) is the main group for that world.
+
+| Tier | Role        | Folder example    | Access                                 |
+| ---- | ----------- | ----------------- | -------------------------------------- |
+| 0    | root        | (system)          | Full system admin, runs migrations     |
+| 1    | world admin | `atlas`           | Manages child groups, rw group + share |
+| 2    | child       | `atlas/support`   | Limited write, skills mounted ro       |
+| 3    | grandchild+ | `atlas/ops/infra` | Most restricted, group folder ro       |
 
 ```bash
-echo "tier=$NANOCLAW_TIER"  # 0=root, 1=world, 2=agent, 3=worker
+echo "tier=$NANOCLAW_TIER"  # 0=root, 1=world, 2=child, 3=grandchild+
 [ "$NANOCLAW_IS_ROOT" = "1" ] && echo root || echo non-root
+[ "$NANOCLAW_IS_WORLD_ADMIN" = "1" ] && echo "world admin for $(echo $NANOCLAW_GROUP_FOLDER | cut -d/ -f1)"
 ```
 
 ## System messages

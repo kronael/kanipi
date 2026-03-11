@@ -227,6 +227,9 @@ function buildVolumeMounts(
     NANOCLAW_ASSISTANT_NAME: ASSISTANT_NAME,
     NANOCLAW_IS_ROOT: root ? '1' : '',
     NANOCLAW_TIER: String(tier),
+    NANOCLAW_IS_WORLD_ADMIN: tier === 1 ? '1' : '',
+    NANOCLAW_GROUP_NAME: group.name,
+    NANOCLAW_GROUP_FOLDER: group.folder,
     NANOCLAW_DELEGATE_DEPTH: String(delegateDepth ?? 0),
     ...(group.slinkToken ? { SLINK_TOKEN: group.slinkToken } : {}),
   });

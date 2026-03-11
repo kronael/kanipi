@@ -412,16 +412,34 @@ export function startIpcWatcher(deps: IpcDeps): void {
   const ipcBaseDir = path.join(DATA_DIR, 'ipc');
   fs.mkdirSync(ipcBaseDir, { recursive: true });
 
-  const scanGroupFolders = (): string[] =>
-    fs.readdirSync(ipcBaseDir).filter((f) => {
+  const scanGroupFolders = (): string[] => {
+    const results: string[] = [];
+    const walk = (dir: string, rel: string) => {
+      let entries: string[];
       try {
-        return (
-          fs.statSync(path.join(ipcBaseDir, f)).isDirectory() && f !== 'errors'
-        );
+        entries = fs.readdirSync(dir);
       } catch {
-        return false;
+        return;
       }
-    });
+      for (const e of entries) {
+        if (e === 'errors') continue;
+        const full = path.join(dir, e);
+        try {
+          if (!fs.statSync(full).isDirectory()) continue;
+        } catch {
+          continue;
+        }
+        const r = rel ? `${rel}/${e}` : e;
+        if (fs.existsSync(path.join(full, 'requests'))) {
+          results.push(r);
+        } else {
+          walk(full, r);
+        }
+      }
+    };
+    walk(ipcBaseDir, '');
+    return results;
+  };
 
   const attachWatchers = (sourceGroup: string) => {
     if (groupWatchers.has(sourceGroup)) return;
