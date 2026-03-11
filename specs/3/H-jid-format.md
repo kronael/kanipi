@@ -49,24 +49,25 @@ After: `telegram:1112184352`. Stored in `messages.sender`.
 Full metadata on each `<message>` tag:
 
 ```xml
-<message sender="telegram:1112184352" sender_name="Alice"
-         chat="telegram:-1001234567890" group="Support"
+<message sender="Alice" sender_id="telegram:1112184352"
+         chat="telegram:-1001234567890" chat_name="Support"
          platform="telegram" time="2026-03-11T14:00:00Z">
   Hello
 </message>
 ```
 
-| Attribute     | Source            | Present        |
-| ------------- | ----------------- | -------------- |
-| `sender`      | messages.sender   | always         |
-| `sender_name` | sender_name col   | when available |
-| `chat`        | messages.chat_jid | always         |
-| `group`       | chats.name        | when is_group  |
-| `platform`    | platform          | always         |
-| `time`        | timestamp         | always         |
+| Attribute   | Source            | Present                           |
+| ----------- | ----------------- | --------------------------------- |
+| `sender`    | sender_name col   | always (falls back to sender JID) |
+| `sender_id` | messages.sender   | always                            |
+| `chat`      | messages.chat_jid | always                            |
+| `chat_name` | chats.name        | when is_group                     |
+| `platform`  | platform          | always                            |
+| `time`      | timestamp         | always                            |
 
-`sender` is the JID (`telegram:1112184352`), not the display
-name. Display name is in `sender_name`.
+`sender` is the display name (backward compatible). `sender_id`
+is the JID. `chat_name` is the chat group's display name (message
+origin), not the agent's run group.
 
 ## Session context injection
 
