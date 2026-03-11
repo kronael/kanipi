@@ -84,7 +84,13 @@ export function extFromMime(
 }
 
 export function mediaLine(a: Attachment, localPath: string): string {
-  return `[media attached: ${localPath}${a.mimeType ? ` (${a.mimeType})` : ''}]`;
+  // Extract container-relative path: ~/media/... instead of absolute path
+  // e.g. /srv/app/home/groups/atlas/media/20260311/1004/0.png → ~/media/20260311/1004/0.png
+  // Agent containers mount group folder as /home/node/, so ~ resolves correctly
+  const mediaIndex = localPath.indexOf('/media/');
+  const containerPath =
+    mediaIndex >= 0 ? `~${localPath.slice(mediaIndex)}` : localPath;
+  return `[media attached: ${containerPath}${a.mimeType ? ` (${a.mimeType})` : ''}]`;
 }
 
 function saveFile(

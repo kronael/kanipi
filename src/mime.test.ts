@@ -37,14 +37,26 @@ beforeEach(() => {
 describe('mediaLine', () => {
   it('includes mimeType when present', () => {
     const a: Attachment = { mediaType: 'audio', mimeType: 'audio/ogg' };
-    expect(mediaLine(a, '/path/0.ogg')).toBe(
-      '[media attached: /path/0.ogg (audio/ogg)]',
-    );
+    expect(
+      mediaLine(a, '/srv/app/home/groups/main/media/20260311/1004/0.ogg'),
+    ).toBe('[media attached: ~/media/20260311/1004/0.ogg (audio/ogg)]');
   });
 
   it('omits mimeType when absent', () => {
     const a: Attachment = { mediaType: 'image' };
-    expect(mediaLine(a, '/path/0.jpg')).toBe('[media attached: /path/0.jpg]');
+    expect(
+      mediaLine(
+        a,
+        '/srv/data/kanipi_test/groups/atlas/media/20260310/m1/0.jpg',
+      ),
+    ).toBe('[media attached: ~/media/20260310/m1/0.jpg]');
+  });
+
+  it('falls back to full path if /media/ not found', () => {
+    const a: Attachment = { mediaType: 'document' };
+    expect(mediaLine(a, '/other/path/file.pdf')).toBe(
+      '[media attached: /other/path/file.pdf]',
+    );
   });
 });
 
