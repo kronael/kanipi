@@ -133,12 +133,12 @@ gets its own phase directory. Files use base58 prefixes
 (0-9, A-H, J-N, P-Z, a-k, m-z) for stable sort order.
 
 ```
-specs/1/   phase 1 — core gateway (v1 base)
-specs/2/   phase 2 — milestone 1 (permissions, capabilities)
-specs/3/   phase 3 — milestone 2 (channels, pipelines, memory)
-specs/4/   phase 4 — milestone 3 (media awareness)
-specs/5/   phase 5 — milestone 4 (evangelist)
-specs/6/   phase 6 — milestone 5 (cheerleader)
+specs/1/   phase 1 — core gateway (shipped)
+specs/2/   phase 2 — social channels (shipped)
+specs/3/   phase 3 — permissions, cleanup, gaps (in progress)
+specs/4/   phase 4 — dashboards, memory, products (planned)
+specs/5/   phase 5 — agent extensions & workflows (future)
+specs/6/   phase 6+ — products (deferred)
 specs/res/ resources (examples, research)
 ```
 
