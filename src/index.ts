@@ -366,6 +366,10 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     return true;
   }
 
+  // IMPORTANT: This message tells the agent which session transcript to read.
+  // The agent is instructed (CLAUDE.md, SKILL.md) to ALWAYS read the .jl file
+  // matching the session_id before responding. This prevents "no access to
+  // history" claims — the .jl files ARE accessible via Read tool.
   if (!sessions[group.folder]) {
     const prev = getRecentSessions(group.folder, 2);
     const body = prev

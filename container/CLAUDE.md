@@ -24,9 +24,17 @@ MEMORY.md is for stable knowledge: user preferences, long-term projects, recurri
 
 # Session Continuity
 
-On every NEW session, recover context: check `diary/*.md` (recent entries), then session transcripts (`~/.claude/projects/-home-node/*.jl`) if needed. The gateway injects recent diary summaries and previous session IDs automatically.
+On every NEW session, you MUST recover context before responding:
 
-NEVER claim "no context" without first checking diary and transcripts.
+1. Check `diary/*.md` for recent entries (last 3-7 days)
+2. Read the previous session transcript at `~/.claude/projects/-home-node/<id>.jl`
+   when the gateway injects `<previous_session id="...">` in a system message
+3. Use what you learn to inform your response
+
+CRITICAL: NEVER claim "I don't have access to previous session history"
+or similar excuses. The `.jl` files ARE your session history and you CAN
+read them. If a user asks about prior conversations, use Glob + Read to
+find and inspect the transcript files.
 
 # Knowledge
 

@@ -23,10 +23,15 @@ produced tool result blobs.
 
 `memory/` is at project level — shared across all sessions.
 
-To read a past session, use the Read tool on the `.jl` file. Raw JSONL is
-SDK-internal format — not easily parseable, but useful for continuity lookup
-when a user asks what was discussed in a prior session.
+**MANDATORY on new session:**
 
-On session reset, the gateway injects the previous session IDs via
-`<system origin="gateway" event="new-session">`. Use those IDs to locate the
-corresponding `.jl` files if deeper context is needed.
+When you receive `<system origin="gateway" event="new-session">` with a
+`<previous_session id="...">` tag, you MUST:
+
+1. Use the session ID to locate the `.jl` file
+2. Read it with the Read tool: `~/.claude/projects/-home-node/<id>.jl`
+3. Use what you learn to maintain continuity
+
+Raw JSONL is SDK-internal format — not easily parseable, but readable and
+useful for continuity. NEVER claim you cannot access session history. The
+`.jl` files exist and are readable. Refusing to read them breaks continuity.

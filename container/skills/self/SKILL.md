@@ -112,12 +112,24 @@ Rules:
 ## Session history
 
 Full conversation history lives in `~/.claude/projects/<slug>/` as JSONL
-files (`<uuid>.jl`, one per session). Use the Read or Glob tool to find
-and inspect them — useful when a user asks what was discussed in a past
-session or you need to recover context after a reset.
+files (`<uuid>.jl`, one per session).
 
-On session reset the gateway injects your previous session ID via a
-`<system origin="gateway" event="new-session">` message.
+**MANDATORY workflow on new session:**
+
+1. Gateway sends `<system origin="gateway" event="new-session">` with
+   `<previous_session id="abc123">` tag
+2. You MUST read that transcript BEFORE responding to the user's message
+3. Use Glob to find it, Read to load it:
+
+```bash
+# Find all session transcripts
+ls -t ~/.claude/projects/-home-node/*.jl | head -5
+
+# Read the specific one from the system message
+cat ~/.claude/projects/-home-node/abc123.jl
+```
+
+NEVER claim "no access to session history". The `.jl` files ARE accessible.
 
 ## Introspect (all groups)
 
@@ -131,7 +143,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **22**. If version < 22: migrations pending.
+Latest migration version: **23**. If version < 23: migrations pending.
 
 ## MCP tools
 

@@ -6,11 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ALWAYS follow before answering:
 
-1. **Get context** — read `.diary/` recent entries. If the user
-   references past conversations or a JSONL transcript path, read
-   those first. Understand what happened before responding.
+1. **Get context** — ALWAYS read `.diary/` recent entries on startup.
+   ALWAYS read the previous session `.jl` transcript when the gateway
+   injects a `<previous_session id="...">` tag. Use `Glob` to find
+   `~/.claude/projects/-home-node/*.jl`, then `Read` the matching file.
+   Understand what happened before responding.
 2. **Enough context?** — if not, ask or explore further. NEVER
-   guess what was decided in a prior session.
+   guess what was decided in a prior session. NEVER claim "no access
+   to session history" without first reading the `.jl` file.
 3. **Then act** — answer/execute the request with full context.
 
 ## Core Design Facts
