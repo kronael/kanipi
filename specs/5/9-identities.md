@@ -16,7 +16,7 @@ CREATE TABLE identities (
 );
 
 CREATE TABLE identity_claims (
-  sub         TEXT PRIMARY KEY,   -- e.g. "tg:~123456", "local:<uuid>"
+  sub         TEXT PRIMARY KEY,   -- e.g. "telegram:~123456", "local:<uuid>"
   identity_id TEXT NOT NULL REFERENCES identities(id),
   claimed_at  TEXT NOT NULL
 );
@@ -42,7 +42,7 @@ sending a one-time code:
 2. User sends the code in Telegram/Discord/WhatsApp.
 3. Gateway matches code → links the channel sender to the JWT sub.
 
-This bridges `local:<uuid>` (web password login) to `tg:~123456`
+This bridges `local:<uuid>` (web password login) to `telegram:~123456`
 (Telegram sender) without requiring OAuth.
 
 ## Scope

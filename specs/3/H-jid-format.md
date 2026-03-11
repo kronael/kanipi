@@ -1,11 +1,11 @@
 # JID Format Normalization — spec
 
-Compact URI format for all JIDs. Shorten prefixes, strip
-platform suffixes, add sender identity via fragment.
+Normalize sender JIDs, strip WhatsApp transport suffixes,
+add group name to message XML.
 
 ## Current state
 
-| Channel  | Chat JID format                           | Sender format  |
+| Channel  | Chat JID                                  | Sender         |
 | -------- | ----------------------------------------- | -------------- |
 | WhatsApp | `whatsapp:id@g.us` / `...@s.whatsapp.net` | bare phone     |
 | Telegram | `telegram:chatid`                         | bare numeric   |
@@ -13,8 +13,8 @@ platform suffixes, add sender identity via fragment.
 | Email    | `email:threadhash`                        | bare address   |
 | Web      | `web:folder`                              | `local:<uuid>` |
 
-Problems: verbose prefixes, WhatsApp leaks transport suffixes,
-sender has no platform prefix, group names not in message metadata.
+Problems: WhatsApp leaks transport suffixes, sender has no
+platform prefix, group names not in message metadata.
 
 ## Target format
 
@@ -23,28 +23,25 @@ scheme:id            chat JID (where messages route)
 scheme:~id#name      sender JID (who sent the message)
 ```
 
-**Chat JIDs** (routing targets):
+**Chat JIDs** (unchanged except WhatsApp cleanup):
 
 ```
-tg:-1001234567890           telegram group
-tg:1112184352               telegram DM
-wa:120363351541711945        whatsapp group (stripped @g.us)
-wa:972501234567              whatsapp DM (stripped @s.whatsapp.net)
-dc:1234567890                discord channel
-em:a1b2c3d4e5f6              email thread
-web:main                     web channel
+telegram:-1001234567890        telegram group
+telegram:1112184352            telegram DM
+whatsapp:120363351541711945    whatsapp group (stripped @g.us)
+whatsapp:972501234567          whatsapp DM (stripped @s.whatsapp.net)
+discord:1234567890             discord channel
+email:a1b2c3d4e5f6             email thread
+web:main                       web channel
 ```
 
-No fragment on chat JIDs. Group name is metadata, injected via
-XML attributes (see below).
-
-**Sender JIDs** (message attribution):
+**Sender JIDs** (new — platform-prefixed with display name):
 
 ```
-tg:~1112184352#John          telegram user
-wa:~972501234567#Mom         whatsapp user
-dc:~9876543210#alice         discord user
-em:~user@example.com#John   email sender
+telegram:~1112184352#John       telegram user
+whatsapp:~972501234567#Mom      whatsapp user
+discord:~9876543210#alice       discord user
+email:~user@example.com#John   email sender
 ```
 
 `~` prefix distinguishes sender from chat. `#name` is a cached
@@ -56,11 +53,10 @@ Split on `#` → id, display_name. One function:
 
 ## Group name in message XML
 
-Group names go into the `<message>` XML as a `group` attribute,
-alongside existing `platform` and `sender`:
+Group names go into the `<message>` XML as a `group` attribute:
 
 ```xml
-<message sender="tg:~1112184352#John" platform="tg" group="Support" time="...">
+<message sender="telegram:~1112184352#John" platform="telegram" group="Support" time="...">
   Hello
 </message>
 ```
@@ -70,22 +66,29 @@ Source: `chats.name` column (already in DB). Injected by
 
 ## Migration
 
-Prefix mapping:
+### WhatsApp suffix stripping
 
-| Old         | New    |
-| ----------- | ------ |
-| `whatsapp:` | `wa:`  |
-| `telegram:` | `tg:`  |
-| `discord:`  | `dc:`  |
-| `email:`    | `em:`  |
-| `web:`      | `web:` |
+- `@g.us` → removed
+- `@s.whatsapp.net` → removed
+- `@lid` → translate to phone first (existing `translateJid`), then strip
 
-WhatsApp suffix stripping: `@g.us` → removed,
-`@s.whatsapp.net` → removed, `@lid` → translate first then strip.
+### Sender prefix
 
-DB migration updates `chats.jid`, `messages.chat_jid`,
-`messages.sender` (add `~` prefix), `routes.jid`.
+All channels add `scheme:~` prefix to sender field:
 
-Code changes: `platformFromJid()` (works as-is, shorter prefixes),
-`ownsJid()` per channel, `bareJid()` simplification, channel
-constructors emit new format, `formatMessages()` adds group attr.
+```sql
+UPDATE messages SET sender = 'telegram:~' || sender
+  WHERE chat_jid LIKE 'telegram:%' AND sender NOT LIKE '%:%';
+UPDATE messages SET sender = 'whatsapp:~' || sender
+  WHERE chat_jid LIKE 'whatsapp:%' AND sender NOT LIKE '%:%';
+UPDATE messages SET sender = 'discord:~' || sender
+  WHERE chat_jid LIKE 'discord:%' AND sender NOT LIKE '%:%';
+```
+
+### Code changes
+
+1. WhatsApp: strip `@g.us`/`@s.whatsapp.net` in `bareJid()` and channel constructor
+2. All channels: build sender as `scheme:~id#name` in message handlers
+3. `formatMessages()`: add `group` attribute from `chats.name`
+4. `platformFromJid()`: works as-is (split on `:`)
+5. DB migration for existing data
