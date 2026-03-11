@@ -274,10 +274,10 @@ kanipi-specific skills plus development skills bundled from
 kronael/tools (bash, go, python, typescript, etc.). A `CLAUDE.md`
 is also seeded alongside.
 
-**Soul skill**: agent personality is defined by the `soul` skill
-(`container/skills/soul/SKILL.md`). Groups can override with
-`/workspace/group/SOUL.md`. Soul content is appended to the
-system prompt via `systemPrompt.append`.
+**Soul**: agent personality is defined by `SOUL.md` in the group
+folder. The gateway copies it to `~/.claude/SOUL.md` at every spawn
+so edits take effect immediately. The agent-runner checks
+`~/.claude/SOUL.md` and appends a persona nudge to the system prompt.
 
 **Migration system**: `container/skills/self/MIGRATION_VERSION`
 tracks the applied version number. `container/skills/self/migrations/`

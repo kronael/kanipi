@@ -47,9 +47,9 @@ enforce this. No new isolation mechanism needed.
 
 ## What gets copied
 
-- CLAUDE.md, SOUL.md — full copy (not symlink). Simple,
-  no dependency on prototype staying alive. Spawns are
-  independent once created.
+- CLAUDE.md, SOUL.md — full copy (not symlink). SOUL.md is
+  also copied to `~/.claude/SOUL.md` at every spawn so edits
+  take effect immediately. Spawns are independent once created.
 - Session, memory, workdir — NOT copied (fresh)
 - DB state — new row, empty session
 - skills/ — mounted read-only from prototype (not copied)
@@ -77,11 +77,11 @@ prototype/                 seeds root (was template/)
 groups/
   main/support/            prototype
     CLAUDE.md
-    SOUL.md
+    SOUL.md                copied to ~/.claude/SOUL.md at spawn
     skills/
   main/support/tg_123/     spawn
     CLAUDE.md              copied from prototype
-    SOUL.md                copied from prototype
+    SOUL.md                copied from prototype + to ~/.claude/
     skills/                mounted ro from prototype
 ```
 

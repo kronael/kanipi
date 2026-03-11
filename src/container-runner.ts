@@ -257,6 +257,12 @@ function buildVolumeMounts(
   if (fs.existsSync(claudeMdSrc) && !fs.existsSync(claudeMdDst)) {
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
+  // Copy SOUL.md every spawn so operator edits take effect immediately
+  const soulSrc = path.join(groupDir, 'SOUL.md');
+  const soulDst = path.join(groupSessionsDir, 'SOUL.md');
+  if (fs.existsSync(soulSrc)) {
+    fs.copyFileSync(soulSrc, soulDst);
+  }
   mounts.push({
     hostPath: hostPath(groupSessionsDir),
     containerPath: '/home/node/.claude',

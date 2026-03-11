@@ -156,7 +156,7 @@ System context via `systemPrompt.append`:
 
 - `/workspace/share/CLAUDE.md` appended for non-root only
 - Soul personality via skill (`soul/SKILL.md`), not code injection
-- Group-level `SOUL.md` override read by agent per CLAUDE.md instruction
+- Group `SOUL.md` copied to `~/.claude/SOUL.md` at spawn; agent reads from there
 
 Group CLAUDE.md at `/home/node/.claude/CLAUDE.md`, loaded
 by SDK project-memory.

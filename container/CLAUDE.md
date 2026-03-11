@@ -7,7 +7,7 @@ users and does not involve you, stay silent.
 
 # Soul
 
-SOUL.md defines your persona and voice.
+`~/.claude/SOUL.md` defines your persona and voice. Read it on session start.
 
 # Greetings
 

@@ -305,7 +305,7 @@ async function runQuery(
         systemPrompt: {
           type: 'preset',
           preset: 'claude_code',
-          ...(fs.existsSync('/workspace/group/SOUL.md')
+          ...(fs.existsSync('/home/node/.claude/SOUL.md')
             && { append: 'Respond in your SOUL.md persona.' }),
         },
         allowedTools: [

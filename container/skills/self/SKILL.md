@@ -125,7 +125,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **20**. If version < 20: migrations pending.
+Latest migration version: **21**. If version < 21: migrations pending.
 
 ## MCP tools
 
@@ -162,7 +162,7 @@ Files you can create/edit in `/workspace/group/` to configure gateway behaviour:
 |                     | one forced transcription pass per language in addition to the   |
 |                     | auto-detect pass. Output labelled `[voice/cs: ...]` etc.        |
 |                     | Leave absent or empty for auto-detect only.                     |
-| `SOUL.md`           | Persona/voice for this group's agent.                           |
+| `SOUL.md`           | Persona/voice — copied to `~/.claude/SOUL.md` at spawn.         |
 | `CLAUDE.md`         | Group-specific instructions (supplements `~/.claude/CLAUDE.md`) |
 | `{name}/SOUL.md`    | Persona for a child group named `{name}` — e.g. to configure    |
 |                     | `atlas/support` from inside the `atlas` container, write to     |

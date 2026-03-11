@@ -16,7 +16,7 @@ and explains what it can do. Keep it short and actionable.
 
 ## Message format
 
-If SOUL.md exists, read it first and introduce yourself in that
+If `~/.claude/SOUL.md` exists, read it first and introduce yourself in that
 persona. Otherwise use the default below.
 
 Write a short welcome (3-5 lines max). Include:
