@@ -153,7 +153,7 @@ export const react: Action = {
 export const repost = targetAction(
   'repost',
   'Share, boost, or retweet content',
-  [Platform.Twitter, Platform.Mastodon, Platform.Bluesky],
+  [Platform.Twitter, Platform.Mastodon, Platform.Bluesky, Platform.Reddit],
 );
 
 export const follow = targetAction(
@@ -165,7 +165,7 @@ export const follow = targetAction(
 export const unfollow = targetAction(
   'unfollow',
   'Unfollow a user or community on a social platform',
-  [Platform.Reddit, Platform.Twitter, Platform.Mastodon, Platform.Bluesky],
+  [Platform.Reddit, Platform.Mastodon, Platform.Bluesky],
 );
 
 const ProfileInput = z.object({
@@ -252,6 +252,7 @@ export const ban: Action = {
     Platform.Twitch,
     Platform.YouTube,
     Platform.Mastodon,
+    Platform.Facebook,
   ],
   input: BanInput,
   async handler(raw) {
@@ -267,6 +268,7 @@ export const unban = targetAction('unban', 'Unban a user from a community', [
   Platform.Discord,
   Platform.Twitch,
   Platform.Mastodon,
+  Platform.Facebook,
 ]);
 
 const TimeoutInput = z.object({
@@ -299,6 +301,7 @@ export const block = targetAction('block', 'Block an account', [
   Platform.Mastodon,
   Platform.Bluesky,
   Platform.Twitch,
+  Platform.Facebook,
 ]);
 
 export const pin = targetAction(
