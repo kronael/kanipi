@@ -283,6 +283,69 @@ const sidecarGroup: GroupConfig = {
   },
 };
 
+describe('volume mount paths for nested folders', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fakeProc = createFakeProcess();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('nested folder gets correct .claude host mount path', async () => {
+    const cp = await import('child_process');
+    const fs = await import('fs');
+    vi.mocked(fs.default.existsSync).mockImplementation((p) => {
+      const s = String(p);
+      if (s.endsWith('/prototype')) return true;
+      return false;
+    });
+
+    const nestedGroup: GroupConfig = {
+      name: 'Atlas Support',
+      folder: 'atlas/support',
+      added_at: new Date().toISOString(),
+    };
+
+    const resultPromise = runContainerAgent(
+      nestedGroup,
+      { prompt: 'test', groupFolder: 'atlas/support', chatJid: 'test@g.us' },
+      () => {},
+    );
+
+    // Let spawn happen
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Get the docker run args from the spawn call
+    const spawnCalls = vi.mocked(cp.spawn).mock.calls;
+    const agentCall = spawnCalls.find(
+      (c) =>
+        Array.isArray(c[1]) &&
+        c[1].some(
+          (a: string) => typeof a === 'string' && a.includes('nanoclaw-atlas'),
+        ),
+    );
+    expect(agentCall).toBeDefined();
+    const args = agentCall![1] as string[];
+
+    // Find the .claude mount — should use HOST_PROJECT_ROOT_PATH
+    const claudeMount = args.find(
+      (a) => typeof a === 'string' && a.includes('/home/node/.claude'),
+    );
+    expect(claudeMount).toBeDefined();
+    // hostPath replaces GATEWAY_ROOT (/tmp) with HOST_PROJECT_ROOT_PATH
+    expect(claudeMount).toContain(
+      'sessions/atlas/support/.claude:/home/node/.claude',
+    );
+
+    // Clean up
+    fakeProc.emit('close', 1);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+  });
+});
+
 describe('sidecar startup failure fallback', () => {
   beforeEach(() => {
     vi.useFakeTimers();
