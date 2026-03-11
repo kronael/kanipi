@@ -44,18 +44,29 @@ Display names are NOT in the JID. They stay in
 All senders get `scheme:` prefix. Before: bare `1112184352`.
 After: `telegram:1112184352`. Stored in `messages.sender`.
 
-### Group name in message XML
+### Message XML attributes
 
-Group names injected as `group` attribute on `<message>` tag:
+Full metadata on each `<message>` tag:
 
 ```xml
-<message sender="Alice" platform="telegram" group="Support" time="...">
+<message sender="telegram:1112184352" sender_name="Alice"
+         chat="telegram:-1001234567890" group="Support"
+         platform="telegram" time="2026-03-11T14:00:00Z">
   Hello
 </message>
 ```
 
-Source: `chats.name` column. Injected by `formatMessages()`
-when the chat is a group.
+| Attribute     | Source            | Present        |
+| ------------- | ----------------- | -------------- |
+| `sender`      | messages.sender   | always         |
+| `sender_name` | sender_name col   | when available |
+| `chat`        | messages.chat_jid | always         |
+| `group`       | chats.name        | when is_group  |
+| `platform`    | platform          | always         |
+| `time`        | timestamp         | always         |
+
+`sender` is the JID (`telegram:1112184352`), not the display
+name. Display name is in `sender_name`.
 
 ## Migration (0007-jid-format.sql)
 
