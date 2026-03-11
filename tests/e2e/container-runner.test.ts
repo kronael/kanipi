@@ -44,7 +44,8 @@ vi.mock('../../src/config.js', () => ({
   DATA_DIR: '/tmp/kanipi-e2e-cr',
   GROUPS_DIR: '/tmp/kanipi-e2e-cr-groups',
   HOST_APP_DIR: '/tmp/kanipi-e2e-cr-app',
-  HOST_PROJECT_ROOT_PATH: '/tmp/kanipi-e2e-cr',
+  HOST_GROUPS_DIR: '/tmp/kanipi-e2e-cr-groups',
+  HOST_DATA_DIR: '/tmp/kanipi-e2e-cr',
   IDLE_TIMEOUT: 30000,
   isRoot: (f: string) => !f.includes('/'),
   permissionTier: (f: string) =>
@@ -120,7 +121,7 @@ vi.mock('child_process', async () => {
   };
 });
 
-import { runContainerAgent } from '../../src/container-runner.js';
+import { runContainerCommand } from '../../src/container-runner.js';
 import type { GroupConfig } from '../../src/db.js';
 
 const testGroup: GroupConfig = {
@@ -137,12 +138,12 @@ beforeEach(() => {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('runContainerAgent E2E (fake agent via node)', () => {
+describe('runContainerCommand E2E (fake agent via node)', () => {
   it('receives prompt and returns output', async () => {
     const outputs: import('../../src/container-runner.js').ContainerOutput[] =
       [];
 
-    const result = await runContainerAgent(
+    const result = await runContainerCommand(
       testGroup,
       {
         prompt: 'hello world',
@@ -166,7 +167,7 @@ describe('runContainerAgent E2E (fake agent via node)', () => {
   it('calls onProcess with process handle', async () => {
     const onProcess = vi.fn();
 
-    await runContainerAgent(
+    await runContainerCommand(
       testGroup,
       {
         prompt: 'ping',
@@ -187,7 +188,7 @@ describe('runContainerAgent E2E (fake agent via node)', () => {
     // Agent exits immediately without emitting markers
     agentScript = 'process.exit(0);';
 
-    const result = await runContainerAgent(
+    const result = await runContainerCommand(
       testGroup,
       {
         prompt: 'silent',
@@ -204,7 +205,7 @@ describe('runContainerAgent E2E (fake agent via node)', () => {
   it('handles agent that exits non-zero', async () => {
     agentScript = `process.stdout.write('${OUTPUT_START}\\n' + JSON.stringify({ status: 'error', error: 'crashed' }) + '\\n${OUTPUT_END}\\n'); process.exit(1);`;
 
-    const result = await runContainerAgent(
+    const result = await runContainerCommand(
       testGroup,
       {
         prompt: 'crash',

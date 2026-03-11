@@ -139,7 +139,7 @@ const { mockRunContainerAgent } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../src/container-runner.js', () => ({
-  runContainerAgent: mockRunContainerAgent,
+  runContainerCommand: mockRunContainerAgent,
   writeActionManifest: vi.fn(),
   writeGroupsSnapshot: vi.fn(),
   writeTasksSnapshot: vi.fn(),
@@ -576,7 +576,7 @@ describe('processGroupMessages — routing delegate', () => {
     expect(_getLastAgentTimestamp(ROUTED_JID)).toBe(ROUTED_MSG_TS);
   });
 
-  it('calls runContainerAgent for child group (not parent)', async () => {
+  it('calls runContainerCommand for child group (not parent)', async () => {
     setupRoutedGroup(true);
     mockRunContainerAgent.mockResolvedValue({
       status: 'success',
@@ -586,7 +586,7 @@ describe('processGroupMessages — routing delegate', () => {
 
     await _processGroupMessages(ROUTED_JID);
 
-    // runContainerAgent is called synchronously inside delegateToChild's task
+    // runContainerCommand is called synchronously inside delegateToChild's task
     // (enqueueTask → runTask → task.fn() runs sync up to first await)
     expect(mockRunContainerAgent).toHaveBeenCalled();
     const [calledGroup, calledInput] = mockRunContainerAgent.mock.calls[0] as [
@@ -599,7 +599,7 @@ describe('processGroupMessages — routing delegate', () => {
     expect(calledInput.delegateDepth).toBe(0);
   });
 
-  it('does NOT call runContainerAgent for parent group when routing matches', async () => {
+  it('does NOT call runContainerCommand for parent group when routing matches', async () => {
     setupRoutedGroup(true);
     mockRunContainerAgent.mockResolvedValue({
       status: 'success',
@@ -618,7 +618,7 @@ describe('processGroupMessages — routing delegate', () => {
 // ── Delegation depth monotonicity ─────────────────────────────────────────────
 
 describe('delegateToChild — depth propagation', () => {
-  it('passes delegateDepth to runContainerAgent unchanged', async () => {
+  it('passes delegateDepth to runContainerCommand unchanged', async () => {
     setupRoutedGroup(true);
     mockRunContainerAgent.mockResolvedValue({
       status: 'success',
