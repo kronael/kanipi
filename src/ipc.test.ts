@@ -198,7 +198,7 @@ describe('drainRequests', () => {
     writeReq('r5', {
       id: 'r5',
       type: 'send_file',
-      filepath: '/workspace/group/../../../etc/passwd',
+      filepath: '/home/node/../../../etc/passwd',
       jid: 'test@jid',
     });
     await drainRequests(ipcBase, group, makeDeps());

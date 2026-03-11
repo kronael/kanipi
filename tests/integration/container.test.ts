@@ -37,18 +37,16 @@ let testCounter = 0;
 function createTestDirs(): {
   groupDir: string;
   ipcDir: string;
-  claudeDir: string;
 } {
   testCounter++;
   const groupDir = join(tmpDir, `group-${testCounter}`);
   const ipcDir = join(tmpDir, `ipc-${testCounter}`);
-  const claudeDir = join(tmpDir, `.claude-${testCounter}`);
   mkdirSync(groupDir, { recursive: true });
+  mkdirSync(join(groupDir, '.claude'), { recursive: true });
   mkdirSync(join(ipcDir, 'input'), { recursive: true });
   mkdirSync(join(ipcDir, 'requests'), { recursive: true });
   mkdirSync(join(ipcDir, 'replies'), { recursive: true });
-  mkdirSync(claudeDir, { recursive: true });
-  return { groupDir, ipcDir, claudeDir };
+  return { groupDir, ipcDir };
 }
 
 function buildContainerInput(
@@ -72,14 +70,13 @@ interface ContainerResult {
 async function runContainer(
   scenario: string,
   input: string,
-  dirs: { groupDir: string; ipcDir: string; claudeDir: string },
+  dirs: { groupDir: string; ipcDir: string },
 ): Promise<ContainerResult> {
   const container = await new GenericContainer(AGENT_IMAGE)
     .withEnvironment({ NANOCLAW_SCENARIO: scenario })
     .withBindMounts([
-      { source: dirs.groupDir, target: '/workspace/group', mode: 'rw' },
+      { source: dirs.groupDir, target: '/home/node', mode: 'rw' },
       { source: dirs.ipcDir, target: '/workspace/ipc', mode: 'rw' },
-      { source: dirs.claudeDir, target: '/home/node/.claude', mode: 'rw' },
     ])
     .withStartupTimeout(30000)
     .start();

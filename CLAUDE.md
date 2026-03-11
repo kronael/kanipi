@@ -94,11 +94,13 @@ Key modules:
 the TS gateway). No `web-server.ts` — web is external.
 
 **Container model**: each agent runs in a docker container.
-Gateway mounts group folder + state into container. Agent
-reads prompt from stdin, writes results to stdout as JSON.
-`container/agent-runner/` is the in-container entrypoint. IPC is
-signal-driven: gateway writes a file then sends SIGUSR1 to the
-container; agent wakes immediately on signal, falls back to 500ms poll.
+The group folder is mounted as `/home/node` (home + cwd).
+`.claude/` state lives inside the group folder — one directory,
+one mount. Agent reads prompt from stdin, writes results to
+stdout as JSON. `container/agent-runner/` is the in-container
+entrypoint. IPC is signal-driven: gateway writes a file then
+sends SIGUSR1 to the container; agent wakes immediately on
+signal, falls back to 500ms poll.
 
 **Docker-in-docker path translation**: when the gateway itself
 runs in docker, `process.cwd()` paths are container-internal.
@@ -107,7 +109,7 @@ find the host-side path of `PROJECT_ROOT` so child containers
 receive correct host mount paths. `HOST_PROJECT_ROOT_PATH` is
 the translated value (falls back to `process.cwd()` on bare metal).
 `container-runner.ts:hostPath()` applies the same translation for
-session dirs; `chownRecursive()` ensures they are writable by
+mount paths; `chownRecursive()` ensures they are writable by
 node uid 1000 inside agent containers.
 
 ## Layout
@@ -155,7 +157,7 @@ a version should cover, but the user decides what ships when.
 - `store/` — SQLite DB, whatsapp auth
 - `groups/main/logs/` — conversation logs
 - `web/` — vite web app (seeded from template/web/)
-- `data/` — IPC, sessions
+- `data/` — IPC
 
 ## Config
 

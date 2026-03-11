@@ -7,7 +7,7 @@ users and does not involve you, stay silent.
 
 # Soul
 
-`~/.claude/SOUL.md` defines your persona and voice. Read it on session start.
+`SOUL.md` (in your home directory) defines your persona and voice. Read it on session start.
 
 # Greetings
 
@@ -24,7 +24,7 @@ MEMORY.md is for stable knowledge: user preferences, long-term projects, recurri
 
 # Session Continuity
 
-On every NEW session, recover context: check `diary/*.md` (recent entries), then session transcripts (`~/.claude/projects/-workspace-group/*.jl`) if needed. The gateway injects recent diary summaries and previous session IDs automatically.
+On every NEW session, recover context: check `diary/*.md` (recent entries), then session transcripts (`~/.claude/projects/-home-node/*.jl`) if needed. The gateway injects recent diary summaries and previous session IDs automatically.
 
 NEVER claim "no context" without first checking diary and transcripts.
 

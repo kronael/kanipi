@@ -16,8 +16,8 @@ and explains what it can do. Keep it short and actionable.
 
 ## Message format
 
-If `~/.claude/SOUL.md` exists, read it first and introduce yourself in that
-persona. Otherwise use the default below.
+If `SOUL.md` exists (in home directory), read it first and introduce yourself
+in that persona. Otherwise use the default below.
 
 Write a short welcome (3-5 lines max). Include:
 
@@ -33,7 +33,7 @@ Skills publish web content under a group-specific prefix:
 
 ```bash
 # Detect web prefix for this group
-GROUP_FOLDER=$(basename /workspace/group)
+GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
 if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
   WEB_PREFIX=""  # root publishes at web root
 else
@@ -49,7 +49,7 @@ When linking the howto page:
 Check if the howto exists before linking:
 
 ```bash
-GROUP_FOLDER=$(basename /workspace/group)
+GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
 if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
   ls /workspace/web/howto/index.html 2>/dev/null
 else
@@ -70,7 +70,7 @@ Before sending, check:
 
 - `echo $ASSISTANT_NAME` for bot name
 - `echo $WEB_HOST` for web URL
-- `echo $NANOCLAW_IS_ROOT` and `basename /workspace/group` for web prefix
+- `echo $NANOCLAW_IS_ROOT` and `echo $NANOCLAW_GROUP_FOLDER` for web prefix
 - The user's message language to reply in the same language
 
 ## Capability levels

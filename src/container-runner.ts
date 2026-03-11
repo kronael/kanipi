@@ -140,10 +140,10 @@ function buildVolumeMounts(
   const mounts: VolumeMount[] = [];
   const groupDir = resolveGroupFolderPath(group.folder);
 
-  // All groups get their own folder as working directory
+  // Group folder IS the agent's home directory
   mounts.push({
     hostPath: hostPath(groupDir),
-    containerPath: '/workspace/group',
+    containerPath: '/home/node',
     readonly: tier === 3,
   });
 
@@ -154,11 +154,22 @@ function buildVolumeMounts(
       if (fs.existsSync(p)) {
         mounts.push({
           hostPath: hostPath(p),
-          containerPath: `/workspace/group/${f}`,
+          containerPath: `/home/node/${f}`,
           readonly: true,
         });
       }
     }
+  }
+
+  // Tier 3: overlay .claude/ as RW (SDK needs writable state inside RO home)
+  if (tier === 3) {
+    const claudeDir = path.join(groupDir, '.claude');
+    fs.mkdirSync(claudeDir, { recursive: true });
+    mounts.push({
+      hostPath: hostPath(claudeDir),
+      containerPath: '/home/node/.claude',
+      readonly: false,
+    });
   }
 
   // Spawned groups: mount prototype's skills/ read-only (not copied to child)
@@ -171,7 +182,7 @@ function buildVolumeMounts(
       if (fs.existsSync(protoSkillsDir)) {
         mounts.push({
           hostPath: hostPath(protoSkillsDir),
-          containerPath: '/workspace/group/skills',
+          containerPath: '/home/node/skills',
           readonly: true,
         });
       }
@@ -183,17 +194,8 @@ function buildVolumeMounts(
     }
   }
 
-  // Media dir — enriched attachments
-  const mediaDir = path.join(groupDir, 'media');
-  fs.mkdirSync(mediaDir, { recursive: true });
-  mounts.push({
-    hostPath: hostPath(mediaDir),
-    containerPath: '/workspace/media',
-    readonly: tier === 3,
-  });
-
-  // Diary dir — agent-written daily notes, persists across sessions.
-  // Already accessible via /workspace/group mount; just ensure it exists.
+  // Media + diary dirs — ensure they exist inside group folder
+  fs.mkdirSync(path.join(groupDir, 'media'), { recursive: true });
   fs.mkdirSync(path.join(groupDir, 'diary'), { recursive: true });
 
   // Only root (tier 0) sees gateway source
@@ -214,15 +216,10 @@ function buildVolumeMounts(
     readonly: tier >= 2,
   });
 
-  const groupSessionsDir = path.join(
-    DATA_DIR,
-    'sessions',
-    group.folder,
-    '.claude',
-  );
-  fs.mkdirSync(groupSessionsDir, { recursive: true });
-  chownRecursive(groupSessionsDir, 1000, 1000);
-  initSettings(groupSessionsDir, {
+  const claudeStateDir = path.join(groupDir, '.claude');
+  fs.mkdirSync(claudeStateDir, { recursive: true });
+  chownRecursive(claudeStateDir, 1000, 1000);
+  initSettings(claudeStateDir, {
     WEB_HOST,
     NANOCLAW_ASSISTANT_NAME: ASSISTANT_NAME,
     NANOCLAW_IS_ROOT: root ? '1' : '',
@@ -236,7 +233,7 @@ function buildVolumeMounts(
 
   // Seed skills once per group — agent can modify, persists across spawns
   const skillsSrc = path.join(APP_DIR, 'container', 'skills');
-  const skillsDst = path.join(groupSessionsDir, 'skills');
+  const skillsDst = path.join(claudeStateDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
     for (const skillDir of fs.readdirSync(skillsSrc)) {
       if (!/^[a-z0-9\-]+$/.test(skillDir)) {
@@ -253,23 +250,10 @@ function buildVolumeMounts(
     chownRecursive(skillsDst, 1000, 1000);
   }
   const claudeMdSrc = path.join(APP_DIR, 'container', 'CLAUDE.md');
-  const claudeMdDst = path.join(groupSessionsDir, 'CLAUDE.md');
+  const claudeMdDst = path.join(claudeStateDir, 'CLAUDE.md');
   if (fs.existsSync(claudeMdSrc) && !fs.existsSync(claudeMdDst)) {
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
-  // Copy SOUL.md every spawn so operator edits take effect immediately
-  const soulSrc = path.join(groupDir, 'SOUL.md');
-  const soulDst = path.join(groupSessionsDir, 'SOUL.md');
-  if (fs.existsSync(soulSrc)) {
-    fs.copyFileSync(soulSrc, soulDst);
-  }
-  mounts.push({
-    hostPath: hostPath(groupSessionsDir),
-    containerPath: '/home/node/.claude',
-    readonly: false,
-  });
-
-  // TODO: overlay skills/ as ro for tier >= 2 (disabled while debugging mount issue)
 
   const groupIpcDir = resolveGroupIpcPath(group.folder);
   for (const sub of ['messages', 'tasks', 'input', 'requests', 'replies']) {
@@ -282,17 +266,6 @@ function buildVolumeMounts(
     readonly: false,
   });
 
-  const agentRunnerSrc = path.join(APP_DIR, 'container', 'agent-runner', 'src');
-  const groupAgentRunnerDir = path.join(
-    DATA_DIR,
-    'sessions',
-    group.folder,
-    'agent-runner-src',
-  );
-  if (!fs.existsSync(groupAgentRunnerDir) && fs.existsSync(agentRunnerSrc)) {
-    fs.cpSync(agentRunnerSrc, groupAgentRunnerDir, { recursive: true });
-    chownRecursive(groupAgentRunnerDir, 1000, 1000);
-  }
   mounts.push({
     hostPath: HOST_APP_DIR + '/container/agent-runner/src',
     containerPath: '/app/src',
@@ -317,13 +290,11 @@ function buildVolumeMounts(
     });
   }
 
-  // Root (tier 0) gets data/sessions/ rw so migrate skill can sync across groups
+  // Root (tier 0) gets GROUPS_DIR rw so migrate skill can sync across groups
   if (tier === 0) {
-    const sessionsDir = path.join(DATA_DIR, 'sessions');
-    fs.mkdirSync(sessionsDir, { recursive: true });
     mounts.push({
-      hostPath: hostPath(sessionsDir),
-      containerPath: '/workspace/data/sessions',
+      hostPath: hostPath(GROUPS_DIR),
+      containerPath: '/workspace/groups',
       readonly: false,
     });
   }
@@ -651,13 +622,7 @@ export async function runContainerAgent(
   chownRecursive(sockDir, 1000, 1000);
   const sidecarHandles = await startSidecars(group, sockDir);
 
-  const settingsFile = path.join(
-    DATA_DIR,
-    'sessions',
-    group.folder,
-    '.claude',
-    'settings.json',
-  );
+  const settingsFile = path.join(groupDir, '.claude', 'settings.json');
   reconcileSidecarSettings(settingsFile, sidecarHandles);
 
   // Activate per-channel output style if the channel has a matching style file.
@@ -673,9 +638,7 @@ export async function runContainerAgent(
   }
 
   const agentVersionFile = path.join(
-    DATA_DIR,
-    'sessions',
-    group.folder,
+    groupDir,
     '.claude',
     'skills',
     'self',

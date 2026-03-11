@@ -51,7 +51,7 @@ COPY output-styles/ /home/node/.claude/output-styles/
 RUN npm run build && rm -rf dist
 
 # Create workspace directories
-RUN mkdir -p /workspace/group /workspace/global /workspace/extra /workspace/ipc/messages /workspace/ipc/tasks /workspace/ipc/input
+RUN mkdir -p /workspace/global /workspace/extra /workspace/ipc/messages /workspace/ipc/tasks /workspace/ipc/input
 
 # Create entrypoint script
 # Secrets are passed via stdin JSON — temp file is deleted immediately after Node reads it
@@ -65,7 +65,7 @@ RUN chown -R node:node /workspace && chmod 777 /home/node
 USER node
 
 # Set working directory to group workspace
-WORKDIR /workspace/group
+WORKDIR /home/node
 
 # Entry point reads JSON from stdin, outputs JSON to stdout
 ENTRYPOINT ["/app/entrypoint.sh"]

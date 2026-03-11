@@ -178,7 +178,7 @@ export async function drainRequests(
             // For send_file, translate container path to host path
             if (type === 'send_file' && data.filepath) {
               const rel = (data.filepath as string).replace(
-                /^\/workspace\/group\/?/,
+                /^\/home\/node\/?/,
                 '',
               );
               data.filepath = path.join(GROUPS_DIR, sourceGroup, rel);
@@ -289,10 +289,7 @@ async function drainLegacyMessages(
         await deps.sendMessage(data.chatJid, data.text);
         logger.info({ chatJid: data.chatJid, sourceGroup }, 'IPC message sent');
       } else if (data.type === 'file' && data.filepath) {
-        const rel = (data.filepath as string).replace(
-          /^\/workspace\/group\/?/,
-          '',
-        );
+        const rel = (data.filepath as string).replace(/^\/home\/node\/?/, '');
         const localPath = path.join(GROUPS_DIR, sourceGroup, rel);
         const hostPath = path.join(HOST_GROUPS_DIR, sourceGroup, rel);
         if (

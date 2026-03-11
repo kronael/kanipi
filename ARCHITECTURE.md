@@ -240,18 +240,18 @@ Each agent invocation runs in a fresh docker container:
 
 ```
 docker run
-  -v groups/<folder>:/workspace/group   # group files (rw)
-  -v kanipi/:/workspace/self            # kanipi source, all groups (ro)
+  -v groups/<folder>:/home/node          # home + cwd — group files, .claude/ (rw)
+  -v kanipi/:/workspace/self             # kanipi source (ro, tier 0 only)
   -v share/:/workspace/share             # cross-group shared state (ro/rw)
-  -v web/:/workspace/web                # web output (rw)
-  -v data/sessions/<id>:/workspace/ipc  # IPC directory (rw)
-  -v <additional>:/workspace/extra/...  # allowlisted mounts (ro)
+  -v web/:/workspace/web                 # web output (rw, tier 0/1 only)
+  -v data/ipc/<folder>:/workspace/ipc    # IPC directory (rw)
+  -v <additional>:/workspace/extra/...   # allowlisted mounts (ro)
 ```
 
-Full workspace namespace: `self`, `group`, `share`, `web`, `ipc`,
-`extra`. `/workspace/self` exposes the kanipi source and all group
-folders (read-only) — replaces the old `/workspace/project` which
-only mounted the main group.
+The group folder IS the agent's home directory (`/home/node`).
+SDK state (`.claude/`), diary, media, and child group folders all
+live inside it. Workspace mounts (`self`, `share`, `web`, `ipc`,
+`extra`) are separate plumbing directories.
 
 The container entrypoint (`container/agent-runner/`) reads the
 prompt from stdin and writes JSON output to stdout. The agent-side
@@ -275,9 +275,8 @@ kronael/tools (bash, go, python, typescript, etc.). A `CLAUDE.md`
 is also seeded alongside.
 
 **Soul**: agent personality is defined by `SOUL.md` in the group
-folder. The gateway copies it to `~/.claude/SOUL.md` at every spawn
-so edits take effect immediately. The agent-runner checks
-`~/.claude/SOUL.md` and appends a persona nudge to the system prompt.
+folder (which IS `/home/node/`). The agent-runner checks
+`/home/node/SOUL.md` and appends a persona nudge to the system prompt.
 
 **Migration system**: `container/skills/self/MIGRATION_VERSION`
 tracks the applied version number. `container/skills/self/migrations/`

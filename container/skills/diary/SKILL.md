@@ -1,6 +1,6 @@
 ---
 name: diary
-description: Record what matters in /workspace/group/diary/YYYYMMDD.md.
+description: Record what matters in diary/YYYYMMDD.md.
   Preferences and long-term projects go to MEMORY.md (tell the user).
   Also review MEMORY.md — prune stale entries, keep it under 200 lines.
 ---
@@ -9,7 +9,7 @@ description: Record what matters in /workspace/group/diary/YYYYMMDD.md.
 
 Append to today's diary. Create if missing.
 
-Path: `/workspace/group/diary/YYYYMMDD.md`
+Path: `diary/YYYYMMDD.md`
 
 ## Format
 

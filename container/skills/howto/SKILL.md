@@ -21,7 +21,7 @@ web prefix, not a hardcoded path. This keeps group web roots
 isolated within the shared `/workspace/web/`.
 
 ```bash
-GROUP_FOLDER=$(basename /workspace/group)
+GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
 if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
   WEB_DIR="/workspace/web"
 else
@@ -235,7 +235,7 @@ Read context before generating:
 1. `echo $ASSISTANT_NAME` — bot name
 2. `echo $WEB_HOST` — web URL (NEVER guess if empty)
 3. `echo $NANOCLAW_IS_ROOT` — root or non-root group
-4. `basename /workspace/group` — group folder name
+4. `echo $NANOCLAW_GROUP_FOLDER` — group folder name
 5. Check which channels: env vars for TELEGRAM, DISCORD, EMAIL
 6. Check existing web apps: `ls /workspace/web/`
 

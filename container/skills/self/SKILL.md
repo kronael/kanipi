@@ -8,16 +8,16 @@ description: Introspect this agent — workspace layout, skills, channels,
 
 ## Workspace layout
 
-| Path                       | Contents                                                | Access                                   |
-| -------------------------- | ------------------------------------------------------- | ---------------------------------------- |
-| `/workspace/self`          | kanipi source (canonical skills, changelog, migrations) | ro, tier 0 only                          |
-| `/workspace/group`         | this group's working directory                          | rw (ro for tier 3 workers)               |
-| `/workspace/share`         | world-level shared memory                               | rw for tier 0/1, ro for tier 2/3         |
-| `/workspace/web`           | vite web app directory                                  | rw, tier 0/1 only                        |
-| `/workspace/ipc`           | gateway↔agent IPC (messages/, tasks/, input/)           | rw                                       |
-| `/workspace/data/sessions` | all group session dirs (for migrate)                    | rw, tier 0 only                          |
-| `/workspace/extra/<name>`  | operator-configured extra mounts                        | varies                                   |
-| `~/.claude`                | agent memory, skills, CLAUDE.md, sessions               | rw (ro for tier 2/3, memory/projects rw) |
+| Path                      | Contents                                                | Access                                   |
+| ------------------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `/workspace/self`         | kanipi source (canonical skills, changelog, migrations) | ro, tier 0 only                          |
+| `/home/node`              | home + cwd — group files, .claude/, diary, media        | rw (ro for tier 3, .claude/ overlay rw)  |
+| `/workspace/share`        | world-level shared memory                               | rw for tier 0/1, ro for tier 2/3         |
+| `/workspace/web`          | vite web app directory                                  | rw, tier 0/1 only                        |
+| `/workspace/ipc`          | gateway↔agent IPC (messages/, tasks/, input/)           | rw                                       |
+| `/workspace/groups`       | all group folders (for migrate)                         | rw, tier 0 only                          |
+| `/workspace/extra/<name>` | operator-configured extra mounts                        | varies                                   |
+| `~/.claude`               | agent memory, skills, CLAUDE.md, sessions               | rw (ro for tier 2/3, memory/projects rw) |
 
 ## Skill seeding
 
@@ -125,7 +125,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **21**. If version < 21: migrations pending.
+Latest migration version: **22**. If version < 22: migrations pending.
 
 ## MCP tools
 
@@ -154,7 +154,7 @@ document attachment.
 
 ## Group configuration files
 
-Files you can create/edit in `/workspace/group/` to configure gateway behaviour:
+Files you can create/edit in `/home/node/` to configure gateway behaviour:
 
 | File                | Effect                                                          |
 | ------------------- | --------------------------------------------------------------- |
@@ -162,12 +162,12 @@ Files you can create/edit in `/workspace/group/` to configure gateway behaviour:
 |                     | one forced transcription pass per language in addition to the   |
 |                     | auto-detect pass. Output labelled `[voice/cs: ...]` etc.        |
 |                     | Leave absent or empty for auto-detect only.                     |
-| `SOUL.md`           | Persona/voice — copied to `~/.claude/SOUL.md` at spawn.         |
+| `SOUL.md`           | Persona/voice — lives at group root, read by agent directly.    |
 | `CLAUDE.md`         | Group-specific instructions (supplements `~/.claude/CLAUDE.md`) |
 | `{name}/SOUL.md`    | Persona for a child group named `{name}` — e.g. to configure    |
 |                     | `atlas/support` from inside the `atlas` container, write to     |
-|                     | `/workspace/group/support/SOUL.md`. Do NOT include the world    |
-|                     | prefix — `/workspace/group` IS the world folder already.        |
+|                     | `/home/node/support/SOUL.md`. Do NOT include the world          |
+|                     | prefix — `/home/node` IS the world folder already.              |
 | `prototype/`        | Template for dynamically spawned child groups. Gateway copies   |
 |                     | all files from this dir into the child folder on spawn. If      |
 |                     | missing, dynamic child spawning is refused for this group.      |
@@ -175,7 +175,7 @@ Files you can create/edit in `/workspace/group/` to configure gateway behaviour:
 Example — transcribe in Czech and Russian as well as auto-detect:
 
 ```bash
-printf 'cs\nru\n' > /workspace/group/.whisper-language
+printf 'cs\nru\n' > /home/node/.whisper-language
 ```
 
 ## Self-extension
@@ -195,7 +195,7 @@ Write a server script to your workspace and register it in settings:
 
 ```bash
 # write your MCP server to workspace
-cat > /workspace/group/tools/myserver.js << 'EOF'
+cat > /home/node/tools/myserver.js << 'EOF'
 // ... your MCP server implementation ...
 EOF
 
@@ -204,7 +204,7 @@ node -e "
 const f = '/home/node/.claude/settings.json';
 const s = JSON.parse(require('fs').readFileSync(f, 'utf-8'));
 s.mcpServers = s.mcpServers || {};
-s.mcpServers.mytools = { command: 'node', args: ['/workspace/group/tools/myserver.js'] };
+s.mcpServers.mytools = { command: 'node', args: ['/home/node/tools/myserver.js'] };
 require('fs').writeFileSync(f, JSON.stringify(s, null, 2) + '\n');
 "
 ```

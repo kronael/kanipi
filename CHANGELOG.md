@@ -9,6 +9,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Breaking
+
+- **Unified home directory**: group folder mounted as `/home/node` (was
+  `/workspace/group`). Agent cwd is now `/home/node`. `.claude/` state
+  lives inside group folder — no separate `data/sessions/` mount.
+  SOUL.md at group root (no copy to `~/.claude/`). Existing deployments
+  need manual migration (move `data/sessions/*/.claude` into `groups/*/`).
+
 ---
 
 ## [v1.0.24] — 2026-03-11

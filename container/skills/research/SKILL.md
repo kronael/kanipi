@@ -66,7 +66,7 @@ Single-page HTML with all research organized into sections:
 Use the group web prefix (see `/web` skill for convention):
 
 ```bash
-GROUP_FOLDER=$(basename /workspace/group)
+GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
 if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
   WEB_DIR="/workspace/web"
 else

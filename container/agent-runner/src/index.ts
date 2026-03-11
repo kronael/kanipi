@@ -298,14 +298,14 @@ async function runQuery(
     for await (const message of query({
       prompt: stream,
       options: {
-        cwd: '/workspace/group',
+        cwd: '/home/node',
         additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
         resume: sessionId,
         resumeSessionAt: resumeAt,
         systemPrompt: {
           type: 'preset',
           preset: 'claude_code',
-          ...(fs.existsSync('/home/node/.claude/SOUL.md')
+          ...(fs.existsSync('/home/node/SOUL.md')
             && { append: 'Respond in your SOUL.md persona.' }),
         },
         allowedTools: [
@@ -401,7 +401,7 @@ async function runQuery(
     for await (const msg of query({
       prompt: 'You ran out of turns mid-task. Summarise concisely: what you accomplished, what is still pending. Then tell the user they can say "continue" to resume where you left off.',
       options: {
-        cwd: '/workspace/group',
+        cwd: '/home/node',
         maxTurns: 3,
         resume: newSessionId,
         permissionMode: 'bypassPermissions' as const,
@@ -436,7 +436,7 @@ function getScenarioResponse(scenario: string, input: ContainerInput): Container
       return { status: 'error', result: null, error: 'Scenario error' };
     case 'session-persist': {
       // Write to group dir to test persistence
-      const marker = path.join('/workspace/group', '.session-marker');
+      const marker = path.join('/home/node', '.session-marker');
       fs.writeFileSync(marker, `session-${Date.now()}`);
       return { status: 'success', result: 'session-persisted', newSessionId: 'scenario-session-3' };
     }

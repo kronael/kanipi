@@ -329,15 +329,13 @@ describe('volume mount paths for nested folders', () => {
     expect(agentCall).toBeDefined();
     const args = agentCall![1] as string[];
 
-    // Find the .claude mount — should use HOST_PROJECT_ROOT_PATH
-    const claudeMount = args.find(
-      (a) => typeof a === 'string' && a.includes('/home/node/.claude'),
+    // Find the /home/node mount — should use HOST_PROJECT_ROOT_PATH
+    const homeMount = args.find(
+      (a) => typeof a === 'string' && a.includes(':/home/node'),
     );
-    expect(claudeMount).toBeDefined();
+    expect(homeMount).toBeDefined();
     // hostPath replaces GATEWAY_ROOT (/tmp) with HOST_PROJECT_ROOT_PATH
-    expect(claudeMount).toContain(
-      'sessions/atlas/support/.claude:/home/node/.claude',
-    );
+    expect(homeMount).toContain('groups/atlas/support:/home/node');
 
     // Clean up
     fakeProc.emit('close', 1);

@@ -28,7 +28,7 @@ Use send_file instead when:
 Every group has a web prefix within the shared `/workspace/web/`:
 
 ```bash
-GROUP_FOLDER=$(basename /workspace/group)
+GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
 if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
   WEB_DIR="/workspace/web"
 else
