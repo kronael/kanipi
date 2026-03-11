@@ -55,6 +55,7 @@ export class RedditClient implements PlatformClient {
     path: string,
     method = 'GET',
     body?: URLSearchParams,
+    retries = 0,
   ): Promise<unknown> {
     await this.ensureToken();
     const headers: Record<string, string> = {
@@ -64,10 +65,12 @@ export class RedditClient implements PlatformClient {
     if (body) headers['Content-Type'] = 'application/x-www-form-urlencoded';
     const res = await fetch(`${API}${path}`, { method, headers, body });
     if (res.status === 429) {
+      if (retries >= 3)
+        throw new Error(`reddit ${path}: rate limited after 3 retries`);
       const retry = Number(res.headers.get('Retry-After') || '5');
-      logger.warn({ retry }, 'reddit rate limited');
+      logger.warn({ retry, retries }, 'reddit rate limited');
       await new Promise((r) => setTimeout(r, retry * 1000));
-      return this.api(path, method, body);
+      return this.api(path, method, body, retries + 1);
     }
     if (!res.ok) {
       const text = await res.text();

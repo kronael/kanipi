@@ -41,7 +41,7 @@ export async function startWatcher(
     for await (const tweet of client.scraper.searchTweets(query, 20)) {
       // Skip own tweets and tweets older than sinceId
       if (tweet.userId === client.userId) continue;
-      if (sinceId && tweet.id && tweet.id <= sinceId) continue;
+      if (sinceId && tweet.id && BigInt(tweet.id) <= BigInt(sinceId)) continue;
       tweets.push(tweet);
     }
 

@@ -70,7 +70,10 @@ export class FacebookClient implements PlatformClient {
   }
 
   async unban(target: string): Promise<unknown> {
-    return this.api(`/${this.pageId}/blocked`, 'DELETE', { user: target });
+    return this.api(
+      `/${this.pageId}/blocked?uid=${encodeURIComponent(target)}`,
+      'DELETE',
+    );
   }
 
   async block(target: string): Promise<unknown> {
