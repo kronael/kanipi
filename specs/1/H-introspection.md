@@ -76,7 +76,7 @@ ru
 
 ## Gateway-caps implementation notes
 
-- Written in `container-runner.ts` before `runContainerAgent`, alongside
+- Written in `container-runner.ts` before `runContainerCommand`, alongside
   the existing tasks/groups snapshots
 - Derive from live config constants — no separate config read
 - Agent treats it as advisory; missing file = assume defaults

@@ -74,7 +74,7 @@ inbound message
   → routing rules (command / keyword / delegation)
   → worker selected
   → worker queue (same GroupQueue, different slot key)
-  → runContainerAgent with worker config
+  → runContainerCommand with worker config
   → response back to channel
 ```
 

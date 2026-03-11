@@ -66,7 +66,7 @@ TypeScript (ESM, NodeNext). Gateway polls channels for
 messages, routes to containerized Claude agents via docker.
 
 **Flow**: Channel → DB (store message) → message loop polls
-→ GroupQueue → runContainerAgent (docker run) → stream
+→ GroupQueue → runContainerCommand (docker run) → stream
 output back to channel.
 
 Key modules:
@@ -74,7 +74,7 @@ Key modules:
 - `index.ts` — main loop, channel init, message routing
 - `config.ts` — config from `.env` + env vars (no web config)
 - `db.ts` — SQLite (better-sqlite3) for messages, state, tasks
-- `container-runner.ts` — spawns agent containers, streams I/O
+- `container-runner.ts` — spawns agent containers (dual mode: agent ceremony vs raw bash), streams I/O
 - `container-runtime.ts` — docker lifecycle, orphan cleanup
 - `group-queue.ts` — per-group message queueing, stdin piping
 - `router.ts` — message formatting, channel→JID resolution
@@ -85,7 +85,7 @@ Key modules:
 - `group-folder.ts` — folder validation and path resolution (prevents traversal)
 - `mount-security.ts` — validates additional mounts against `~/.config/nanoclaw/mount-allowlist.json` (stored outside project to prevent agent tampering)
 - `logger.ts` — pino logger (JSON in production, pino-pretty in dev)
-- `mime.ts` — shared `mimeFromFile()` via file-type (magic bytes detection)
+- `mime.ts` — shared `mimeFromFile()` via file-type (magic bytes detection), `mediaLine()` for container-relative paths
 - `channels/` — telegram (grammy), whatsapp (baileys), discord (discord.js),
   email (IMAP IDLE + SMTP threading)
 
@@ -105,11 +105,10 @@ signal, falls back to 500ms poll.
 runs in docker, `process.cwd()` paths are container-internal.
 `config.ts:detectHostPath()` reads `/proc/self/mountinfo` to
 find the host-side path of `PROJECT_ROOT` so child containers
-receive correct host mount paths. `HOST_PROJECT_ROOT_PATH` is
-the translated value (falls back to `process.cwd()` on bare metal).
-Mount paths use explicit `HOST_GROUPS_DIR`, `HOST_DATA_DIR`, and
-`HOST_APP_DIR` exports from config. `chownRecursive()` ensures they
-are writable by node uid 1000 inside agent containers.
+receive correct host mount paths. Mount paths use explicit
+`HOST_GROUPS_DIR`, `HOST_DATA_DIR`, and `HOST_APP_DIR` exports
+from config. `chownRecursive()` ensures they are writable by
+node uid 1000 inside agent containers.
 
 ## Layout
 

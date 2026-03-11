@@ -28,7 +28,7 @@ Queue drains -> processGroupMessages(chatJid)  (index.ts)
   7. flushSystemMessages(groupFolder)
   8. waitForEnrichments(msgIds)
   9. formatMessages(messages)       (router.ts)
-  10. runContainerAgent(group, prompt, ...)
+  10. runContainerCommand(group, prompt, ...)
       -> buildVolumeMounts(group)
       -> spawn docker container
 ```

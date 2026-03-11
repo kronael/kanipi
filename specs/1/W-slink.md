@@ -108,7 +108,7 @@ No separate table. Token lives on the group row.
 
 The agent receives slink POSTs as normal inbound messages on the
 `web:<name>` chat_jid. No special handling — same queue, same
-`runContainerAgent` call as any other channel.
+`runContainerCommand` call as any other channel.
 
 Agent knows its own slink URL via env vars injected at container start:
 

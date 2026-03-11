@@ -51,6 +51,20 @@ export let _spawnProcess: (
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
 const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
 
+function appendWithLimit(
+  buffer: string,
+  chunk: string,
+  limit: number,
+  truncated: boolean,
+): { buffer: string; truncated: boolean } {
+  if (truncated) return { buffer, truncated };
+  const remaining = limit - buffer.length;
+  if (chunk.length > remaining) {
+    return { buffer: buffer + chunk.slice(0, remaining), truncated: true };
+  }
+  return { buffer: buffer + chunk, truncated };
+}
+
 export interface ContainerInput {
   prompt: string;
   sessionId?: string;
@@ -93,17 +107,15 @@ function chownRecursive(dir: string, uid: number, gid: number): void {
   }
 }
 
-const APP_DIR = process.cwd();
-
-const _mvFile = path.join(
-  APP_DIR,
+const migrationVersionFile = path.join(
+  process.cwd(),
   'container',
   'skills',
   'self',
   'MIGRATION_VERSION',
 );
-const LATEST_MIGRATION_VERSION = fs.existsSync(_mvFile)
-  ? parseInt(fs.readFileSync(_mvFile, 'utf-8').trim(), 10) || 0
+const LATEST_MIGRATION_VERSION = fs.existsSync(migrationVersionFile)
+  ? parseInt(fs.readFileSync(migrationVersionFile, 'utf-8').trim(), 10) || 0
   : 0;
 
 const DEFAULT_SETTINGS = {
@@ -120,6 +132,16 @@ function initSettings(dir: string, spawnEnv: Record<string, string>): void {
   }
   const settings = JSON.parse(fs.readFileSync(file, 'utf-8'));
   settings.env = { ...(settings.env ?? {}), ...spawnEnv };
+  fs.writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+}
+
+function updateSettings(
+  dir: string,
+  update: (settings: Record<string, unknown>) => void,
+): void {
+  const file = path.join(dir, 'settings.json');
+  const settings = JSON.parse(fs.readFileSync(file, 'utf-8'));
+  update(settings);
   fs.writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
 }
 
@@ -202,7 +224,6 @@ function buildVolumeMounts(
     }
   }
 
-  // Ensure media + diary dirs exist (tier 3 already created media above)
   for (const d of ['media', 'diary']) {
     fs.mkdirSync(path.join(groupDir, d), { recursive: true });
   }
@@ -241,7 +262,8 @@ function buildVolumeMounts(
   });
 
   // Seed skills once per group — agent can modify, persists across spawns
-  const skillsSrc = path.join(APP_DIR, 'container', 'skills');
+  const appDir = process.cwd();
+  const skillsSrc = path.join(appDir, 'container', 'skills');
   const skillsDst = path.join(claudeStateDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
     for (const skillDir of fs.readdirSync(skillsSrc)) {
@@ -258,16 +280,14 @@ function buildVolumeMounts(
     }
     chownRecursive(skillsDst, 1000, 1000);
   }
-  const claudeMdSrc = path.join(APP_DIR, 'container', 'CLAUDE.md');
+  const claudeMdSrc = path.join(appDir, 'container', 'CLAUDE.md');
   const claudeMdDst = path.join(claudeStateDir, 'CLAUDE.md');
   if (fs.existsSync(claudeMdSrc) && !fs.existsSync(claudeMdDst)) {
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
 
   // Seed output-styles every spawn so image updates take effect.
-  // These were baked into the image at /home/node/.claude/output-styles/
-  // but the bind mount hides image layers, so we copy from source.
-  const stylesSrc = path.join(APP_DIR, 'container', 'output-styles');
+  const stylesSrc = path.join(appDir, 'container', 'output-styles');
   const stylesDst = path.join(claudeStateDir, 'output-styles');
   if (fs.existsSync(stylesSrc)) {
     fs.cpSync(stylesSrc, stylesDst, { recursive: true });
@@ -468,15 +488,14 @@ async function runRawCommand(
 
     container.stdout.on('data', (data) => {
       const chunk = data.toString();
-      if (!stdoutTruncated) {
-        const remaining = CONTAINER_MAX_OUTPUT_SIZE - stdout.length;
-        if (chunk.length > remaining) {
-          stdout += chunk.slice(0, remaining);
-          stdoutTruncated = true;
-        } else {
-          stdout += chunk;
-        }
-      }
+      const result = appendWithLimit(
+        stdout,
+        chunk,
+        CONTAINER_MAX_OUTPUT_SIZE,
+        stdoutTruncated,
+      );
+      stdout = result.buffer;
+      stdoutTruncated = result.truncated;
     });
 
     container.stderr.on('data', (data) => {
@@ -484,14 +503,14 @@ async function runRawCommand(
       for (const line of chunk.trim().split('\n')) {
         if (line) logger.debug({ container: group.folder }, line);
       }
-      if (stderrTruncated) return;
-      const remaining = CONTAINER_MAX_OUTPUT_SIZE - stderr.length;
-      if (chunk.length > remaining) {
-        stderr += chunk.slice(0, remaining);
-        stderrTruncated = true;
-      } else {
-        stderr += chunk;
-      }
+      const result = appendWithLimit(
+        stderr,
+        chunk,
+        CONTAINER_MAX_OUTPUT_SIZE,
+        stderrTruncated,
+      );
+      stderr = result.buffer;
+      stderrTruncated = result.truncated;
     });
 
     let timedOut = false;
@@ -575,17 +594,13 @@ async function runAgentMode(
   const mounts = buildVolumeMounts(group, input.delegateDepth);
 
   // Activate per-channel output style if the channel has a matching style file.
-  // Style files are baked into the agent image at /home/node/.claude/output-styles/.
-  {
-    const settingsFile = path.join(groupDir, '.claude', 'settings.json');
-    const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+  updateSettings(path.join(groupDir, '.claude'), (settings) => {
     if (input.channelName) {
       settings.outputStyle = input.channelName;
     } else {
       delete settings.outputStyle;
     }
-    fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
-  }
+  });
 
   const agentVersionFile = path.join(
     groupDir,
@@ -612,14 +627,14 @@ async function runAgentMode(
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   const containerArgs = buildContainerArgs(mounts, containerName);
 
+  const formatMount = (m: VolumeMount) =>
+    `${m.hostPath} -> ${m.containerPath}${m.readonly ? ' (ro)' : ''}`;
+
   logger.info(
     {
       group: group.name,
       containerName,
-      mounts: mounts.map(
-        (m) =>
-          `${m.hostPath} -> ${m.containerPath}${m.readonly ? ' (ro)' : ''}`,
-      ),
+      mounts: mounts.map(formatMount),
     },
     'Container mount configuration',
   );
@@ -675,19 +690,20 @@ async function runAgentMode(
       const chunk = data.toString();
 
       // Always accumulate for logging
-      if (!stdoutTruncated) {
-        const remaining = CONTAINER_MAX_OUTPUT_SIZE - stdout.length;
-        if (chunk.length > remaining) {
-          stdout += chunk.slice(0, remaining);
-          stdoutTruncated = true;
-          logger.warn(
-            { group: group.name, size: stdout.length },
-            'Container stdout truncated due to size limit',
-          );
-        } else {
-          stdout += chunk;
-        }
+      const result = appendWithLimit(
+        stdout,
+        chunk,
+        CONTAINER_MAX_OUTPUT_SIZE,
+        stdoutTruncated,
+      );
+      if (result.truncated && !stdoutTruncated) {
+        logger.warn(
+          { group: group.name, size: result.buffer.length },
+          'Container stdout truncated due to size limit',
+        );
       }
+      stdout = result.buffer;
+      stdoutTruncated = result.truncated;
 
       // Stream-parse for output markers
       if (onOutput) {
@@ -730,19 +746,20 @@ async function runAgentMode(
         if (line) logger.debug({ container: group.folder }, line);
       }
       // Don't reset timeout on stderr — SDK writes debug logs continuously.
-      // Timeout only resets on actual output (OUTPUT_MARKER in stdout).
-      if (stderrTruncated) return;
-      const remaining = CONTAINER_MAX_OUTPUT_SIZE - stderr.length;
-      if (chunk.length > remaining) {
-        stderr += chunk.slice(0, remaining);
-        stderrTruncated = true;
+      const result = appendWithLimit(
+        stderr,
+        chunk,
+        CONTAINER_MAX_OUTPUT_SIZE,
+        stderrTruncated,
+      );
+      if (result.truncated && !stderrTruncated) {
         logger.warn(
-          { group: group.name, size: stderr.length },
+          { group: group.name, size: result.buffer.length },
           'Container stderr truncated due to size limit',
         );
-      } else {
-        stderr += chunk;
       }
+      stderr = result.buffer;
+      stderrTruncated = result.truncated;
     });
 
     let timedOut = false;
@@ -885,12 +902,7 @@ async function runAgentMode(
           containerArgs.join(' '),
           ``,
           `=== Mounts ===`,
-          mounts
-            .map(
-              (m) =>
-                `${m.hostPath} -> ${m.containerPath}${m.readonly ? ' (ro)' : ''}`,
-            )
-            .join('\n'),
+          mounts.map(formatMount).join('\n'),
           ``,
           `=== Stderr${stderrTruncated ? ' (TRUNCATED)' : ''} ===`,
           stderr,

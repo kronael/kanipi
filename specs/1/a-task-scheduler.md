@@ -43,7 +43,7 @@ After each run:
 
 ## Container execution
 
-Tasks run via `runContainerAgent`, same as user messages.
+Tasks run via `runContainerCommand`, same as user messages.
 Differences:
 
 - `isScheduledTask: true` in container input

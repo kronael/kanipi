@@ -71,12 +71,12 @@ See `workflows.md`.
 
 ## Interfaces
 
-| From     | To      | Interface                         |
-| -------- | ------- | --------------------------------- |
-| Channels | Router  | `NewMessage` events               |
-| Router   | Spawner | `runContainerAgent(group, input)` |
-| Spawner  | Router  | `ContainerOutput` (stdout JSON)   |
-| Agent    | Router  | IPC files (v1) / MCP (v2)         |
-| Router   | Channel | `sendMessage()`, `sendDocument()` |
-| Router   | MIME    | `enrichMessage(msg)`              |
-| Router   | Topics  | JID pattern -> agent selection    |
+| From     | To      | Interface                           |
+| -------- | ------- | ----------------------------------- |
+| Channels | Router  | `NewMessage` events                 |
+| Router   | Spawner | `runContainerCommand(group, input)` |
+| Spawner  | Router  | `ContainerOutput` (stdout JSON)     |
+| Agent    | Router  | IPC files (v1) / MCP (v2)           |
+| Router   | Channel | `sendMessage()`, `sendDocument()`   |
+| Router   | MIME    | `enrichMessage(msg)`                |
+| Router   | Topics  | JID pattern -> agent selection      |
