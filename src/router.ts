@@ -53,17 +53,19 @@ export function formatMessages(messages: NewMessage[], now?: number): string {
     }
     parts.push(escapeXml(m.content));
     const inner = parts.join('\n');
-    let attrs = `sender="${escapeXml(m.sender_name ?? m.sender)}"`;
-    attrs += ` sender_id="${escapeXml(m.sender)}"`;
-    attrs += ` chat_id="${escapeXml(m.chat_jid)}"`;
-    if (m.group_name) attrs += ` chat="${escapeXml(m.group_name)}"`;
-    if (m.platform) attrs += ` platform="${escapeXml(m.platform)}"`;
-    attrs += ` time="${m.timestamp}" ago="${timeAgo(m.timestamp, t)}"`;
-    if (m.verb) attrs += ` verb="${escapeXml(m.verb)}"`;
-    if (m.mentions_me === true) attrs += ` mentions_me="true"`;
-    if (m.thread) attrs += ` thread="${escapeXml(m.thread)}"`;
-    if (m.target) attrs += ` target="${escapeXml(m.target)}"`;
-    const tag = `<message ${attrs}>`;
+    const a = [
+      `sender="${escapeXml(m.sender_name ?? m.sender)}"`,
+      `sender_id="${escapeXml(m.sender)}"`,
+      `chat_id="${escapeXml(m.chat_jid)}"`,
+      m.group_name && `chat="${escapeXml(m.group_name)}"`,
+      m.platform && `platform="${escapeXml(m.platform)}"`,
+      `time="${m.timestamp}" ago="${timeAgo(m.timestamp, t)}"`,
+      m.verb && `verb="${escapeXml(m.verb)}"`,
+      m.mentions_me === true && `mentions_me="true"`,
+      m.thread && `thread="${escapeXml(m.thread)}"`,
+      m.target && `target="${escapeXml(m.target)}"`,
+    ];
+    const tag = `<message ${a.filter(Boolean).join(' ')}>`;
     if (parts.length === 1) return `${tag}${inner}</message>`;
     return `${tag}\n${inner}\n</message>`;
   });

@@ -168,9 +168,12 @@ before use in volume mounts or IPC paths.
 
 ### router.ts
 
-Message formatting and outbound routing. Formats batched
-messages as XML for agent prompt input. Strips `<internal>`
-tags from agent output before sending to channel users.
+Message formatting and outbound routing. `formatMessages()`
+emits `<messages>` XML with per-message attributes (`sender`,
+`sender_id`, `chat_id`, `chat`, `platform`, `time`, `ago`).
+`clockXml()` emits a `<clock>` header (UTC time + timezone),
+prepended once per agent invocation. Strips `<internal>` tags
+from agent output before sending to channel users.
 
 `isAuthorizedRoutingTarget(source, target)` validates that target
 is a direct child of source within the same world (root segment).
@@ -257,8 +260,9 @@ via request-response IPC (writes to `requests/`, polls `replies/`).
 Agent-written `mcpServers` entries in `settings.json` are merged
 with the built-in server at spawn time.
 
-System messages (new-session, new-day) are flushed from DB and
-prepended as XML to the stdin payload before user messages.
+A `<clock>` header (UTC time + timezone) is prepended to the
+initial prompt, followed by system messages (new-session, new-day)
+flushed from DB as XML, then user messages.
 
 **reset_session IPC**: agents can request a session reset via IPC
 (`type:'reset_session'`). The gateway evicts the current session

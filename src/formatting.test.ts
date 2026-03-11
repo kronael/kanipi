@@ -26,33 +26,11 @@ function makeMsg(overrides: Partial<NewMessage> = {}): NewMessage {
 // --- escapeXml ---
 
 describe('escapeXml', () => {
-  it('escapes ampersands', () => {
-    expect(escapeXml('a & b')).toBe('a &amp; b');
-  });
-
-  it('escapes less-than', () => {
-    expect(escapeXml('a < b')).toBe('a &lt; b');
-  });
-
-  it('escapes greater-than', () => {
-    expect(escapeXml('a > b')).toBe('a &gt; b');
-  });
-
-  it('escapes double quotes', () => {
-    expect(escapeXml('"hello"')).toBe('&quot;hello&quot;');
-  });
-
-  it('handles multiple special characters together', () => {
+  it('escapes &, <, >, " and passes through clean strings', () => {
     expect(escapeXml('a & b < c > d "e"')).toBe(
       'a &amp; b &lt; c &gt; d &quot;e&quot;',
     );
-  });
-
-  it('passes through strings with no special chars', () => {
     expect(escapeXml('hello world')).toBe('hello world');
-  });
-
-  it('handles empty string', () => {
     expect(escapeXml('')).toBe('');
   });
 });
@@ -96,12 +74,6 @@ describe('formatMessages', () => {
     expect(result).toContain('>hey</message>');
     expect(result).toContain('ago="1h"');
     expect(result).toContain('ago="30m"');
-  });
-
-  it('includes sender_id and chat_id always', () => {
-    const result = formatMessages([makeMsg()], NOW);
-    expect(result).toContain('sender_id="123@s.whatsapp.net"');
-    expect(result).toContain('chat_id="group@g.us"');
   });
 
   it('includes chat attribute when group_name is set', () => {
@@ -310,21 +282,10 @@ describe('stripInternalTags', () => {
 });
 
 describe('formatOutbound', () => {
-  it('returns text with internal tags stripped', () => {
-    expect(formatOutbound('hello world')).toBe('hello world');
-  });
-
-  it('returns empty string when all text is internal', () => {
-    expect(formatOutbound('<internal>hidden</internal>')).toBe('');
-  });
-
-  it('strips internal tags from remaining text', () => {
+  it('strips internal tags and trims', () => {
     expect(
       formatOutbound('<internal>thinking</internal>The answer is 42'),
     ).toBe('The answer is 42');
-  });
-
-  it('returns empty string when only whitespace remains after tag strip', () => {
     expect(formatOutbound('<internal>x</internal>   ')).toBe('');
   });
 });

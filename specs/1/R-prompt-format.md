@@ -47,7 +47,8 @@
 The `prompt` field in ContainerInput is assembled as:
 
 ```
-system messages (flushSystemMessages)
+clock header (clockXml)
+  → system messages (flushSystemMessages)
   → pendingArgs (command context, if any)
   → message history (formatMessages)
 ```
@@ -57,18 +58,20 @@ system messages (flushSystemMessages)
 system messages and message history so the agent sees it as
 the most recent instruction before the conversation.
 
-### pendingArgs injection order
+### Injection order
 
 In `src/index.ts`, the prompt string is assembled as:
 
 ```
-sysXml + '\n' + pendingArgs + '\n' + formatted
+clock + '\n' + sysXml + '\n' + pendingArgs + '\n' + formatted
 ```
 
-1. `sysXml` — flushed system messages (new-session, new-day)
-2. `pendingArgs` — command context text, consumed once from
+1. `clock` — `clockXml(TIMEZONE)`: `<clock time="..." tz="..." />`
+   (UTC ISO 8601 + configured timezone, initial prompt only)
+2. `sysXml` — flushed system messages (new-session, new-day)
+3. `pendingArgs` — command context text, consumed once from
    `pendingCommandArgs` map (keyed by chatJid), deleted after read
-3. `formatted` — `formatMessages()` output (XML `<messages>` block)
+4. `formatted` — `formatMessages()` output (XML `<messages>` block)
 
 `pendingArgs` is stashed by `/new` (and similar commands) before
 the message loop picks up the batch. It appears after system
@@ -81,15 +84,21 @@ one-shot instruction without polluting the message log.
 
 ```xml
 <messages>
-<message sender="Alice" time="2026-03-05T10:00:00Z">
+<message sender="Alice" sender_id="telegram:1112184352"
+         chat_id="telegram:-1001234567890" chat="Support"
+         platform="telegram" time="2026-03-05T10:00:00Z" ago="3h">
   hey can you help
 </message>
 </messages>
 ```
 
-Attributes: `sender` (name or raw ID), `time` (ISO 8601).
-Content XML-escaped. `forwarded_from` and `reply_to` metadata
-included when present (see `formatMessages()` in `router.ts`).
+Attributes: `sender` (display name, falls back to sender ID),
+`sender_id` (JID), `chat_id` (chat JID), `chat` (group name,
+when is_group), `platform`, `time` (ISO 8601), `ago` (relative
+time: s/m/h/d/w). Content XML-escaped. `forwarded_from` and
+`reply_to` metadata included when present (see `formatMessages()`
+in `router.ts`). See `specs/3/H-jid-format.md` for full attribute
+table.
 
 ## Scheduled task header -- shipped
 

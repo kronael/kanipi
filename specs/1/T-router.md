@@ -48,10 +48,12 @@ match. First match wins.
 ### Prompt assembly
 
 ```
-[system messages]     <- flushSystemMessages()
+<clock time="..." tz="..." />        <- clockXml(), initial prompt only
+[system messages]                    <- flushSystemMessages()
 [pending /new args]
-<messages>            <- formatMessages(), new session only
-  <message sender="..." time="...">content</message>
+<messages>                           <- formatMessages(), new session only
+  <message sender="..." sender_id="..." chat_id="..."
+           platform="..." time="..." ago="...">content</message>
 </messages>
 ```
 
