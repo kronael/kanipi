@@ -184,42 +184,47 @@ const RouteSchema = z.object({
 });
 
 const GetRoutesInput = z.object({
-  jid: z.string().min(1),
+  jid: z.string().min(1).optional(),
 });
 
 export const getRoutes: Action = {
   name: 'get_routes',
-  description: 'Get routing rules for a JID',
+  description: 'Get routing rules for a JID (defaults to current group JID)',
   minTier: 1,
   input: GetRoutesInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = GetRoutesInput.parse(raw);
-    return { jid: input.jid, routes: getRoutesForJid(input.jid) };
+    const jid = input.jid || ctx.getJidsForFolder(ctx.sourceGroup)[0];
+    if (!jid) throw new Error('no JID found for this group');
+    return { jid, routes: getRoutesForJid(jid) };
   },
 };
 
 const AddRouteInput = z.object({
-  jid: z.string().min(1),
+  jid: z.string().min(1).optional(),
   route: RouteSchema,
 });
 
 export const addRouteAction: Action = {
   name: 'add_route',
-  description: 'Add a single routing rule for a JID',
+  description:
+    'Add a single routing rule for a JID (defaults to current group JID)',
   minTier: 1,
   input: AddRouteInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
     const input = AddRouteInput.parse(raw);
+    const jid = input.jid || ctx.getJidsForFolder(ctx.sourceGroup)[0];
+    if (!jid) throw new Error('no JID found for this group');
     if (!isAuthorizedRoutingTarget(ctx.sourceGroup, input.route.target)) {
       throw new Error(
         `unauthorized: ${ctx.sourceGroup} cannot route to ${input.route.target}`,
       );
     }
-    logger.info({ jid: input.jid, route: input.route }, 'add_route');
-    const id = addRoute(input.jid, input.route);
-    return { jid: input.jid, id, route: input.route };
+    logger.info({ jid, route: input.route }, 'add_route');
+    const id = addRoute(jid, input.route);
+    return { jid, id, route: input.route };
   },
 };
 
