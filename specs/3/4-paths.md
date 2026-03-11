@@ -1,4 +1,4 @@
-# Path translation spec (v2) — open
+# Path translation spec (v2) — shipped
 
 ## Problem
 

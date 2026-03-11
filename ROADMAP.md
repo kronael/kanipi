@@ -26,7 +26,6 @@ Functional multi-channel agent gateway.
 Partial work, close to done. `specs/2/`
 
 - memory-facts: gateway injection + MCP tools
-- paths: hostPath() elimination
 - autotesting: IPC drain + voice roundtrip gaps
 - sse: per-sender scoping
 - worlds-rooms: phase 2 threads/rooms
