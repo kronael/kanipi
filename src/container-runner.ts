@@ -147,9 +147,11 @@ function buildVolumeMounts(
     readonly: tier === 3,
   });
 
-  // Tier 2: setup files ro via more-specific mount overrides
-  if (tier === 2) {
-    for (const f of ['CLAUDE.md', 'SOUL.md', 'skills']) {
+  // Tier 2+3: setup files ro via more-specific mount overrides.
+  // Agent can write data (diary, media, facts) but not modify instructions.
+  if (tier >= 2) {
+    // Group-level setup files
+    for (const f of ['CLAUDE.md', 'SOUL.md']) {
       const p = path.join(groupDir, f);
       if (fs.existsSync(p)) {
         mounts.push({
@@ -159,15 +161,27 @@ function buildVolumeMounts(
         });
       }
     }
+    // .claude/ setup files (instructions, skills, settings, output-styles)
+    for (const f of ['CLAUDE.md', 'skills', 'settings.json', 'output-styles']) {
+      const p = path.join(groupDir, '.claude', f);
+      if (fs.existsSync(p)) {
+        mounts.push({
+          hostPath: hostPath(p),
+          containerPath: `/home/node/.claude/${f}`,
+          readonly: true,
+        });
+      }
+    }
   }
 
-  // Tier 3: overlay .claude/ as RW (SDK needs writable state inside RO home)
+  // Tier 3: only .claude/projects/ is RW (session transcripts + memory).
+  // Everything else in .claude/ (CLAUDE.md, skills, settings) stays RO.
   if (tier === 3) {
-    const claudeDir = path.join(groupDir, '.claude');
-    fs.mkdirSync(claudeDir, { recursive: true });
+    const projectsDir = path.join(groupDir, '.claude', 'projects');
+    fs.mkdirSync(projectsDir, { recursive: true });
     mounts.push({
-      hostPath: hostPath(claudeDir),
-      containerPath: '/home/node/.claude',
+      hostPath: hostPath(projectsDir),
+      containerPath: '/home/node/.claude/projects',
       readonly: false,
     });
   }

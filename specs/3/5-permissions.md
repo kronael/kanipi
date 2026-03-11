@@ -164,16 +164,21 @@ Tier 0 may still create child groups inside an existing world.
 
 The container runner enforces practical mount restrictions.
 
-| Mount                      | Tier 0 | Tier 1 | Tier 2                                                    | Tier 3                        |
-| -------------------------- | ------ | ------ | --------------------------------------------------------- | ----------------------------- |
-| `/workspace/group`         | rw     | rw     | rw with ro overrides for `CLAUDE.md`, `SOUL.md`, `skills` | ro                            |
-| `/workspace/media`         | rw     | rw     | rw                                                        | ro                            |
-| `/workspace/share`         | rw     | rw     | ro                                                        | ro                            |
-| `/workspace/ipc`           | rw     | rw     | rw                                                        | rw                            |
-| `/workspace/web`           | rw     | rw     | rw today                                                  | no mount in most worker cases |
-| `/workspace/self`          | ro     | no     | no                                                        | no                            |
-| `/home/node/.claude`       | rw     | rw     | base mount ro with rw overrides for memory/projects       | ro                            |
-| `/workspace/data/sessions` | rw     | no     | no                                                        | no                            |
+| Mount                     | Tier 0 | Tier 1 | Tier 2           | Tier 3           |
+| ------------------------- | ------ | ------ | ---------------- | ---------------- |
+| `/home/node`              | rw     | rw     | rw               | ro               |
+| `/home/node/CLAUDE.md`    | —      | —      | ro overlay       | ro (from parent) |
+| `/home/node/SOUL.md`      | —      | —      | ro overlay       | ro (from parent) |
+| `~/.claude/CLAUDE.md`     | —      | —      | ro overlay       | ro (from parent) |
+| `~/.claude/skills`        | —      | —      | ro overlay       | ro (from parent) |
+| `~/.claude/settings.json` | —      | —      | ro overlay       | ro (from parent) |
+| `~/.claude/output-styles` | —      | —      | ro overlay       | ro (from parent) |
+| `~/.claude/projects`      | —      | —      | rw (from parent) | rw overlay       |
+| `/workspace/share`        | rw     | rw     | ro               | ro               |
+| `/workspace/ipc`          | rw     | rw     | rw               | rw               |
+| `/workspace/web`          | rw     | rw     | no               | no               |
+| `/workspace/self`         | ro     | no     | no               | no               |
+| `~/groups`                | rw     | no     | no               | no               |
 
 ## Agent env vars
 

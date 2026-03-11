@@ -8,16 +8,22 @@ description: Introspect this agent — workspace layout, skills, channels,
 
 ## Workspace layout
 
-| Path                      | Contents                                                | Access                                   |
-| ------------------------- | ------------------------------------------------------- | ---------------------------------------- |
-| `/workspace/self`         | kanipi source (canonical skills, changelog, migrations) | ro, tier 0 only                          |
-| `/home/node`              | home + cwd — group files, .claude/, diary, media        | rw (ro for tier 3, .claude/ overlay rw)  |
-| `/workspace/share`        | world-level shared memory                               | rw for tier 0/1, ro for tier 2/3         |
-| `/workspace/web`          | vite web app directory                                  | rw, tier 0/1 only                        |
-| `/workspace/ipc`          | gateway↔agent IPC (messages/, tasks/, input/)           | rw                                       |
-| `~/groups`                | all group folders (for migrate)                         | rw, tier 0 only                          |
-| `/workspace/extra/<name>` | operator-configured extra mounts                        | varies                                   |
-| `~/.claude`               | agent memory, skills, CLAUDE.md, sessions               | rw (ro for tier 2/3, memory/projects rw) |
+| Path                      | Contents                                                | Access                                 |
+| ------------------------- | ------------------------------------------------------- | -------------------------------------- |
+| `/workspace/self`         | kanipi source (canonical skills, changelog, migrations) | ro, tier 0 only                        |
+| `/home/node`              | home + cwd — group files, .claude/, diary, media        | rw (tier 2 rw, tier 3 ro)              |
+| `/workspace/share`        | world-level shared memory                               | rw for tier 0/1, ro for tier 2/3       |
+| `/workspace/web`          | vite web app directory                                  | rw, tier 0/1 only                      |
+| `/workspace/ipc`          | gateway↔agent IPC (messages/, tasks/, input/)           | rw                                     |
+| `~/groups`                | all group folders (for migrate)                         | rw, tier 0 only                        |
+| `/workspace/extra/<name>` | operator-configured extra mounts                        | varies                                 |
+| `~/.claude`               | agent memory, skills, CLAUDE.md, sessions               | rw for tier 0/1, setup ro for tier 2/3 |
+| `~/.claude/projects`      | session transcripts, memory                             | rw (all tiers)                         |
+
+Tier 2/3 setup files mounted ro: `CLAUDE.md`, `SOUL.md` (group root),
+`~/.claude/CLAUDE.md`, `~/.claude/skills`, `~/.claude/settings.json`,
+`~/.claude/output-styles`. Agent can write diary, media, facts (tier 2)
+but cannot modify its own instructions, skills, or settings.
 
 ## Skill seeding
 
@@ -59,12 +65,12 @@ A **world** is the first path segment of a group folder. All groups
 under the same world share `/workspace/share`. The world admin
 (tier 1) is the main group for that world.
 
-| Tier | Role        | Folder example    | Access                                 |
-| ---- | ----------- | ----------------- | -------------------------------------- |
-| 0    | root        | (system)          | Full system admin, runs migrations     |
-| 1    | world admin | `atlas`           | Manages child groups, rw group + share |
-| 2    | child       | `atlas/support`   | Limited write, skills mounted ro       |
-| 3    | grandchild+ | `atlas/ops/infra` | Most restricted, group folder ro       |
+| Tier | Role        | Folder example    | Access                                        |
+| ---- | ----------- | ----------------- | --------------------------------------------- |
+| 0    | root        | (system)          | Full system admin, runs migrations            |
+| 1    | world admin | `atlas`           | Manages child groups, rw group + share        |
+| 2    | child       | `atlas/support`   | Home rw, setup files ro, share ro             |
+| 3    | grandchild+ | `atlas/ops/infra` | Home ro, only ~/.claude/projects rw, share ro |
 
 ```bash
 echo "tier=$NANOCLAW_TIER"  # 0=root, 1=world, 2=child, 3=grandchild+

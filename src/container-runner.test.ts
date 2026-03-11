@@ -415,12 +415,21 @@ describe('unified home mount behavior', () => {
     );
     expect(roHome).toBe(true);
 
-    // .claude overlay should be RW (no :ro suffix)
-    const claudeMount = args.find(
-      (a) => typeof a === 'string' && a.includes('/home/node/.claude'),
+    // Only .claude/projects is RW (not all of .claude/)
+    const projectsMount = args.find(
+      (a) => typeof a === 'string' && a.includes('/home/node/.claude/projects'),
     );
-    expect(claudeMount).toBeDefined();
-    expect(claudeMount).not.toContain(':ro');
+    expect(projectsMount).toBeDefined();
+    expect(projectsMount).not.toContain(':ro');
+
+    // No full .claude/ RW mount
+    const fullClaudeMount = args.find(
+      (a) =>
+        typeof a === 'string' &&
+        a.includes('/home/node/.claude') &&
+        !a.includes('/home/node/.claude/projects'),
+    );
+    expect(fullClaudeMount).toBeUndefined();
 
     fakeProc.emit('close', 1);
     await vi.advanceTimersByTimeAsync(10);
