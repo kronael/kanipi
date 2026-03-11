@@ -51,6 +51,7 @@ The gateway injects group identity via `settings.json` env vars:
 | `NANOCLAW_TIER`           | `2`             | Permission tier (0-3)           |
 | `NANOCLAW_IS_ROOT`        | `1`             | Set if root group               |
 | `NANOCLAW_IS_WORLD_ADMIN` | `1`             | Set if tier 1 (world admin)     |
+| `NANOCLAW_CHAT_JID`       | `telegram:123`  | JID of the current chat session |
 
 ## Worlds and tiers
 

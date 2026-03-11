@@ -22,7 +22,6 @@ export interface ActionContext {
     jids: Set<string>,
   ): void;
   clearSession(folder: string): void;
-  getJidsForFolder(folder: string): string[];
   delegateToChild(
     childFolder: string,
     prompt: string,
