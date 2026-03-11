@@ -9,11 +9,22 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+---
+
+## [v1.2.0] — 2026-03-11
+
 ### Refactor
 
 - **Generic container commands**: renamed `runContainerAgent` → `runContainerCommand` with dual execution modes (agent ceremony vs raw bash). Removed `ENTRYPOINT` from Dockerfile; command is now supplied via docker args. Agent mode (default) includes full skill seeding, settings injection, session tracking. Raw mode skips ceremony, captures stdout as result.
 - **Media paths**: `mediaLine()` now embeds container-relative paths (`~/media/...`) instead of gateway-local absolute paths for better portability
 - **Config cleanup**: removed `HOST_PROJECT_ROOT_PATH` export (redundant alias; use `HOST_GROUPS_DIR`, `HOST_DATA_DIR`, `HOST_APP_DIR` directly)
+- **Code quality**: extracted `appendWithLimit()`, `updateSettings()`, `formatMount()` helpers in container-runner for cleaner code organization
+
+### Specs
+
+- `specs/3/J-container-commands.md`: shipped — generic container execution
+- `specs/3/4-paths.md`: shipped — explicit host path exports for DinD
+- 7 spec files updated to use `runContainerCommand` naming
 
 ---
 
