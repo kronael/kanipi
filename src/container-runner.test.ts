@@ -60,6 +60,7 @@ vi.mock('fs', async () => {
       readdirSync: vi.fn(() => []),
       statSync: vi.fn(() => ({ isDirectory: () => false })),
       copyFileSync: vi.fn(),
+      cpSync: vi.fn(),
     },
   };
 });
@@ -338,6 +339,153 @@ describe('volume mount paths for nested folders', () => {
     expect(homeMount).toContain('groups/atlas/support:/home/node');
 
     // Clean up
+    fakeProc.emit('close', 1);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+  });
+});
+
+describe('unified home mount behavior', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fakeProc = createFakeProcess();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function getAgentArgs(): Promise<string[]> {
+    const cp = await import('child_process');
+    const calls = vi.mocked(cp.spawn).mock.calls;
+    const agentCalls = calls.filter(
+      (c) =>
+        Array.isArray(c[1]) &&
+        c[1].some(
+          (a: string) => typeof a === 'string' && a.includes('nanoclaw-agent'),
+        ),
+    );
+    const last = agentCalls[agentCalls.length - 1];
+    return last ? (last[1] as string[]) : [];
+  }
+
+  it('mounts group folder as /home/node (not /workspace/group)', async () => {
+    const resultPromise = runContainerAgent(testGroup, testInput, () => {});
+    await vi.advanceTimersByTimeAsync(10);
+
+    const args = await getAgentArgs();
+    const homeMount = args.find(
+      (a) => typeof a === 'string' && a.includes(':/home/node'),
+    );
+    expect(homeMount).toBeDefined();
+    // No /workspace/group mount
+    const oldMount = args.find(
+      (a) => typeof a === 'string' && a.includes('/workspace/group'),
+    );
+    expect(oldMount).toBeUndefined();
+
+    fakeProc.emit('close', 1);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+  });
+
+  it('tier 3 group gets RO home with RW .claude overlay', async () => {
+    const tier3Group: GroupConfig = {
+      name: 'Deep Child',
+      folder: 'world/a/b/c',
+      added_at: new Date().toISOString(),
+    };
+
+    const resultPromise = runContainerAgent(
+      tier3Group,
+      { prompt: 'test', groupFolder: 'world/a/b/c', chatJid: 'test@g.us' },
+      () => {},
+    );
+    await vi.advanceTimersByTimeAsync(10);
+
+    const args = await getAgentArgs();
+
+    // Home mount should be read-only (tier 3)
+    const homeRelated = args.filter(
+      (a) => typeof a === 'string' && a.includes('/home/node'),
+    );
+    // At least one RO mount for /home/node and one RW for /home/node/.claude
+    const roHome = homeRelated.some(
+      (a) => a.includes(':/home/node:ro') || a.includes('/home/node,readonly'),
+    );
+    expect(roHome).toBe(true);
+
+    // .claude overlay should be RW (no :ro suffix)
+    const claudeMount = args.find(
+      (a) => typeof a === 'string' && a.includes('/home/node/.claude'),
+    );
+    expect(claudeMount).toBeDefined();
+    expect(claudeMount).not.toContain(':ro');
+
+    fakeProc.emit('close', 1);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+  });
+
+  it('root tier 0 gets ~/groups mount', async () => {
+    const rootGroup: GroupConfig = {
+      name: 'Root',
+      folder: 'main',
+      added_at: new Date().toISOString(),
+    };
+
+    const resultPromise = runContainerAgent(
+      rootGroup,
+      { prompt: 'test', groupFolder: 'main', chatJid: 'test@g.us' },
+      () => {},
+    );
+    await vi.advanceTimersByTimeAsync(10);
+
+    const args = await getAgentArgs();
+    const groupsMount = args.find(
+      (a) => typeof a === 'string' && a.includes(':/home/node/groups'),
+    );
+    expect(groupsMount).toBeDefined();
+
+    fakeProc.emit('close', 1);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+  });
+
+  it('seeds output-styles from source into .claude/', async () => {
+    const fs = await import('fs');
+    vi.mocked(fs.default.existsSync).mockImplementation((p) => {
+      const s = String(p);
+      if (s.includes('output-styles')) return true;
+      return false;
+    });
+
+    const resultPromise = runContainerAgent(testGroup, testInput, () => {});
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Verify cpSync was called for output-styles
+    expect(vi.mocked(fs.default.cpSync)).toHaveBeenCalledWith(
+      expect.stringContaining('output-styles'),
+      expect.stringContaining('.claude/output-styles'),
+      { recursive: true },
+    );
+
+    fakeProc.emit('close', 1);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+  });
+
+  it('no separate media mount (media inside home)', async () => {
+    const resultPromise = runContainerAgent(testGroup, testInput, () => {});
+    await vi.advanceTimersByTimeAsync(10);
+
+    const args = await getAgentArgs();
+    // No /workspace/media mount
+    const mediaMount = args.find(
+      (a) => typeof a === 'string' && a.includes('/workspace/media'),
+    );
+    expect(mediaMount).toBeUndefined();
+
     fakeProc.emit('close', 1);
     await vi.advanceTimersByTimeAsync(10);
     await resultPromise;

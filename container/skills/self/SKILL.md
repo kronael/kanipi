@@ -15,7 +15,7 @@ description: Introspect this agent — workspace layout, skills, channels,
 | `/workspace/share`        | world-level shared memory                               | rw for tier 0/1, ro for tier 2/3         |
 | `/workspace/web`          | vite web app directory                                  | rw, tier 0/1 only                        |
 | `/workspace/ipc`          | gateway↔agent IPC (messages/, tasks/, input/)           | rw                                       |
-| `/workspace/groups`       | all group folders (for migrate)                         | rw, tier 0 only                          |
+| `~/groups`                | all group folders (for migrate)                         | rw, tier 0 only                          |
 | `/workspace/extra/<name>` | operator-configured extra mounts                        | varies                                   |
 | `~/.claude`               | agent memory, skills, CLAUDE.md, sessions               | rw (ro for tier 2/3, memory/projects rw) |
 
@@ -148,7 +148,8 @@ Latest migration version: **22**. If version < 22: migrations pending.
 
 ### send_file usage
 
-Call `send_file` with the absolute path of any file under `/workspace`.
+Call `send_file` with the absolute path of any file under `/home/node`
+or `/workspace`.
 The gateway resolves the container path to the host and delivers it as a
 document attachment.
 

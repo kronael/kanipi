@@ -16,6 +16,6 @@ The group folder is mounted directly as the agent's home directory.
 - Scripts using `basename /workspace/group` should use `$NANOCLAW_GROUP_FOLDER`
 - Scripts using `/workspace/group/` paths should use relative paths or `/home/node/`
 - SOUL.md references: `~/.claude/SOUL.md` → just `SOUL.md`
-- Root migrate: `/workspace/data/sessions/` → `/workspace/groups/`
+- Root migrate: `/workspace/data/sessions/` → `~/groups/`
 
 No action required — paths are updated in skills automatically via migrate.

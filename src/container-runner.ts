@@ -255,6 +255,15 @@ function buildVolumeMounts(
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
 
+  // Seed output-styles every spawn so image updates take effect.
+  // These were baked into the image at /home/node/.claude/output-styles/
+  // but the bind mount hides image layers, so we copy from source.
+  const stylesSrc = path.join(APP_DIR, 'container', 'output-styles');
+  const stylesDst = path.join(claudeStateDir, 'output-styles');
+  if (fs.existsSync(stylesSrc)) {
+    fs.cpSync(stylesSrc, stylesDst, { recursive: true });
+  }
+
   const groupIpcDir = resolveGroupIpcPath(group.folder);
   for (const sub of ['messages', 'tasks', 'input', 'requests', 'replies']) {
     fs.mkdirSync(path.join(groupIpcDir, sub), { recursive: true });
@@ -294,7 +303,7 @@ function buildVolumeMounts(
   if (tier === 0) {
     mounts.push({
       hostPath: hostPath(GROUPS_DIR),
-      containerPath: '/workspace/groups',
+      containerPath: '/home/node/groups',
       readonly: false,
     });
   }
@@ -612,7 +621,6 @@ export async function runContainerAgent(
 
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
-  chownRecursive(groupDir, 1000, 1000);
 
   const mounts = buildVolumeMounts(group, input.delegateDepth);
 
