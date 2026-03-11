@@ -7,6 +7,22 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Removed
+
+- **Sidecar system**: removed MCP sidecar lifecycle management, types,
+  specs, and `sidecar/` directory (~850 lines). Whisper runs as a
+  standalone HTTP service, not a per-group sidecar. Isolated MCP
+  containers deferred to phase 3.
+
+### Specs
+
+- `specs/3/J-container-commands.md`: generic container command execution
+- `specs/4/G-instance-repos.md`: trimmed (refs section removed)
+
+---
+
 ## [v1.1.0] — 2026-03-11
 
 ### Breaking

@@ -109,17 +109,6 @@ vi.mock('child_process', async () => {
         return fakeProc;
       },
     ),
-    // Handle both exec(cmd, cb) and exec(cmd, opts, cb) call forms
-    exec: vi.fn(
-      (_cmd: string, optsOrCb: unknown, cb?: (err: Error | null) => void) => {
-        const callback =
-          typeof optsOrCb === 'function'
-            ? (optsOrCb as (err: Error | null) => void)
-            : cb;
-        if (callback) callback(null);
-        return new EventEmitter();
-      },
-    ),
   };
 });
 
