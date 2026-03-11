@@ -85,11 +85,9 @@ export function extFromMime(
 
 export function mediaLine(a: Attachment, localPath: string): string {
   // Extract container-relative path: ~/media/... instead of absolute path
-  // e.g. /srv/app/home/groups/atlas/media/20260311/1004/0.png → ~/media/20260311/1004/0.png
   // Agent containers mount group folder as /home/node/, so ~ resolves correctly
-  const mediaIndex = localPath.indexOf('/media/');
-  const containerPath =
-    mediaIndex >= 0 ? `~${localPath.slice(mediaIndex)}` : localPath;
+  const parts = localPath.split('/media/');
+  const containerPath = parts.length > 1 ? `~/media/${parts[1]}` : localPath;
   return `[media attached: ${containerPath}${a.mimeType ? ` (${a.mimeType})` : ''}]`;
 }
 
@@ -171,20 +169,17 @@ export function toAttachment(raw: RawAttachment): Attachment {
 
 /**
  * Wraps a channel downloader so it works with the Attachment pipeline.
- * Uses object identity to map each Attachment back to its RawAttachment.
+ * Uses index-based lookup to map each Attachment back to its RawAttachment.
  */
 export function makeDownloader(
   rawAttachments: RawAttachment[],
   rawDownload: AttachmentDownloader,
   attachments: Attachment[],
 ): Downloader {
-  const map = new Map<Attachment, RawAttachment>();
-  for (let i = 0; i < attachments.length; i++) {
-    map.set(attachments[i], rawAttachments[i]);
-  }
   return async (a: Attachment) => {
-    const raw = map.get(a);
-    if (!raw) throw new Error('mime: attachment not found in downloader map');
-    return rawDownload(raw, MEDIA_MAX_FILE_BYTES);
+    const idx = attachments.indexOf(a);
+    if (idx === -1)
+      throw new Error('mime: attachment not found in downloader map');
+    return rawDownload(rawAttachments[idx], MEDIA_MAX_FILE_BYTES);
   };
 }

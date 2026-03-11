@@ -20,7 +20,7 @@
         Kanipi is a multi-tenant gateway that routes messages from Telegram, Discord, WhatsApp, Email, and Web
         to containerized Claude Code agents. Each agent runs in Docker with full SDK access (subagents, tools, skills, MCP).
         The gateway handles routing, queueing, IPC, media processing, and memory injection. Agents are configurations, not code.
-        <strong>45 source files, 10,788 LOC. 39 test files, 11,680 LOC. 81 specs.</strong>
+        <strong>62 source files, 10,788 LOC. 37 test files, 11,680 LOC. 92 specs.</strong>
       </div>
     </div>
 
@@ -80,8 +80,8 @@ Channel (tg/discord/wa/email/web)
   Router  --------  JID -> group lookup, prompt assembly
     |                system messages, diary injection
     v
-  Container  -----  docker run, stdin pipe, mount workspace
-    |                /workspace/{group,share,web,ipc}
+  Container  -----  docker run, stdin pipe, unified home mount
+    |                groups/{folder}/ mounted as /home/node
     v
   Claude Code  ---  SDK: tools, subagents, skills, MCP
     |
@@ -176,25 +176,30 @@ Channel (tg/discord/wa/email/web)
       </p>
 
       <h3>Workspace mounts</h3>
+      <p style="font-size: 0.9em; color: var(--dim); margin-bottom: 0.5em;">
+        <strong>Unified home directory</strong>: groups/{folder}/ is mounted as /home/node (both cwd and HOME).
+        .claude/ state lives inside the group folder. Media paths use container-relative ~/media/... format.
+      </p>
       <div class="table-wrap">
         <table>
           <tr><th>Mount</th><th>Path</th><th>Access</th></tr>
-          <tr><td><code>self</code></td><td><code>/workspace/self</code></td><td>kanipi source (ro, root only)</td></tr>
-          <tr><td><code>group</code></td><td><code>/workspace/group</code></td><td>current group workdir (rw, ro for workers)</td></tr>
-          <tr><td><code>share</code></td><td><code>/workspace/share</code></td><td>world-level shared state (rw root/world, ro rest)</td></tr>
-          <tr><td><code>web</code></td><td><code>/workspace/web</code></td><td>vite-served output (rw, root/world only)</td></tr>
-          <tr><td><code>ipc</code></td><td><code>/workspace/ipc</code></td><td>IPC + session state (rw)</td></tr>
-          <tr><td><code>.claude</code></td><td><code>/home/node/.claude</code></td><td>CLAUDE.md, skills, memory (rw, ro for tier 2+)</td></tr>
-          <tr><td><code>extra</code></td><td><code>/workspace/extra/...</code></td><td>allowlisted additional mounts (ro)</td></tr>
+          <tr><td><code>home</code></td><td><code>/home/node</code></td><td>group workdir + .claude/ state (rw, ro setup files tier 2+, full ro tier 3)</td></tr>
+          <tr><td><code>groups</code></td><td><code>~/groups</code></td><td>all groups (root tier 0 only, for skill sync)</td></tr>
+          <tr><td><code>share</code></td><td><code>~/share</code></td><td>world-level shared state (rw root/world, ro rest)</td></tr>
+          <tr><td><code>web</code></td><td><code>~/web</code></td><td>vite-served output (rw root/world, ro rest)</td></tr>
+          <tr><td><code>ipc</code></td><td><code>~/ipc</code></td><td>IPC requests/responses (rw all tiers)</td></tr>
+          <tr><td><code>self</code></td><td><code>~/self</code></td><td>kanipi source (ro, root tier 0 only)</td></tr>
+          <tr><td><code>agent-runner</code></td><td><code>~/agent-runner</code></td><td>agent-runner TS source (ro, hot-patch via bunx tsc)</td></tr>
+          <tr><td><code>extra</code></td><td><code>~/{name}</code></td><td>allowlisted additional mounts (ro, configured per instance)</td></tr>
         </table>
       </div>
 
       <h3>Action registry</h3>
       <p>
         Agents request actions via IPC files. Gateway validates with Zod schemas and dispatches.
-        Domain handlers: messaging (<code>send_message</code>, <code>send_document</code>, <code>inject_message</code>),
+        Domain handlers: messaging (<code>send_message</code>, <code>send_file</code>, <code>inject_message</code>),
         tasks (<code>schedule_task</code>, <code>cancel_task</code>),
-        groups (<code>delegate_group</code>, <code>set_routing_rules</code>),
+        groups (<code>delegate_group</code>, <code>set_routing_rules</code>, <code>add_route</code>, <code>delete_route</code>),
         session (<code>reset_session</code>).
         Authorization enforced per action &mdash; agents can only act on their own group.
         <code>inject_message</code> inserts into DB without channel delivery (enables retry after OOM kills).
@@ -203,30 +208,46 @@ Channel (tg/discord/wa/email/web)
       <h3>4-tier permissions</h3>
       <div class="table-wrap">
         <table>
-          <tr><th>Tier</th><th>Folder</th><th>Access</th></tr>
-          <tr><td>0 (root)</td><td><code>main</code></td><td>full rw, <code>/workspace/self</code> visible</td></tr>
-          <tr><td>1 (world)</td><td><code>main/code</code></td><td>rw group + share, rw web</td></tr>
-          <tr><td>2 (agent)</td><td><code>main/code/py</code></td><td>rw workdir, ro setup files</td></tr>
-          <tr><td>3 (worker)</td><td>(deeper)</td><td>all ro</td></tr>
+          <tr><th>Tier</th><th>Folder pattern</th><th>Access</th></tr>
+          <tr><td>0 (root)</td><td><code>root</code>, <code>main</code></td><td>full rw, ~/self and ~/groups visible, can delegate to any world</td></tr>
+          <tr><td>1 (world)</td><td><code>{world}</code> (no /)</td><td>rw home/share/web, ro setup files, world-scoped delegation</td></tr>
+          <tr><td>2 (agent)</td><td><code>{world}/{name}</code></td><td>rw home + temp dirs, ro setup files (CLAUDE.md/SOUL.md/skills), world-scoped</td></tr>
+          <tr><td>3 (worker)</td><td><code>{world}/{a}/{b}/...</code></td><td>full ro home, rw overlays for .claude/projects + media + tmp only</td></tr>
         </table>
       </div>
       <p style="font-size: 0.9em; color: var(--dim);">
-        Tier derived from folder depth. Mount isolation varies: root/world get full rw;
-        agents get rw workdir with ro CLAUDE.md/skills; workers get everything ro.
+        Tier derived from folder depth (count / separators). Tier 2+ use overlay mounts for ro enforcement.
+        Tier 3 gets minimal rw overlays for SDK operation. Root world (tier 0) can delegate to any folder;
+        all others restricted to same-world descendants.
       </p>
 
       <h3>Skills and identity</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
-        Skills seeded from <code>container/skills/</code> to <code>~/.claude/skills/</code> on first spawn per group.
-        <code>SOUL.md</code> defines agent personality per group. <code>CLAUDE.md</code> defines behavior and instructions.
-        Migration system: <code>MIGRATION_VERSION</code> + numbered files in <code>migrations/</code>;
-        <code>/migrate</code> skill syncs groups when version advances.
+        Skills seeded from <code>container/skills/</code> to <code>.claude/skills/</code> inside the group folder
+        on first spawn. <code>SOUL.md</code> defines agent personality per group. <code>CLAUDE.md</code> defines
+        behavior and instructions. Migration system: <code>MIGRATION_VERSION</code> + numbered files in
+        <code>container/skills/self/migrations/</code>; <code>/migrate</code> skill syncs groups when version advances.
+      </p>
+
+      <h3>Generic container commands</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        <code>runContainerCommand</code> supports dual modes: agent mode (default, full SDK ceremony) and
+        raw mode (bash command, captures stdout). Raw mode used by task scheduler for git pulls and
+        maintenance scripts. Same sandbox, different command.
       </p>
 
       <h3>Hot-patching</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
         Agent-runner TypeScript source is mounted into containers and recompiled with <code>bunx tsc</code> at runtime.
         Changes to agent behavior deploy without rebuilding the container image.
+      </p>
+
+      <h3>DinD path translation</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        When gateway runs in Docker, <code>HOST_GROUPS_DIR</code>, <code>HOST_DATA_DIR</code>, and
+        <code>HOST_APP_DIR</code> env vars translate container-internal paths to host paths for child
+        container mounts. Set by entrypoint, consumed by container-runner. Bare metal deployments use
+        project-relative paths directly.
       </p>
 
       <h3>Error handling</h3>
@@ -311,9 +332,11 @@ Channel (tg/discord/wa/email/web)
       <h3>Hierarchical delegation</h3>
       <p>
         Parent groups delegate to children via routing rules. Five rule types:
-        command (prefix match), pattern (regex, max 200 chars), keyword (case-insensitive),
-        sender (regex), default (fallback). Rules evaluated in tier order; first match wins.
-        Delegation is parent-to-child only, same world, max depth 3.
+        <code>command</code> (prefix match), <code>pattern</code> (regex, max 200 chars),
+        <code>keyword</code> (case-insensitive), <code>sender</code> (regex match on sender name),
+        <code>trigger</code> (mention-based trigger mode), <code>default</code> (fallback).
+        Rules evaluated in type order; first match wins. Delegation is parent-to-child or
+        parent-to-self, same world (except tier 0 root can delegate anywhere), max chain depth 2.
       </p>
 
       <h3>Trigger mode</h3>
@@ -324,9 +347,9 @@ Channel (tg/discord/wa/email/web)
 
       <h3>CLI</h3>
 <pre style="font-size: 0.8em; padding: 0.8em; background: var(--surface, #1a1a2e); border-radius: 6px; color: var(--text, #e0e0e0); overflow-x: auto;">
-kanipi config &lt;instance&gt; group list              # registered + discovered
-kanipi config &lt;instance&gt; group add &lt;jid&gt; [folder] # register group
-kanipi config &lt;instance&gt; group rm  &lt;jid&gt;          # unregister
+kanipi config &lt;instance&gt; group list         # registered + discovered
+kanipi config &lt;instance&gt; group add [folder] # register group (folder only, no JID)
+kanipi config &lt;instance&gt; group rm  &lt;folder&gt; # unregister (folder stays on disk)
 kanipi config &lt;instance&gt; user  add|rm|list|passwd  # manage web auth
 kanipi config &lt;instance&gt; mount add|rm|list          # manage container mounts</pre>
     </section>
@@ -472,12 +495,14 @@ npm run dev</pre>
   .env                    # config (tokens, ports, flags)
   store/                  # SQLite DB, whatsapp auth
   groups/main/            # root group workdir
+    .claude/              # skills, projects, MEMORY.md
     logs/                 # conversation logs
     diary/                # agent daily notes
+    media/                # uploaded/generated files
+    tmp/                  # scratch space
     CLAUDE.md             # agent behavior
     SOUL.md               # agent personality
-  data/sessions/          # per-session state
-  data/ipc/               # agent IPC files
+  data/ipc/main/          # IPC requests/responses per group
   web/pub/                # public web (no auth)
   web/priv/               # private web (auth required)</pre>
 
@@ -549,11 +574,11 @@ sudo systemctl enable --now kanipi_foo</pre>
       <div class="table-wrap">
         <table>
           <tr><th>Metric</th><th>Value</th></tr>
-          <tr><td>Source files</td><td><span class="metric">45 TypeScript</span></td></tr>
+          <tr><td>Source files</td><td><span class="metric">62 TypeScript</span></td></tr>
           <tr><td>Source LOC</td><td><span class="metric">10,788</span></td></tr>
-          <tr><td>Test files</td><td>39 files &middot; 11,680 LOC</td></tr>
+          <tr><td>Test files</td><td>37 files &middot; 11,680 LOC</td></tr>
           <tr><td>Test:code ratio</td><td>1.08:1</td></tr>
-          <tr><td>Spec files</td><td>81 specification documents</td></tr>
+          <tr><td>Spec files</td><td>92 specification documents</td></tr>
           <tr><td>Tests</td><td>560</td></tr>
           <tr><td>Channels</td><td>Telegram, WhatsApp, Discord, Email, Web (Slink)</td></tr>
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
@@ -606,31 +631,38 @@ sudo systemctl enable --now kanipi_foo</pre>
         <p>
           Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.2.0.
           TypeScript (ESM, NodeNext). Routes messages from 5 channels to containerized Claude Code agents.
-          45 source files, 10,788 LOC + 39 test files, 11,680 LOC. 560 tests. 81 spec files.
+          62 source files, 10,788 LOC + 37 test files, 11,680 LOC. 560 tests. 92 spec files.
           Channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
           Web/Slink (HMAC JWT, SSE streaming, rate limiting, sloth.js widget).
           Architecture: Channel &rarr; SQLite DB &rarr; GroupQueue (per-group FIFO) &rarr; Router (JID &rarr; group, prompt assembly)
-          &rarr; Container (docker run, stdin pipe, workspace mounts) &rarr; Claude Code SDK (tools, subagents, skills, MCP)
+          &rarr; Container (docker run, stdin pipe, unified home mount at /home/node) &rarr; Claude Code SDK (tools, subagents, skills, MCP)
           &rarr; IPC (SIGUSR1 signal + file-based request/response) &rarr; Action Registry (Zod-validated, tier-authorized)
           &rarr; Channel (send text/files back).
-          4-tier permissions: root (tier 0), world (tier 1), agent (tier 2), worker (tier 3). Tier from folder depth.
-          Workspace: self (ro root-only), group (rw), share (rw/ro by tier), web (rw root/world), ipc (rw), .claude (rw/ro by tier).
+          Unified home: groups/{folder}/ mounted as /home/node (cwd + HOME). .claude/ state lives inside group folder.
+          4-tier permissions: root (tier 0, no /), world (tier 1, {world}), agent (tier 2, {world}/{name}), worker (tier 3, deeper).
+          Tier derived from folder depth (count / separators). Tier 2+ use overlay mounts for ro enforcement.
+          Mounts: home (/home/node, rw/ro by tier), groups (~/groups, root only), share (~/share, rw/ro by tier),
+          web (~/web, rw root/world), ipc (~/ipc, rw), self (~/self, ro root-only), agent-runner (~/agent-runner, ro, hot-patch source).
           Memory layers: messages (DB, stdin XML), session (SDK JSONL, --resume), managed (CLAUDE.md/MEMORY.md),
           diary (daily markdown, gateway injection of 2 most recent with relative time), facts (planned, MCP search),
           episodes (planned, diary aggregation).
           Config: .env + env vars. Channels enabled by token/config presence.
-          Groups: CLI registration, world-scoped authorization, hierarchical delegation (5 rule types, max depth 3),
-          trigger mode for non-root groups, multi-JID per folder.
-          Actions: messaging (send, inject), tasks (schedule/cancel), groups (delegate, routing rules), session (reset).
+          Groups: CLI registration (folder-only, no JID), world-scoped authorization, hierarchical delegation
+          (5 rule types: command/pattern/keyword/sender/trigger/default, max chain depth 2), trigger mode for non-root,
+          multi-JID per folder via routes table.
+          Actions: messaging (send_message, send_file, inject_message), tasks (schedule_task, cancel_task),
+          groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session).
+          Generic container commands: runContainerCommand dual mode (agent ceremony vs raw bash), used by scheduler for maintenance scripts.
           Media: whisper voice transcription (multi-language, per-group .whisper-language),
-          file sending (sendDocument, path-safe), file commands (/put /get /ls), magic bytes MIME detection,
-          .gateway-caps TOML introspection manifest.
-          Task scheduler: cron/interval/once, group or isolated context modes.
+          file sending (send_file action, path-safe), file commands (/put /get /ls), magic bytes MIME detection (file-type),
+          .gateway-caps TOML introspection manifest. Media paths use container-relative ~/media/... format.
+          Task scheduler: cron/interval/once, group or isolated context modes, optional command field for raw mode.
           Web: vite dev server, /pub/ (public) vs /priv/ (auth), argon2 + JWT auth.
           Error handling: circuit breaker (3 failures), session eviction, no auto-retry.
+          DinD path translation: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR env vars for docker-in-docker mounts.
           Hot-patching: agent-runner TS source mounted, bunx tsc at runtime.
-          Skills seeded from container/skills/ per group. SOUL.md for identity. Migration system.
-          Products are configurations: Atlas (code support), Yonder (research), Evangelist (planned).
+          Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. Migration system.
+          Products are configurations: Atlas (code support, shipped), Yonder (research, shipped), Evangelist (planned).
           Deploy: systemd per instance, kanipi CLI for create/config/run.
           Roadmap: v1m1 (facts, SSE, /work), v1m2 (message MCP, agent messaging), v2m1 (episodic memory, agent teams, feed adapters), v2m2 (Go rewrite).
         </p>
@@ -647,18 +679,21 @@ status: v1.2.0
 lang: typescript (esm, nodenext)
 channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
 config: .env + env vars, sqlite group state
-source: 45 files 10788 LOC, 39 test files 11680 LOC, 560 tests, 81 specs
-architecture: channel -> sqlite -> group-queue -> router -> container (docker) -> claude-code-sdk -> ipc (sigusr1+files) -> action-registry -> channel
-permissions: 4-tier (root/world/agent/worker), tier from folder depth, mount isolation
-workspace: self(ro root-only), group(rw), share(ro/rw by tier), web(rw root/world), ipc(rw), .claude(rw/ro by tier), extra(ro allowlisted)
-skills: container/skills/ seeded to ~/.claude/skills/ per group; SOUL.md for identity; migration system
+source: 62 files 10788 LOC, 37 test files 11680 LOC, 560 tests, 92 specs
+architecture: channel -> sqlite -> group-queue -> router -> container (docker, unified home /home/node) -> claude-code-sdk -> ipc (sigusr1+files) -> action-registry -> channel
+unified-home: groups/{folder}/ mounted as /home/node (cwd+HOME), .claude/ inside group folder, media paths ~/media/...
+permissions: 4-tier (root 0=no /, world 1={world}, agent 2={world}/{name}, worker 3=deeper), tier from / count, overlay mounts tier 2+
+mounts: home(/home/node rw/ro), groups(~/groups root-only), share(~/share rw/ro), web(~/web rw root/world), ipc(~/ipc rw), self(~/self ro root), agent-runner(~/agent-runner ro hot-patch)
+skills: container/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; migration system
 ipc: signal-driven (SIGUSR1), 500ms fallback, file-based request/response
-memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (shipped, gateway injection), facts (planned), episodes (planned)
-actions: messaging (send, inject), tasks (schedule/cancel), groups (delegate, routing-rules), session (reset) — Zod-validated, tier-based auth
-media: voice transcription (whisper, multi-language), file sending (sendDocument), file commands (/put /get /ls), magic bytes mime detection
+memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (shipped, 2 recent), facts (planned), episodes (planned)
+actions: messaging (send_message, send_file, inject_message), tasks (schedule_task, cancel_task), groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session) — Zod-validated, tier-based auth
+generic-commands: runContainerCommand dual mode (agent ceremony vs raw bash), scheduler uses for maintenance
+media: voice transcription (whisper, multi-language, .whisper-language per group), file sending (send_file action), file commands (/put /get /ls), magic bytes mime (file-type), .gateway-caps TOML, ~/media/... paths
 error-handling: circuit breaker (3 failures), session eviction, no auto-retry
+dind-paths: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR for docker-in-docker mount translation
 hot-patching: agent-runner TS mounted, bunx tsc at runtime
-groups: cli registration, world-scoped auth, hierarchical delegation (5 rule types, max depth 3), trigger mode, multi-jid per folder
+groups: cli registration (folder-only, no jid), world-scoped auth, hierarchical delegation (5 rule types: command/pattern/keyword/sender/trigger/default, max chain depth 2), trigger mode, multi-jid per folder via routes
 web: vite dev server, /pub/ public vs /priv/ auth, argon2+jwt, sloth.js widget
 products: atlas (code support, shipped), yonder (research, shipped), evangelist (planned)
 roadmap: v1m1 (facts, sse, work), v1m2 (message-mcp, agent-messaging), v2m1 (episodic, agent-teams, feed-adapters), v2m2 (go-rewrite)
