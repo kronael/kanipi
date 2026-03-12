@@ -224,11 +224,12 @@ but this is not the primary gate.
 - Sender must be an ancestor of the target folder
 - Enforced in `delegate_group` handler and `send_message` handler (target JID check)
 
-**Upward (escalation)** — `escalate_group` / `send_message` to `local:{parent}`:
+**Upward (escalation)** — `escalate_group` only:
 
 - Sender may only target its **direct parent** (one level up, no skipping)
 - Enforced in `escalate_group` handler (already checks `lastIndexOf('/')`)
-- `send_message` to a `local:` JID that is not direct parent → denied for tier 2/3
+- `send_message` **cannot target `local:` JIDs at all** — local: is internal plumbing,
+  not a channel. Only `escalate_group` and `delegate_group` produce `local:`-routed messages.
 
 **Tier 0/1 cannot escalate** — already enforced (no parent exists).
 
