@@ -151,8 +151,7 @@ export const delegateGroup: Action = {
   description: 'Delegate a prompt to a registered child group agent',
   input: DelegateGroupInput,
   async handler(raw, ctx) {
-    if (ctx.tier === 3)
-      throw new Error('unauthorized: workers cannot delegate');
+    if (ctx.tier >= 3) throw new Error('unauthorized: workers cannot delegate');
     const input = DelegateGroupInput.parse(raw);
     const depth = input.depth ?? 0;
 

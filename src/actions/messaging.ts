@@ -56,7 +56,7 @@ export const sendFile: Action = {
   description: 'Send a file to a channel',
   input: SendFileInput,
   async handler(raw, ctx) {
-    if (ctx.tier === 3)
+    if (ctx.tier >= 3)
       throw new Error('unauthorized: workers cannot send files');
     const input = SendFileInput.parse(raw);
     assertAuthorized(input.chatJid, ctx, 'send_file');

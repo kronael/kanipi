@@ -56,7 +56,7 @@ export const scheduleTask: Action = {
     if (!targetFolder) {
       throw new Error('target JID has no route');
     }
-    if (ctx.tier === 3) throw new Error('unauthorized');
+    if (ctx.tier >= 3) throw new Error('unauthorized');
     if (ctx.tier === 2 && targetFolder !== ctx.sourceGroup) {
       throw new Error('unauthorized');
     }
@@ -120,7 +120,7 @@ function taskAction(
     input: TaskIdInput,
     async handler(raw, ctx) {
       const { taskId } = TaskIdInput.parse(raw);
-      if (ctx.tier === 3) throw new Error('unauthorized');
+      if (ctx.tier >= 3) throw new Error('unauthorized');
       const task = getTaskById(taskId);
       if (!task) throw new Error('unauthorized');
       if (ctx.tier === 2 && task.group_folder !== ctx.sourceGroup) {
