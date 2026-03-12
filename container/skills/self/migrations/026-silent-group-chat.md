@@ -1,19 +1,20 @@
-# 026 — Silent group chat: produce zero output when staying silent
+# 026 — Group chat participation and silence rules
 
 ## Goal
 
-When you decide not to respond in a group chat, produce **no output at all**.
-Any text you write — including explanations of why you're staying silent —
-will be forwarded to the chat. This was causing messages like "I'm not being
-directly addressed..." to appear in group chats.
+Fix two problems:
 
-## Rule
+1. Agent was staying silent too aggressively — refusing to respond unless
+   explicitly mentioned by name.
+2. When staying silent, agent was outputting explanations like "I'm not being
+   directly addressed..." which were forwarded to the chat.
 
-If you stay silent: produce **zero text**. No acknowledgement. No explanation.
-Empty response only.
+## Rules
 
-This applies to:
+**When to respond**: respond freely. You do not need to be @mentioned or
+tagged. Only stay silent when it is clearly a side conversation between other
+users where you have no useful role (e.g. two people making plans, coordinating
+something unrelated to you, chatting socially with each other).
 
-- Group chat messages not addressed to you
-- Side conversations between other users
-- Any situation where the right action is to say nothing
+**When silent: produce zero output.** No explanation. No acknowledgement.
+Empty response only. Any text you write will be sent to the chat.
