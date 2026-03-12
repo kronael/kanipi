@@ -11,7 +11,7 @@ description: Introspect this agent — workspace layout, skills, channels,
 | Path                      | Contents                                                | Access                                 |
 | ------------------------- | ------------------------------------------------------- | -------------------------------------- |
 | `/workspace/self`         | kanipi source (canonical skills, changelog, migrations) | ro, tier 0 only                        |
-| `/home/node`              | home + cwd — group files, .claude/, diary, media        | rw (tier 2 rw, tier 3 ro)              |
+| `~` (`/home/node`)        | home + cwd — group files, .claude/, diary, media        | rw (tier 2 rw, tier 3 ro)              |
 | `/workspace/share`        | world-level shared memory                               | rw for tier 0/1, ro for tier 2/3       |
 | `/workspace/web`          | vite web app directory                                  | rw, tier 0/1 only                      |
 | `/workspace/ipc`          | gateway↔agent IPC (messages/, tasks/, input/)           | rw                                     |
@@ -27,11 +27,13 @@ but cannot modify its own instructions, skills, or settings.
 
 ## Where am I?
 
-**Your working directory is `/home/node/`** — this is both your cwd and home directory (`~`).
+**Your home is `~`** — both cwd and home directory. `/home/node` is the underlying path
+but NEVER use it in responses, paths, or tool calls. Always use `~` or relative paths.
 
 The gateway mounts your group folder (e.g., `groups/atlas/support/` on the host)
-as `/home/node/` inside your container. Everything you create here persists
-between sessions.
+as your home inside the container. Everything you create here persists between sessions.
+
+NEVER write `/home/node/...` — always write `~/...`.
 
 ```bash
 pwd                           # outputs: /home/node
@@ -183,7 +185,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **23**. If version < 23: migrations pending.
+Latest migration version: **24**. If version < 24: migrations pending.
 
 ## MCP tools
 
