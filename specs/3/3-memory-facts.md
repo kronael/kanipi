@@ -19,15 +19,16 @@ groups/<folder>/facts/
 ## How retrieval works
 
 Every fact file has a dense `header:` in its YAML frontmatter — a
-one-paragraph summary of the full file. The agent greps headers across
-all fact files to find relevant knowledge without reading everything:
+one-paragraph summary of the full file. The agent greps headers with
+context to read all summaries in one shot:
 
 ```
-Grep("header:", "facts/")
+Grep("header:", "facts/", -A 4)
 ```
 
-Matching headers → read those files in full. No match → run `/facts`
-to research and create new knowledge.
+`header:` is a multi-line YAML block scalar; `-A 4` captures the text
+lines that follow. Matching headers → read those files in full.
+No match → run `/facts` to research and create new knowledge.
 
 A fact is fresh if `verified_at` is within 14 days. Older facts are
 starting points for refresh, not discards.
