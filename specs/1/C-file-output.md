@@ -23,14 +23,9 @@ agent manages its own workspace.
 
 ### Gateway side
 
-IPC message type `file` in `src/ipc.ts`:
-
-```ts
-{ type: 'file', chatJid, filepath, filename?, groupFolder, timestamp }
-```
-
-Path safety: container path `/home/node/X/...` is resolved to host
-`GROUPS_DIR/X/...`. Paths that escape `GROUPS_DIR` are blocked.
+Agent calls the `send_file` MCP action via request-response IPC.
+Gateway translates `~/...` paths from the container to host `GROUPS_DIR/<group>/...`.
+Paths that escape `GROUPS_DIR` are blocked with an error reply.
 
 `Channel` interface has an optional `sendDocument?` method. Channels that
 don't implement it log a warning and skip silently.

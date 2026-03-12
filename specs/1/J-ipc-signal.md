@@ -110,21 +110,10 @@ containers with old gateway just fall back to polling.
 
 ## Gateway side: inotify for agent→gateway
 
-The gateway runs on the host (not in Docker), so inotify
-works. Replace polling of `messages/` dir with `fs.watch()`:
-
-```typescript
-// ipc.ts — watch for agent-written outbound messages
-fs.watch(messagesDir, (event, filename) => {
-  if (event === 'rename' && filename?.endsWith('.json')) {
-    processOutboundMessage(path.join(messagesDir, filename));
-  }
-});
-```
-
-Node's `fs.watch()` uses inotify on Linux. Zero latency,
-no CPU waste. The current 1000ms `IPC_POLL_INTERVAL` loop
-in ipc.ts becomes unnecessary.
+The gateway uses `fs.watch()` on the `requests/` dir.
+Node's `fs.watch()` uses inotify on Linux — zero latency,
+no CPU waste. A poll loop for new group folders is still
+used as fallback (`IPC_POLL_INTERVAL`).
 
 Same for watching `tasks/` responses if needed.
 

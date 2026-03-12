@@ -141,14 +141,13 @@ SIGUSR1. Agent polls on signal + 500ms fallback.
 
 ## IPC files -- agent-to-gateway -- shipped
 
-Agent writes to `/workspace/ipc/messages/` and
-`/workspace/ipc/tasks/`. Gateway watches via `fs.watch`.
+Agent writes to `/workspace/ipc/requests/`, reads replies from
+`/workspace/ipc/replies/`. Gateway watches via `fs.watch`.
 
-Message: `{ "type": "message", "chatJid": "...", "text": "..." }`
-File: `{ "type": "file", "chatJid": "...", "filepath": "...", "filename": "..." }`
-Task: `{ "type": "schedule_task", "targetJid": "...", ... }`
+Request: `{ "id": "...", "type": "action_name", ...params }`
+Reply: `{ "id": "...", "ok": true, "result": ... }` or `{ "ok": false, "error": "..." }`
 
-`filepath` must be under `/home/node/`.
+`filepath` in `send_file` must be under `~/`.
 
 ## System context injection -- shipped
 

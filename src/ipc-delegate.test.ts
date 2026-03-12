@@ -374,23 +374,14 @@ describe('DB-backed routing — live reads', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Full drain pipeline: legacy messages + requests in one _drainGroup pass
+// Full drain pipeline: _drainGroup drains requests
 // Real fs + real DB; only container boundary mocked
 // ---------------------------------------------------------------------------
 
 describe('full drain pipeline (_drainGroup)', () => {
-  it('processes legacy message and request in single drain pass', async () => {
+  it('processes request in drain pass', async () => {
     _setTestGroupRoute('root@g.us', ROOT);
 
-    // Write a legacy message IPC file
-    const messagesDir = path.join(tmpDir, 'root', 'messages');
-    fs.mkdirSync(messagesDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(messagesDir, 'msg-1.json'),
-      JSON.stringify({ type: 'message', chatJid: 'root@g.us', text: 'hello' }),
-    );
-
-    // Write a request IPC file
     writeRequest('root', {
       id: 'req-drain',
       type: 'delegate_group',
@@ -401,12 +392,6 @@ describe('full drain pipeline (_drainGroup)', () => {
 
     await _drainGroup(tmpDir, 'root', deps);
 
-    // Legacy message path: sendMessage called
-    expect(deps.sendMessage).toHaveBeenCalledWith('root@g.us', 'hello');
-    // Legacy message file deleted
-    expect(fs.existsSync(path.join(messagesDir, 'msg-1.json'))).toBe(false);
-
-    // Request path: reply written
     const reply = readReply('root', 'req-drain');
     expect(reply).not.toBeNull();
     expect(reply!.ok).toBe(true);

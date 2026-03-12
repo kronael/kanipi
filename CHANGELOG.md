@@ -9,28 +9,65 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Removed
+
+- **Legacy IPC**: removed `drainLegacyMessages` and `drainLegacyTasks` — the
+  `messages/` and `tasks/` IPC directories are no longer watched or drained.
+  All agent→gateway IPC goes through `requests/` (request-response). No agent
+  has written to the legacy dirs since v0.5.0.
+
+### Fixed
+
+- **Tier denial checks**: `ctx.tier === 3` → `ctx.tier >= 3` across all action
+  handlers (delegate_group, send_file, schedule_task, pause/resume/cancel_task).
+  Tier 4+ is impossible (permissionTier clamps at 3) but the comparison is now
+  semantically correct.
+
 ---
 
 ## [v1.2.2] — 2026-03-12
 
+### Removed
+
+- **Trigger pattern system**: `TRIGGER_PATTERN`, `requires_trigger`, per-JID
+  trigger prefixing fully removed. Routing handles everything — triggers were
+  redundant and caused message content mutation (auto-prefixing `@name`).
+  `getJidsThatNeedTrigger()` removed from db.ts; trigger blocks removed from
+  message loop. Agent-side trigger mentions removed from container CLAUDE.md.
+
 ### Fixed
 
-- **send_file error**: Improved error message when agent tries to send a file outside `~/` — now tells the agent to save under `~/` or use `~/tmp/` first.
-- **send_file test**: Updated assertion to match new error message.
+- **send_file path**: `send_file` now expands `~/` before path translation so
+  agents can use `~/...` paths (previously only absolute paths worked).
+- **send_file error**: improved error message — tells agent to save under `~/`
+  or use `~/tmp/` for temp files that need to be sent.
+- **IDLE_TIMEOUT**: reduced from 5.5 min to 1 min — active agents reset the
+  timer on every output chunk anyway, so the hard timeout only matters for
+  truly hung containers.
 
 ### Added
 
-- **~/tmp guidance**: Documented `~/tmp/` as the standard location for temporary files that may need to be sent. Added to `container/CLAUDE.md`, agent `SKILL.md` (self), and migration 025.
-- **Migration 025**: Agents learn to use `~/tmp/` for temporary files; `send_file` requires paths under `~/`.
+- **`containers wipe` CLI**: `kanipi config <instance> containers wipe` force-
+  stops all running nanoclaw containers. Containers self-destruct on exit
+  (`--rm`) so this is only needed after abnormal gateway stops.
+- **Errored chat skip**: chats flagged as errored are skipped in the message
+  loop until the user sends a new message, preventing retry churn on broken
+  sessions.
+- **~/tmp guidance**: documented `~/tmp/` as standard location for temporary
+  files. Added to `container/CLAUDE.md`, self skill, migration 025.
+- **Migration 024**: agents use `~` not `/home/node/` in all paths and outputs.
+- **Migration 025**: `~/tmp/` for temp files; `send_file` requires `~/` paths.
 
 ### Changed
 
-- **Container persistence**: Containers no longer wiped on gateway restart — use `kanipi containers wipe` CLI for manual cleanup.
-- **Tier naming**: Renamed `minTier` → `maxTier` (tier 0 is most privileged; field was semantically inverted).
-- **~ path handling**: `send_file` now expands `~` before path translation so agents can use `~/...` paths correctly.
-- **Error recovery**: Errored chats are skipped in the message loop until the user sends a new message.
-- **Group depth**: `register_group` now rejects folders deeper than 3 levels.
-- Self skill migration version: 24 → 25
+- **Container persistence**: containers no longer wiped on gateway restart —
+  they self-destruct via `--rm`. Use `containers wipe` for manual cleanup.
+- **Tier naming**: `minTier` → `maxTier` on actions (tier 0 is most privileged;
+  field was semantically inverted).
+- **Group depth**: `register_group` rejects folders deeper than 3 levels.
+- **Permissions spec**: fully rewritten — tier model, mount table, gap audit,
+  delegate/escalate rules, no-parent escalation error documented.
+- Self skill migration version: 23 → 25
 
 ---
 

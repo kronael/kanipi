@@ -98,7 +98,7 @@ Remove from interface.
 
 ## Priority order
 
-1. Dead modules (impulse, legacy IPC) — safe, no dependents
+1. Dead modules (impulse) — safe, no dependents; legacy IPC shipped
 2. container/CLAUDE.md trim — immediate agent quality win
 3. Test consolidation — biggest line savings, improves DX
 4. Test-only exports — cleaner production surface
