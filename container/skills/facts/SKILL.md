@@ -13,16 +13,10 @@ facts/ is your knowledge base. Use it for both retrieval and creation.
 
 ## Retrieval first
 
-Before researching anything, scan what you already know:
-
-```
-Grep("header:", "facts/", -A 4)
-```
-
-This returns the `header:` line plus 4 lines of content for every fact
-file — enough to read all summaries in one shot. The `header:` field is
-a multi-line YAML block scalar; the actual text is on the indented lines
-after `header: >`. Read the full file only for entries that look relevant.
+Before researching anything, spawn an Explore subagent to scan `facts/`.
+Each file has a `header:` in its YAML frontmatter — a dense one-paragraph
+summary of the full file's content. The Explore agent reads headers across
+all files and returns relevant ones without loading everything.
 
 A fact is fresh enough to trust if `verified_at` is within 14 days.
 If the matching fact is older than 14 days, treat it as a starting
