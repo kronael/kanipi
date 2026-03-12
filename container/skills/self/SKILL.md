@@ -48,6 +48,7 @@ echo $NANOCLAW_TIER           # outputs: 2 (your permission tier)
 - `~/media/` — message attachments (images, audio, etc.)
 - `~/logs/` — container logs
 - `~/.claude/` — SDK state, skills, sessions, memory
+- `~/tmp/` — temporary working files; use this for intermediate outputs you may want to send
 
 **Child groups:**
 
@@ -185,7 +186,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **24**. If version < 24: migrations pending.
+Latest migration version: **25**. If version < 25: migrations pending.
 
 ## MCP tools
 
@@ -208,8 +209,10 @@ Latest migration version: **24**. If version < 24: migrations pending.
 
 ### send_file usage
 
-Call `send_file` with the absolute path of any file under `/home/node`
-or `/workspace`.
+Call `send_file` with a path under `~/` (e.g. `~/tmp/report.pdf`).
+Files must be under `~/` to be sendable — container-local paths like `/tmp/`
+are not accessible to the gateway and will be rejected.
+Use `~/tmp/` for temporary files that need to be sent.
 The gateway resolves the container path to the host and delivers it as a
 document attachment.
 

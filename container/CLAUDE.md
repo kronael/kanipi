@@ -126,6 +126,7 @@ NEVER describe or inline file contents in your text response.
 
 Call `send_file` with the path of any file under `~` or `/workspace`.
 NEVER use `/home/node/...` in paths or responses — always use `~/...`.
+Use ~/tmp/ for temporary files — /tmp/ is container-local and files there cannot be sent.
 Do NOT send a follow-up text message describing what you sent — the
 file speaks for itself. Only add text if there's something to explain
 beyond what the file shows.
