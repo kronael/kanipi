@@ -281,6 +281,29 @@ On next session spawn, the new MCP tools will be available as
 SDK hooks (PreCompact, PreToolUse) cannot be added by the agent.
 These are hardcoded in the agent-runner.
 
+## Delegation and escalation
+
+**Delegation (downward)** — parent to child:
+
+- Parent calls `delegate_group(group, prompt, chatJid)`
+- Gateway wraps prompt: `<delegated_by group="parent">...prompt...</delegated_by>`
+- Child handles it and replies directly to `chatJid`
+- Child knows it's delegated via `NANOCLAW_DELEGATE_DEPTH > 0` env var
+
+**Escalation (upward)** — child to parent:
+
+- Worker calls `escalate_group(prompt, chatJid)` to send to direct parent
+- Gateway runs parent with `chatJid = local:{worker_folder}`
+- Parent's reply routes back to worker as a new message (via `local:` JID)
+- Worker gets fresh turn with parent's answer in context, replies to original user
+- NOTE: spec confirmed (3/5) but `local:` JID routing not yet implemented
+
+**`send_reply` vs `send_message`**:
+
+- `send_reply(text)` — reply to the current bound conversation (spec: 3/L, not yet implemented)
+- `send_message(jid, text)` — send to a different chat/group (authorized, cross-chat only)
+- `send_message` cannot target `local:` JIDs — internal plumbing only
+
 ## Root group only
 
 ```bash
