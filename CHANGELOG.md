@@ -9,6 +9,12 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Silent group chat**: agents no longer output "I'm not being addressed..."
+  text when staying silent in group chats. CLAUDE.md now explicitly requires
+  zero output when silent — any text is forwarded to the chat. Migration 026.
+
 ### Removed
 
 - **Legacy IPC**: removed `drainLegacyMessages` and `drainLegacyTasks` — the
