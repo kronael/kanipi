@@ -393,11 +393,7 @@ export class TelegramChannel implements Channel {
     });
   }
 
-  async sendMessage(
-    jid: string,
-    text: string,
-    _opts?: SendOpts,
-  ): Promise<void> {
+  async sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void> {
     if (!this.bot) {
       logger.warn('Telegram bot not initialized');
       return;
@@ -405,6 +401,9 @@ export class TelegramChannel implements Channel {
 
     try {
       const numericId = jid.replace(/^telegram:/, '');
+      const replyParams = opts?.replyTo
+        ? { reply_parameters: { message_id: Number(opts.replyTo) } }
+        : {};
 
       // Telegram has a 4096 character limit per message — split if needed
       const html = mdToHtml(text);
@@ -414,6 +413,7 @@ export class TelegramChannel implements Channel {
         try {
           await this.bot.api.sendMessage(numericId, chunk, {
             parse_mode: 'HTML',
+            ...replyParams,
           });
         } catch (htmlErr: any) {
           // Telegram rejects malformed HTML (e.g. underscore inside <code> treated
@@ -426,6 +426,9 @@ export class TelegramChannel implements Channel {
             await this.bot.api.sendMessage(
               numericId,
               text.slice(i, i + MAX_LENGTH),
+              {
+                ...replyParams,
+              },
             );
           } else {
             throw htmlErr;
