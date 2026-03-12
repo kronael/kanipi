@@ -46,6 +46,39 @@ function readEnvValue(envPath: string, key: string): string | undefined {
   return undefined;
 }
 
+// --- container commands ---
+
+import { execFileSync } from 'child_process';
+
+const DOCKER = process.env.CONTAINER_RUNTIME_BIN || 'docker';
+
+function containersWipe(instance: string): void {
+  let names: string[] = [];
+  try {
+    const out = execFileSync(
+      DOCKER,
+      ['ps', '--filter=name=nanoclaw-', '--format', '{{.Names}}'],
+      { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
+    );
+    names = out.trim().split('\n').filter(Boolean);
+  } catch (err) {
+    console.error('Failed to list containers:', err);
+    process.exit(1);
+  }
+  if (names.length === 0) {
+    console.log(`${instance}: no running nanoclaw containers`);
+    return;
+  }
+  for (const name of names) {
+    try {
+      execFileSync(DOCKER, ['stop', name], { stdio: 'pipe' });
+      console.log(`stopped: ${name}`);
+    } catch {
+      console.log(`already stopped: ${name}`);
+    }
+  }
+}
+
 // --- group commands ---
 
 interface GroupRow {
@@ -730,6 +763,7 @@ function printUsage(): void {
   console.log('       kanipi config <instance> group list');
   console.log('       kanipi config <instance> user {list|add|rm|passwd} ...');
   console.log('       kanipi config <instance> mount {list|add|rm} ...');
+  console.log('       kanipi config <instance> containers wipe');
 }
 
 function handleConfig(args: string[]): void {
@@ -800,8 +834,20 @@ function handleConfig(args: string[]): void {
           process.exit(1);
       }
       break;
+    case 'containers':
+      switch (action) {
+        case 'wipe':
+          containersWipe(instance);
+          break;
+        default:
+          console.error('usage: kanipi config <instance> containers wipe');
+          process.exit(1);
+      }
+      break;
     default:
-      console.error('usage: kanipi config <instance> {group|user|mount} ...');
+      console.error(
+        'usage: kanipi config <instance> {group|user|mount|containers} ...',
+      );
       process.exit(1);
   }
 }
