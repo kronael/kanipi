@@ -289,77 +289,17 @@ describe('drainRequests — reply atomicity', () => {
   });
 });
 
-// ── _drainGroup: full pipeline (legacy + requests) ────────────────────────────
+// ── _drainGroup: full pipeline ────────────────────────────────────────────────
 
 describe('_drainGroup — full IPC pipeline with real fs', () => {
-  it('drains legacy message file and calls sendMessage', async () => {
+  it('drains request and writes reply', async () => {
     const deps = makeDeps();
-
-    // Write a legacy IPC message
-    const msgDir = path.join(ipcDir, 'main', 'messages');
-    fs.mkdirSync(msgDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(msgDir, 'msg-001.json'),
-      JSON.stringify({ type: 'message', chatJid: MAIN_JID, text: 'legacy hi' }),
-    );
-
-    await _drainGroup(ipcDir, 'main', deps);
-
-    expect(deps.sendMessage).toHaveBeenCalledWith(MAIN_JID, 'legacy hi');
-    // File consumed
-    expect(listDir(msgDir)).toHaveLength(0);
-  });
-
-  it('drains legacy message and request in same sweep', async () => {
-    const deps = makeDeps();
-
-    const msgDir = path.join(ipcDir, 'main', 'messages');
-    fs.mkdirSync(msgDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(msgDir, 'msg-002.json'),
-      JSON.stringify({ type: 'message', chatJid: MAIN_JID, text: 'sweep me' }),
-    );
-
     const id = writeRequest('main', { type: 'reset_session' });
 
     await _drainGroup(ipcDir, 'main', deps);
 
-    expect(deps.sendMessage).toHaveBeenCalledWith(MAIN_JID, 'sweep me');
     const reply = readReply('main', id);
     expect(reply.ok).toBe(true);
-  });
-
-  it('unauthorized legacy message is blocked (non-root group)', async () => {
-    // Create a child group that only owns its own folder
-    const childJid = 'child@g.us';
-    const deps = makeDeps({
-      getDefaultTarget: (jid: string) => {
-        if (jid === MAIN_JID) return MAIN_GROUP.folder;
-        if (jid === childJid) return 'main/child';
-        return null;
-      },
-      getJidsForFolder: (folder: string) => {
-        if (folder === MAIN_GROUP.folder) return [MAIN_JID];
-        if (folder === 'main/child') return [childJid];
-        return [];
-      },
-      getRoutedJids: () => [MAIN_JID, childJid],
-    });
-
-    const msgDir = path.join(ipcDir, 'main/child', 'messages');
-    fs.mkdirSync(msgDir, { recursive: true });
-    // Child tries to send to main group JID — this is unauthorized
-    // because the child's folder ('main/child') !== MAIN_GROUP.folder ('main')
-    fs.writeFileSync(
-      path.join(msgDir, 'msg-unauth.json'),
-      JSON.stringify({ type: 'message', chatJid: MAIN_JID, text: 'sneaky' }),
-    );
-
-    await _drainGroup(ipcDir, 'main/child', deps);
-
-    expect(deps.sendMessage).not.toHaveBeenCalled();
-    // File still consumed (not left in queue to retry indefinitely)
-    expect(listDir(msgDir)).toHaveLength(0);
   });
 });
 

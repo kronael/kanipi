@@ -9,25 +9,37 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
-### Fixed
+---
 
-- **Silent group chat**: agents no longer output "I'm not being addressed..."
-  text when staying silent in group chats. CLAUDE.md now explicitly requires
-  zero output when silent — any text is forwarded to the chat. Migration 026.
+## [v1.3.0] — 2026-03-12
 
 ### Removed
 
 - **Legacy IPC**: removed `drainLegacyMessages` and `drainLegacyTasks` — the
   `messages/` and `tasks/` IPC directories are no longer watched or drained.
   All agent→gateway IPC goes through `requests/` (request-response). No agent
-  has written to the legacy dirs since v0.5.0.
+  has written to the legacy dirs since v0.5.0. Tests updated.
 
 ### Fixed
 
 - **Tier denial checks**: `ctx.tier === 3` → `ctx.tier >= 3` across all action
   handlers (delegate_group, send_file, schedule_task, pause/resume/cancel_task).
-  Tier 4+ is impossible (permissionTier clamps at 3) but the comparison is now
-  semantically correct.
+- **Silent group chat**: agents no longer output "I'm not being addressed..."
+  when staying silent. CLAUDE.md requires zero output when silent.
+- **Group chat participation**: relaxed silence rule — respond freely, only
+  stay silent when it's clearly a side conversation between other users.
+- **Group chat addressing**: agents now `@mention` the user they're replying
+  to in group chats instead of broadcasting plain messages.
+
+### Docs
+
+- Skills trimmed: diary, hello, howto, migrate, research, web — removed fluff,
+  kept essential commands and useful examples.
+
+### Agent
+
+- Migration 026: group chat silence and participation rules.
+- Self skill migration version: 25 → 26.
 
 ---
 

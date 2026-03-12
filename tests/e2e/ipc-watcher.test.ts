@@ -206,31 +206,26 @@ describe('startIpcWatcher — poll-based group discovery', () => {
 
 describe('startIpcWatcher — drain concurrency lock', () => {
   it('concurrent _drainGroup calls for same group are serialized by lock', async () => {
-    const deps = makeDeps({
-      sendMessage: vi.fn().mockImplementation(async () => {
-        await new Promise((r) => setTimeout(r, 10));
-      }),
-    });
+    const deps = makeDeps();
+    const { _drainGroup, drainRequests } = await import('../../src/ipc.js');
 
-    // Write a legacy message so drain calls sendMessage
-    const msgDir = path.join(ipcDir, 'main', 'messages');
-    fs.mkdirSync(msgDir, { recursive: true });
+    // Write one request — second concurrent drain should not process it again
+    const reqDir = path.join(ipcDir, 'main', 'requests');
+    fs.mkdirSync(reqDir, { recursive: true });
     fs.writeFileSync(
-      path.join(msgDir, 'msg1.json'),
-      JSON.stringify({ type: 'message', chatJid: MAIN_JID, text: 'a' }),
+      path.join(reqDir, 'req1.json'),
+      JSON.stringify({ id: 'lock-test', type: 'reset_session' }),
     );
 
-    const { _drainGroup } = await import('../../src/ipc.js');
-
-    // Fire two concurrent drains for the same group
+    // Fire two concurrent drains
     const p1 = _drainGroup(ipcDir, 'main', deps as never);
     const p2 = _drainGroup(ipcDir, 'main', deps as never);
-
-    // Advance timers to let the sendMessage timeout resolve
-    await vi.advanceTimersByTimeAsync(20);
     await Promise.all([p1, p2]);
 
-    // Lock prevents concurrent execution — sendMessage called at most once
-    expect(deps.sendMessage).toHaveBeenCalledTimes(1);
+    // Lock ensures only one drain ran — request consumed exactly once
+    const repliesDir = path.join(ipcDir, 'main', 'replies');
+    const replies = fs.existsSync(repliesDir) ? fs.readdirSync(repliesDir) : [];
+    expect(replies).toHaveLength(1);
+    void drainRequests; // used in import
   });
 });
