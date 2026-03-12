@@ -1,6 +1,6 @@
 # Memory: Session
 
-**Status**: partial
+**Status**: shipped
 
 SDK session continuity across container invocations.
 
@@ -105,13 +105,23 @@ Observed on live 4-day session (rhias, session 58f49dbe):
 - No fallback on crash/timeout — all context lost
 - SDK resume failure handling is urgent
 
-## Open
+## Shipped
 
-1. Gateway error handling on `status: error` — clear
-   stored session ID, notify user to retry
-2. Session ID history injection — store last 3 in DB
-3. Agent skills — document session layout in SKILL.md
-4. `sessions` table collapse into
-   `registered_groups.session_id`
-5. `reset_session` IPC — specced in `commands.md`
-6. `/new` detection — specced in `commands.md`
+1. Error handling: session evicted when `status: error` and no progress (index.ts)
+2. Last 3 session IDs injected in `<previous_session>` on new session
+3. `reset_session` action in `src/actions/session.ts`
+4. `/new` command with `@<folder>` targeting: `/new @root` clears root's session
+
+## `/new` routing
+
+`/new [@<folder>] [message]` — optional explicit group target. If `@<folder>` is
+provided and exists, that group's session is cleared instead of the default routing
+group. Remaining args become the first message in the new session.
+
+Example: `/new @root please summarize the last week` resets root's session and
+sends the message as the first prompt.
+
+## Deferred
+
+- Sessions table collapse into `registered_groups.session_id` (cleanup only)
+- Agent SKILL.md session layout docs (cosmetic)

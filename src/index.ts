@@ -365,7 +365,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   // matching the session_id before responding. This prevents "no access to
   // history" claims — the .jl files ARE accessible via Read tool.
   if (!sessions[group.folder]) {
-    const prev = getRecentSessions(group.folder, 2);
+    const prev = getRecentSessions(group.folder, 3);
     const body = prev
       .map((s) => {
         let el =
@@ -835,6 +835,7 @@ async function startMessageLoop(): Promise<void> {
                       delete sessions[folder];
                       deleteSession(folder);
                     },
+                    getGroup: (folder) => groups[folder],
                     attachments: cached?.attachments,
                     download: cached?.download,
                   });

@@ -71,7 +71,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | A-auth                         | Local auth, JWT                                   | shipped    |
 | C-files-in                     | File transfer                                     | shipped    |
 | D-knowledge-system             | Memory layers pattern                             | partial    |
-| E-memory-session               | SDK sessions, .jl files                           | partial    |
+| E-memory-session               | SDK sessions, .jl files                           | shipped    |
 | G-codebase-trim                | Dead code removal (~900 lines)                    | spec       |
 | H-jid-format                   | Compact JID URIs, sender IDs                      | spec       |
 | J-container-commands           | Generic container commands                        | shipped    |

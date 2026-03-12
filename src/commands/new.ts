@@ -7,25 +7,42 @@ export let pendingCommandArgs: Map<string, string> = new Map();
 const newCommand: CommandHandler = {
   name: 'new',
   description: 'Start a fresh session',
-  usage: '/new [message]',
+  usage: '/new [@group] [message]',
   async handle(ctx) {
-    const { group, groupJid, channel, args } = ctx;
+    const { groupJid, channel, args } = ctx;
 
-    await channel.sendMessage(groupJid, 'Starting fresh session\u2026');
+    // /new @<folder> [message] — explicit group target
+    const parts = args.trim().split(/\s+/);
+    let targetGroup = ctx.group;
+    let remainingArgs = args.trim();
 
-    ctx.clearSession(group.folder);
+    if (parts[0]?.startsWith('@')) {
+      const folder = parts[0].slice(1);
+      const resolved = ctx.getGroup(folder);
+      if (resolved) {
+        targetGroup = resolved;
+        remainingArgs = parts.slice(1).join(' ');
+      }
+    }
 
-    enqueueSystemMessage(group.folder, {
+    await channel.sendMessage(
+      groupJid,
+      `Starting fresh session for ${targetGroup.name}\u2026`,
+    );
+
+    ctx.clearSession(targetGroup.folder);
+
+    enqueueSystemMessage(targetGroup.folder, {
       origin: 'command',
       event: 'new',
       body: 'user invoked /new',
     });
 
-    if (args.trim()) {
-      pendingCommandArgs.set(groupJid, args.trim());
+    if (remainingArgs) {
+      pendingCommandArgs.set(groupJid, remainingArgs);
     }
 
-    logger.info({ group: group.name }, '/new: session cleared');
+    logger.info({ group: targetGroup.name }, '/new: session cleared');
   },
 };
 
