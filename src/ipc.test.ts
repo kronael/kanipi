@@ -206,7 +206,9 @@ describe('drainRequests', () => {
     const reply = readReply('r5');
     expect(reply).not.toBeNull();
     expect(reply!.ok).toBe(false);
-    expect(reply!.error).toBe('path outside group dir');
+    expect(reply!.error).toBe(
+      'send_file: path must be under ~/ — save to ~/tmp/ first if needed',
+    );
   });
 });
 
