@@ -11,6 +11,32 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.3.4] — 2026-03-12
+
+### Fixed
+
+- **SOUL.md persona nudge**: system prompt now tells agent to respond in its
+  `~/SOUL.md` persona and re-read the file if not already in context. Previously
+  the hint did not reference the path, so after auto-compact the persona was lost.
+
+### Refactored
+
+- **`'main'` folder name wiped**: all source and test files now use `'root'` as
+  the root group folder name, consistent with `isRoot()`. No migration needed —
+  new instances have always defaulted to `root`; the `'main'` string no longer
+  appears anywhere as a folder identifier.
+
+### Docs
+
+- **5-permissions spec**: documented `local:` JID namespace for escalation return
+  path, delegation XML prompt format, enforcement at action handler layer, and
+  `send_message` prohibition on `local:` targets.
+- **Roadmap**: phase 3 is kanipi v1.x (not instance-specific); phase 4 renamed
+  arizuko (deferred); `4/1-agent-routing` dropped (superseded by nested groups).
+- **4/W spec**: file-based container IPC for gateway reclaim on restart.
+
+---
+
 ## [v1.3.3] — 2026-03-12
 
 ### Tests
