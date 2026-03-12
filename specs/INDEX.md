@@ -79,7 +79,9 @@ Ships to marinade (v1.x). Focus: access control, partial implementations, cleanu
 | _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes | open       |
 | _(4/H)_ H-researcher           | Background research subagent    | open       |
 | _(4/P)_ P-dash-status          | Health dashboard (read-only)    | open       |
-| _(4/V)_ V-platform-permissions | Per-platform action grants      | open       |
+| _(4/V)_ V-platform-permissions | Per-platform action grants      | spec       |
+| _(4/3)_ 3-support              | Code researcher product config  | spec       |
+| _(4/4)_ 4-dashboards           | Long-running web services       | open       |
 
 ## Phase 4 — Arizuko (deferred)
 
@@ -88,8 +90,6 @@ Requires new instance or major architectural changes. Ships to arizuko, not mari
 | Spec                  | Topic                             | Status                                          |
 | --------------------- | --------------------------------- | ----------------------------------------------- |
 | 1-agent-routing       | Pipeline routing to workers       | dropped — superseded by nested groups + routing |
-| 3-support             | Code researcher product config    | arizuko                                         |
-| 4-dashboards          | Long-running web services         | arizuko                                         |
 | 8-gmail               | Gmail API channel                 | arizuko                                         |
 | G-instance-repos      | Git-based config repos            | arizuko                                         |
 | Q-dash-memory         | Memory viewer/editor              | arizuko                                         |

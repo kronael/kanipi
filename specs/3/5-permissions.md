@@ -201,25 +201,20 @@ Tier 2 and 3 have no filesystem access to `/workspace/web` — HTTP is always av
 | `NANOCLAW_ASSISTANT_NAME` | bot name from config               |
 | `NANOCLAW_DELEGATE_DEPTH` | current delegation depth           |
 
+## Shipped (previously open)
+
+- **Depth rejection**: `register_group` now rejects folders deeper than 3 levels.
+- **maxTier rename**: `minTier` renamed to `maxTier` throughout — tier 0 = most privileged.
+- **Tier auth for send_message/send_file**: `assertAuthorized` uses `isInWorld` for all non-root
+  tiers; tier 2 agents can send to any JID routed within their world.
+
 ## Open items
-
-### Depth rejection
-
-`permissionTier()` clamps depth ≥ 3 to tier 3 but does not block registration
-of folders deeper than depth 3. `register_group` should reject any folder where
-`folder.split('/').length > 3`.
 
 ### Escalation response protocol
 
 `escalate_group` fires a task to the parent container but the parent has no
 structured way to return a result to the child. A request/response IPC round-trip
 is needed — similar to the existing request files but initiated from the child side.
-
-### maxTier rename
-
-`minTier` in `action-registry.ts` is semantically inverted (tier 0 = most
-privileged, tier 3 = least). Rename to `maxTier` throughout and update all
-action definitions in `actions/`.
 
 ### Main → root migration
 
