@@ -300,33 +300,35 @@ Every registered group gets a guaranteed synthetic JID: `local:{folder}`.
 
 **Escalation flow with `local:` JIDs:**
 
-1. Worker (`atlas/support`) processes user message (`chatJid = tg/12345`), calls `escalate_group(prompt)`
-2. Gateway fires parent (`atlas`) container with `chatJid = local:atlas/support`
-3. Parent processes, produces output
-4. Gateway routes parent's output through the **normal message router**: stored as a message
-   with `chatJid = local:atlas/support` in the messages table — same path as any channel message,
-   except `local:` JIDs are never sent to an external channel
-5. Message loop picks up `local:atlas/support` → routes to `atlas/support` folder → new worker container
-6. Worker gets fresh turn with parent's reply; calls `send_message(tg/12345, text)` to reply to user
+1. Worker (`atlas/support`) bound to `chatJid = telegram:xxx`, calls `escalate_group(prompt)`
+2. Gateway fires parent (`atlas`) with `chatJid = local:atlas/support`, wrapping the prompt:
+   ```xml
+   <escalation from="atlas/support" reply_to="telegram:xxx">
+     ...worker's prompt...
+   </escalation>
+   ```
+3. Parent processes, calls `send_reply(text)` → bound to `local:atlas/support` → normal router
+4. Message stored with `chatJid = local:atlas/support`, routed to `atlas/support` folder
+5. Worker gets fresh turn; session history has the `reply_to="telegram:xxx"` from step 2
+6. Worker calls `send_message(telegram:xxx, text)` — NOT `send_reply`
 
-The parent is unaware it is servicing an escalation. Normal turn metadata is preserved.
-**Maximum one escalation level** — no recursive chaining for now.
+The `reply_to` return address travels in the prompt body — same pattern as `<delegated_by>`.
+No extra DB fields, no new mechanisms. The parent is unaware it is servicing an escalation.
+
+**Maximum one escalation level** — no recursive chaining.
+
+**Circuit breaker**: `escalate_group` passes `depth + 1` to the parent. If parent tries
+to escalate again (`depth = 1`), `depth >= MAX_DELEGATE_DEPTH` rejects it.
+Set `MAX_DELEGATE_DEPTH = 1`. No new code — constant change only.
 
 **Required changes:**
 
 - `register_group`: insert `local:{folder}` into `routes` table alongside any channel JID
-- `escalate_group` handler: pass `local:{ctx.sourceGroup}` as `chatJid` to parent container
+- `escalate_group` handler: pass `local:{ctx.sourceGroup}` as `chatJid`; wrap prompt in
+  `<escalation from="{sourceGroup}" reply_to="{ctx.chatJid}">` XML
+- `MAX_DELEGATE_DEPTH = 1`
 
-The rest is normal message flow. Parent calls `send_reply(text)` — bound to
-`local:atlas/support` — which routes to the `atlas/support` folder via the
-existing router. `local:` has no external channel handler so nothing is sent
-externally. No special casing needed.
-
-**Circuit breaker**: `escalate_group` already passes `depth + 1` to the parent.
-When the parent receives an escalated message, its container runs with `depth = 1`.
-If the parent attempts to escalate again, the existing `depth >= MAX_DELEGATE_DEPTH`
-check rejects it. Set `MAX_DELEGATE_DEPTH = 1` to enforce single-level escalation.
-No new code — just a config constant change.
+Normal reply flow handles everything else. `local:` has no channel handler — no external send.
 
 ### Host/web actions
 
