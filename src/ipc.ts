@@ -178,8 +178,8 @@ export async function drainRequests(
             // For send_file, translate container path to host path
             if (type === 'send_file' && data.filepath) {
               const expanded = (data.filepath as string).replace(
-                /^~(?=\/|$)/,
-                '/home/node',
+                /^~\//,
+                '/home/node/',
               );
               const rel = expanded.replace(/^\/home\/node\/?/, '');
               data.filepath = path.join(GROUPS_DIR, sourceGroup, rel);
