@@ -281,6 +281,17 @@ async function runQuery(
   let resultCount = 0;
   let maxTurnsHit = false;
 
+  // Watchdog: abort if no SDK message arrives for 5 minutes (stalled TCP stream)
+  const STALL_TIMEOUT_MS = 5 * 60 * 1000;
+  const STALL_CHECK_MS = 30_000;
+  let lastMessageAt = Date.now();
+  const stallWatchdog = setInterval(() => {
+    if (Date.now() - lastMessageAt > STALL_TIMEOUT_MS) {
+      log('Stream stall detected — no SDK message for 5min, aborting');
+      process.exit(1);
+    }
+  }, STALL_CHECK_MS);
+
   // Additional dirs: their CLAUDE.md files are auto-loaded by the SDK
   const extraDirs: string[] = [];
   if (!isRoot(containerInput.groupFolder) && fs.existsSync('/workspace/share')) {
@@ -343,6 +354,7 @@ async function runQuery(
         },
       }
     })) {
+      lastMessageAt = Date.now();
       messageCount++;
       const msgType = message.type === 'system' ? `system/${(message as { subtype?: string }).subtype}` : message.type;
       log(`[msg #${messageCount}] type=${msgType}`);
@@ -390,6 +402,8 @@ async function runQuery(
     } else {
       throw err;
     }
+  } finally {
+    clearInterval(stallWatchdog);
   }
 
   ipcPolling = false;
