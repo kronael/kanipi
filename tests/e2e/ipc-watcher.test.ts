@@ -160,6 +160,26 @@ describe('startIpcWatcher — startup drain', () => {
   });
 });
 
+describe('startIpcWatcher — recursive folder scan', () => {
+  it('discovers child group when parent group also has requests/', async () => {
+    // Both parent and child have requests/ — the old else-branch would skip child
+    writeRequest('parent', { type: 'reset_session' });
+    writeRequest('parent/child', { type: 'reset_session' });
+
+    const deps = makeDeps({
+      getDefaultTarget: (_jid: string) => null,
+      clearSession: vi.fn(),
+    });
+    const { startIpcWatcher } = await import('../../src/ipc.js');
+    startIpcWatcher(deps as never);
+    await flushMicrotasks(20);
+
+    expect(deps.clearSession).toHaveBeenCalledTimes(2);
+    expect(deps.clearSession).toHaveBeenCalledWith('parent');
+    expect(deps.clearSession).toHaveBeenCalledWith('parent/child');
+  });
+});
+
 describe('startIpcWatcher — poll-based group discovery', () => {
   it('poll discovers new group folder and drains its requests', async () => {
     const deps = makeDeps();

@@ -70,6 +70,18 @@ describe('send_message', () => {
     expect(r).toEqual({ sent: true });
   });
 
+  it('tier 2 can send to sibling group in same world', async () => {
+    const groups = { 'chat@jid': makeGroup('myworld/sibling') };
+    const ctx = makeCtx(2, 'myworld/mygroup', groups);
+    const r = await sendMessage.handler(
+      { chatJid: 'chat@jid', text: 'hi' },
+      ctx,
+    );
+
+    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi');
+    expect(r).toEqual({ sent: true });
+  });
+
   it('tier 2 cannot send to other group', async () => {
     const groups = { 'chat@jid': makeGroup('other') };
     const ctx = makeCtx(2, 'mygroup', groups);
