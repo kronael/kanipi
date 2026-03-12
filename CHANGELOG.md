@@ -11,6 +11,27 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.3.5] — 2026-03-12
+
+### Fixed
+
+- **Stream-stall watchdog**: reduced timeout from 5min to 1min, checks every
+  10s. On stall, sends user-visible `⚠️ Connection stalled — say "continue"
+to retry.` before aborting. Agent errors also now surface to the user.
+- **Telegram reply threading**: bot replies now use `reply_to_message_id` to
+  thread responses to the triggering message.
+- **Orphan cleanup on startup**: `cleanupOrphans` now called at gateway start,
+  killing any leftover `nanoclaw-*` containers from previous runs.
+
+### Docs / Specs
+
+- `3/L` — Chat-bound sessions, `send_reply` action, `IDLE_TIMEOUT=0`
+- `3/M` — `<think>` blocks for silent group-chat decisions
+- `3/N` — Agent-initiated `<status>` updates
+- Skills: escalation, delegation, `send_reply` documented in self skill
+
+---
+
 ## [v1.3.4] — 2026-03-12
 
 ### Fixed
