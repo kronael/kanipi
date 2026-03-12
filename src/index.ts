@@ -49,7 +49,10 @@ import {
   writeGroupsSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
-import { ensureContainerRuntimeRunning } from './container-runtime.js';
+import {
+  cleanupOrphans,
+  ensureContainerRuntimeRunning,
+} from './container-runtime.js';
 import {
   addRoute,
   clearChatErrored,
@@ -963,6 +966,7 @@ function initCommands(): void {
 
 async function main(): Promise<void> {
   ensureContainerRuntimeRunning();
+  cleanupOrphans(CONTAINER_IMAGE);
   initDatabase();
   logger.info('Database initialized');
   loadState();
