@@ -55,7 +55,7 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 
 ## Phase 3 — Permissions, Cleanup, Gaps (in progress)
 
-Ships to marinade (v1.x). Focus: access control, partial implementations, cleanup, and selected phase 4 items pulled forward.
+Focus: access control, partial implementations, cleanup, and selected phase 4 items pulled forward.
 
 | Spec                           | Topic                           | Status     |
 | ------------------------------ | ------------------------------- | ---------- |
@@ -85,7 +85,7 @@ Ships to marinade (v1.x). Focus: access control, partial implementations, cleanu
 
 ## Phase 4 — Arizuko (deferred)
 
-Requires new instance or major architectural changes. Ships to arizuko, not marinade.
+Requires new instance or major architectural changes.
 
 | Spec                  | Topic                             | Status                                          |
 | --------------------- | --------------------------------- | ----------------------------------------------- |

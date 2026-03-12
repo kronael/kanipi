@@ -1,6 +1,6 @@
 # TODO
 
-## Phase 3 — ships to marinade (v1.x)
+## Phase 3 — kanipi v1.x
 
 Finish these. Small, bounded, no new architecture.
 
