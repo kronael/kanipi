@@ -61,9 +61,7 @@ for session in ~/groups/*/; do
     f=$(ls "$src"/$(printf '%03d' $n)-*.md 2>/dev/null | head -1)
     test -f "$f" || continue
     echo "  → migration $n: $f"
-    # Print migration instructions for the agent to follow
     cat "$f"
-    # After agent executes steps, update version:
     echo "$n" > "$skills_dir/MIGRATION_VERSION"
   done
 done
@@ -77,7 +75,5 @@ changes in the current session:
 ```bash
 cat ~/.claude/CLAUDE.md
 ```
-
-Read the output and follow any new instructions immediately.
 
 Report summary of groups updated and migrations run.
