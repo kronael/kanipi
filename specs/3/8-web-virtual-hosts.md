@@ -68,8 +68,10 @@ duplicates across groups, folder must exist.
 
 ### Serving
 
-Static serving (no vite per group). The web proxy serves `groups/<folder>/web/`
-as static files for matched hostnames. Only the instance gets vite.
+One vite process per world web dir, same pattern as the instance web dir.
+The bash entrypoint starts vite for `DATA_DIR/web/` on an internal port;
+world vhosts start additional vite processes for `groups/<folder>/web/`.
+The proxy routes by `Host` header to the correct vite port.
 
 ### World-level web management
 
