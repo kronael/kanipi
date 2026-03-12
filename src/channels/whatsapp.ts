@@ -150,8 +150,8 @@ export class WhatsAppChannel implements Channel {
         this.connected = true;
         logger.info('Connected to WhatsApp');
 
-        // Announce availability so WhatsApp relays subsequent presence updates (typing indicators)
-        this.sock.sendPresenceUpdate('available').catch((err) => {
+        // Set unavailable so WhatsApp doesn't suppress phone notifications
+        this.sock.sendPresenceUpdate('unavailable').catch((err) => {
           logger.warn({ err }, 'Failed to send presence update');
         });
 
@@ -376,7 +376,9 @@ export class WhatsAppChannel implements Channel {
 
           // Mark message as read (blue ticks)
           if (!fromMe && msg.key) {
-            this.sock.readMessages([msg.key]).catch(() => {});
+            this.sock.readMessages([msg.key]).catch((err) => {
+              logger.debug({ err, msgId: msg.key.id }, 'read receipt failed');
+            });
           }
         }
       }
