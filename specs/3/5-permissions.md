@@ -201,25 +201,54 @@ Tier 2 and 3 have no filesystem access to `/workspace/web` — HTTP is always av
 | `NANOCLAW_ASSISTANT_NAME` | bot name from config               |
 | `NANOCLAW_DELEGATE_DEPTH` | current delegation depth           |
 
+## Delegation prompt format
+
+When a parent delegates down via `delegate_group`, the gateway wraps the prompt
+in an XML tag before sending to the child container:
+
+```xml
+<delegated_by group="atlas">
+  ...original prompt...
+</delegated_by>
+```
+
+The child always knows it was delegated (also via `NANOCLAW_DELEGATE_DEPTH > 0` env var).
+The parent does not receive the child's result — delegation is fire-and-forget routing.
+The child replies directly to `chatJid`.
+
 ## Shipped (previously open)
 
 - **Depth rejection**: `register_group` now rejects folders deeper than 3 levels.
 - **maxTier rename**: `minTier` renamed to `maxTier` throughout — tier 0 = most privileged.
 - **Tier auth for send_message/send_file**: `assertAuthorized` uses `isInWorld` for all non-root
   tiers; tier 2 agents can send to any JID routed within their world.
+- **Main → root**: `isRoot()` checks `folder === 'root'`; CLI defaults new instances to `root`;
+  `'main'` wiped from all source and test files.
 
 ## Open items
 
 ### Escalation response protocol
 
-`escalate_group` fires a task to the parent container but the parent has no
-structured way to return a result to the child. A request/response IPC round-trip
-is needed — similar to the existing request files but initiated from the child side.
+`escalate_group` is currently fire-and-forget: parent runs and replies to `chatJid` directly,
+bypassing the worker entirely. The intended behaviour is:
 
-### Main → root migration
+1. Worker escalates a question to parent (`escalate_group`)
+2. Parent processes and produces a result
+3. Result is injected back into the worker as a new incoming message, wrapped as:
+   ```xml
+   <escalation_reply from="atlas">
+     ...parent's answer...
+   </escalation_reply>
+   ```
+4. Worker gets a fresh turn with the answer in context and replies to `chatJid`
 
-Existing instances use `main` as the root folder name. The spec names it `root`.
-A CLI command or DB migration is needed to rename and update `registered_groups`.
+This is the **re-entry model**: worker's turn ends on escalation, resumes when reply arrives.
+Worker retains full conversation history so it can reconstruct context.
+
+Alternative considered — **blocking poll** (`poll_escalation(request_id)` within same turn) —
+rejected as risky: Claude turn could time out if parent takes long.
+
+**Decision pending**: re-entry model is the working assumption. Confirm before implementation.
 
 ### Host/web actions
 
