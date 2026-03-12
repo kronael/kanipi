@@ -306,7 +306,7 @@ async function runQuery(
           type: 'preset',
           preset: 'claude_code',
           ...(fs.existsSync('/home/node/SOUL.md')
-            && { append: 'Respond in your ~/SOUL.md persona. Read it now if you do not already have its content in your active context.' }),
+            && { append: 'Respond in your ~/SOUL.md persona. Read it if you haven\'t already.' }),
         },
         allowedTools: [
           'Bash',
