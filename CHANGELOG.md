@@ -11,6 +11,17 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.3.3] — 2026-03-12
+
+### Tests
+
+- Regression test for nested IPC group discovery (parent + child both having
+  `requests/` — the old `else` branch would have skipped the child).
+- Regression test for tier 2 messaging auth: `atlas/support` can send to a JID
+  routed to `atlas` (same world, not same folder).
+
+---
+
 ## [v1.3.2] — 2026-03-12
 
 ### Fixed
