@@ -1,6 +1,6 @@
 # Group Permissions
 
-**Status**: partial
+**Status**: shipped
 
 This spec documents the current permission model implemented in
 the gateway. It also marks the still-missing pieces explicitly.
@@ -179,8 +179,11 @@ The container runner enforces practical mount restrictions.
 | `/workspace/share`        | rw     | rw     | ro               | ro               |
 | `/workspace/ipc`          | rw     | rw     | rw               | rw               |
 | `/workspace/web`          | rw     | rw     | no               | no               |
-| `/workspace/self`         | ro     | no     | no               | no               |
-| `~/groups`                | rw     | no     | no               | no               |
+
+<!-- tier 2 and 3 have no filesystem access to /workspace/web; HTTP access is always available -->
+
+| `/workspace/self` | ro | no | no | no |
+| `~/groups` | rw | no | no | no |
 
 ## Agent env vars
 
@@ -196,17 +199,11 @@ The gateway injects these environment variables into every agent container:
 | `NANOCLAW_ASSISTANT_NAME` | bot name from config               |
 | `NANOCLAW_DELEGATE_DEPTH` | current delegation depth           |
 
-## What shipped in this pass
+## What shipped
 
 - top-level worlds are no longer tier 0
 - root aliases are explicit (`main`, `root`)
 - root can no longer create new worlds through `register_group`
 - upward escalation now exists as `escalate_group`
 
-## Still missing
-
-- a dedicated CLI/world migration from `main` to `root`
-- stricter `/workspace/web` scoping for tier 2
-- explicit rejection of nesting deeper than worker tier
-- richer parent/child response protocol for escalation
-- host/web actions from `web-virtual-hosts.md`
+See `6-permissions-gaps.md` for remaining open items.

@@ -64,7 +64,8 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 | 2-autotesting           | Subsystem test strategy        | spec       |
 | 3-memory-facts          | Persistent knowledge (v2)      | open       |
 | 4-paths                 | Path translation cleanup       | shipped    |
-| 5-permissions           | Tier 0-3 hierarchy             | partial    |
+| 5-permissions           | Tier 0-3 hierarchy             | shipped    |
+| 6-permissions-gaps      | Unimplemented permission items | open       |
 | 7-user-context          | Per-user memory files          | open       |
 | 8-web-virtual-hosts     | Per-group web serving          | spec draft |
 | 9-whatsapp-improvements | Read receipts, presence        | open       |
