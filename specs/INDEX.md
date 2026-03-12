@@ -68,8 +68,8 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | 7-user-context                 | Per-user memory files                             | open       |
 | 8-web-virtual-hosts            | Per-group web serving                             | spec draft |
 | 9-whatsapp-improvements        | Read receipts, presence                           | open       |
-| A-auth                         | Local auth, JWT                                   | partial    |
-| C-files-in                     | File transfer                                     | partial    |
+| A-auth                         | Local auth, JWT                                   | shipped    |
+| C-files-in                     | File transfer                                     | shipped    |
 | D-knowledge-system             | Memory layers pattern                             | partial    |
 | E-memory-session               | SDK sessions, .jl files                           | partial    |
 | G-codebase-trim                | Dead code removal (~900 lines)                    | spec       |

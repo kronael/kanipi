@@ -1,6 +1,6 @@
 # Auth
 
-**Status**: partial
+**Status**: shipped (local auth); OAuth deferred to phase 4
 
 What ships today:
 
@@ -68,10 +68,10 @@ Local auth is enabled when `AUTH_SECRET` is set.
 Protected web routes use the session cookie check in the proxy. Public
 widget routes under `/pub/` and `/_sloth/` bypass that check.
 
-## Open
+## Deferred to phase 4
 
 - Discord OAuth
 - GitHub OAuth
 - Google OAuth / OIDC
 - Telegram widget login
-- provider identity linking across channels
+- Provider identity linking across channels

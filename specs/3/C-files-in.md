@@ -1,6 +1,6 @@
 # File Handling
 
-**Status**: partial
+**Status**: shipped
 
 Two separate shipped pieces exist today:
 
@@ -44,8 +44,14 @@ Agent uses the `send_file` action with an absolute path under
 
 That part is covered in `specs/1/C-file-output.md`.
 
-## Open
+## Shipped
 
-- richer passive file injection into normal prompts
-- multi-file flows
-- more uniform channel support for uploads
+Passive file injection works: attachments are downloaded by the enricher
+pipeline and `[media attached: ~/media/...]` lines are prepended to the prompt.
+Multi-file messages are supported (one line per attachment). Outbound `send_file`
+covered in `specs/1/C-file-output.md`.
+
+## Deferred
+
+- Uniform channel upload support (some channels lack incoming file support)
+- Multi-file send (outbound) — agent can only `send_file` one file per action call
