@@ -65,10 +65,10 @@ import type { IpcDeps } from '../../src/ipc.js';
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
-const MAIN_JID = 'main@g.us';
+const ROOT_JID = 'root@g.us';
 const MAIN_GROUP: GroupConfig = {
-  name: 'Main',
-  folder: 'main',
+  name: 'Root',
+  folder: 'root',
   trigger: 'always',
   requiresTrigger: false,
   added_at: '2024-01-01T00:00:00.000Z',
@@ -85,10 +85,10 @@ function makeDeps(overrides: Partial<IpcDeps> = {}): IpcDeps & {
   const base: IpcDeps = {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
-    getDefaultTarget: (jid) => (jid === MAIN_JID ? MAIN_GROUP.folder : null),
+    getDefaultTarget: (jid) => (jid === ROOT_JID ? MAIN_GROUP.folder : null),
     getJidsForFolder: (folder) =>
-      folder === MAIN_GROUP.folder ? [MAIN_JID] : [],
-    getRoutedJids: () => [MAIN_JID],
+      folder === MAIN_GROUP.folder ? [ROOT_JID] : [],
+    getRoutedJids: () => [ROOT_JID],
     getGroupConfig: (folder) =>
       folder === MAIN_GROUP.folder ? MAIN_GROUP : undefined,
     getDirectChildGroupCount: (_folder) => 0,
@@ -137,7 +137,7 @@ function listDir(dir: string): string[] {
 
 beforeEach(() => {
   _initTestDatabase();
-  _setTestGroupRoute(MAIN_JID, MAIN_GROUP);
+  _setTestGroupRoute(ROOT_JID, MAIN_GROUP);
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kanipi-ipc-fs-'));
   ipcDir = path.join(tmpDir, 'ipc');
   fs.mkdirSync(ipcDir, { recursive: true });
@@ -152,11 +152,11 @@ afterEach(() => {
 describe('drainRequests — real fs request/reply protocol', () => {
   it('list_actions: writes reply file with action manifest', async () => {
     const deps = makeDeps();
-    const id = writeRequest('main', { type: 'list_actions' });
+    const id = writeRequest('root', { type: 'list_actions' });
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
-    const reply = readReply('main', id);
+    const reply = readReply('root', id);
     expect(reply.ok).toBe(true);
     expect(Array.isArray(reply.result)).toBe(true);
     const names = (reply.result as { name: string }[]).map((a) => a.name);
@@ -166,62 +166,62 @@ describe('drainRequests — real fs request/reply protocol', () => {
 
   it('send_message: dispatches to dep and writes ok reply', async () => {
     const deps = makeDeps();
-    const id = writeRequest('main', {
+    const id = writeRequest('root', {
       type: 'send_message',
-      chatJid: MAIN_JID,
+      chatJid: ROOT_JID,
       text: 'hello from IPC',
     });
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
-    const reply = readReply('main', id);
+    const reply = readReply('root', id);
     expect(reply.ok).toBe(true);
     expect(reply.result).toEqual({ sent: true });
-    expect(deps.sendMessage).toHaveBeenCalledWith(MAIN_JID, 'hello from IPC');
+    expect(deps.sendMessage).toHaveBeenCalledWith(ROOT_JID, 'hello from IPC');
   });
 
   it('reset_session: calls clearSession dep and writes ok reply', async () => {
     const deps = makeDeps();
-    const id = writeRequest('main', { type: 'reset_session' });
+    const id = writeRequest('root', { type: 'reset_session' });
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
-    const reply = readReply('main', id);
+    const reply = readReply('root', id);
     expect(reply.ok).toBe(true);
     expect(reply.result).toEqual({ reset: true });
-    expect(deps.clearSession).toHaveBeenCalledWith('main');
+    expect(deps.clearSession).toHaveBeenCalledWith('root');
   });
 
   it('schedule_task: persists task to DB and writes ok reply with taskId', async () => {
     const deps = makeDeps();
-    const id = writeRequest('main', {
+    const id = writeRequest('root', {
       type: 'schedule_task',
-      targetJid: MAIN_JID,
+      targetJid: ROOT_JID,
       prompt: 'run daily report',
       schedule_type: 'interval',
       schedule_value: '86400000',
     });
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
-    const reply = readReply('main', id);
+    const reply = readReply('root', id);
     expect(reply.ok).toBe(true);
     expect(typeof (reply.result as { taskId: string }).taskId).toBe('string');
 
     // Real DB side-effect: task row was created
-    const tasks = getTasksForGroup('main');
+    const tasks = getTasksForGroup('root');
     expect(tasks).toHaveLength(1);
     expect(tasks[0].prompt).toBe('run daily report');
-    expect(tasks[0].group_folder).toBe('main');
+    expect(tasks[0].group_folder).toBe('root');
   });
 
   it('unknown action: writes error reply without crashing', async () => {
     const deps = makeDeps();
-    const id = writeRequest('main', { type: 'nonexistent_action_xyz' });
+    const id = writeRequest('root', { type: 'nonexistent_action_xyz' });
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
-    const reply = readReply('main', id);
+    const reply = readReply('root', id);
     expect(reply.ok).toBe(false);
     expect(typeof reply.error).toBe('string');
     expect(reply.error).toContain('nonexistent_action_xyz');
@@ -230,32 +230,32 @@ describe('drainRequests — real fs request/reply protocol', () => {
   it('invalid action input: writes error reply with validation message', async () => {
     const deps = makeDeps();
     // send_message requires chatJid and text; omit both
-    const id = writeRequest('main', { type: 'send_message' });
+    const id = writeRequest('root', { type: 'send_message' });
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
-    const reply = readReply('main', id);
+    const reply = readReply('root', id);
     expect(reply.ok).toBe(false);
     expect(typeof reply.error).toBe('string');
   });
 
   it('request file is deleted after processing', async () => {
     const deps = makeDeps();
-    const id = writeRequest('main', { type: 'reset_session' });
-    const reqPath = path.join(ipcDir, 'main', 'requests', `${id}.json`);
+    const id = writeRequest('root', { type: 'reset_session' });
+    const reqPath = path.join(ipcDir, 'root', 'requests', `${id}.json`);
 
     expect(fs.existsSync(reqPath)).toBe(true);
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
     expect(fs.existsSync(reqPath)).toBe(false);
   });
 
   it('malformed JSON: deletes bad file, does not write reply', async () => {
     const deps = makeDeps();
-    const reqDir = path.join(ipcDir, 'main', 'requests');
+    const reqDir = path.join(ipcDir, 'root', 'requests');
     fs.mkdirSync(reqDir, { recursive: true });
     fs.writeFileSync(path.join(reqDir, 'bad.json'), '{ not valid json @@');
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
     // Requests dir should be empty — bad file deleted
     expect(listDir(reqDir)).toHaveLength(0);
@@ -263,11 +263,11 @@ describe('drainRequests — real fs request/reply protocol', () => {
 
   it('processes multiple requests in one drain sweep', async () => {
     const deps = makeDeps();
-    writeRequest('main', { type: 'reset_session' });
-    writeRequest('main', { type: 'reset_session' });
-    writeRequest('main', { type: 'reset_session' });
+    writeRequest('root', { type: 'reset_session' });
+    writeRequest('root', { type: 'reset_session' });
+    writeRequest('root', { type: 'reset_session' });
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
     expect(deps.clearSession).toHaveBeenCalledTimes(3);
   });
@@ -278,11 +278,11 @@ describe('drainRequests — real fs request/reply protocol', () => {
 describe('drainRequests — reply atomicity', () => {
   it('reply file appears as final .json (not .tmp) after drain', async () => {
     const deps = makeDeps();
-    const id = writeRequest('main', { type: 'reset_session' });
+    const id = writeRequest('root', { type: 'reset_session' });
 
-    await drainRequests(ipcDir, 'main', deps);
+    await drainRequests(ipcDir, 'root', deps);
 
-    const repliesDir = path.join(ipcDir, 'main', 'replies');
+    const repliesDir = path.join(ipcDir, 'root', 'replies');
     const files = listDir(repliesDir);
     expect(files).toContain(`${id}.json`);
     expect(files.filter((f) => f.endsWith('.tmp'))).toHaveLength(0);
@@ -294,11 +294,11 @@ describe('drainRequests — reply atomicity', () => {
 describe('_drainGroup — full IPC pipeline with real fs', () => {
   it('drains request and writes reply', async () => {
     const deps = makeDeps();
-    const id = writeRequest('main', { type: 'reset_session' });
+    const id = writeRequest('root', { type: 'reset_session' });
 
-    await _drainGroup(ipcDir, 'main', deps);
+    await _drainGroup(ipcDir, 'root', deps);
 
-    const reply = readReply('main', id);
+    const reply = readReply('root', id);
     expect(reply.ok).toBe(true);
   });
 });
@@ -329,13 +329,13 @@ describe('watcher-driven drain — real fs.watch triggers', () => {
 
   it('drain triggered by watch event processes request and writes reply', async () => {
     const deps = makeDeps();
-    const reqDir = path.join(ipcDir, 'main', 'requests');
+    const reqDir = path.join(ipcDir, 'root', 'requests');
     fs.mkdirSync(reqDir, { recursive: true });
 
     const drainCalled = new Promise<void>((resolve) => {
       const watcher = fs.watch(reqDir, () => {
         watcher.close();
-        drainRequests(ipcDir, 'main', deps).then(resolve);
+        drainRequests(ipcDir, 'root', deps).then(resolve);
       });
 
       // Write request after watcher is active
@@ -350,9 +350,9 @@ describe('watcher-driven drain — real fs.watch triggers', () => {
 
     await drainCalled;
 
-    expect(deps.clearSession).toHaveBeenCalledWith('main');
+    expect(deps.clearSession).toHaveBeenCalledWith('root');
     // Reply file written to disk by the watcher-triggered drain
-    const repliesDir = path.join(ipcDir, 'main', 'replies');
+    const repliesDir = path.join(ipcDir, 'root', 'replies');
     expect(listDir(repliesDir).filter((f) => f.endsWith('.json'))).toHaveLength(
       1,
     );

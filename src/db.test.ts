@@ -348,7 +348,7 @@ describe('task CRUD', () => {
   it('creates and retrieves a task', () => {
     createTask({
       id: 'task-1',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'do something',
       schedule_type: 'once',
@@ -368,7 +368,7 @@ describe('task CRUD', () => {
   it('updates task status', () => {
     createTask({
       id: 'task-2',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'test',
       schedule_type: 'once',
@@ -386,7 +386,7 @@ describe('task CRUD', () => {
   it('updateTask no-op leaves fields unchanged', () => {
     createTask({
       id: 'task-noop',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'unchanged',
       schedule_type: 'once',
@@ -408,7 +408,7 @@ describe('task CRUD', () => {
   it('deletes a task and its run logs', () => {
     createTask({
       id: 'task-3',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'delete me',
       schedule_type: 'once',
@@ -430,7 +430,7 @@ describe('getDueTasks', () => {
   it('excludes tasks with null next_run', () => {
     createTask({
       id: 'task-paused',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'paused task',
       schedule_type: 'cron',
@@ -452,7 +452,7 @@ describe('updateTaskAfterRun', () => {
   it('marks task completed when nextRun is null', () => {
     createTask({
       id: 'task-once',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'run once',
       schedule_type: 'once',

@@ -26,7 +26,7 @@ describe('permissionTier', () => {
 describe('isRoot', () => {
   it('only root folder is root', () => {
     expect(isRoot('root')).toBe(true);
-    expect(isRoot('main')).toBe(false);
+    expect(isRoot('atlas')).toBe(false);
     expect(isRoot('atlas')).toBe(false);
   });
 });

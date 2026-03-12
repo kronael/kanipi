@@ -11,7 +11,7 @@ import { sendMessage, sendFile } from './messaging.js';
 
 function makeCtx(
   tier: 0 | 1 | 2 | 3,
-  sourceGroup = 'main',
+  sourceGroup = 'root',
   groups?: Record<string, GroupConfig>,
 ): ActionContext {
   return {

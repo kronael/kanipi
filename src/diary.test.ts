@@ -24,7 +24,7 @@ describe('diary', () => {
   describe('readDiaryEntries', () => {
     it('returns empty when diary dir does not exist', () => {
       vi.spyOn(fs, 'existsSync').mockReturnValue(false);
-      expect(readDiaryEntries('main')).toEqual([]);
+      expect(readDiaryEntries('root')).toEqual([]);
     });
 
     it('reads entries with YAML frontmatter summaries', () => {
@@ -39,7 +39,7 @@ describe('diary', () => {
         return '---\nsummary: earlier work\n---\nbody';
       });
 
-      const entries = readDiaryEntries('main', 5);
+      const entries = readDiaryEntries('root', 5);
       expect(entries).toHaveLength(2);
       expect(entries[0]).toEqual({
         date: '2026-03-08',
@@ -56,7 +56,7 @@ describe('diary', () => {
       vi.spyOn(fs, 'readdirSync').mockReturnValue(['20260308.md' as any]);
       vi.spyOn(fs, 'readFileSync').mockReturnValue('no frontmatter here');
 
-      expect(readDiaryEntries('main')).toEqual([]);
+      expect(readDiaryEntries('root')).toEqual([]);
     });
 
     it('limits to max entries (default 14)', () => {
@@ -69,7 +69,7 @@ describe('diary', () => {
       vi.spyOn(fs, 'readdirSync').mockReturnValue(files);
       vi.spyOn(fs, 'readFileSync').mockReturnValue('---\nsummary: work\n---\n');
 
-      const entries = readDiaryEntries('main');
+      const entries = readDiaryEntries('root');
       expect(entries).toHaveLength(14);
       expect(entries[0].date).toBe('2026-03-20');
     });
@@ -83,7 +83,7 @@ describe('diary', () => {
       ]);
       vi.spyOn(fs, 'readFileSync').mockReturnValue('---\nsummary: work\n---\n');
 
-      expect(readDiaryEntries('main')).toHaveLength(1);
+      expect(readDiaryEntries('root')).toHaveLength(1);
     });
 
     it('handles read errors gracefully', () => {
@@ -93,7 +93,7 @@ describe('diary', () => {
         throw new Error('permission denied');
       });
 
-      expect(readDiaryEntries('main')).toEqual([]);
+      expect(readDiaryEntries('root')).toEqual([]);
     });
   });
 
@@ -132,10 +132,10 @@ describe('diary', () => {
         .spyOn(fs, 'appendFileSync')
         .mockReturnValue(undefined);
 
-      writeRecoveryEntry('main', 'error', 'timeout');
+      writeRecoveryEntry('root', 'error', 'timeout');
 
       expect(mkdirSpy).toHaveBeenCalledWith(
-        path.join('/tmp/test-groups', 'main', 'diary'),
+        path.join('/tmp/test-groups', 'root', 'diary'),
         { recursive: true },
       );
       const written = appendSpy.mock.calls[0][1] as string;
@@ -153,7 +153,7 @@ describe('diary', () => {
         .spyOn(fs, 'appendFileSync')
         .mockReturnValue(undefined);
 
-      writeRecoveryEntry('main', 'container_crash', 'OOM');
+      writeRecoveryEntry('root', 'container_crash', 'OOM');
 
       const written = appendSpy.mock.calls[0][1] as string;
       expect(written).not.toContain('---');
@@ -169,7 +169,7 @@ describe('diary', () => {
         .spyOn(fs, 'appendFileSync')
         .mockReturnValue(undefined);
 
-      writeRecoveryEntry('main', 'error');
+      writeRecoveryEntry('root', 'error');
 
       const written = appendSpy.mock.calls[0][1] as string;
       expect(written).toContain('Error: none');

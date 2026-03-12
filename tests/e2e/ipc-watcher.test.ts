@@ -32,18 +32,18 @@ vi.mock('../../src/commands/index.js', () => ({
 let tmpDir: string;
 let ipcDir: string;
 
-const MAIN_JID = 'main@g.us';
+const ROOT_JID = 'root@g.us';
 
 function makeDeps(overrides: Record<string, unknown> = {}) {
   return {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
-    getDefaultTarget: (jid: string) => (jid === MAIN_JID ? 'main' : null),
-    getJidsForFolder: (folder: string) => (folder === 'main' ? [MAIN_JID] : []),
-    getRoutedJids: () => [MAIN_JID],
+    getDefaultTarget: (jid: string) => (jid === ROOT_JID ? 'root' : null),
+    getJidsForFolder: (folder: string) => (folder === 'root' ? [ROOT_JID] : []),
+    getRoutedJids: () => [ROOT_JID],
     getGroupConfig: (folder: string) =>
-      folder === 'main'
-        ? { name: 'Main', folder: 'main', trigger: 'always', added_at: '' }
+      folder === 'root'
+        ? { name: 'Root', folder: 'root', trigger: 'always', added_at: '' }
         : undefined,
     getDirectChildGroupCount: (_folder: string) => 0,
     registerGroup: vi.fn(),
@@ -118,7 +118,7 @@ afterEach(() => {
 describe('startIpcWatcher — startup drain', () => {
   it('drains pre-existing requests on startup', async () => {
     // Write a request before starting the watcher
-    const id = writeRequest('main', { type: 'reset_session' });
+    const id = writeRequest('root', { type: 'reset_session' });
 
     const deps = makeDeps();
     const { startIpcWatcher } = await import('../../src/ipc.js');
@@ -127,8 +127,8 @@ describe('startIpcWatcher — startup drain', () => {
     // Flush microtask queue (startupDrain awaits are all sync fs under the hood)
     await flushMicrotasks();
 
-    expect(deps.clearSession).toHaveBeenCalledWith('main');
-    const reply = readReply('main', id);
+    expect(deps.clearSession).toHaveBeenCalledWith('root');
+    const reply = readReply('root', id);
     expect(reply?.ok).toBe(true);
   });
 
@@ -191,21 +191,21 @@ describe('startIpcWatcher — poll-based group discovery', () => {
     expect(deps.clearSession).not.toHaveBeenCalled();
 
     // Add a new group folder + request AFTER watcher started
-    const id = writeRequest('main', { type: 'reset_session' });
+    const id = writeRequest('root', { type: 'reset_session' });
 
     // Advance by IPC_POLL_INTERVAL (50ms) to fire pollForNewGroups once,
     // then flush microtasks for the triggered drain.
     await vi.advanceTimersByTimeAsync(60);
     await flushMicrotasks();
 
-    expect(deps.clearSession).toHaveBeenCalledWith('main');
-    const reply = readReply('main', id);
+    expect(deps.clearSession).toHaveBeenCalledWith('root');
+    const reply = readReply('root', id);
     expect(reply?.ok).toBe(true);
   });
 
   it('poll does not re-drain groups already attached on startup', async () => {
     // Pre-seed group so startup drain processes it
-    writeRequest('main', { type: 'reset_session' });
+    writeRequest('root', { type: 'reset_session' });
 
     const deps = makeDeps();
     const { startIpcWatcher } = await import('../../src/ipc.js');
@@ -230,7 +230,7 @@ describe('startIpcWatcher — drain concurrency lock', () => {
     const { _drainGroup, drainRequests } = await import('../../src/ipc.js');
 
     // Write one request — second concurrent drain should not process it again
-    const reqDir = path.join(ipcDir, 'main', 'requests');
+    const reqDir = path.join(ipcDir, 'root', 'requests');
     fs.mkdirSync(reqDir, { recursive: true });
     fs.writeFileSync(
       path.join(reqDir, 'req1.json'),
@@ -238,12 +238,12 @@ describe('startIpcWatcher — drain concurrency lock', () => {
     );
 
     // Fire two concurrent drains
-    const p1 = _drainGroup(ipcDir, 'main', deps as never);
-    const p2 = _drainGroup(ipcDir, 'main', deps as never);
+    const p1 = _drainGroup(ipcDir, 'root', deps as never);
+    const p2 = _drainGroup(ipcDir, 'root', deps as never);
     await Promise.all([p1, p2]);
 
     // Lock ensures only one drain ran — request consumed exactly once
-    const repliesDir = path.join(ipcDir, 'main', 'replies');
+    const repliesDir = path.join(ipcDir, 'root', 'replies');
     const replies = fs.existsSync(repliesDir) ? fs.readdirSync(repliesDir) : [];
     expect(replies).toHaveLength(1);
     void drainRequests; // used in import

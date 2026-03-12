@@ -16,7 +16,7 @@ import { injectMessage } from './inject.js';
 
 function makeCtx(tier: 0 | 1 | 2 | 3): ActionContext {
   return {
-    sourceGroup: 'main',
+    sourceGroup: 'root',
     isRoot: tier === 0,
     tier,
     sendMessage: vi.fn(),

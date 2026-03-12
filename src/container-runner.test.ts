@@ -377,13 +377,13 @@ describe('unified home mount behavior', () => {
   it('root tier 0 gets ~/groups mount', async () => {
     const rootGroup: GroupConfig = {
       name: 'Root',
-      folder: 'main',
+      folder: 'root',
       added_at: new Date().toISOString(),
     };
 
     const resultPromise = runContainerCommand(
       rootGroup,
-      { prompt: 'test', groupFolder: 'main', chatJid: 'test@g.us' },
+      { prompt: 'test', groupFolder: 'root', chatJid: 'test@g.us' },
       () => {},
     );
     await vi.advanceTimersByTimeAsync(10);

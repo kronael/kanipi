@@ -656,8 +656,8 @@ describe('register_group success', () => {
 
 describe('reset_session IPC', () => {
   it('calls clearSession with the sourceGroup', async () => {
-    await processTaskIpc({ type: 'reset_session' }, 'main', deps);
+    await processTaskIpc({ type: 'reset_session' }, 'root', deps);
 
-    expect(deps.clearSession).toHaveBeenCalledWith('main');
+    expect(deps.clearSession).toHaveBeenCalledWith('root');
   });
 });

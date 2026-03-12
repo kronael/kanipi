@@ -53,28 +53,28 @@ beforeEach(() => {
 describe('enqueueEnrichment', () => {
   it('does nothing when MEDIA_ENABLED is false', async () => {
     mediaEnabled = false;
-    enqueueEnrichment('m1', 'main', [attachment], download);
+    enqueueEnrichment('m1', 'root', [attachment], download);
     await waitForEnrichments(['m1']);
     expect(mockProcess).not.toHaveBeenCalled();
   });
 
   it('calls appendMessageContent when pipeline returns lines', async () => {
     mockProcess.mockResolvedValue(['[voice/auto→en: hello]']);
-    enqueueEnrichment('m1', 'main', [attachment], download);
+    enqueueEnrichment('m1', 'root', [attachment], download);
     await waitForEnrichments(['m1']);
     expect(mockAppend).toHaveBeenCalledWith('m1', '\n[voice/auto→en: hello]');
   });
 
   it('does not call appendMessageContent when pipeline returns empty lines', async () => {
     mockProcess.mockResolvedValue([]);
-    enqueueEnrichment('m1', 'main', [attachment], download);
+    enqueueEnrichment('m1', 'root', [attachment], download);
     await waitForEnrichments(['m1']);
     expect(mockAppend).not.toHaveBeenCalled();
   });
 
   it('swallows pipeline errors without throwing', async () => {
     mockProcess.mockRejectedValue(new Error('whisper down'));
-    enqueueEnrichment('m1', 'main', [attachment], download);
+    enqueueEnrichment('m1', 'root', [attachment], download);
     await expect(waitForEnrichments(['m1'])).resolves.toBeUndefined();
   });
 });
@@ -92,7 +92,7 @@ describe('waitForEnrichments', () => {
       }),
     );
 
-    enqueueEnrichment('m2', 'main', [attachment], download);
+    enqueueEnrichment('m2', 'root', [attachment], download);
 
     let done = false;
     const waiter = waitForEnrichments(['m2']).then(() => {
@@ -111,7 +111,7 @@ describe('waitForEnrichments', () => {
 
   it('resolves immediately if enrichment already completed (race: fast whisper)', async () => {
     mockProcess.mockResolvedValue(['[voice/auto→cs: ahoj]']);
-    enqueueEnrichment('m3', 'main', [attachment], download);
+    enqueueEnrichment('m3', 'root', [attachment], download);
 
     // Let the microtask queue drain so the enrichment promise settles
     await Promise.resolve();

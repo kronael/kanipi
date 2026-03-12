@@ -80,7 +80,7 @@ describe('task scheduler', () => {
 
     createTask({
       id: 'task-group-session',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'summarise',
       schedule_type: 'once',
@@ -99,14 +99,14 @@ describe('task scheduler', () => {
 
     startSchedulerLoop({
       getGroupConfig: (folder) =>
-        folder === 'main'
+        folder === 'root'
           ? {
               name: 'Main',
-              folder: 'main',
+              folder: 'root',
               added_at: '2026-02-22T00:00:00.000Z',
             }
           : undefined,
-      getSessions: () => ({ main: 'ses-abc123' }),
+      getSessions: () => ({ root: 'ses-abc123' }),
       queue: { enqueueTask, closeStdin: vi.fn(), notifyIdle: vi.fn() } as any,
       onProcess: () => {},
       sendMessage: async () => {},
@@ -128,7 +128,7 @@ describe('task scheduler', () => {
 
     createTask({
       id: 'task-isolated',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'iso@g.us',
       prompt: 'run isolated',
       schedule_type: 'once',
@@ -147,14 +147,14 @@ describe('task scheduler', () => {
 
     startSchedulerLoop({
       getGroupConfig: (folder) =>
-        folder === 'main'
+        folder === 'root'
           ? {
               name: 'Main',
-              folder: 'main',
+              folder: 'root',
               added_at: '2026-02-22T00:00:00.000Z',
             }
           : undefined,
-      getSessions: () => ({ main: 'ses-abc123' }),
+      getSessions: () => ({ root: 'ses-abc123' }),
       queue: { enqueueTask, closeStdin: vi.fn(), notifyIdle: vi.fn() } as any,
       onProcess: () => {},
       sendMessage: async () => {},
@@ -169,7 +169,7 @@ describe('task scheduler', () => {
   it('logs error when group not found for task', async () => {
     createTask({
       id: 'task-no-group',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'missing@g.us',
       prompt: 'run',
       schedule_type: 'once',
@@ -208,7 +208,7 @@ describe('task scheduler', () => {
 
     createTask({
       id: 'task-crash',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'run',
       schedule_type: 'once',
@@ -227,10 +227,10 @@ describe('task scheduler', () => {
 
     startSchedulerLoop({
       getGroupConfig: (folder) =>
-        folder === 'main'
+        folder === 'root'
           ? {
               name: 'Main',
-              folder: 'main',
+              folder: 'root',
               added_at: '2026-02-22T00:00:00.000Z',
             }
           : undefined,
@@ -250,7 +250,7 @@ describe('task scheduler', () => {
   it('skips task re-checked as paused', async () => {
     createTask({
       id: 'task-paused-mid',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'run',
       schedule_type: 'once',
@@ -320,7 +320,7 @@ describe('task scheduler', () => {
 
     createTask({
       id: 'task-stream',
-      group_folder: 'main',
+      group_folder: 'root',
       chat_jid: 'group@g.us',
       prompt: 'run',
       schedule_type: 'once',
@@ -339,10 +339,10 @@ describe('task scheduler', () => {
 
     startSchedulerLoop({
       getGroupConfig: (folder) =>
-        folder === 'main'
+        folder === 'root'
           ? {
               name: 'Main',
-              folder: 'main',
+              folder: 'root',
               added_at: '2026-02-22T00:00:00.000Z',
             }
           : undefined,

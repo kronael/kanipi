@@ -12,7 +12,7 @@ vi.mock('../logger.js', () => ({
 
 const GROUP = {
   name: 'G',
-  folder: 'main',
+  folder: 'root',
 
   added_at: '2024-01-01T00:00:00.000Z',
 };
@@ -44,7 +44,7 @@ describe('new command', () => {
   it('calls clearSession with group.folder', async () => {
     const ctx = makeCtx('');
     await newCommand.handle(ctx);
-    expect(ctx.clearSession).toHaveBeenCalledWith('main');
+    expect(ctx.clearSession).toHaveBeenCalledWith('root');
   });
 
   it('calls channel.sendMessage with confirmation text', async () => {

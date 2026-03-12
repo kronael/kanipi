@@ -41,8 +41,8 @@ const EXPECTED_ACTIONS = [
 ];
 
 const MAIN_GROUP: GroupConfig = {
-  name: 'Main',
-  folder: 'main',
+  name: 'Root',
+  folder: 'root',
   trigger: 'always',
   requiresTrigger: false,
   added_at: '2024-01-01T00:00:00.000Z',
@@ -53,17 +53,17 @@ let deps: IpcDeps;
 
 beforeEach(() => {
   _initTestDatabase();
-  _setTestGroupRoute('main@g.us', MAIN_GROUP);
+  _setTestGroupRoute('root@g.us', MAIN_GROUP);
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kanipi-action-test-'));
 
   deps = {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
     getDefaultTarget: (jid: string) =>
-      jid === 'main@g.us' ? MAIN_GROUP.folder : null,
+      jid === 'root@g.us' ? MAIN_GROUP.folder : null,
     getJidsForFolder: (folder: string) =>
-      folder === MAIN_GROUP.folder ? ['main@g.us'] : [],
-    getRoutedJids: () => ['main@g.us'],
+      folder === MAIN_GROUP.folder ? ['root@g.us'] : [],
+    getRoutedJids: () => ['root@g.us'],
     getGroupConfig: (folder: string) =>
       folder === MAIN_GROUP.folder ? MAIN_GROUP : undefined,
     getDirectChildGroupCount: (_folder: string) => 0,
@@ -142,7 +142,7 @@ describe('drainRequests flow', () => {
     const result = await action.handler(
       {},
       {
-        sourceGroup: 'main',
+        sourceGroup: 'root',
         isRoot: true,
         tier: 0 as const,
         sendMessage: deps.sendMessage,
@@ -161,15 +161,15 @@ describe('drainRequests flow', () => {
       },
     );
     expect(result).toEqual({ reset: true });
-    expect(deps.clearSession).toHaveBeenCalledWith('main');
+    expect(deps.clearSession).toHaveBeenCalledWith('root');
   });
 
   it('send_message action dispatches to sendMessage dep', async () => {
     const action = getAction('send_message')!;
     const result = await action.handler(
-      { chatJid: 'main@g.us', text: 'hello' },
+      { chatJid: 'root@g.us', text: 'hello' },
       {
-        sourceGroup: 'main',
+        sourceGroup: 'root',
         isRoot: true,
         tier: 0 as const,
         sendMessage: deps.sendMessage,
@@ -188,7 +188,7 @@ describe('drainRequests flow', () => {
       },
     );
     expect(result).toEqual({ sent: true });
-    expect(deps.sendMessage).toHaveBeenCalledWith('main@g.us', 'hello');
+    expect(deps.sendMessage).toHaveBeenCalledWith('root@g.us', 'hello');
   });
 
   it('unknown action name returns undefined from getAction', () => {

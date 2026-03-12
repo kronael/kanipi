@@ -22,7 +22,7 @@ import type { OnInboundMessage } from './types.js';
 // Token is read from data-token on the script tag; posts to /pub/s/<token> with JWT from localStorage
 const PUB_SLOTH_JS = `(function(){
   var token = document.currentScript && document.currentScript.dataset.token || '';
-  var group = document.currentScript && document.currentScript.dataset.group || 'main';
+  var group = document.currentScript && document.currentScript.dataset.group || 'root';
 
   function jwt() {
     try { return localStorage.getItem('sloth_jwt') || ''; } catch(e) { return ''; }
@@ -62,7 +62,7 @@ const PUB_SLOTH_JS = `(function(){
 
 // Minimal sloth client — injected into every HTML page served by the proxy
 const SLOTH_JS = `(function(){
-  var group = document.currentScript && document.currentScript.dataset.group || 'main';
+  var group = document.currentScript && document.currentScript.dataset.group || 'root';
 
   function post(msg, ctx, url) {
     return fetch('/_sloth/message', {
@@ -309,7 +309,7 @@ export function startWebProxy(opts: {
 
     if (url.startsWith('/_sloth/stream')) {
       const group =
-        new URL(url, 'http://localhost').searchParams.get('group') || 'main';
+        new URL(url, 'http://localhost').searchParams.get('group') || 'root';
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -327,7 +327,7 @@ export function startWebProxy(opts: {
       req.on('end', () => {
         try {
           const { group, msg, context, url: pageUrl } = JSON.parse(body);
-          const jid = `web:${group || 'main'}`;
+          const jid = `web:${group || 'root'}`;
           const content = [msg, context, pageUrl]
             .filter(Boolean)
             .join('\n')

@@ -10,7 +10,7 @@ import {
 
 describe('group folder validation', () => {
   it('accepts normal group folder names', () => {
-    expect(isValidGroupFolder('main')).toBe(true);
+    expect(isValidGroupFolder('root')).toBe(true);
     expect(isValidGroupFolder('family-chat')).toBe(true);
     expect(isValidGroupFolder('Team_42')).toBe(true);
   });

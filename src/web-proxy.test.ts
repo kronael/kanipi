@@ -34,9 +34,9 @@ const mockRemoveSse = vi.mocked(removeSseListener);
 
 function makeGroup(token: string): GroupConfig & { jid: string } {
   return {
-    jid: 'web:main',
-    name: 'main',
-    folder: 'main',
+    jid: 'web:root',
+    name: 'root',
+    folder: 'root',
     added_at: new Date().toISOString(),
     slinkToken: token,
   };
@@ -373,7 +373,7 @@ describe('basic auth', () => {
   });
 
   it('passes POST /pub/s/:token without credentials', async () => {
-    mockGetGroup.mockReturnValue({ jid: 'web:tok', folder: 'main' });
+    mockGetGroup.mockReturnValue({ jid: 'web:tok', folder: 'root' });
     mockHandleSlink.mockReturnValue({ status: 200, body: '{"ok":true}' });
     const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
     try {

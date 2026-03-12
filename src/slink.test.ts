@@ -639,8 +639,8 @@ describe('DB: web group registration', () => {
     expect(token).toBeTruthy();
 
     _setTestGroupRoute(jid, {
-      name: 'main',
-      folder: 'main',
+      name: 'root',
+      folder: 'root',
       slinkToken: token,
     });
 
