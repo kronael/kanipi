@@ -20,7 +20,7 @@ const MAX_DELEGATE_DEPTH = 3;
 export const refreshGroups: Action = {
   name: 'refresh_groups',
   description: 'Refresh group metadata from channels',
-  minTier: 0,
+  maxTier: 0,
   input: z.object({}),
   async handler(_input, ctx) {
     if (ctx.tier !== 0) throw new Error('unauthorized');
@@ -50,7 +50,7 @@ const RegisterGroupSchema = z.object({
 export const registerGroup: Action = {
   name: 'register_group',
   description: 'Register a new group for agent responses',
-  minTier: 1,
+  maxTier: 1,
   input: RegisterGroupSchema,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
@@ -63,6 +63,9 @@ export const registerGroup: Action = {
     }
     if (!isValidGroupFolder(input.folder)) {
       throw new Error('invalid folder name');
+    }
+    if (input.folder.split('/').length > 3) {
+      throw new Error('folder depth exceeds maximum (3 levels)');
     }
 
     if (isDirectChild(ctx.sourceGroup, input.folder)) {
@@ -197,7 +200,7 @@ export const getRoutes: Action = {
   name: 'get_routes',
   description:
     'Get routing rules. Pass jid ($NANOCLAW_CHAT_JID) to filter, omit for all routes.',
-  minTier: 1,
+  maxTier: 1,
   input: GetRoutesInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
@@ -218,7 +221,7 @@ export const addRouteAction: Action = {
   name: 'add_route',
   description:
     'Add a routing rule for a JID. Use $NANOCLAW_CHAT_JID for the current chat.',
-  minTier: 1,
+  maxTier: 1,
   input: AddRouteInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
@@ -241,7 +244,7 @@ const DeleteRouteInput = z.object({
 export const deleteRouteAction: Action = {
   name: 'delete_route',
   description: 'Delete a routing rule by ID',
-  minTier: 1,
+  maxTier: 1,
   input: DeleteRouteInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');

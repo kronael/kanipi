@@ -43,7 +43,7 @@ export interface Action {
   handler(input: unknown, ctx: ActionContext): Promise<unknown>;
   command?: string;
   mcp?: boolean; // default true
-  minTier?: number;
+  maxTier?: number;
   platforms?: string[];
 }
 
@@ -76,7 +76,7 @@ export function getManifest(
   return [...actions.values()]
     .filter((a) => a.mcp !== false)
     .filter((a) => {
-      if (a.minTier !== undefined && opts.tier > a.minTier) return false;
+      if (a.maxTier !== undefined && opts.tier > a.maxTier) return false;
       if (
         a.platforms?.length &&
         !a.platforms.some((p) => opts.platforms.includes(p))
