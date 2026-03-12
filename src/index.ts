@@ -338,6 +338,14 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   if (missedMessages.length === 0) return true;
 
+  if (isChatErrored(chatJid)) {
+    logger.debug(
+      { chatJid },
+      'chat in errored state, skipping until user retries',
+    );
+    return true;
+  }
+
   // For non-root groups, check if trigger is required and present
   if (!isRoot(group.folder) && jidsTrigger.has(chatJid)) {
     const hasTrigger = missedMessages.some((m) =>
@@ -1014,6 +1022,9 @@ async function main(): Promise<void> {
       download?: AttachmentDownloader,
     ) => {
       storeMessage(msg);
+      if (!msg.is_from_me && !msg.is_bot_message) {
+        clearChatErrored(msg.chat_jid);
+      }
       const folder = jidToFolder[msg.chat_jid];
       const group = folder ? groups[folder] : undefined;
       if (attachments && download && group) {
