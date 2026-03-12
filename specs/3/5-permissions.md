@@ -60,8 +60,8 @@ rejected at registration — not yet enforced (see open items below).
 - Can escalate nothing upward
 - Sees `/workspace/self/`
 
-`register_group` via action cannot create a new top-level world — new worlds are CLI-only.
-Tier 0 may still create child groups inside an existing world.
+Tier 0 cannot create top-level worlds via action — new worlds are CLI-only. Child groups
+inside existing worlds are allowed.
 
 ### Tier 1: world
 
@@ -72,6 +72,7 @@ Tier 0 may still create child groups inside an existing world.
 - Can set routing rules for direct children
 - Cannot refresh group metadata globally
 - Cannot see `/workspace/self/`
+- Cannot see `~/groups`
 
 ### Tier 2: agent
 
@@ -135,7 +136,6 @@ Tier 0 may still create child groups inside an existing world.
 `delegate_group`:
 
 - tier 0: any folder in any world (root world privilege)
-- root/\* subgroups: any folder in any world (root world privilege)
 - tier 1: any descendant in own subtree
 - tier 2: any descendant in own subtree
 - tier 3: denied
@@ -145,6 +145,7 @@ Tier 0 may still create child groups inside an existing world.
 - tier 2: direct parent only
 - tier 3: direct parent only
 - tier 0/1: denied
+- tier 2/3 at depth 1 (no `/` in folder): throws "unauthorized: no parent group"
 - currently fire-and-forget — parent output streams to origin JID, no IPC round-trip
 
 ### Session and metadata
@@ -156,13 +157,18 @@ Tier 0 may still create child groups inside an existing world.
 ## Action registry
 
 Actions carry a `maxTier` field (named `minTier` in code — semantic debt, rename pending).
-`getManifest()` filters out actions where `opts.tier > a.maxTier`. Actions without `maxTier`
-are available to all tiers; per-action handlers do fine-grained checks beyond that.
+`getManifest()` filters out actions where `opts.tier > a.maxTier` — i.e. if the caller's
+tier number is higher (less privileged) than the action's `maxTier`, the action is hidden.
+Actions without `maxTier` are available to all tiers; per-action handlers do fine-grained
+checks beyond that.
 
 ## Mount enforcement
 
 Container runner enforces mount restrictions based on tier.
 Tier 2 and 3 have no filesystem access to `/workspace/web` — HTTP is always available.
+
+`~` = `/home/node` inside agent containers. `no` = mount is absent entirely.
+`—` = not applicable (inherited or overlaid separately).
 
 | Mount                     | Tier 0 | Tier 1 | Tier 2           | Tier 3           |
 | ------------------------- | ------ | ------ | ---------------- | ---------------- |
@@ -181,6 +187,7 @@ Tier 2 and 3 have no filesystem access to `/workspace/web` — HTTP is always av
 | `/workspace/web`          | rw     | rw     | no               | no               |
 | `/workspace/self`         | ro     | no     | no               | no               |
 | `~/groups`                | rw     | no     | no               | no               |
+| `/app/src`                | rw     | rw     | rw               | ro               |
 
 ## Agent env vars
 
