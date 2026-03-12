@@ -119,6 +119,8 @@ export class TelegramChannel implements Channel {
 
       // Extract forward metadata
       let forwarded_from: string | undefined;
+      let forwarded_from_id: string | undefined;
+      let forwarded_msgid: string | undefined;
       const fwd = ctx.message.forward_origin;
       if (fwd) {
         if (fwd.type === 'user') forwarded_from = fwd.sender_user.first_name;
@@ -126,14 +128,18 @@ export class TelegramChannel implements Channel {
           forwarded_from = fwd.sender_user_name || '(hidden)';
         else if (fwd.type === 'chat')
           forwarded_from = (fwd as any).sender_chat?.title || '(chat)';
-        else if (fwd.type === 'channel')
+        else if (fwd.type === 'channel') {
           forwarded_from = (fwd as any).chat?.title || '(channel)';
+          forwarded_from_id = `telegram:${(fwd as any).chat?.id}`;
+          forwarded_msgid = (fwd as any).message_id?.toString();
+        }
       }
 
       // Extract reply-to metadata
       let reply_to_text: string | undefined;
       let reply_to_sender: string | undefined;
       const reply = ctx.message.reply_to_message;
+      const reply_to_id = reply?.message_id?.toString();
       if (reply) {
         reply_to_sender = reply.from?.first_name;
         const rText = reply.text || reply.caption;
@@ -150,8 +156,11 @@ export class TelegramChannel implements Channel {
         timestamp,
         is_from_me: false,
         forwarded_from,
+        forwarded_from_id,
+        forwarded_msgid,
         reply_to_text,
         reply_to_sender,
+        reply_to_id,
         verb: Verb.Message,
         platform: Platform.Telegram,
         mentions_me: isBotMentioned || undefined,
@@ -213,6 +222,8 @@ export class TelegramChannel implements Channel {
       );
       // Extract forward metadata
       let forwarded_from: string | undefined;
+      let forwarded_from_id: string | undefined;
+      let forwarded_msgid: string | undefined;
       const fwd = ctx.message.forward_origin;
       if (fwd) {
         if (fwd.type === 'user') forwarded_from = fwd.sender_user.first_name;
@@ -220,14 +231,18 @@ export class TelegramChannel implements Channel {
           forwarded_from = fwd.sender_user_name || '(hidden)';
         else if (fwd.type === 'chat')
           forwarded_from = (fwd as any).sender_chat?.title || '(chat)';
-        else if (fwd.type === 'channel')
+        else if (fwd.type === 'channel') {
           forwarded_from = (fwd as any).chat?.title || '(channel)';
+          forwarded_from_id = `telegram:${(fwd as any).chat?.id}`;
+          forwarded_msgid = (fwd as any).message_id?.toString();
+        }
       }
 
       // Extract reply-to metadata
       let reply_to_text: string | undefined;
       let reply_to_sender: string | undefined;
       const reply = ctx.message.reply_to_message;
+      const reply_to_id = reply?.message_id?.toString();
       if (reply) {
         reply_to_sender = reply.from?.first_name;
         const rText = reply.text || reply.caption;
@@ -245,8 +260,11 @@ export class TelegramChannel implements Channel {
           timestamp,
           is_from_me: false,
           forwarded_from,
+          forwarded_from_id,
+          forwarded_msgid,
           reply_to_text,
           reply_to_sender,
+          reply_to_id,
           verb: Verb.Message,
           platform: Platform.Telegram,
         },

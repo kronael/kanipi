@@ -125,10 +125,12 @@ export class DiscordChannel implements Channel {
     let forwarded_from: string | undefined;
     let reply_to_text: string | undefined;
     let reply_to_sender: string | undefined;
+    let reply_to_id: string | undefined;
     if (msg.reference) {
       if (msg.reference.type === MessageReferenceType.Forward) {
         forwarded_from = '(forwarded)';
       } else {
+        reply_to_id = msg.reference.messageId ?? undefined;
         try {
           const ref = await msg.fetchReference();
           reply_to_sender = ref.member?.displayName || ref.author.displayName;
@@ -152,6 +154,7 @@ export class DiscordChannel implements Channel {
         forwarded_from,
         reply_to_text,
         reply_to_sender,
+        reply_to_id,
         verb: Verb.Message,
         platform: Platform.Discord,
         mentions_me: mentionsBot || undefined,
@@ -166,11 +169,7 @@ export class DiscordChannel implements Channel {
     );
   }
 
-  async sendMessage(
-    jid: string,
-    text: string,
-    _opts?: SendOpts,
-  ): Promise<void> {
+  async sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void> {
     if (!this.client) {
       logger.warn('Discord client not initialized');
       return;
@@ -184,7 +183,15 @@ export class DiscordChannel implements Channel {
       }
       const MAX = 2000;
       for (let i = 0; i < text.length; i += MAX) {
-        await (ch as TextChannel).send(text.slice(i, i + MAX));
+        const chunk = text.slice(i, i + MAX);
+        if (opts?.replyTo && i === 0) {
+          await (ch as TextChannel).send({
+            content: chunk,
+            reply: { messageReference: opts.replyTo },
+          });
+        } else {
+          await (ch as TextChannel).send(chunk);
+        }
       }
       logger.info({ jid, length: text.length }, 'Discord message sent');
     } catch (err) {

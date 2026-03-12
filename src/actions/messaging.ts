@@ -23,6 +23,7 @@ const SendMessageInput = z.object({
   chatJid: z.string(),
   text: z.string(),
   sender: z.string().optional(),
+  replyTo: z.string().optional(),
 });
 
 export const sendMessage: Action = {
@@ -32,7 +33,11 @@ export const sendMessage: Action = {
   async handler(raw, ctx) {
     const input = SendMessageInput.parse(raw);
     assertAuthorized(input.chatJid, ctx, 'send_message');
-    await ctx.sendMessage(input.chatJid, input.text);
+    await ctx.sendMessage(
+      input.chatJid,
+      input.text,
+      input.replyTo ? { replyTo: input.replyTo } : undefined,
+    );
     logger.info(
       { chatJid: input.chatJid, sourceGroup: ctx.sourceGroup },
       'IPC message sent',

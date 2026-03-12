@@ -170,7 +170,11 @@ export function appendMessageContent(id: string, suffix: string): void {
 
 export function storeMessage(msg: NewMessage): void {
   db.prepare(
-    `INSERT OR REPLACE INTO messages (id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message, forwarded_from, reply_to_text, reply_to_sender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO messages
+       (id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message,
+        forwarded_from, reply_to_text, reply_to_sender,
+        reply_to_id, forwarded_from_id, forwarded_msgid)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     msg.id,
     msg.chat_jid,
@@ -183,6 +187,9 @@ export function storeMessage(msg: NewMessage): void {
     msg.forwarded_from ?? null,
     msg.reply_to_text ?? null,
     msg.reply_to_sender ?? null,
+    msg.reply_to_id ?? null,
+    msg.forwarded_from_id ?? null,
+    msg.forwarded_msgid ?? null,
   );
 }
 
@@ -197,7 +204,9 @@ export function getNewMessages(
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
   const sql = `
-    SELECT id, chat_jid, sender, sender_name, content, timestamp, forwarded_from, reply_to_text, reply_to_sender
+    SELECT id, chat_jid, sender, sender_name, content, timestamp,
+           forwarded_from, reply_to_text, reply_to_sender,
+           reply_to_id, forwarded_from_id, forwarded_msgid
     FROM messages
     WHERE timestamp > ? AND chat_jid IN (${placeholders})
       AND is_bot_message = 0 AND content NOT LIKE ?
@@ -230,6 +239,7 @@ export function getMessagesSince(
   const sql = `
     SELECT m.id, m.chat_jid, m.sender, m.sender_name, m.content, m.timestamp,
            m.forwarded_from, m.reply_to_text, m.reply_to_sender,
+           m.reply_to_id, m.forwarded_from_id, m.forwarded_msgid,
            CASE WHEN c.is_group = 1 THEN c.name ELSE NULL END AS group_name
     FROM messages m
     LEFT JOIN chats c ON c.jid = m.chat_jid

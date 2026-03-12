@@ -339,6 +339,7 @@ export class WhatsAppChannel implements Channel {
           let forwarded_from: string | undefined;
           let reply_to_text: string | undefined;
           let reply_to_sender: string | undefined;
+          const reply_to_id = ctxInfo?.stanzaId ?? undefined;
           if (ctxInfo?.isForwarded) {
             forwarded_from = '(forwarded)';
           }
@@ -365,6 +366,7 @@ export class WhatsAppChannel implements Channel {
               forwarded_from,
               reply_to_text,
               reply_to_sender,
+              reply_to_id,
               verb: Verb.Message,
               platform: Platform.WhatsApp,
             },

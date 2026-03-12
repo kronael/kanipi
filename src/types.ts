@@ -114,6 +114,9 @@ export interface NewMessage {
   forwarded_from?: string;
   reply_to_text?: string;
   reply_to_sender?: string;
+  reply_to_id?: string;
+  forwarded_from_id?: string;
+  forwarded_msgid?: string;
   verb?: Verb;
   platform?: Platform;
   mentions?: string[];

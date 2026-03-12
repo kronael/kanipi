@@ -2,12 +2,13 @@ import { z } from 'zod';
 
 import { AvailableGroup } from './container-runner.js';
 import { GroupConfig } from './db.js';
+import { SendOpts } from './types.js';
 
 export interface ActionContext {
   sourceGroup: string;
   isRoot: boolean;
   tier: 0 | 1 | 2 | 3;
-  sendMessage(jid: string, text: string): Promise<void>;
+  sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void>;
   sendDocument(jid: string, path: string, name?: string): Promise<void>;
   getDefaultTarget(jid: string): string | null;
   getRoutedJids(): string[];

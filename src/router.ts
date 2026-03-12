@@ -43,12 +43,18 @@ export function formatMessages(messages: NewMessage[], now?: number): string {
   const lines = messages.map((m) => {
     const parts: string[] = [];
     if (m.forwarded_from) {
-      parts.push(`<forwarded_from sender="${escapeXml(m.forwarded_from)}"/>`);
+      const attrs = [`sender="${escapeXml(m.forwarded_from)}"`];
+      if (m.forwarded_from_id)
+        attrs.push(`from_chat="${escapeXml(m.forwarded_from_id)}"`);
+      if (m.forwarded_msgid)
+        attrs.push(`fwd_msgid="${escapeXml(m.forwarded_msgid)}"`);
+      parts.push(`<forwarded_from ${attrs.join(' ')}/>`);
     }
     if (m.reply_to_text) {
       const rSender = m.reply_to_sender || '(unknown)';
+      const idAttr = m.reply_to_id ? ` id="${escapeXml(m.reply_to_id)}"` : '';
       parts.push(
-        `<reply_to sender="${escapeXml(rSender)}">${escapeXml(m.reply_to_text)}</reply_to>`,
+        `<reply_to sender="${escapeXml(rSender)}"${idAttr}>${escapeXml(m.reply_to_text)}</reply_to>`,
       );
     }
     parts.push(escapeXml(m.content));

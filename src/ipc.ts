@@ -8,6 +8,7 @@ import {
   getManifest,
   registerAction,
 } from './action-registry.js';
+import { SendOpts } from './types.js';
 import { injectMessage } from './actions/inject.js';
 import { sendFile, sendMessage } from './actions/messaging.js';
 import { resetSession } from './actions/session.js';
@@ -40,7 +41,7 @@ import { GroupConfig } from './db.js';
 import { logger } from './logger.js';
 
 export interface IpcDeps {
-  sendMessage: (jid: string, text: string) => Promise<void>;
+  sendMessage: (jid: string, text: string, opts?: SendOpts) => Promise<void>;
   sendDocument: (
     jid: string,
     filePath: string,
