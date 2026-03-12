@@ -312,9 +312,8 @@ export function startIpcWatcher(deps: IpcDeps): void {
         const r = rel ? `${rel}/${e}` : e;
         if (fs.existsSync(path.join(full, 'requests'))) {
           results.push(r);
-        } else {
-          walk(full, r);
         }
+        walk(full, r);
       }
     };
     walk(ipcBaseDir, '');
