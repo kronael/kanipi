@@ -1,6 +1,6 @@
 # Agent-Initiated Status Updates
 
-**Status**: spec
+**Status**: shipped
 
 Agent emits `<status>` blocks during long tasks. The agent-runner detects
 them in the output stream, sends each one immediately as an interim result,
