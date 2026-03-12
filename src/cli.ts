@@ -518,6 +518,63 @@ function userPasswd(
   }
 }
 
+// --- migrate commands ---
+
+function migrateRoot(instance: string): void {
+  const dataDir = getDataDir(instance);
+  const dbPath = getDbPath(instance);
+
+  if (!fs.existsSync(dbPath)) {
+    console.error(`no db: ${dbPath}`);
+    process.exit(1);
+  }
+
+  const db = new Database(dbPath);
+
+  const row = db
+    .prepare("SELECT folder FROM groups WHERE folder = 'main'")
+    .get() as { folder: string } | undefined;
+
+  if (!row) {
+    console.log('nothing to migrate');
+    db.close();
+    return;
+  }
+
+  console.log('Warning: stop the gateway before running this migration');
+  console.log('Migrating main → root...');
+
+  db.transaction(() => {
+    db.prepare("UPDATE groups SET folder='root' WHERE folder='main'").run();
+    db.prepare(
+      "UPDATE scheduled_tasks SET group_folder='root' WHERE group_folder='main'",
+    ).run();
+    db.prepare(
+      "UPDATE sessions SET group_folder='root' WHERE group_folder='main'",
+    ).run();
+    db.prepare("UPDATE routes SET target='root' WHERE target='main'").run();
+  })();
+
+  db.close();
+  console.log('DB updated');
+
+  const groupsMain = path.join(dataDir, 'groups', 'main');
+  const groupsRoot = path.join(dataDir, 'groups', 'root');
+  if (fs.existsSync(groupsMain)) {
+    fs.renameSync(groupsMain, groupsRoot);
+    console.log('groups/main → groups/root');
+  }
+
+  const ipcMain = path.join(dataDir, 'data', 'ipc', 'main');
+  const ipcRoot = path.join(dataDir, 'data', 'ipc', 'root');
+  if (fs.existsSync(ipcMain)) {
+    fs.renameSync(ipcMain, ipcRoot);
+    console.log('data/ipc/main → data/ipc/root');
+  }
+
+  console.log('Done');
+}
+
 // --- create command ---
 
 function create(name: string): void {
@@ -772,6 +829,7 @@ function printUsage(): void {
   console.log('       kanipi config <instance> user {list|add|rm|passwd} ...');
   console.log('       kanipi config <instance> mount {list|add|rm} ...');
   console.log('       kanipi config <instance> containers wipe');
+  console.log('       kanipi config <instance> migrate root');
 }
 
 function handleConfig(args: string[]): void {
@@ -852,9 +910,19 @@ function handleConfig(args: string[]): void {
           process.exit(1);
       }
       break;
+    case 'migrate':
+      switch (action) {
+        case 'root':
+          migrateRoot(instance);
+          break;
+        default:
+          console.error('usage: kanipi config <instance> migrate root');
+          process.exit(1);
+      }
+      break;
     default:
       console.error(
-        'usage: kanipi config <instance> {group|user|mount|containers} ...',
+        'usage: kanipi config <instance> {group|user|mount|containers|migrate} ...',
       );
       process.exit(1);
   }
