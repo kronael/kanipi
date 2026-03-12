@@ -60,9 +60,8 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | Spec                           | Topic                                             | Status     |
 | ------------------------------ | ------------------------------------------------- | ---------- |
 | 0-agent-capabilities           | Container tooling catalog                         | spec       |
-| 1-atlas-capabilities           | Facts, researcher, verifier                       | partial    |
+| 1-atlas                        | Facts, researcher, verifier                       | shipped    |
 | 2-autotesting                  | Subsystem test strategy                           | spec       |
-| 3-memory-facts                 | Persistent concept facts, header-indexed          | shipped    |
 | 4-paths                        | Path translation cleanup                          | shipped    |
 | 5-permissions                  | Tier 0-3 hierarchy                                | partial    |
 | 7-user-context                 | Per-user memory files                             | open       |
