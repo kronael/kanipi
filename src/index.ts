@@ -811,7 +811,9 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          // Intercept command messages before routing to agent
+          // Separate commands from content (deferred until routing resolves target).
+          type DeferredCmd = { msg: NewMessage; word: string; args: string };
+          const deferredCmds: DeferredCmd[] = [];
           const nonCommandMessages: NewMessage[] = [];
           for (const msg of groupMessages) {
             const m = msg.content.trim();
@@ -821,49 +823,59 @@ async function startMessageLoop(): Promise<void> {
               : m;
             if (cmdText.startsWith('/')) {
               const [word, ...rest] = cmdText.slice(1).split(/\s+/);
-              const handler = findCommand(word.toLowerCase());
-              if (handler) {
-                const cached = attachmentCache.get(msg.id);
-                try {
-                  await handler.handle({
-                    group,
-                    groupJid: chatJid,
-                    message: msg,
-                    channel,
-                    args: rest.join(' '),
-                    clearSession: (folder) => {
-                      delete sessions[folder];
-                      deleteSession(folder);
-                    },
-                    getGroup: (folder) => groups[folder],
-                    attachments: cached?.attachments,
-                    download: cached?.download,
-                  });
-                } catch (err) {
-                  logger.error({ command: word, err }, 'Command handler error');
-                }
-                if (cached) attachmentCache.delete(msg.id);
-                // Advance cursor past the command message
-                if (msg.timestamp > (lastAgentTimestamp[chatJid] || '')) {
-                  lastAgentTimestamp[chatJid] = msg.timestamp;
-                  saveState();
-                }
-                // Enqueue so system messages + pending args can flush
-                clearChatErrored(chatJid);
-                queue.enqueueMessageCheck(chatJid);
+              if (findCommand(word.toLowerCase())) {
+                deferredCmds.push({ msg, word, args: rest.join(' ') });
                 continue;
               }
             }
             nonCommandMessages.push(msg);
           }
 
-          if (nonCommandMessages.length === 0) continue;
-
-          // Apply flat routing rules.
+          // Apply flat routing rules. Commands run on the routed group — not the
+          // JID default — so /new routes to whatever group the message targets.
           {
-            const lastMsg = nonCommandMessages[nonCommandMessages.length - 1];
+            const candidateMsgs =
+              nonCommandMessages.length > 0
+                ? nonCommandMessages
+                : groupMessages;
+            const lastMsg = candidateMsgs[candidateMsgs.length - 1];
             const routes = getRoutesForJid(chatJid);
             const target = resolveRoute(lastMsg, routes);
+            const routedGroup =
+              target && groups[target] ? groups[target] : group;
+
+            // Run deferred commands with the routing-resolved group as context.
+            for (const { msg, word, args } of deferredCmds) {
+              const handler = findCommand(word.toLowerCase())!;
+              const cached = attachmentCache.get(msg.id);
+              try {
+                await handler.handle({
+                  group: routedGroup,
+                  groupJid: chatJid,
+                  message: msg,
+                  channel,
+                  args,
+                  clearSession: (folder) => {
+                    delete sessions[folder];
+                    deleteSession(folder);
+                  },
+                  attachments: cached?.attachments,
+                  download: cached?.download,
+                });
+              } catch (err) {
+                logger.error({ command: word, err }, 'Command handler error');
+              }
+              if (cached) attachmentCache.delete(msg.id);
+              if (msg.timestamp > (lastAgentTimestamp[chatJid] || '')) {
+                lastAgentTimestamp[chatJid] = msg.timestamp;
+                saveState();
+              }
+              clearChatErrored(chatJid);
+              queue.enqueueMessageCheck(chatJid);
+            }
+
+            if (nonCommandMessages.length === 0) continue;
+
             if (target && target !== group.folder) {
               await waitForEnrichments(nonCommandMessages.map((m) => m.id));
               const allForRoute = getMessagesSince(

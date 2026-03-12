@@ -13,7 +13,6 @@ export interface CommandContext {
   channel: Channel;
   args: string;
   clearSession: (groupFolder: string) => void;
-  getGroup: (folder: string) => GroupConfig | undefined;
   attachments?: RawAttachment[];
   download?: AttachmentDownloader;
 }
