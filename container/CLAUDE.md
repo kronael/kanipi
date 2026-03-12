@@ -58,6 +58,14 @@ Facts have `verified_at` timestamps in their YAML frontmatter. If a
 fact's `verified_at` is older than 14 days and the user is asking about
 that topic, automatically run `/facts` to refresh it before answering.
 
+# User Context
+
+When a message arrives, the gateway injects `<sender id="tg-123456" file="users/tg-123456.md" />`.
+If `file` is present, you have a context file for this user. Read it when context would help.
+
+Update user files via `/users` when you learn something durable about someone:
+role, expertise, preferences. NOT every interaction — just stable knowledge.
+
 # Development Wisdom
 
 **TL;DR**: boring code, minimal changes, cache external APIs, clean structure.

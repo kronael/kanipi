@@ -2,14 +2,14 @@
 
 **Status**: impl-ready
 
-Per-user memory files. The agent knows who it's talking to.
+Per-user memory files. Agent-controlled like facts.
 
 ## Design
 
 One file per user, managed by the agent:
 
 ```
-/workspace/group/users/<channel>-<id>.md
+users/<channel>-<id>.md
 ```
 
 Examples: `tg-123456.md`, `wa-5551234.md`, `dc-789.md`
@@ -28,23 +28,28 @@ Prefers concise answers with code refs.
 
 Frontmatter: identity fields. Body: agent-written notes. Keep short (<20 lines).
 
-### Injection
+### Gateway signal
 
-Message arrives from user X:
+Gateway injects a presence nudge, not the content:
 
-1. Gateway reads `users/<channel>-<id>.md`
-2. Injects into prompt: `<user id="tg-123456" name="Alice">Backend dev...</user>`
-3. Agent responds with context
+```xml
+<sender id="tg-123456" file="users/tg-123456.md" />
+```
 
-Same pattern as diary injection, keyed on sender not date.
+- `id`: channel-native sender ID
+- `file`: path if file exists, omitted if no file yet
 
-### Agent writes
+Agent decides when to read the file. No automatic injection of content.
 
-Agent updates file when it learns something durable:
+### Agent reads/writes
 
-- Role or expertise
-- Recurring interests
-- Preferred style
+Agent uses `/users` skill to:
+
+- Read user file when context would help
+- Write user file when learning something durable:
+  - Role or expertise
+  - Recurring interests
+  - Preferred style
 
 NOT every interaction — just stable knowledge.
 
@@ -52,18 +57,19 @@ NOT every interaction — just stable knowledge.
 
 Per-group. `users/alice` in group A ≠ `users/alice` in group B.
 
-Cross-channel identity (same person on telegram + whatsapp) is out of scope — see 9-identities.
+Cross-channel identity (same person on telegram + whatsapp) is out of scope — see 5/9-identities.
 
 ## Changes
 
 ```
-src/index.ts or src/router.ts
-  - readUserFile(folder, channelId): string | null
-  - inject <user> block into prompt (alongside diary)
+src/router.ts
+  - inject <sender> tag with id + file presence
+
+container/skills/users/SKILL.md
+  - /users skill for read/write
 
 container/CLAUDE.md
   - document users/ pattern
-  - when to write user files
 ```
 
-~15 lines gateway + CLAUDE.md instruction.
+~5 lines gateway + skill.
