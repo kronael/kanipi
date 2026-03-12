@@ -249,9 +249,30 @@ No special IPC injection needed — escalation reuses the normal routing pipelin
 The parent is unaware it is servicing an escalation; it simply answers whoever
 sent the message.
 
-**Required gateway change**: `escalate_group` handler must pass `ctx.sourceJid` (the
-worker's registered JID) as `chatJid` when firing the parent container, instead of
-forwarding the original `chatJid`.
+**Design: `local:` JID namespace**
+
+Every registered group gets a guaranteed synthetic JID: `local:{folder}`.
+
+- Created automatically at group registration time (no setup required)
+- `routes` entry: `local:atlas/support → atlas/support`
+- Never exposed to external channels — internal routing only
+- Mirrors the existing `web:{folder}` pattern
+
+**Escalation flow with `local:` JIDs:**
+
+1. Worker (`atlas/support`) processes user message (`chatJid = tg/12345`), calls `escalate_group(prompt)`
+2. Gateway fires parent (`atlas`) container with `chatJid = local:atlas/support`
+3. Parent processes, replies — output stored as synthetic message with `chatJid = local:atlas/support`
+4. Message loop routes `local:atlas/support → atlas/support` folder → new worker container
+5. Worker gets fresh turn: parent's reply in context, original `chatJid = tg/12345` in history
+6. Worker replies to user via `tg/12345`
+
+**Required changes:**
+
+- `register_group`: insert `local:{folder}` route alongside any channel JID
+- `escalate_group` handler: pass `local:{ctx.sourceGroup}` as `chatJid` to parent
+- Message loop: handle `local:` chatJid as internal (no external channel send)
+- `send_message` for `local:` JID: store as synthetic DB message, not channel send
 
 **Decision pending**: confirm before implementation.
 
