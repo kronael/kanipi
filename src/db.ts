@@ -881,13 +881,6 @@ export function getJidToFolderMap(): Record<string, string> {
   return result;
 }
 
-export function getJidsThatNeedTrigger(): Set<string> {
-  const rows = db
-    .prepare("SELECT jid FROM routes WHERE type = 'trigger'")
-    .all() as { jid: string }[];
-  return new Set(rows.map((r) => r.jid));
-}
-
 export function hasAlwaysOnRoute(): boolean {
   return (
     db.prepare("SELECT 1 FROM routes WHERE type = 'default' LIMIT 1").get() !=

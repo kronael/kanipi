@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 
-import { ASSISTANT_NAME, TRIGGER_PATTERN } from './config.js';
 import {
   clockXml,
   escapeXml,
@@ -217,44 +216,6 @@ describe('clockXml', () => {
   });
 });
 
-// --- TRIGGER_PATTERN ---
-
-describe('TRIGGER_PATTERN', () => {
-  const name = ASSISTANT_NAME;
-  const lower = name.toLowerCase();
-  const upper = name.toUpperCase();
-
-  it('matches @name at start of message', () => {
-    expect(TRIGGER_PATTERN.test(`@${name} hello`)).toBe(true);
-  });
-
-  it('matches case-insensitively', () => {
-    expect(TRIGGER_PATTERN.test(`@${lower} hello`)).toBe(true);
-    expect(TRIGGER_PATTERN.test(`@${upper} hello`)).toBe(true);
-  });
-
-  it('does not match when not at start of message', () => {
-    expect(TRIGGER_PATTERN.test(`hello @${name}`)).toBe(false);
-  });
-
-  it('does not match partial name like @NameExtra (word boundary)', () => {
-    expect(TRIGGER_PATTERN.test(`@${name}extra hello`)).toBe(false);
-  });
-
-  it('matches with word boundary before apostrophe', () => {
-    expect(TRIGGER_PATTERN.test(`@${name}'s thing`)).toBe(true);
-  });
-
-  it('matches @name alone (end of string is a word boundary)', () => {
-    expect(TRIGGER_PATTERN.test(`@${name}`)).toBe(true);
-  });
-
-  it('matches with leading whitespace after trim', () => {
-    // The actual usage trims before testing: TRIGGER_PATTERN.test(m.content.trim())
-    expect(TRIGGER_PATTERN.test(`@${name} hey`.trim())).toBe(true);
-  });
-});
-
 // --- Outbound formatting (internal tag stripping + prefix) ---
 
 describe('stripInternalTags', () => {
@@ -287,45 +248,5 @@ describe('formatOutbound', () => {
       formatOutbound('<internal>thinking</internal>The answer is 42'),
     ).toBe('The answer is 42');
     expect(formatOutbound('<internal>x</internal>   ')).toBe('');
-  });
-});
-
-// --- Trigger gating via route type ---
-
-describe('trigger gating (route-type-based)', () => {
-  // Replicates the logic from processGroupMessages and startMessageLoop:
-  //   if (!isRootGroup && jidsTrigger.has(chatJid)) { check trigger }
-  function shouldProcess(
-    isRootGroup: boolean,
-    jidNeedsTrigger: boolean,
-    messages: NewMessage[],
-  ): boolean {
-    if (isRootGroup || !jidNeedsTrigger) return true;
-    return messages.some((m) => TRIGGER_PATTERN.test(m.content.trim()));
-  }
-
-  it('root group always processes (no trigger needed)', () => {
-    const msgs = [makeMsg({ content: 'hello no trigger' })];
-    expect(shouldProcess(true, false, msgs)).toBe(true);
-  });
-
-  it('root group processes even when jid is in trigger set', () => {
-    const msgs = [makeMsg({ content: 'hello no trigger' })];
-    expect(shouldProcess(true, true, msgs)).toBe(true);
-  });
-
-  it('non-root group with trigger route requires trigger', () => {
-    const msgs = [makeMsg({ content: 'hello no trigger' })];
-    expect(shouldProcess(false, true, msgs)).toBe(false);
-  });
-
-  it('non-root group with trigger route processes when trigger present', () => {
-    const msgs = [makeMsg({ content: `@${ASSISTANT_NAME} do something` })];
-    expect(shouldProcess(false, true, msgs)).toBe(true);
-  });
-
-  it('non-root group with default route always processes', () => {
-    const msgs = [makeMsg({ content: 'hello no trigger' })];
-    expect(shouldProcess(false, false, msgs)).toBe(true);
   });
 });

@@ -11,7 +11,6 @@ import {
   POLL_INTERVAL,
   SLOTH_USERS,
   TELEGRAM_BOT_TOKEN,
-  TRIGGER_PATTERN,
   VITE_PORT_INTERNAL,
   WEB_DIR,
   WEB_PORT,
@@ -30,7 +29,6 @@ import {
   TWITTER_EMAIL,
   FACEBOOK_PAGE_ID,
   FACEBOOK_PAGE_ACCESS_TOKEN,
-  isRoot,
   TIMEZONE,
   whatsappEnabled,
 } from './config.js';
@@ -66,7 +64,6 @@ import {
   getDirectChildGroupCount,
   getGroupByFolder,
   getJidToFolderMap,
-  getJidsThatNeedTrigger,
   hasAlwaysOnRoute,
   getJidsForFolder,
   getMessagesSince,
@@ -121,7 +118,6 @@ let lastTimestamp = '';
 let sessions: Record<string, string> = {};
 let groups: Record<string, GroupConfig> = {};
 let jidToFolder: Record<string, string> = {};
-let jidsTrigger: Set<string> = new Set();
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
@@ -185,7 +181,6 @@ function loadState(): void {
   sessions = getAllSessions();
   groups = getAllGroupConfigs();
   jidToFolder = getJidToFolderMap();
-  jidsTrigger = getJidsThatNeedTrigger();
   logger.info(
     {
       groupCount: Object.keys(groups).length,
@@ -213,7 +208,6 @@ function refreshGroups(): void {
   }
   groups = freshGroups;
   jidToFolder = freshJidMap;
-  jidsTrigger = getJidsThatNeedTrigger();
 }
 
 function registerGroup(jid: string, group: GroupConfig): void {
@@ -341,14 +335,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       'chat in errored state, skipping until user retries',
     );
     return true;
-  }
-
-  // For non-root groups, check if trigger is required and present
-  if (!isRoot(group.folder) && jidsTrigger.has(chatJid)) {
-    const hasTrigger = missedMessages.some((m) =>
-      TRIGGER_PATTERN.test(m.content.trim()),
-    );
-    if (!hasTrigger) return true;
   }
 
   // Apply flat routing rules before spawning agent.
@@ -822,9 +808,6 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          const needsTrigger =
-            !isRoot(group.folder) && jidsTrigger.has(chatJid);
-
           // Intercept command messages before routing to agent
           const nonCommandMessages: NewMessage[] = [];
           for (const msg of groupMessages) {
@@ -871,16 +854,6 @@ async function startMessageLoop(): Promise<void> {
           }
 
           if (nonCommandMessages.length === 0) continue;
-
-          // For non-main groups, only act on trigger messages.
-          // Non-trigger messages accumulate in DB and get pulled as
-          // context when a trigger eventually arrives.
-          if (needsTrigger) {
-            const hasTrigger = nonCommandMessages.some((m) =>
-              TRIGGER_PATTERN.test(m.content.trim()),
-            );
-            if (!hasTrigger) continue;
-          }
 
           // Apply flat routing rules.
           {

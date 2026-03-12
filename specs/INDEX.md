@@ -75,6 +75,7 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 | G-codebase-trim         | Dead code removal (~900 lines) | spec       |
 | H-jid-format            | Compact JID URIs, sender IDs   | spec       |
 | J-container-commands    | Generic container commands     | shipped    |
+| K-remove-triggers       | Remove trigger pattern system  | shipped    |
 
 ## Phase 4 — Dashboards, Memory, Products (planned)
 

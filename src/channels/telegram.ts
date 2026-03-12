@@ -3,7 +3,6 @@ import path from 'path';
 
 import { Bot, InputFile } from 'grammy';
 
-import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import {
   AttachmentDownloader,
   AttachmentType,
@@ -76,9 +75,7 @@ export class TelegramChannel implements Channel {
           ? senderName
           : (ctx.chat as any).title || chatJid;
 
-      // Translate Telegram @bot_username mentions into TRIGGER_PATTERN format.
-      // Telegram @mentions (e.g., @andy_ai_bot) won't match TRIGGER_PATTERN
-      // (e.g., ^@Andy\b), so we prepend the trigger when the bot is @mentioned.
+      // Detect @bot_username mentions for mentions_me flag
       const botUsername = ctx.me?.username?.toLowerCase();
       let isBotMentioned = false;
       if (botUsername) {
@@ -92,9 +89,6 @@ export class TelegramChannel implements Channel {
           }
           return false;
         });
-        if (isBotMentioned && !TRIGGER_PATTERN.test(content)) {
-          content = `@${ASSISTANT_NAME} ${content}`;
-        }
       }
 
       // Store chat metadata for discovery

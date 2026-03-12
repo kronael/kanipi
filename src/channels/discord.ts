@@ -10,7 +10,6 @@ import {
   TextChannel,
 } from 'discord.js';
 
-import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import {
   AttachmentDownloader,
   AttachmentType,
@@ -90,9 +89,6 @@ export class DiscordChannel implements Channel {
     const mentionsBot = !!(botId && content.includes(`<@${botId}>`));
     if (mentionsBot) {
       content = content.replace(`<@${botId!}>`, '').trim();
-      if (!TRIGGER_PATTERN.test(content)) {
-        content = `@${ASSISTANT_NAME} ${content}`;
-      }
     }
 
     // Build raw attachment list from discord message attachments
