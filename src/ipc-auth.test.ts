@@ -347,6 +347,21 @@ describe('register_group authorization', () => {
 
     expect(getDefaultTarget('new@g.us')).toBeNull();
   });
+
+  it('root group cannot register a folder deeper than 3 levels', async () => {
+    await processTaskIpc(
+      {
+        type: 'register_group',
+        jid: 'deep@g.us',
+        name: 'Deep Group',
+        folder: 'atlas/support/web/deep',
+      },
+      'root',
+      deps,
+    );
+
+    expect(getDefaultTarget('deep@g.us')).toBeNull();
+  });
 });
 
 // --- refresh_groups authorization ---
