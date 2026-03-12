@@ -302,19 +302,22 @@ Every registered group gets a guaranteed synthetic JID: `local:{folder}`.
 
 1. Worker (`atlas/support`) processes user message (`chatJid = tg/12345`), calls `escalate_group(prompt)`
 2. Gateway fires parent (`atlas`) container with `chatJid = local:atlas/support`
-3. Parent processes, replies — output stored as synthetic message with `chatJid = local:atlas/support`
-4. Message loop routes `local:atlas/support → atlas/support` folder → new worker container
-5. Worker gets fresh turn: parent's reply in context, original `chatJid = tg/12345` in history
-6. Worker replies to user via `tg/12345`
+3. Parent processes, produces output
+4. Gateway routes parent's output through the **normal message router**: stored as a message
+   with `chatJid = local:atlas/support` in the messages table — same path as any channel message,
+   except `local:` JIDs are never sent to an external channel
+5. Message loop picks up `local:atlas/support` → routes to `atlas/support` folder → new worker container
+6. Worker gets fresh turn with parent's reply; calls `send_message(tg/12345, text)` to reply to user
+
+The parent is unaware it is servicing an escalation. Normal turn metadata is preserved.
+**Maximum one escalation level** — no recursive chaining for now.
 
 **Required changes:**
 
-- `register_group`: insert `local:{folder}` route alongside any channel JID
-- `escalate_group` handler: pass `local:{ctx.sourceGroup}` as `chatJid` to parent
-- Message loop: handle `local:` chatJid as internal (no external channel send)
-- `send_message` for `local:` JID: store as synthetic DB message, not channel send
-
-**Decision pending**: confirm before implementation.
+- `register_group`: insert `local:{folder}` into `routes` table alongside any channel JID
+- `escalate_group` handler: pass `local:{ctx.sourceGroup}` as `chatJid` to parent container
+- Router / channel send: if `chatJid` starts with `local:`, skip external channel send; store message in DB only
+- Message loop: `local:` JIDs route to their folder normally via existing `getDefaultTarget`
 
 ### Host/web actions
 
