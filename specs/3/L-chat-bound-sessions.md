@@ -2,9 +2,8 @@
 
 **Status**: spec
 
-One container per folder, strictly serial. Containers exit immediately after
-producing output (`IDLE_TIMEOUT=0`). `send_reply` for the bound chat;
-`send_message` for cross-chat.
+One container per folder, strictly serial. Containers exit when the SDK query
+completes. `send_reply` for the bound chat; `send_message` for cross-chat.
 
 ## Model
 
@@ -19,15 +18,6 @@ This is exactly the current `GroupQueue` model. No structural change needed.
 
 ## Problem
 
-### IDLE_TIMEOUT and stuck containers
-
-Containers stay alive for 30 minutes (default) after last output, blocking
-the folder slot for all incoming JIDs. With IDLE_TIMEOUT=0 containers exit
-immediately after producing output — the folder slot is freed instantly,
-the next queued message starts a new container.
-
-### Implicit reply path
-
 Agents reply by calling `send_message(chatJid, text)` where `chatJid` is
 injected by the gateway. The agent must track it explicitly. The intent —
 "reply to whoever sent me this message" — has no dedicated action.
@@ -36,10 +26,9 @@ injected by the gateway. The agent must track it explicitly. The intent —
 
 ### Container exits when done
 
-Remove `IDLE_TIMEOUT` entirely — the config, the `setTimeout` idle timer,
-and all related logic. `closeStdin(chatJid)` is called directly after the
-first successful output. Container self-terminates once the SDK `query()`
-loop completes; `closeStdin` is belt-and-suspenders.
+Remove `IDLE_TIMEOUT` entirely — the config and the `setTimeout` idle timer
+logic. Container runs one SDK `query()`, produces output, exits naturally.
+No gateway signal needed.
 
 ### `NANOCLAW_CHAT_JID` in container settings
 
@@ -96,8 +85,8 @@ works naturally. No guessing needed.
 ## Session Continuity
 
 Session ID keyed by `group.folder` (unchanged). The container always resumes
-the same SDK session for the folder. With IDLE_TIMEOUT=0, containers are
-short-lived but session history is preserved across runs via the `.jl` file.
+the same SDK session for the folder. Containers are short-lived (exit after
+each query) but session history is preserved across runs via the `.jl` file.
 
 No concurrent session write risk — folder containers are serial.
 
@@ -122,5 +111,5 @@ Original chatJid must be threaded into the escalation prompt body.
 1. `chatJid` on `ActionContext` — additive, no risk
 2. `send_reply` action — additive
 3. `NANOCLAW_CHAT_JID` in container settings
-4. Remove `IDLE_TIMEOUT` + closeStdin on first output
+4. Remove `IDLE_TIMEOUT` config and idle timer logic
 5. `local:` JID routing — after 5-permissions is implemented
