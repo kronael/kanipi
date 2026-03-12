@@ -54,7 +54,11 @@ describe('send_message', () => {
       ctx,
     );
 
-    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hello');
+    expect(ctx.sendMessage).toHaveBeenCalledWith(
+      'chat@jid',
+      'hello',
+      undefined,
+    );
     expect(r).toEqual({ sent: true });
   });
 
@@ -66,7 +70,7 @@ describe('send_message', () => {
       ctx,
     );
 
-    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi');
+    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi', undefined);
     expect(r).toEqual({ sent: true });
   });
 
@@ -78,7 +82,7 @@ describe('send_message', () => {
       ctx,
     );
 
-    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi');
+    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi', undefined);
     expect(r).toEqual({ sent: true });
   });
 
