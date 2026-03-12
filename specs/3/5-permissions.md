@@ -133,9 +133,9 @@ inside existing worlds are allowed.
 - tier 1: direct children in own world
 - tier 2/3: denied
 
-`delegate_group`:
+`delegate_group` (send to `local:{child}` — downward only):
 
-- tier 0: any folder in any world (root world privilege)
+- tier 0: any descendant in any world
 - tier 1: any descendant in own subtree
 - tier 2: any descendant in own subtree
 - tier 3: denied
@@ -200,6 +200,45 @@ Tier 2 and 3 have no filesystem access to `/workspace/web` — HTTP is always av
 | `NANOCLAW_IS_WORLD_ADMIN` | `"1"` if tier 1, absent otherwise  |
 | `NANOCLAW_ASSISTANT_NAME` | bot name from config               |
 | `NANOCLAW_DELEGATE_DEPTH` | current delegation depth           |
+
+## local: routing enforcement
+
+### Where enforcement lives
+
+All `local:` routing rules are enforced in the **action handlers** (`src/actions/`),
+not in the router/message loop. Rationale:
+
+- Action handlers run in the gateway process — unreachable by agent code
+- `/app/src` is mounted `ro` for tier 2/3; agents cannot modify gateway enforcement
+- The IPC request mechanism always passes through gateway validation
+- Duplicating rules in the router creates drift; action handlers are the single source
+
+The router/message loop may do a lightweight sanity check on delivery (drop a
+`local:` message whose source is not an ancestor of the target) as defense-in-depth,
+but this is not the primary gate.
+
+### Rules
+
+**Downward (delegation)** — `delegate_group` / `send_message` to `local:{child}`:
+
+- Sender must be an ancestor of the target folder
+- Enforced in `delegate_group` handler and `send_message` handler (target JID check)
+
+**Upward (escalation)** — `escalate_group` / `send_message` to `local:{parent}`:
+
+- Sender may only target its **direct parent** (one level up, no skipping)
+- Enforced in `escalate_group` handler (already checks `lastIndexOf('/')`)
+- `send_message` to a `local:` JID that is not direct parent → denied for tier 2/3
+
+**Tier 0/1 cannot escalate** — already enforced (no parent exists).
+
+### Why not the router?
+
+The agent controls what IPC requests it writes. If enforcement were only in the
+router, a misconfigured or prompt-injected agent could write a crafted IPC request
+that bypasses action-level checks and reaches the router with an arbitrary target.
+The action handler validates the request before it ever produces a routable message,
+closing that gap.
 
 ## Delegation prompt format
 
