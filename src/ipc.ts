@@ -189,7 +189,12 @@ export async function drainRequests(
                   path.join(HOST_GROUPS_DIR, sourceGroup) + '/',
                 )
               ) {
-                reply = { id, ok: false, error: 'path outside group dir' };
+                reply = {
+                  id,
+                  ok: false,
+                  error:
+                    'send_file: path must be under ~/ — save to ~/tmp/ first if needed',
+                };
                 writeReply(repliesDir, reply);
                 try {
                   fs.unlinkSync(filePath);
