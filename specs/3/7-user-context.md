@@ -1,27 +1,18 @@
 # User Context
 
-**Status**: open
+**Status**: impl-ready
 
-Per-user memory for audience agents. The agent knows who it's talking to.
-
-See `specs/1/K-knowledge-system.md` for memory layer overview.
-
-## Problem
-
-In a group with many users, the agent treats every message the same.
-No memory of past interactions, preferences, expertise level, or
-ongoing conversations with each user.
+Per-user memory files. The agent knows who it's talking to.
 
 ## Design
 
 One file per user, managed by the agent:
 
 ```
-/workspace/group/users/<user-id>.md
+/workspace/group/users/<channel>-<id>.md
 ```
 
-Agent creates and updates the file as it learns about the user.
-Gateway injects a summary from the user's file when their message arrives.
+Examples: `tg-123456.md`, `wa-5551234.md`, `dc-789.md`
 
 ### File format
 
@@ -29,42 +20,50 @@ Gateway injects a summary from the user's file when their message arrives.
 ---
 name: Alice
 first_seen: 2026-03-06
-last_seen: 2026-03-06
 ---
 
 Backend developer. Works on validator-bonds.
-Asked about bond collateral mechanics, SAM auction flow.
-Prefers concise answers with code references.
+Prefers concise answers with code refs.
 ```
 
-Frontmatter: identity fields (name, dates, IDs).
-Body: free-form agent-written notes. Short. Updated over time.
+Frontmatter: identity fields. Body: agent-written notes. Keep short (<20 lines).
 
 ### Injection
 
-When a message arrives from user X:
+Message arrives from user X:
 
-1. Gateway reads `users/<user-id>.md`
-2. Extracts YAML frontmatter summary (or first N lines of body)
-3. Injects into agent prompt: `<user name="Alice">Backend developer...</user>`
-4. Agent sees context before responding
+1. Gateway reads `users/<channel>-<id>.md`
+2. Injects into prompt: `<user id="tg-123456" name="Alice">Backend dev...</user>`
+3. Agent responds with context
 
-Like diary injection but keyed on sender, not date.
+Same pattern as diary injection, keyed on sender not date.
 
 ### Agent writes
 
-Agent updates the file when it learns something notable:
+Agent updates file when it learns something durable:
 
-- User's role or expertise area
-- Recurring questions or interests
-- Preferred communication style
-- Ongoing tasks or threads
+- Role or expertise
+- Recurring interests
+- Preferred style
 
-Agent should NOT log every interaction — just durable preferences
-and knowledge. The file should stay short (<20 lines).
+NOT every interaction — just stable knowledge.
 
-## Open
+## Scope
 
-- User ID: per-channel (telegram user ID) or normalized cross-channel
-- Privacy: user file access/deletion, GDPR
-- Scope: per-group files or shared across groups
+Per-group. `users/alice` in group A ≠ `users/alice` in group B.
+
+Cross-channel identity (same person on telegram + whatsapp) is out of scope — see 9-identities.
+
+## Changes
+
+```
+src/index.ts or src/router.ts
+  - readUserFile(folder, channelId): string | null
+  - inject <user> block into prompt (alongside diary)
+
+container/CLAUDE.md
+  - document users/ pattern
+  - when to write user files
+```
+
+~15 lines gateway + CLAUDE.md instruction.

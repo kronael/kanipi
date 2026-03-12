@@ -64,7 +64,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | 2-autotesting                  | Subsystem test strategy                           | spec       |
 | 4-paths                        | Path translation cleanup                          | shipped    |
 | 5-permissions                  | Tier 0-3 hierarchy                                | partial    |
-| 7-user-context                 | Per-user memory files                             | open       |
+| 7-user-context                 | Per-user memory files                             | impl-ready |
 | 8-web-virtual-hosts            | Per-group web serving                             | spec draft |
 | 9-whatsapp-improvements        | Read receipts, presence                           | shipped    |
 | A-auth                         | Local auth, JWT                                   | shipped    |
