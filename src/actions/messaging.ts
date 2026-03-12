@@ -11,11 +11,7 @@ function assertAuthorized(
 ): void {
   if (ctx.tier === 0) return;
   const targetFolder = ctx.getDefaultTarget(chatJid);
-  if (ctx.tier === 1) {
-    if (targetFolder && isInWorld(ctx.sourceGroup, targetFolder)) return;
-  } else {
-    if (targetFolder && targetFolder === ctx.sourceGroup) return;
-  }
+  if (targetFolder && isInWorld(ctx.sourceGroup, targetFolder)) return;
   logger.warn(
     { chatJid, sourceGroup: ctx.sourceGroup },
     `unauthorized ${action} blocked`,
