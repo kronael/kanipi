@@ -117,6 +117,32 @@ function writeOutput(output: ContainerOutput): void {
   console.log(OUTPUT_END_MARKER);
 }
 
+/**
+ * Extract <status>...</status> blocks from text.
+ * Returns the cleaned text and an array of extracted status messages.
+ */
+function extractStatusBlocks(text: string): { cleaned: string; statuses: string[] } {
+  const statuses: string[] = [];
+  const cleaned = text.replace(/<status>([\s\S]*?)<\/status>/g, (_match, content) => {
+    statuses.push(content.trim());
+    return '';
+  });
+  return { cleaned: cleaned.trim(), statuses };
+}
+
+/**
+ * Strip <think>...</think> blocks from agent output.
+ * If agent opens <think> and never closes it, everything after <think> is hidden.
+ */
+function stripThinkBlocks(text: string): string {
+  // Remove complete think blocks (multiline)
+  let result = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+  // Strip from unclosed <think> to end of string
+  const open = result.indexOf('<think>');
+  if (open !== -1) result = result.slice(0, open);
+  return result.trim();
+}
+
 function log(message: string): void {
   console.error(`[agent-runner] ${message}`);
 }
@@ -372,11 +398,6 @@ async function runQuery(
         if (m.uuid) lastAssistantUuid = m.uuid;
       }
 
-      if (messageCount > 0 && messageCount % 100 === 0) {
-        const snippet = lastAssistantText?.slice(0, 280) ?? `${messageCount} messages processed`;
-        writeOutput({ status: 'success', result: `⏳ still working… ${snippet}`, newSessionId });
-      }
-
       if (message.type === 'system' && message.subtype === 'init') {
         newSessionId = message.session_id;
         log(`Session initialized: ${newSessionId}`);
@@ -389,12 +410,17 @@ async function runQuery(
 
       if (message.type === 'result') {
         resultCount++;
-        const textResult = 'result' in message ? (message as { result?: string }).result : null;
-        log(`Result #${resultCount}: subtype=${message.subtype}${textResult ? ` text=${textResult.slice(0, 200)}` : ''}`);
+        const rawResult = 'result' in message ? (message as { result?: string }).result : null;
+        log(`Result #${resultCount}: subtype=${message.subtype}${rawResult ? ` text=${rawResult.slice(0, 200)}` : ''}`);
         if (message.subtype === 'error_max_turns') {
           maxTurnsHit = true;
         } else {
-          writeOutput({ status: 'success', result: textResult || null, newSessionId });
+          const stripped = stripThinkBlocks(rawResult ?? '');
+          const { cleaned, statuses } = extractStatusBlocks(stripped);
+          for (const s of statuses) {
+            writeOutput({ status: 'success', result: `⏳ ${s}`, newSessionId });
+          }
+          writeOutput({ status: 'success', result: cleaned || null, newSessionId });
         }
       }
     }

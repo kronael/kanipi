@@ -1,6 +1,6 @@
 # Think Blocks
 
-**Status**: spec
+**Status**: shipped
 
 Agent uses `<think>` delimiters for internal reasoning. Gateway strips the
 block before sending to the channel. If the agent never exits `<think>`, the
