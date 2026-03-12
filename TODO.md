@@ -1,61 +1,54 @@
 # TODO
 
-also - consider a re-pathing.. where the standard unix layout would map to
-the groups . ... unifying workspace with ~/ homes and the http multi-tenancy
-would become .publick_html like system
+## Phase 3 — ships to marinade (v1.x)
 
-- all of this then injects and reflect onto itself of not reinventing the worls
-
-## Phase 2 — next to ship
-
-Partial specs, close to done. Finish these first.
+Finish these. Small, bounded, no new architecture.
 
 - [x] paths: hostPath() elimination (HOST\_\* exports done)
-- [ ] autotesting: IPC drain + voice roundtrip test gaps
 - [x] session-recovery: diary recovery entries on error/crash
-- [ ] errored chat flag: shipped this session (don't auto-retry on restart)
-- [ ] sse: auth per group on stream endpoint (broadcast is correct)
 - [x] diary: stop hook nudge, precompact cleanup, 14-entry injection, CLAUDE.md updates
+- [x] errored chat flag: skip errored chats until new message
+- [x] legacy IPC removal: drainLegacyMessages / drainLegacyTasks gone
+- [x] nested IPC groups: scanGroupFolders recurse fix (atlas/support now watched)
+- [x] tier auth: send_message/send_file allow tier-2 agents in same world
+- [ ] autotesting: IPC drain + voice roundtrip test gaps (3/2)
+- [ ] sse: auth per group on stream endpoint (3/ gap)
+- [ ] permissions: close any remaining tier 0-3 gaps (3/5)
+- [ ] codebase-trim: dead code removal ~900 lines (3/G)
+- [ ] jid-format: compact JID URIs, sender IDs (3/H)
+- [ ] orphan cleanup: kill nanoclaw-\* on gateway startup
+- [ ] stream-stall timeout: agent-runner watchdog if no result in 5min
+- [ ] platform-permissions: per-group platform action grants (from 4/V)
+- [ ] dash-status: read-only health dashboard — containers, queues, errors (from 4/P)
+- [ ] memory-episodic: diary → weekly/monthly aggregation via cron subagent (from 4/B)
+- [ ] researcher: background research subagent, writes to facts/ (from 4/H)
 
-## Phase 3 — outstanding, not urgent
+## Arizuko — deferred to new instance
 
-- [ ] worlds-rooms: phase 2 threads/rooms (phase 1 isRoot shipped)
-- [ ] memory-facts: gateway injection + MCP tools (facts skill exists)
-- [ ] message-mcp: get_history/get_thread MCP tools
-- [ ] agent-messaging: structured agent-to-agent messages
-- [ ] identities: cross-channel identity linking
-- [ ] message-wal: pending_delivery table, ack protocol
-- [ ] collapse sessions table into registered_groups.session_id
-- [ ] test SDK resume failure (bad session ID behavior)
+Requires architectural changes or new instance setup. Do not ship to marinade.
 
-## Phase 3 — dashboards & file access
+- [ ] unified home dir: groups/{folder} → /home/node, remove /workspace/group (plan: indexed-hatching-stream.md)
+- [ ] detached containers: file-based IPC replaces docker stdin/stdout, enables reclaim (4/W)
+- [ ] dashboards: long-running web services architecture (4/4)
+- [ ] dash-memory: memory/diary viewer and editor (4/Q)
+- [ ] evangelist: community engagement agent (4/R)
+- [ ] support product: codebase Q&A agent config (4/3)
+- [ ] gmail channel: Gmail API + Pub/Sub (4/8)
+- [ ] instance-repos: git-based config deployment (4/G)
+- [ ] agent-pipeline: multi-hop routing, continuation payloads (5/2)
+- [ ] ipc-mcp-proxy: unix socket replaces file IPC (5/A)
+- [ ] workflows: multi-step workflow primitives (5/N)
+- [ ] plugins: dynamic channel/feature loading (5/E)
 
-- [ ] dash-status: health dashboard (containers, queues, errors)
-- [ ] dash-memory: memory/diary viewer and editor
-- [ ] webdav: WebDAV file access via Caddy container
+## Arizuko — Atlas features
 
-## Future — memory layers, agent teams, feed adapters
-
-- [ ] memory-episodic: diary -> weekly/monthly aggregation
-- [ ] agent-teams: multi-agent collaboration
-- [ ] agent-pipeline: continuation payload, multi-hop routing
-- [ ] ipc-mcp-proxy: unix socket, replace file IPC
-- [ ] plugins: dynamic channel/feature loading
-- [ ] workflows: multi-step workflow primitives
-- [ ] evangelist: reddit engagement agent (scrape, score, draft, review, post)
-- [ ] feed adapters: twitter, facebook, gmail
-- [ ] HTTP request scrubbing (strip secrets from agent HTTP)
-
-## Future — Go rewrite
-
-- [ ] Go gateway rewrite
-- [ ] arizuka integration
-
-## Atlas
-
-- [ ] user context: per-user memory, gateway injection
+- [ ] user context: per-user memory, gateway injection (3/7)
 - [ ] semantic search: embeddings MCP server
 - [ ] gateway fact injection (top-N relevant)
-- [ ] knowledge gap detection -> auto-trigger research
+- [ ] knowledge gap detection → auto-trigger research
 - [ ] scheduled research (cron)
 - [ ] v2 sandboxed support: frontend/backend split
+
+## Dropped
+
+- agent-routing (4/1): superseded by nested groups + routing rules (already shipped)

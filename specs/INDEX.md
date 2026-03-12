@@ -55,45 +55,46 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 
 ## Phase 3 — Permissions, Cleanup, Gaps (in progress)
 
-16 specs. Focus: access control, partial implementations, near-term cleanup.
+Ships to marinade (v1.x). Focus: access control, partial implementations, cleanup, and selected phase 4 items pulled forward.
 
-| Spec                    | Topic                          | Status     |
-| ----------------------- | ------------------------------ | ---------- |
-| 0-agent-capabilities    | Container tooling catalog      | spec       |
-| 1-atlas-capabilities    | Facts, researcher, verifier    | partial    |
-| 2-autotesting           | Subsystem test strategy        | spec       |
-| 3-memory-facts          | Persistent knowledge (v2)      | open       |
-| 4-paths                 | Path translation cleanup       | shipped    |
-| 5-permissions           | Tier 0-3 hierarchy             | partial    |
-| 7-user-context          | Per-user memory files          | open       |
-| 8-web-virtual-hosts     | Per-group web serving          | spec draft |
-| 9-whatsapp-improvements | Read receipts, presence        | open       |
-| A-auth                  | Local auth, JWT                | partial    |
-| C-files-in              | File transfer                  | partial    |
-| D-knowledge-system      | Memory layers pattern          | partial    |
-| E-memory-session        | SDK sessions, .jl files        | partial    |
-| G-codebase-trim         | Dead code removal (~900 lines) | spec       |
-| H-jid-format            | Compact JID URIs, sender IDs   | spec       |
-| J-container-commands    | Generic container commands     | shipped    |
-| K-remove-triggers       | Remove trigger pattern system  | shipped    |
+| Spec                           | Topic                           | Status     |
+| ------------------------------ | ------------------------------- | ---------- |
+| 0-agent-capabilities           | Container tooling catalog       | spec       |
+| 1-atlas-capabilities           | Facts, researcher, verifier     | partial    |
+| 2-autotesting                  | Subsystem test strategy         | spec       |
+| 3-memory-facts                 | Persistent knowledge (v2)       | open       |
+| 4-paths                        | Path translation cleanup        | shipped    |
+| 5-permissions                  | Tier 0-3 hierarchy              | partial    |
+| 7-user-context                 | Per-user memory files           | open       |
+| 8-web-virtual-hosts            | Per-group web serving           | spec draft |
+| 9-whatsapp-improvements        | Read receipts, presence         | open       |
+| A-auth                         | Local auth, JWT                 | partial    |
+| C-files-in                     | File transfer                   | partial    |
+| D-knowledge-system             | Memory layers pattern           | partial    |
+| E-memory-session               | SDK sessions, .jl files         | partial    |
+| G-codebase-trim                | Dead code removal (~900 lines)  | spec       |
+| H-jid-format                   | Compact JID URIs, sender IDs    | spec       |
+| J-container-commands           | Generic container commands      | shipped    |
+| K-remove-triggers              | Remove trigger pattern system   | shipped    |
+| _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes | open       |
+| _(4/H)_ H-researcher           | Background research subagent    | open       |
+| _(4/P)_ P-dash-status          | Health dashboard (read-only)    | open       |
+| _(4/V)_ V-platform-permissions | Per-platform action grants      | open       |
 
-## Phase 4 — Dashboards, Memory, Products (planned)
+## Phase 4 — Arizuko (deferred)
 
-11 specs. Focus: operator tools, memory layers, products.
+Requires new instance or major architectural changes. Ships to arizuko, not marinade.
 
-| Spec                   | Topic                     | Status |
-| ---------------------- | ------------------------- | ------ |
-| 1-agent-routing        | Pipeline routing (v2)     | open   |
-| 3-support              | Code researcher agent     | spec   |
-| 4-dashboards           | Long-running web services | open   |
-| 8-gmail                | Gmail API channel         | spec   |
-| B-memory-episodic      | Diary aggregation         | open   |
-| G-instance-repos       | Git-based config (v2)     | open   |
-| H-researcher           | Background research tasks | open   |
-| P-dash-status          | Health dashboard          | open   |
-| Q-dash-memory          | Memory viewer/editor      | open   |
-| R-evangelist           | Community engagement      | open   |
-| V-platform-permissions | Per-platform grants       | spec   |
+| Spec                  | Topic                             | Status                                          |
+| --------------------- | --------------------------------- | ----------------------------------------------- |
+| 1-agent-routing       | Pipeline routing to workers       | dropped — superseded by nested groups + routing |
+| 3-support             | Code researcher product config    | arizuko                                         |
+| 4-dashboards          | Long-running web services         | arizuko                                         |
+| 8-gmail               | Gmail API channel                 | arizuko                                         |
+| G-instance-repos      | Git-based config repos            | arizuko                                         |
+| Q-dash-memory         | Memory viewer/editor              | arizuko                                         |
+| R-evangelist          | Community engagement agent        | arizuko                                         |
+| W-detached-containers | File-based container IPC, reclaim | arizuko (spec)                                  |
 
 ## Phase 5 — Agent Extensions & Workflows (future)
 
