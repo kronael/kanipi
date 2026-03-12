@@ -2,8 +2,8 @@
 
 **Status**: spec
 
-One container per folder, strictly serial. Containers exit when the SDK query
-completes. `send_reply` for the bound chat; `send_message` for cross-chat.
+One container per folder, strictly serial. Containers exit when SDK query
+completes and input is empty. All I/O via IPC files — no stdin.
 
 ## Model
 
@@ -12,58 +12,91 @@ completes. `send_reply` for the bound chat; `send_message` for cross-chat.
   the current container exits.
 - **Same JID → different folders**: parallel. JID1 can hit `root` and
   `atlas/support` simultaneously — those are different folder containers.
-- **No per-JID containers**. JID is source context, folder is the processing unit.
 
-This is exactly the current `GroupQueue` model. No structural change needed.
+## IPC directory
 
-## Problem
-
-Agents reply by calling `send_message(chatJid, text)` where `chatJid` is
-injected by the gateway. The agent must track it explicitly. The intent —
-"reply to whoever sent me this message" — has no dedicated action.
-
-## Changes
-
-### Container exits when done
-
-Remove `IDLE_TIMEOUT` entirely — the config and the `setTimeout` idle timer
-logic. Container runs one SDK `query()`, produces output, exits naturally.
-No gateway signal needed.
-
-### `NANOCLAW_CHAT_JID` in container settings
-
-The MCP subprocess already receives `NANOCLAW_CHAT_JID`. Add it to the
-top-level container env via `updateSettings` in `runAgentMode`:
-
-```typescript
-NANOCLAW_CHAT_JID: input.chatJid,
+```
+/workspace/ipc/
+  start.json          ← config written by gateway before spawn
+  input/              ← message files (gateway writes, container reads)
+    <timestamp>.json  ← { text: "...", chatJid: "..." }
+  exiting             ← sentinel (empty = alive, "exiting" = shutting down)
 ```
 
-### `chatJid` on `ActionContext`
+### start.json schema
 
 ```typescript
-export interface ActionContext {
-  sourceGroup: string;
-  chatJid: string; // bound source JID; '' if unknown
-  // ... rest unchanged
+{
+  sessionId?: string;       // SDK resume
+  groupFolder: string;      // context
+  chatJid: string;          // source JID for first message
+  assistantName: string;    // bot name
+  channelName?: string;     // telegram/discord/etc
+  annotations?: string[];   // diary injection etc
 }
 ```
 
-`drainRequests()` extracts `chatJid` from request JSON (agent already sends it):
+### Message file schema
 
 ```typescript
-const chatJid = typeof data.chatJid === 'string' ? data.chatJid : '';
+{
+  text: string; // message content
+  chatJid: string; // source JID
+}
 ```
 
-Backward compatible: old agent-runners get `''`; `send_reply` throws for them.
+## Container lifecycle
 
-### `send_reply` action
+```
+1. Gateway writes start.json + initial message(s) to input/
+2. Gateway spawns container
+3. Container reads start.json
+4. Container creates empty exiting file
+5. Container polls input/, processes messages via SDK query
+6. SDK query finishes, input/ empty → exit protocol
+```
+
+## Exit protocol
+
+Lock-based handoff to prevent message loss.
+
+**Gateway delivers message:**
+
+```
+flock(exiting, LOCK_EX)
+if read(exiting) == "exiting":
+  unlock
+  return QUEUE_FOR_NEXT        // container exiting, queue for next
+write message to input/
+unlock
+signal container (SIGUSR1)
+return DELIVERED
+```
+
+**Container exits:**
+
+```
+flock(exiting, LOCK_EX)
+write(exiting, "exiting")
+unlock
+drain input/ for remaining messages
+process drained messages (final query if needed)
+exit
+```
+
+**Why this works:**
+
+- Lock ensures mutual exclusion on state transitions
+- Gateway has lock → writes message → container can't mark exiting → message seen
+- Container has lock → marks exiting → gateway sees "exiting" → queues for next
+- Container drains after writing "exiting" → catches messages that arrived before lock
+
+## send_reply action
 
 ```typescript
 export const sendReply: Action = {
   name: 'send_reply',
-  description:
-    'Reply to the current conversation. Use instead of send_message when replying to whoever sent you a message.',
+  description: 'Reply to the current conversation.',
   input: z.object({ text: z.string() }),
   async handler(raw, ctx) {
     const { text } = z.object({ text: z.string() }).parse(raw);
@@ -74,42 +107,50 @@ export const sendReply: Action = {
 };
 ```
 
-Register in `ipc.ts` alongside `sendMessage`.
+`chatJid` on `ActionContext` — extracted from message file being processed.
 
-### Task container chatJid
+## Task containers
 
-Tasks already store `chat_jid` at registration time. Pass `task.chat_jid`
-as `chatJid` into `ActionContext` for task containers — `send_reply` then
-works naturally. No guessing needed.
+Tasks store `chat_jid` at registration. Pass `task.chat_jid` in start.json.
 
-## Session Continuity
-
-Session ID keyed by `group.folder` (unchanged). The container always resumes
-the same SDK session for the folder. Containers are short-lived (exit after
-each query) but session history is preserved across runs via the `.jl` file.
-
-No concurrent session write risk — folder containers are serial.
-
-## Connection to `local:` Escalation (3/5-permissions)
-
-With chat-bound sessions, escalation is natural:
+## Changes required
 
 ```
-worker (chatJid=tg/12345) → escalate_group
-  parent runs with chatJid=local:atlas/support
-    parent replies → stored as message on local:atlas/support
-      message loop → new worker container (chatJid=local:atlas/support)
-        worker calls send_message(tg/12345, text)  ← NOT send_reply
+container/agent-runner/src/index.ts
+  - Remove stdin reading
+  - Read start.json on startup
+  - Poll input/ for messages
+  - Implement exit protocol with flock
+
+src/container-runner.ts
+  - Write start.json before spawn
+  - Write initial messages to input/
+  - Remove stdin piping
+
+src/group-queue.ts
+  - Implement lock protocol for message delivery
+  - Check exiting sentinel before writing
+
+src/config.ts
+  - Remove IDLE_TIMEOUT
+
+src/index.ts
+  - Remove idle timer setTimeout logic
+
+src/action-registry.ts
+  - Add chatJid to ActionContext
+
+src/ipc.ts
+  - Extract chatJid from current message context
+
+src/actions/messaging.ts
+  - Add send_reply action
 ```
 
-Worker's second container is bound to `local:atlas/support`, so `send_reply`
-would reply there (wrong). Worker must use `send_message(originalJid, text)`.
-Original chatJid must be threaded into the escalation prompt body.
+## Implementation order
 
-## Implementation Order
-
-1. `chatJid` on `ActionContext` — additive, no risk
-2. `send_reply` action — additive
-3. `NANOCLAW_CHAT_JID` in container settings
-4. Remove `IDLE_TIMEOUT` config and idle timer logic
-5. `local:` JID routing — after 5-permissions is implemented
+1. IPC file protocol in agent-runner (read start.json, poll input/, exit protocol)
+2. Gateway write side (start.json, message files, lock protocol)
+3. Remove stdin piping from container-runner
+4. chatJid on ActionContext + send_reply action
+5. Remove IDLE_TIMEOUT and idle timer
