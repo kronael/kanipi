@@ -33,27 +33,29 @@ to respond. Any deliberation that accidentally exits as text gets sent.
 - If the agent opens `<think>` and never closes it (output ends mid-thought),
   the entire remaining output after `<think>` is treated as hidden
 
-### Gateway stripping
+### Stripping location: agent-runner
 
-One regex replace on the agent's text output, applied in the output processing
-path before channel send. In `container-runner.ts`, inside the `onOutput`
-callback or `parseBuffer` — wherever final text is extracted before being
-passed to `sendMessage`:
+Stripping happens in `container/agent-runner/src/index.ts`, immediately before
+`writeOutput` is called with the final `textResult`. The agent-runner already
+owns the raw SDK text output and wraps it in `OUTPUT_START/END` markers before
+writing to stdout. Stripping here means the gateway never sees `<think>` content
+and requires zero gateway changes.
 
 ```typescript
 function stripThinkBlocks(text: string): string {
-  // Remove complete think blocks (including multiline)
+  // Remove complete think blocks (multiline)
   let result = text.replace(/<think>[\s\S]*?<\/think>/g, '');
-  // If an unclosed <think> tag remains, strip from it to end of string
+  // Strip from unclosed <think> to end of string
   const open = result.indexOf('<think>');
   if (open !== -1) result = result.slice(0, open);
   return result.trim();
 }
 ```
 
-If the stripped result is empty, do not call `sendMessage` — emit nothing to
-the channel. The container still exits normally; the gateway treats it as a
-silent turn.
+Called on `textResult` before `writeOutput({ status: 'success', result: textResult, ... })`.
+
+If the stripped result is empty string, pass `result: null` — the gateway
+already handles `null` result as a silent turn (no channel send).
 
 ### Agent instruction
 
@@ -92,9 +94,9 @@ visible output is affected.
 
 ## Scope
 
-- Strip in one function, called in one place in `container-runner.ts`
-- No changes to IPC, actions, or channel code
-- ~10 lines of gateway code total
+- Strip in one function, called in one place in `container/agent-runner/src/index.ts`
+- No changes to gateway, IPC, actions, or channel code
+- ~10 lines in the agent-runner
 - Agent-side: one paragraph added to `container/CLAUDE.md`
 
 ## What this does NOT cover
