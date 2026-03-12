@@ -73,9 +73,8 @@ handles multiple outputs per container run — it sends each one to the channel.
 
 ### Mechanical heartbeat
 
-The 100-message heartbeat (lines 357–360 in `index.ts`) can be removed once
-agents use `<status>` reliably. For now it stays as a fallback — do not
-remove it in the same change. Mark it for removal in a follow-up.
+Remove the 100-message heartbeat entirely in the same change. `<status>`
+blocks replace it — agent-initiated, deliberate, meaningful.
 
 ### Agent instruction
 
@@ -112,9 +111,10 @@ prefix so the UX is consistent.
 
 - One helper function added to `container/agent-runner/src/index.ts`
 - Called once, just before `writeOutput` of the final result
+- Remove the 100-message heartbeat block (~3 lines deleted)
 - No gateway changes required (interim outputs already supported)
 - Agent-side: one section added to `container/CLAUDE.md`
-- ~15 lines total
+- ~15 lines net
 
 ## What this does NOT cover
 
