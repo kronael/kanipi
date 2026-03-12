@@ -1,9 +1,8 @@
 # Group Permissions
 
-**Status**: shipped
+**Status**: partial
 
-This spec documents the current permission model implemented in
-the gateway. It also marks the still-missing pieces explicitly.
+Four-tier permission model. Core enforcement is shipped. Two items remain open.
 
 ## Terminology
 
@@ -21,7 +20,7 @@ Binary root/non-root was not enough. The gateway needs:
 - deeper agent/worker groups with narrower permissions
 - mount restrictions that reduce prompt-injection blast radius
 
-## Current hierarchy
+## Hierarchy
 
 Four tiers derived from folder structure.
 
@@ -46,7 +45,8 @@ function permissionTier(folder: string): 0 | 1 | 2 | 3 {
 ```
 
 Top-level non-root folders are worlds. Depth 2 is a normal agent.
-Depth 3+ is clamped to worker.
+Depth 3+ is clamped to worker. Folders deeper than depth 3 should be
+rejected at registration — not yet enforced (see open items below).
 
 ## Tier semantics
 
@@ -60,11 +60,7 @@ Depth 3+ is clamped to worker.
 - Can escalate nothing upward
 - Sees `/workspace/self/`
 
-Important restriction now enforced:
-
-- `register_group` via action cannot create a new top-level world
-- new worlds are CLI-only
-
+`register_group` via action cannot create a new top-level world — new worlds are CLI-only.
 Tier 0 may still create child groups inside an existing world.
 
 ### Tier 1: world
@@ -96,14 +92,14 @@ Tier 0 may still create child groups inside an existing world.
 - Cannot schedule tasks
 - Can escalate to its direct parent
 
-## Existing authorization rules
+## Action authorization
 
 ### Messaging
 
 `send_message`:
 
 - tier 0: any target
-- tier 1: any registered target in same world
+- tier 1: any registered target in same world (`isInWorld()` check in `messaging.ts`)
 - tier 2/3: only own group's registered JID
 
 `send_file`:
@@ -149,20 +145,24 @@ Tier 0 may still create child groups inside an existing world.
 - tier 2: direct parent only
 - tier 3: direct parent only
 - tier 0/1: denied
+- currently fire-and-forget — parent output streams to origin JID, no IPC round-trip
 
 ### Session and metadata
 
-`reset_session`:
+`reset_session`: all tiers allowed for their own current group context
 
-- all tiers allowed for their own current group context
+`refresh_groups`: tier 0 only
 
-`refresh_groups`:
+## Action registry
 
-- tier 0 only
+Actions carry a `maxTier` field (named `minTier` in code — semantic debt, rename pending).
+`getManifest()` filters out actions where `opts.tier > a.maxTier`. Actions without `maxTier`
+are available to all tiers; per-action handlers do fine-grained checks beyond that.
 
-## Current mount enforcement
+## Mount enforcement
 
-The container runner enforces practical mount restrictions.
+Container runner enforces mount restrictions based on tier.
+Tier 2 and 3 have no filesystem access to `/workspace/web` — HTTP is always available.
 
 | Mount                     | Tier 0 | Tier 1 | Tier 2           | Tier 3           |
 | ------------------------- | ------ | ------ | ---------------- | ---------------- |
@@ -179,15 +179,10 @@ The container runner enforces practical mount restrictions.
 | `/workspace/share`        | rw     | rw     | ro               | ro               |
 | `/workspace/ipc`          | rw     | rw     | rw               | rw               |
 | `/workspace/web`          | rw     | rw     | no               | no               |
-
-<!-- tier 2 and 3 have no filesystem access to /workspace/web; HTTP access is always available -->
-
-| `/workspace/self` | ro | no | no | no |
-| `~/groups` | rw | no | no | no |
+| `/workspace/self`         | ro     | no     | no               | no               |
+| `~/groups`                | rw     | no     | no               | no               |
 
 ## Agent env vars
-
-The gateway injects these environment variables into every agent container:
 
 | Variable                  | Value                              |
 | ------------------------- | ---------------------------------- |
@@ -199,11 +194,31 @@ The gateway injects these environment variables into every agent container:
 | `NANOCLAW_ASSISTANT_NAME` | bot name from config               |
 | `NANOCLAW_DELEGATE_DEPTH` | current delegation depth           |
 
-## What shipped
+## Open items
 
-- top-level worlds are no longer tier 0
-- root aliases are explicit (`main`, `root`)
-- root can no longer create new worlds through `register_group`
-- upward escalation now exists as `escalate_group`
+### Depth rejection
 
-See `6-permissions-gaps.md` for remaining open items.
+`permissionTier()` clamps depth ≥ 3 to tier 3 but does not block registration
+of folders deeper than depth 3. `register_group` should reject any folder where
+`folder.split('/').length > 3`.
+
+### Escalation response protocol
+
+`escalate_group` fires a task to the parent container but the parent has no
+structured way to return a result to the child. A request/response IPC round-trip
+is needed — similar to the existing request files but initiated from the child side.
+
+### maxTier rename
+
+`minTier` in `action-registry.ts` is semantically inverted (tier 0 = most
+privileged, tier 3 = least). Rename to `maxTier` throughout and update all
+action definitions in `actions/`.
+
+### Main → root migration
+
+Existing instances use `main` as the root folder name. The spec names it `root`.
+A CLI command or DB migration is needed to rename and update `registered_groups`.
+
+### Host/web actions
+
+Web virtual host management deferred to `8-web-virtual-hosts.md`.
