@@ -316,8 +316,17 @@ The parent is unaware it is servicing an escalation. Normal turn metadata is pre
 
 - `register_group`: insert `local:{folder}` into `routes` table alongside any channel JID
 - `escalate_group` handler: pass `local:{ctx.sourceGroup}` as `chatJid` to parent container
-- Router / channel send: if `chatJid` starts with `local:`, skip external channel send; store message in DB only
-- Message loop: `local:` JIDs route to their folder normally via existing `getDefaultTarget`
+
+The rest is normal message flow. Parent calls `send_reply(text)` — bound to
+`local:atlas/support` — which routes to the `atlas/support` folder via the
+existing router. `local:` has no external channel handler so nothing is sent
+externally. No special casing needed.
+
+**Circuit breaker**: `escalate_group` already passes `depth + 1` to the parent.
+When the parent receives an escalated message, its container runs with `depth = 1`.
+If the parent attempts to escalate again, the existing `depth >= MAX_DELEGATE_DEPTH`
+check rejects it. Set `MAX_DELEGATE_DEPTH = 1` to enforce single-level escalation.
+No new code — just a config constant change.
 
 ### Host/web actions
 
