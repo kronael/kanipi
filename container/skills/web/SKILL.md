@@ -5,8 +5,7 @@ description: Deploy web apps and pages by writing files to the group's web direc
 
 # Web
 
-Deploy web apps and pages by writing files to your group's web
-directory. Any directory with index.html is served by vite MPA.
+Any directory under `$WEB_DIR` with `index.html` is served by vite MPA.
 
 ## When to use web
 
