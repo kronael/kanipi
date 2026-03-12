@@ -306,7 +306,7 @@ async function runQuery(
           type: 'preset',
           preset: 'claude_code',
           ...(fs.existsSync('/home/node/SOUL.md')
-            && { append: 'Respond in your SOUL.md persona.' }),
+            && { append: fs.readFileSync('/home/node/SOUL.md', 'utf8') }),
         },
         allowedTools: [
           'Bash',
