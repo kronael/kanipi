@@ -7,9 +7,7 @@ description: Record what matters in diary/YYYYMMDD.md.
 
 # Diary
 
-Append to today's diary. Create if missing.
-
-Path: `diary/YYYYMMDD.md`
+Path: `diary/YYYYMMDD.md`. Append to today's entry; create if missing.
 
 ## Format
 
@@ -30,9 +28,7 @@ Helped Alice configure Ansible. deploy: done.
 Auth flow discussion. New task — ipc: file sending broken.
 ```
 
-## Summary
-
-YAML `summary:` — project, who you work with, up to 5 critical tasks. Update every time you write an entry.
+YAML `summary:` — project, who you work with, up to 5 critical tasks. Update every entry.
 
 ## Rules
 
