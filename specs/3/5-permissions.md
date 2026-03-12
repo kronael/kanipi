@@ -306,14 +306,14 @@ Every registered group gets a guaranteed synthetic JID: `local:{folder}`.
    The wrapper includes the original message compacted (sender + ID + truncated content),
    mirroring how `<reply_to>` works in the router:
    ```xml
-   <escalation from="atlas/support" reply_to="telegram:xxx" reply_msgid="789">
+   <escalation from="atlas/support" reply_to="telegram:xxx" reply_id="789">
      <original_message sender="John" id="789">the user's original message text…</original_message>
      ...worker's escalated prompt...
    </escalation>
    ```
 3. Parent processes, calls `send_reply(text)` → bound to `local:atlas/support` → normal router
 4. Message stored with `chatJid = local:atlas/support`, routed to `atlas/support` folder
-5. Worker gets fresh turn; session history has `reply_to`, `reply_msgid`, and original message
+5. Worker gets fresh turn; session history has `reply_to`, `reply_id`, and original message
    from step 2 — all visible in the `.jl` transcript
 6. Worker calls `send_message(telegram:xxx, text, replyTo: '789')` — NOT `send_reply`
 
@@ -326,15 +326,15 @@ If the worker needs more history context, it can read `~/.claude/projects/-home-
 Telegram, a snowflake for Discord). Channel prefix in `reply_to` JID (`telegram:xxx`)
 tells the channel handler how to interpret it:
 
-| Channel  | `reply_msgid` type | Channel send call                                                    |
-| -------- | ------------------ | -------------------------------------------------------------------- |
-| Telegram | integer string     | `reply_parameters: { message_id: Number(id) }` — already implemented |
-| Discord  | snowflake string   | `message.reply()` — not yet implemented                              |
-| WhatsApp | stanza ID          | requires quoted message object — deferred                            |
-| Mastodon | status ID          | `client.reply(id, text)` — stub exists                               |
-| Email    | Message-ID header  | `In-Reply-To` — handled separately via thread                        |
+| Channel  | `reply_id` type   | Channel send call                                                    |
+| -------- | ----------------- | -------------------------------------------------------------------- |
+| Telegram | integer string    | `reply_parameters: { message_id: Number(id) }` — already implemented |
+| Discord  | snowflake string  | `message.reply()` — not yet implemented                              |
+| WhatsApp | stanza ID         | requires quoted message object — deferred                            |
+| Mastodon | status ID         | `client.reply(id, text)` — stub exists                               |
+| Email    | Message-ID header | `In-Reply-To` — handled separately via thread                        |
 
-**`reply_msgid` source**: `ContainerInput` gains `messageId?: string` (the triggering
+**`reply_id` source**: `ContainerInput` gains `messageId?: string` (the triggering
 `NewMessage.id`). Gateway stamps it in the `<escalation>` XML automatically — the agent
 does not need to know or pass it explicitly.
 
@@ -343,7 +343,7 @@ table to get `sender_name`, `id`, and truncated content. Max 200 chars — same 
 `reply_to_text`. If message not found, omit `<original_message>` block.
 
 **Reply threading**: `send_message` gains an optional `replyTo` field. The worker reads
-`reply_msgid` from session history and passes it as `replyTo` — Telegram threads the reply
+`reply_id` from session history and passes it as `replyTo` — Telegram threads the reply
 to the original user message. Channels without threading support ignore it gracefully.
 
 **Maximum one escalation level** — no recursive chaining.
@@ -360,7 +360,7 @@ Set `MAX_DELEGATE_DEPTH = 1`. No new code — constant change only.
 - `src/ipc.ts` `buildContext`: extract `chatJid` and `messageId` from IPC request JSON
 - `src/index.ts`: pass `messageId` into `ContainerInput` and into delegate/escalate calls
 - `escalate_group` handler: change `chatJid` arg to `local:{ctx.sourceGroup}`; build
-  `<escalation from=... reply_to="{ctx.chatJid}" reply_msgid="{ctx.messageId}">` XML;
+  `<escalation from=... reply_to="{ctx.chatJid}" reply_id="{ctx.messageId}">` XML;
   fetch original message from DB for `<original_message>` block
 - `send_message` action: add optional `replyTo?: string`; pass as `SendOpts` to `ctx.sendMessage`
 - `ActionContext.sendMessage`: signature becomes `(jid, text, opts?: SendOpts) => Promise<void>`

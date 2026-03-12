@@ -62,14 +62,14 @@ Updated:
 <forwarded_from sender="John"/>
 
 <!-- channel post forward — with source -->
-<forwarded_from sender="Tech News" from_chat="telegram:-100123456" fwd_msgid="456"/>
+<forwarded_from sender="Tech News" chat="telegram:-100123456" id="456"/>
 
 <!-- reply — already correct, add id -->
 <reply_to sender="Alice" id="789">quoted message text…</reply_to>
 ```
 
-`id` on `<reply_to>` is the channel-native `reply_to_id`. Omit if absent.
-`from_chat` / `fwd_msgid` on `<forwarded_from>` only when both are present.
+`id` on both tags is the channel-native message ID. Omit if absent.
+`chat` / `id` on `<forwarded_from>` only when both are present (Telegram channel posts).
 
 ## DB schema
 
@@ -111,7 +111,7 @@ Channel implementations of `sendMessage(jid, text, opts)`:
   implement `sendMessage` reply via `channel.send({ reply: ... })`
 - `src/channels/whatsapp.ts`: extract `reply_to_id` from `ctxInfo.stanzaId`
 - `src/router.ts` `formatMessages`: add `id` attr to `<reply_to>`;
-  add `from_chat`/`fwd_msgid` attrs to `<forwarded_from>` when present
+  add `chat`/`id` attrs to `<forwarded_from>` when present
 - `src/actions/messaging.ts` `send_message`: add `replyTo?: string` field
 - `src/action-registry.ts` `ActionContext.sendMessage`: add `opts?: SendOpts`
 - `src/ipc.ts`: wire `SendOpts` through to channel `sendMessage` calls

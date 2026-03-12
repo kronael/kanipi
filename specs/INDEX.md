@@ -106,7 +106,6 @@ Requires new instance or major architectural changes.
 | Spec                      | Topic                              | Status            |
 | ------------------------- | ---------------------------------- | ----------------- |
 | 0-agent-code-modification | Gateway staging area               | not started       |
-| 1-agent-messaging         | Sloth links as inboxes             | spec              |
 | 2-agent-pipeline          | Inter-agent workflows              | product config    |
 | 3-agent-teams             | Multi-agent patterns               | decided (use SDK) |
 | 6-extend-gateway-self     | Root agent modifies gateway        | open              |
