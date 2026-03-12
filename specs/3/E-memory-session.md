@@ -110,16 +110,16 @@ Observed on live 4-day session (rhias, session 58f49dbe):
 1. Error handling: session evicted when `status: error` and no progress (index.ts)
 2. Last 3 session IDs injected in `<previous_session>` on new session
 3. `reset_session` action in `src/actions/session.ts`
-4. `/new` command with `@<folder>` targeting: `/new @root` clears root's session
+4. `/new [message]` command: clears session for the router-resolved group
 
 ## `/new` routing
 
-`/new [@<folder>] [message]` — optional explicit group target. If `@<folder>` is
-provided and exists, that group's session is cleared instead of the default routing
-group. Remaining args become the first message in the new session.
+`/new [message]` — clears the session for whatever group the router resolves
+for the incoming message. Optional message becomes the first prompt in the new session.
 
-Example: `/new @root please summarize the last week` resets root's session and
-sends the message as the first prompt.
+The router decides the target group. Commands must not bypass routing — anyone
+sending to a JID should only be able to reset the group that JID maps to,
+not arbitrary groups by name.
 
 ## Deferred
 
