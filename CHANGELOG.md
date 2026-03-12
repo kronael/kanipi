@@ -11,6 +11,18 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.3.1] — 2026-03-12
+
+### Fixed
+
+- **IPC watcher nested groups**: `scanGroupFolders` now recurses into
+  subdirectories even when the parent has a `requests/` dir. Previously
+  `atlas` being found caused `atlas/support` to be skipped — nested groups
+  never got their IPC watched, `list_actions` timed out, MCP tools (including
+  `send_file`) were never registered.
+
+---
+
 ## [v1.3.0] — 2026-03-12
 
 ### Removed
