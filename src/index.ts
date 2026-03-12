@@ -475,7 +475,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
             `Agent output: ${raw.slice(0, 200)}`,
           );
           if (text) {
-            await channel.sendMessage(chatJid, text);
+            await channel.sendMessage(chatJid, text, { replyTo: lastMsg.id });
             outputSentToUser = true;
           }
           resetIdleTimer();
