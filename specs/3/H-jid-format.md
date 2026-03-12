@@ -1,7 +1,7 @@
 # JID Format Normalization — spec
 
-Strip WhatsApp transport suffixes, add platform prefix to
-senders, enrich message XML attributes, add clock header.
+Add platform prefix to senders, enrich message XML attributes,
+add clock header. Keep WhatsApp suffixes (no collisions).
 
 ## Format
 
@@ -10,22 +10,22 @@ All JIDs use `scheme:id`. Same format for chats and senders.
 **Chat JIDs** (routing targets):
 
 ```
-telegram:-1001234567890        telegram group
-telegram:1112184352            telegram DM
-whatsapp:120363351541711945    whatsapp group
-whatsapp:972501234567          whatsapp DM
-discord:1234567890             discord channel
-email:a1b2c3d4e5f6             email thread
-web:main                       web channel
+telegram:-1001234567890                    telegram group
+telegram:1112184352                        telegram DM
+whatsapp:120363351541711945@g.us           whatsapp group
+whatsapp:972501234567@s.whatsapp.net       whatsapp DM
+discord:1234567890                         discord channel
+email:a1b2c3d4e5f6                         email thread
+web:main                                   web channel
 ```
 
 **Sender JIDs** (message attribution):
 
 ```
-telegram:1112184352            telegram user
-whatsapp:972501234567          whatsapp user
-discord:9876543210             discord user
-email:user@example.com         email sender
+telegram:1112184352                        telegram user
+whatsapp:972501234567@s.whatsapp.net       whatsapp user
+discord:9876543210                         discord user
+email:user@example.com                     email sender
 ```
 
 Display names are NOT in the JID. They stay in
@@ -33,11 +33,10 @@ Display names are NOT in the JID. They stay in
 
 ## Changes from v1
 
-### WhatsApp suffix stripping
+### WhatsApp suffixes
 
-- `@g.us` → removed from chat JIDs
-- `@s.whatsapp.net` → removed from chat JIDs
-- `@lid` → translate to phone first, then strip
+Keep suffixes as-is (`@g.us`, `@s.whatsapp.net`). Stripping could cause
+collisions between group IDs and user IDs. The suffixes are ugly but safe.
 
 ### Sender platform prefix
 
@@ -140,23 +139,7 @@ and conversation in one XML document.
 ## Migration (0007-jid-format.sql)
 
 ```sql
--- Strip WhatsApp suffixes from chat JIDs
-UPDATE chats SET jid = REPLACE(jid, '@g.us', '')
-  WHERE jid LIKE 'whatsapp:%@g.us';
-UPDATE chats SET jid = REPLACE(jid, '@s.whatsapp.net', '')
-  WHERE jid LIKE 'whatsapp:%@s.whatsapp.net';
-
--- Same for messages.chat_jid and routes.jid
-
--- Strip suffixes from bare senders
-UPDATE messages SET sender = REPLACE(sender, '@g.us', '')
-  WHERE sender LIKE '%@g.us';
-UPDATE messages SET sender = REPLACE(sender, '@s.whatsapp.net', '')
-  WHERE sender LIKE '%@s.whatsapp.net';
-UPDATE messages SET sender = REPLACE(sender, '@lid', '')
-  WHERE sender LIKE '%@lid';
-
--- Add platform prefix to senders
+-- Add platform prefix to senders (no suffix stripping)
 UPDATE messages SET sender = 'telegram:' || sender
   WHERE chat_jid LIKE 'telegram:%' AND sender NOT LIKE '%:%';
 UPDATE messages SET sender = 'whatsapp:' || sender
@@ -169,13 +152,11 @@ UPDATE messages SET sender = 'email:' || sender
 
 ## Code changes
 
-1. WhatsApp: `bareJid()` strips suffixes, `toWaJid()` restores
-   them for Baileys using `jidSuffixMap`
-2. All channels: sender = `scheme:${platformId}`
-3. `formatMessages()`: emits `sender`, `sender_id`, `chat_id`,
+1. All channels: sender = `scheme:${platformId}` (WhatsApp keeps suffixes)
+2. `formatMessages()`: emits `sender`, `sender_id`, `chat_id`,
    `chat` (when group), `platform`, `time`, `ago` per message
-4. `clockXml()`: returns `<clock>` tag with UTC time and timezone
-5. `timeAgo()`: computes human-readable relative time (s/m/h/d/w)
-6. `index.ts`: prepends clock to initial prompt assembly
-7. `platformFromJid()`: unchanged (split on `:`)
-8. `sender_name` column: unchanged, carries display name
+3. `clockXml()`: returns `<clock>` tag with UTC time and timezone
+4. `timeAgo()`: computes human-readable relative time (s/m/h/d/w)
+5. `index.ts`: prepends clock to initial prompt assembly
+6. `platformFromJid()`: unchanged (split on `:`)
+7. `sender_name` column: unchanged, carries display name

@@ -8,7 +8,7 @@ arg: <user-id or action>
 
 # User Context
 
-`users/` stores per-user memory files. One file per sender.
+`~/users/` stores per-user memory files. One file per sender.
 
 ## File format
 
@@ -20,27 +20,42 @@ first_seen: 2026-03-06
 
 Backend developer. Works on validator-bonds.
 Prefers concise answers with code refs.
+
+## Recent
+
+- 2026-03-10: asked about antenna calibration
+- 2026-03-08: debugging validator issue
 ```
 
-Frontmatter: identity fields. Body: notes about the user. Keep short (<20 lines).
+- Frontmatter: identity fields (name, first_seen)
+- Profile: stable knowledge — role, expertise, preferences (<20 lines)
+- Recent: interaction log — meaningful interactions only (~50 lines max)
 
 ## Reading
 
-When the gateway injects `<sender id="tg-123456" file="users/tg-123456.md" />`,
-that user has a context file. Read it if context would help your response.
+When the gateway injects `<user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />`,
+that user has a context file. The `name` is extracted from frontmatter. Read the
+full file if you need more context (role, preferences, history).
 
-No `file` attribute means no file exists yet.
+No `memory` attribute means no file exists yet.
 
 ## Writing
 
-Update a user file when you learn something durable:
+**Profile section** — update when you learn something durable:
 
 - Name or role
 - Expertise areas
-- Recurring interests
 - Communication preferences
 
-NOT every interaction — just stable knowledge worth remembering.
+**Recent section** — log meaningful interactions (diary-like scope):
+
+- Questions about specific topics
+- Completed tasks or deliverables
+- Preferences expressed
+
+NOT every message — only notable interactions worth remembering.
+
+When Recent exceeds ~50 lines, drop oldest entries.
 
 ## File naming
 
@@ -51,7 +66,7 @@ Files are named by channel and platform ID:
 - `dc-789.md` — Discord
 - `em-user@example.com.md` — Email
 
-Use the `id` from `<sender>` tag for the filename.
+Use the `id` from `<user>` tag for the filename.
 
 ## Usage
 

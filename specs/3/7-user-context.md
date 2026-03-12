@@ -9,7 +9,7 @@ Per-user memory files. Agent-controlled like facts.
 One file per user, managed by the agent:
 
 ```
-users/<channel>-<id>.md
+~/users/<channel>-<id>.md
 ```
 
 Examples: `tg-123456.md`, `wa-5551234.md`, `dc-789.md`
@@ -24,34 +24,51 @@ first_seen: 2026-03-06
 
 Backend developer. Works on validator-bonds.
 Prefers concise answers with code refs.
+
+## Recent
+
+- 2026-03-10: asked about antenna calibration
+- 2026-03-08: debugging validator issue
 ```
 
-Frontmatter: identity fields. Body: agent-written notes. Keep short (<20 lines).
+Frontmatter: identity fields. Body: stable knowledge + interaction log.
+
+- Profile section: role, expertise, preferences (<20 lines)
+- Recent section: high-level interactions, diary-like scope (~50 lines max)
+- Auto-compact Recent when >50 lines: drop oldest entries
 
 ### Gateway signal
 
-Gateway injects a presence nudge, not the content:
+Gateway injects user identity, not full content:
 
 ```xml
-<sender id="tg-123456" file="users/tg-123456.md" />
+<user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />
 ```
 
 - `id`: channel-native sender ID
-- `file`: path if file exists, omitted if no file yet
+- `name`: from file frontmatter (omitted if no file or no name)
+- `memory`: path if file exists, omitted if no file yet
 
-Agent decides when to read the file. No automatic injection of content.
+Agent decides when to read the full file. Gateway extracts just the name from YAML frontmatter.
 
 ### Agent reads/writes
 
 Agent uses `/users` skill to:
 
 - Read user file when context would help
-- Write user file when learning something durable:
-  - Role or expertise
-  - Recurring interests
-  - Preferred style
+- Update profile when learning something durable (role, expertise, style)
+- Log meaningful interactions in Recent section (not every message)
 
-NOT every interaction — just stable knowledge.
+### What to log
+
+Similar to diary scope — only notable interactions:
+
+- Questions about specific topics
+- Completed tasks or deliverables
+- Preferences expressed
+- Context that might be useful later
+
+NOT routine greetings or small talk.
 
 ## Scope
 
@@ -63,7 +80,7 @@ Cross-channel identity (same person on telegram + whatsapp) is out of scope — 
 
 ```
 src/router.ts
-  - inject <sender> tag with id + file presence
+  - inject <user> tag with id, name, memory path
 
 container/skills/users/SKILL.md
   - /users skill for read/write

@@ -77,8 +77,10 @@ that topic, automatically run `/facts` to refresh it before answering.
 When a message arrives, the gateway injects `<user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />`.
 If `memory` is present, you have a context file for this user. Read it when context would help.
 
-Update user files via `/users` when you learn something durable about someone:
-role, expertise, preferences. NOT every interaction — just stable knowledge.
+Update user files via `/users`:
+
+- Profile section: role, expertise, preferences (stable knowledge)
+- Recent section: meaningful interactions (~50 lines, auto-compact)
 
 # Development Wisdom
 
