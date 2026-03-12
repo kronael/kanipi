@@ -34,16 +34,12 @@ injected by the gateway. The agent must track it explicitly. The intent —
 
 ## Changes
 
-### IDLE_TIMEOUT = 0 (default)
+### Container exits when done
 
-Change default in `config.ts` from `1800000` to `0`.
-
-In `processGroupMessages` (index.ts): when `IDLE_TIMEOUT === 0`, skip the
-`setTimeout` idle timer entirely. Call `queue.closeStdin(chatJid)` directly
-after the first successful output. Container self-terminates after the SDK
-`query()` loop completes; `closeStdin` is belt-and-suspenders.
-
-Existing instances with `IDLE_TIMEOUT` set explicitly in `.env` are unaffected.
+Remove `IDLE_TIMEOUT` entirely — the config, the `setTimeout` idle timer,
+and all related logic. `closeStdin(chatJid)` is called directly after the
+first successful output. Container self-terminates once the SDK `query()`
+loop completes; `closeStdin` is belt-and-suspenders.
 
 ### `NANOCLAW_CHAT_JID` in container settings
 
@@ -125,5 +121,5 @@ Original chatJid must be threaded into the escalation prompt body.
 1. `chatJid` on `ActionContext` — additive, no risk
 2. `send_reply` action — additive
 3. `NANOCLAW_CHAT_JID` in container settings
-4. `IDLE_TIMEOUT=0` default + closeStdin logic
+4. Remove `IDLE_TIMEOUT` + closeStdin on first output
 5. `local:` JID routing — after 5-permissions is implemented
