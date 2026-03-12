@@ -177,10 +177,11 @@ export async function drainRequests(
           try {
             // For send_file, translate container path to host path
             if (type === 'send_file' && data.filepath) {
-              const rel = (data.filepath as string).replace(
-                /^\/home\/node\/?/,
-                '',
+              const expanded = (data.filepath as string).replace(
+                /^~(?=\/|$)/,
+                '/home/node',
               );
+              const rel = expanded.replace(/^\/home\/node\/?/, '');
               data.filepath = path.join(GROUPS_DIR, sourceGroup, rel);
               const hostPath = path.join(HOST_GROUPS_DIR, sourceGroup, rel);
               if (
