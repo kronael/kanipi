@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { spawn, ChildProcess } from 'child_process';
+import { execFileSync } from 'child_process';
 
 import { hashSync } from '@node-rs/argon2';
 import Database from 'better-sqlite3';
@@ -48,8 +49,6 @@ function readEnvValue(envPath: string, key: string): string | undefined {
 
 // --- container commands ---
 
-import { execFileSync } from 'child_process';
-
 const DOCKER = process.env.CONTAINER_RUNTIME_BIN || 'docker';
 
 function containersWipe(instance: string): void {
@@ -73,8 +72,17 @@ function containersWipe(instance: string): void {
     try {
       execFileSync(DOCKER, ['stop', name], { stdio: 'pipe' });
       console.log(`stopped: ${name}`);
-    } catch {
-      console.log(`already stopped: ${name}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // container already exited or doesn't exist — not an error
+      if (
+        msg.includes('No such container') ||
+        msg.includes('already stopped')
+      ) {
+        console.log(`already stopped: ${name}`);
+      } else {
+        console.error(`Failed to stop ${name}: ${msg}`);
+      }
     }
   }
 }
