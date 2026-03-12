@@ -34,14 +34,7 @@ Task: "Research <topic>. Do 5 iterative deepening loops:
   Save comprehensive findings."
 ```
 
-### 3. Prepare Web Directory While Agents Run
-
-While research agents run in background:
-
-- Check existing site patterns (look at sibling pages)
-- Scaffold `index.html` with the page structure
-
-### 4. Distill Agent
+### 3. Distill Agent
 
 After research agents complete, launch `distill` subagent:
 
@@ -49,7 +42,7 @@ After research agents complete, launch `distill` subagent:
 - 5/3 recursive summarization (5 passes, keep top 3 insights)
 - Output: TLDRs, cross-cutting patterns, key tensions
 
-### 5. Assemble Web Page
+### 4. Assemble Web Page
 
 Single-page HTML with all research organized into sections:
 
@@ -61,7 +54,7 @@ Single-page HTML with all research organized into sections:
 - Key people (researchers, founders)
 - Cross-cutting patterns (from distill agent)
 
-### 6. Deploy
+### 5. Deploy
 
 Use the group web prefix (see `/web` skill for convention):
 
