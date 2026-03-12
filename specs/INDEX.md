@@ -57,31 +57,34 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 
 Focus: access control, partial implementations, cleanup, and selected phase 4 items pulled forward.
 
-| Spec                           | Topic                           | Status     |
-| ------------------------------ | ------------------------------- | ---------- |
-| 0-agent-capabilities           | Container tooling catalog       | spec       |
-| 1-atlas-capabilities           | Facts, researcher, verifier     | partial    |
-| 2-autotesting                  | Subsystem test strategy         | spec       |
-| 3-memory-facts                 | Persistent knowledge (v2)       | open       |
-| 4-paths                        | Path translation cleanup        | shipped    |
-| 5-permissions                  | Tier 0-3 hierarchy              | partial    |
-| 7-user-context                 | Per-user memory files           | open       |
-| 8-web-virtual-hosts            | Per-group web serving           | spec draft |
-| 9-whatsapp-improvements        | Read receipts, presence         | open       |
-| A-auth                         | Local auth, JWT                 | partial    |
-| C-files-in                     | File transfer                   | partial    |
-| D-knowledge-system             | Memory layers pattern           | partial    |
-| E-memory-session               | SDK sessions, .jl files         | partial    |
-| G-codebase-trim                | Dead code removal (~900 lines)  | spec       |
-| H-jid-format                   | Compact JID URIs, sender IDs    | spec       |
-| J-container-commands           | Generic container commands      | shipped    |
-| K-remove-triggers              | Remove trigger pattern system   | shipped    |
-| _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes | open       |
-| _(4/H)_ H-researcher           | Background research subagent    | open       |
-| _(4/P)_ P-dash-status          | Health dashboard (read-only)    | open       |
-| _(4/V)_ V-platform-permissions | Per-platform action grants      | spec       |
-| _(4/3)_ 3-support              | Code researcher product config  | spec       |
-| _(4/4)_ 4-dashboards           | Long-running web services       | open       |
+| Spec                           | Topic                                             | Status     |
+| ------------------------------ | ------------------------------------------------- | ---------- |
+| 0-agent-capabilities           | Container tooling catalog                         | spec       |
+| 1-atlas-capabilities           | Facts, researcher, verifier                       | partial    |
+| 2-autotesting                  | Subsystem test strategy                           | spec       |
+| 3-memory-facts                 | Persistent knowledge (v2)                         | open       |
+| 4-paths                        | Path translation cleanup                          | shipped    |
+| 5-permissions                  | Tier 0-3 hierarchy                                | partial    |
+| 7-user-context                 | Per-user memory files                             | open       |
+| 8-web-virtual-hosts            | Per-group web serving                             | spec draft |
+| 9-whatsapp-improvements        | Read receipts, presence                           | open       |
+| A-auth                         | Local auth, JWT                                   | partial    |
+| C-files-in                     | File transfer                                     | partial    |
+| D-knowledge-system             | Memory layers pattern                             | partial    |
+| E-memory-session               | SDK sessions, .jl files                           | partial    |
+| G-codebase-trim                | Dead code removal (~900 lines)                    | spec       |
+| H-jid-format                   | Compact JID URIs, sender IDs                      | spec       |
+| J-container-commands           | Generic container commands                        | shipped    |
+| K-remove-triggers              | Remove trigger pattern system                     | shipped    |
+| L-chat-bound-sessions          | Chat-bound containers, send_reply, IDLE_TIMEOUT=0 | spec       |
+| M-think-blocks                 | <think> delimiter for silent decisions            | spec       |
+| N-status-messages              | Agent-initiated status updates                    | spec       |
+| _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes                   | open       |
+| _(4/H)_ H-researcher           | Background research subagent                      | open       |
+| _(4/P)_ P-dash-status          | Health dashboard (read-only)                      | open       |
+| _(4/V)_ V-platform-permissions | Per-platform action grants                        | spec       |
+| _(4/3)_ 3-support              | Code researcher product config                    | spec       |
+| _(4/4)_ 4-dashboards           | Long-running web services                         | open       |
 
 ## Phase 4 — Arizuko (deferred)
 
