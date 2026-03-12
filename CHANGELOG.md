@@ -11,6 +11,29 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.2.2] — 2026-03-12
+
+### Fixed
+
+- **send_file error**: Improved error message when agent tries to send a file outside `~/` — now tells the agent to save under `~/` or use `~/tmp/` first.
+- **send_file test**: Updated assertion to match new error message.
+
+### Added
+
+- **~/tmp guidance**: Documented `~/tmp/` as the standard location for temporary files that may need to be sent. Added to `container/CLAUDE.md`, agent `SKILL.md` (self), and migration 025.
+- **Migration 025**: Agents learn to use `~/tmp/` for temporary files; `send_file` requires paths under `~/`.
+
+### Changed
+
+- **Container persistence**: Containers no longer wiped on gateway restart — use `kanipi containers wipe` CLI for manual cleanup.
+- **Tier naming**: Renamed `minTier` → `maxTier` (tier 0 is most privileged; field was semantically inverted).
+- **~ path handling**: `send_file` now expands `~` before path translation so agents can use `~/...` paths correctly.
+- **Error recovery**: Errored chats are skipped in the message loop until the user sends a new message.
+- **Group depth**: `register_group` now rejects folders deeper than 3 levels.
+- Self skill migration version: 24 → 25
+
+---
+
 ## [v1.2.1] — 2026-03-11
 
 ### Fixed

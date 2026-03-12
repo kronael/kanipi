@@ -11,7 +11,7 @@
   <button class="theme-toggle" aria-label="Toggle theme"></button>
 
   <div class="hub-container">
-    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.2.0</span></h1>
+    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.2.2</span></h1>
     <p class="hub-subtitle">multi-channel agent gateway</p>
 
     <div class="tldr-box">
@@ -584,7 +584,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
           <tr><td>Deploy</td><td>systemd per instance, <code>kanipi create</code> CLI</td></tr>
           <tr><td>Base</td><td>NanoClaw fork (upstream v1.1.3)</td></tr>
-          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.2.0)</span></td></tr>
+          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.2.2)</span></td></tr>
         </table>
       </div>
     </section>
@@ -624,12 +624,12 @@ sudo systemctl enable --now kanipi_foo</pre>
       <a href="https://github.com/kronael/kanipi">github.com/kronael/kanipi</a> &middot;
       <a href="https://github.com/kronael">kronael</a>
       <br>
-      <span style="color: var(--green, #4caf50);">v1.2.0 &middot; telegram &middot; discord &middot; whatsapp &middot; email &middot; web</span>
+      <span style="color: var(--green, #4caf50);">v1.2.2 &middot; telegram &middot; discord &middot; whatsapp &middot; email &middot; web</span>
 
       <details class="llm-info">
         <summary>Agent context</summary>
         <p>
-          Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.2.0.
+          Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.2.2.
           TypeScript (ESM, NodeNext). Routes messages from 5 channels to containerized Claude Code agents.
           62 source files, 10,788 LOC + 37 test files, 11,680 LOC. 560 tests. 92 spec files.
           Channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
@@ -675,7 +675,7 @@ type: product
 name: kanipi
 repo: github.com/kronael/kanipi
 base: nanoclaw (v1.1.3)
-status: v1.2.0
+status: v1.2.2
 lang: typescript (esm, nodenext)
 channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
 config: .env + env vars, sqlite group state
