@@ -229,26 +229,31 @@ The child replies directly to `chatJid`.
 
 ### Escalation response protocol
 
-`escalate_group` is currently fire-and-forget: parent runs and replies to `chatJid` directly,
-bypassing the worker entirely. The intended behaviour is:
+`escalate_group` is currently fire-and-forget: parent runs and replies to the original
+`chatJid` directly, bypassing the worker entirely.
 
-1. Worker escalates a question to parent (`escalate_group`)
-2. Parent processes and produces a result
-3. Result is injected back into the worker as a new incoming message, wrapped as:
-   ```xml
-   <escalation_reply from="atlas">
-     ...parent's answer...
-   </escalation_reply>
-   ```
-4. Worker gets a fresh turn with the answer in context and replies to `chatJid`
+**Intended behaviour**: when a worker escalates, the parent runs with `chatJid` set to the
+**worker's own registered JID** (not the original user JID). The parent's reply is then
+routed as a normal incoming message back to the worker. The worker gets a fresh turn,
+sees the parent's answer in conversation context, and replies to the original user.
 
-This is the **re-entry model**: worker's turn ends on escalation, resumes when reply arrives.
-Worker retains full conversation history so it can reconstruct context.
+```
+user → worker (chatJid = user_jid)
+  worker calls escalate_group(prompt)
+    → parent container runs with chatJid = worker_jid
+      → parent replies → routed to worker as new message
+        → worker processes answer + history → replies to user_jid
+```
 
-Alternative considered — **blocking poll** (`poll_escalation(request_id)` within same turn) —
-rejected as risky: Claude turn could time out if parent takes long.
+No special IPC injection needed — escalation reuses the normal routing pipeline.
+The parent is unaware it is servicing an escalation; it simply answers whoever
+sent the message.
 
-**Decision pending**: re-entry model is the working assumption. Confirm before implementation.
+**Required gateway change**: `escalate_group` handler must pass `ctx.sourceJid` (the
+worker's registered JID) as `chatJid` when firing the parent container, instead of
+forwarding the original `chatJid`.
+
+**Decision pending**: confirm before implementation.
 
 ### Host/web actions
 
