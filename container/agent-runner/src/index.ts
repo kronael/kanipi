@@ -281,13 +281,19 @@ async function runQuery(
   let resultCount = 0;
   let maxTurnsHit = false;
 
-  // Watchdog: abort if no SDK message arrives for 5 minutes (stalled TCP stream)
-  const STALL_TIMEOUT_MS = 5 * 60 * 1000;
-  const STALL_CHECK_MS = 30_000;
+  // Watchdog: abort if no SDK message arrives for 1 minute (stalled TCP stream)
+  const STALL_TIMEOUT_MS = 60_000;
+  const STALL_CHECK_MS = 10_000;
   let lastMessageAt = Date.now();
   const stallWatchdog = setInterval(() => {
     if (Date.now() - lastMessageAt > STALL_TIMEOUT_MS) {
-      log('Stream stall detected — no SDK message for 5min, aborting');
+      log('Stream stall detected — no SDK message for 1min, aborting');
+      writeOutput({
+        status: 'success',
+        result: '⚠️ Connection stalled — the AI service froze mid-response. Say "continue" to retry.',
+        newSessionId,
+      });
+      clearInterval(stallWatchdog);
       process.exit(1);
     }
   }, STALL_CHECK_MS);
@@ -562,9 +568,9 @@ async function main(): Promise<void> {
     log(`Agent error: ${errorMessage}`);
     writeOutput({
       status: 'error',
-      result: null,
+      result: `⚠️ Agent error — ${errorMessage}. Say "continue" to retry.`,
       newSessionId: sessionId,
-      error: errorMessage
+      error: errorMessage,
     });
     process.exit(1);
   }
