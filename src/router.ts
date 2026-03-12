@@ -1,4 +1,26 @@
+import fs from 'fs';
+import path from 'path';
+
 import { Channel, NewMessage, Platform, Route } from './types.js';
+
+// Platform short codes for user file naming
+const PLATFORM_SHORT: Record<string, string> = {
+  telegram: 'tg',
+  whatsapp: 'wa',
+  discord: 'dc',
+  email: 'em',
+  web: 'web',
+  reddit: 'rd',
+  twitter: 'tw',
+  mastodon: 'ms',
+  bluesky: 'bs',
+  twitch: 'tc',
+  youtube: 'yt',
+  facebook: 'fb',
+  instagram: 'ig',
+  threads: 'th',
+  linkedin: 'li',
+};
 
 // Derive a valid group folder segment from a JID.
 // Replaces non-alphanumeric chars with _, collapses consecutive _, trims.
@@ -145,4 +167,46 @@ export function isAuthorizedRoutingTarget(
   const targetRoot = targetFolder.split('/')[0];
   if (sourceRoot !== targetRoot) return false;
   return targetFolder.startsWith(sourceFolder + '/');
+}
+
+// Convert platform:id sender to short filename form (e.g., tg-123456)
+export function senderToUserFileId(sender: string): string {
+  const [platform, ...rest] = sender.split(':');
+  const id = rest.join(':'); // Handle email with : in address
+  const short = PLATFORM_SHORT[platform] || platform.slice(0, 2);
+  return `${short}-${id}`;
+}
+
+// Parse YAML frontmatter from markdown file to extract name
+function parseUserName(content: string): string | undefined {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return undefined;
+  const fm = match[1];
+  const nameMatch = fm.match(/^name:\s*(.+)$/m);
+  if (!nameMatch) return undefined;
+  return nameMatch[1].trim();
+}
+
+// Generate <user> tag for the given sender
+// Returns XML tag with id, optional name, optional memory path
+export function userContextXml(
+  sender: string,
+  groupDir: string,
+): string | null {
+  if (!sender || sender === 'system') return null;
+
+  const fileId = senderToUserFileId(sender);
+  const userFile = path.join(groupDir, 'users', `${fileId}.md`);
+  const attrs: string[] = [`id="${escapeXml(fileId)}"`];
+
+  if (fs.existsSync(userFile)) {
+    try {
+      const content = fs.readFileSync(userFile, 'utf-8');
+      const name = parseUserName(content);
+      if (name) attrs.push(`name="${escapeXml(name)}"`);
+    } catch {}
+    attrs.push(`memory="~/users/${fileId}.md"`);
+  }
+
+  return `<user ${attrs.join(' ')} />`;
 }

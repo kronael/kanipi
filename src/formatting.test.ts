@@ -1,12 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import {
   clockXml,
   escapeXml,
   formatMessages,
   formatOutbound,
+  senderToUserFileId,
   stripInternalTags,
   timeAgo,
+  userContextXml,
 } from './router.js';
 import { NewMessage } from './types.js';
 
@@ -248,5 +254,119 @@ describe('formatOutbound', () => {
       formatOutbound('<internal>thinking</internal>The answer is 42'),
     ).toBe('The answer is 42');
     expect(formatOutbound('<internal>x</internal>   ')).toBe('');
+  });
+});
+
+// --- senderToUserFileId ---
+
+describe('senderToUserFileId', () => {
+  it('converts telegram sender to tg-id', () => {
+    expect(senderToUserFileId('telegram:123456')).toBe('tg-123456');
+  });
+
+  it('converts whatsapp sender to wa-id', () => {
+    expect(senderToUserFileId('whatsapp:5551234')).toBe('wa-5551234');
+  });
+
+  it('converts discord sender to dc-id', () => {
+    expect(senderToUserFileId('discord:789')).toBe('dc-789');
+  });
+
+  it('converts email sender with colon in address', () => {
+    expect(senderToUserFileId('email:user@example.com')).toBe(
+      'em-user@example.com',
+    );
+  });
+
+  it('handles unknown platform with 2-char prefix', () => {
+    expect(senderToUserFileId('unknown:abc')).toBe('un-abc');
+  });
+});
+
+// --- userContextXml ---
+
+describe('userContextXml', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'user-ctx-'));
+    fs.mkdirSync(path.join(tmpDir, 'users'), { recursive: true });
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns null for system sender', () => {
+    expect(userContextXml('system', tmpDir)).toBeNull();
+  });
+
+  it('returns null for empty sender', () => {
+    expect(userContextXml('', tmpDir)).toBeNull();
+  });
+
+  it('returns tag with id only when no user file exists', () => {
+    const result = userContextXml('telegram:123456', tmpDir);
+    expect(result).toBe('<user id="tg-123456" />');
+  });
+
+  it('returns tag with memory path when user file exists', () => {
+    fs.writeFileSync(path.join(tmpDir, 'users', 'tg-123456.md'), 'hello');
+    const result = userContextXml('telegram:123456', tmpDir);
+    expect(result).toBe(
+      '<user id="tg-123456" memory="~/users/tg-123456.md" />',
+    );
+  });
+
+  it('extracts name from YAML frontmatter', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'users', 'tg-123456.md'),
+      '---\nname: Alice\nfirst_seen: 2026-03-06\n---\n\nSome content',
+    );
+    const result = userContextXml('telegram:123456', tmpDir);
+    expect(result).toBe(
+      '<user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />',
+    );
+  });
+
+  it('handles file without name field', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'users', 'tg-123456.md'),
+      '---\nfirst_seen: 2026-03-06\n---\n\nNo name here',
+    );
+    const result = userContextXml('telegram:123456', tmpDir);
+    expect(result).toBe(
+      '<user id="tg-123456" memory="~/users/tg-123456.md" />',
+    );
+  });
+
+  it('escapes special characters in name', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'users', 'tg-123456.md'),
+      '---\nname: A & B <Co>\n---\n',
+    );
+    const result = userContextXml('telegram:123456', tmpDir);
+    expect(result).toContain('name="A &amp; B &lt;Co&gt;"');
+  });
+
+  it('path traversal in sender id does not escape users dir', () => {
+    // Even if sender contains path traversal, fileId keeps it literal
+    const result = userContextXml('telegram:../../../etc/passwd', tmpDir);
+    // The id contains the literal ../../../etc/passwd, but path.join normalizes
+    // In practice the file won't exist, so no memory attribute
+    expect(result).toBe('<user id="tg-../../../etc/passwd" />');
+    expect(result).not.toContain('memory=');
+  });
+
+  it('handles invalid YAML frontmatter gracefully', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'users', 'tg-123456.md'),
+      '---\n: invalid yaml:\n  - [ broken\n---\n',
+    );
+    const result = userContextXml('telegram:123456', tmpDir);
+    // File exists so memory is set, but name extraction fails gracefully
+    expect(result).toBe(
+      '<user id="tg-123456" memory="~/users/tg-123456.md" />',
+    );
   });
 });

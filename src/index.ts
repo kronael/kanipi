@@ -112,6 +112,7 @@ import {
   formatOutbound,
   isAuthorizedRoutingTarget,
   resolveRoute,
+  userContextXml,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, NewMessage } from './types.js';
@@ -414,9 +415,14 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   );
   const formatted = formatMessages(userMessages);
   const clock = clockXml(TIMEZONE);
+  // Inject user context for the last message sender
+  const groupDir = resolveGroupFolderPath(group.folder);
+  const lastSender = userMessages[userMessages.length - 1]?.sender;
+  const userXml = lastSender ? userContextXml(lastSender, groupDir) : null;
   const prompt =
     clock +
     '\n' +
+    (userXml ? userXml + '\n' : '') +
     (sysXml ? sysXml + '\n' : '') +
     (pendingArgs ? pendingArgs + '\n' : '') +
     formatted;

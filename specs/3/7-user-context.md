@@ -1,6 +1,6 @@
 # User Context
 
-**Status**: impl-ready
+**Status**: shipped
 
 Per-user memory files. Agent-controlled like facts.
 
