@@ -11,6 +11,17 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.3.2] — 2026-03-12
+
+### Fixed
+
+- **send_message / send_file auth for nested agents**: tier 1-2 agents can now
+  send to any JID in their world. Previously tier 2 required the JID's default
+  route to point directly to the agent — but delegation means the route points
+  to the parent (e.g. `atlas`), so `atlas/support` was always blocked.
+
+---
+
 ## [v1.3.1] — 2026-03-12
 
 ### Fixed
