@@ -89,8 +89,9 @@ Register in `ipc.ts` alongside `sendMessage`.
 
 ### Task container chatJid
 
-Populate `ctx.chatJid` with the group's primary registered JID for task
-containers so `send_reply` works in scheduled tasks.
+Tasks already store `chat_jid` at registration time. Pass `task.chat_jid`
+as `chatJid` into `ActionContext` for task containers — `send_reply` then
+works naturally. No guessing needed.
 
 ## Session Continuity
 
