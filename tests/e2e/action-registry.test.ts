@@ -188,7 +188,11 @@ describe('drainRequests flow', () => {
       },
     );
     expect(result).toEqual({ sent: true });
-    expect(deps.sendMessage).toHaveBeenCalledWith('root@g.us', 'hello');
+    expect(deps.sendMessage).toHaveBeenCalledWith(
+      'root@g.us',
+      'hello',
+      undefined,
+    );
   });
 
   it('unknown action name returns undefined from getAction', () => {

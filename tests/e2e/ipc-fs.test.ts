@@ -177,7 +177,11 @@ describe('drainRequests — real fs request/reply protocol', () => {
     const reply = readReply('root', id);
     expect(reply.ok).toBe(true);
     expect(reply.result).toEqual({ sent: true });
-    expect(deps.sendMessage).toHaveBeenCalledWith(ROOT_JID, 'hello from IPC');
+    expect(deps.sendMessage).toHaveBeenCalledWith(
+      ROOT_JID,
+      'hello from IPC',
+      undefined,
+    );
   });
 
   it('reset_session: calls clearSession dep and writes ok reply', async () => {
