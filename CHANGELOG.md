@@ -11,6 +11,21 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ### Added
 
+- **Rich container tooling**: Dockerfile now includes go, rust, uv, ffmpeg,
+  yt-dlp, python3, pandas, matplotlib, plotly, scipy, numpy, python-pptx,
+  openpyxl, weasyprint, marp-cli, biome, ruff, pyright, shellcheck,
+  prettier, htmlhint, svgo, ripgrep, fd-find, fzf, tree, bat, imagemagick,
+  optipng, jpegoptim, pandoc, poppler-utils, tesseract-ocr, httrack, whois,
+  traceroute, dnsutils, jq
+- **Generic channel auth CLI**: `kanipi config <instance> channel auth <name>`
+  for channel-agnostic authentication flows
+- **Acquire skill**: multimedia data acquisition patterns (yt-dlp, whisper,
+  web scraping)
+- **Specs skill**: how to write/manage specs with YAML frontmatter
+- **WHISPER_BASE_URL**: passed to container env so agents can transcribe
+  audio directly via the whisper HTTP API
+- **Tools list in container CLAUDE.md**: agents always see their available
+  tools (runtimes, linters, media, research, data, office, network, search)
 - **User context**: gateway injects `<user id="..." name="..." memory="..." />`
   tag with sender identity. Agent reads `~/users/<id>.md` for per-user memory.
   New `/users` skill for managing user context files.
@@ -19,6 +34,17 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 - **Think blocks**: `<think>...</think>` blocks stripped by agent-runner,
   enabling silent deliberation in group chats.
 - Migration 027: user context docs and skill.
+- Migration 031: rich container tooling and whisper transcription.
+
+### Changed
+
+- **Spec cleanup**: YAML frontmatter on all 93 specs, trimmed ~1500 lines
+  of shipped implementation details
+- **Autotesting spec**: rewritten to strategy-only (no coverage inventory)
+
+### Tests
+
+- 36 new tests: tasks, file commands, stop command
 
 ### Fixed
 
