@@ -4,7 +4,7 @@ status: partial
 
 # Group Permissions
 
-Four-tier permission model. Core enforcement is shipped. Two items remain open.
+Four-tier permission model. Core enforcement is shipped. One item remains open.
 
 ## Terminology
 
@@ -27,7 +27,7 @@ Binary root/non-root was not enough. The gateway needs:
 Four tiers derived from folder structure.
 
 ```text
-main                    tier 0 — instance root
+root                    tier 0 — instance root
 atlas                   tier 1 — world
 atlas/support           tier 2 — agent
 atlas/support/web       tier 3 — worker
@@ -47,8 +47,8 @@ function permissionTier(folder: string): 0 | 1 | 2 | 3 {
 ```
 
 Top-level non-root folders are worlds. Depth 2 is a normal agent.
-Depth 3+ is clamped to worker. Folders deeper than depth 3 should be
-rejected at registration — not yet enforced (see open items below).
+Depth 3+ is clamped to worker. Folders deeper than depth 3 are rejected
+at registration.
 
 ## Tier semantics
 
@@ -78,8 +78,8 @@ inside existing worlds are allowed.
 
 ### Tier 2: agent
 
-- Can send to its own registered JID only
-- Can send files to its own registered JID only
+- Can send to own registered JID only
+- Can send files to own registered JID only
 - Can schedule/manage tasks for its own group only
 - Can delegate to direct child groups
 - Can escalate to its direct parent
@@ -164,7 +164,7 @@ their base folder (`atlas`).
 
 ## Action registry
 
-Actions carry a `maxTier` field (named `minTier` in code — semantic debt, rename pending).
+Actions carry a `maxTier` field.
 `getManifest()` filters out actions where `opts.tier > a.maxTier` — i.e. if the caller's
 tier number is higher (less privileged) than the action's `maxTier`, the action is hidden.
 Actions without `maxTier` are available to all tiers; per-action handlers do fine-grained
@@ -270,9 +270,15 @@ The child replies directly to `chatJid`.
 - **maxTier rename**: `minTier` renamed to `maxTier` throughout — tier 0 = most privileged.
 - **Tier auth for send_message/send_file**: `assertAuthorized` checks all route targets for the
   JID via `getRouteTargetsForJid()`, authorizes if any target is in the sender's world.
+  Tier 2 restricted to own registered JID only.
 - **Task scheduling**: `schedule_task` takes `targetFolder` directly, no JID reverse-mapping.
 - **Main → root**: `isRoot()` checks `folder === 'root'`; CLI defaults new instances to `root`;
   `'main'` wiped from all source and test files.
+- **local: route auto-creation**: `register_group` inserts `local:{folder}` route automatically.
+- **messageId passthrough**: `ContainerInput` and `ActionContext` both carry `messageId` from
+  the triggering `NewMessage.id`.
+- **send_message replyTo**: `send_message` action accepts optional `replyTo` field for threading.
+- **MAX_DELEGATE_DEPTH**: set to 1, preventing recursive escalation chains.
 
 ## Open items
 
@@ -343,7 +349,7 @@ tells the channel handler how to interpret it:
 | Mastodon | status ID         | `client.reply(id, text)` — stub exists                               |
 | Email    | Message-ID header | `In-Reply-To` — handled separately via thread                        |
 
-**`reply_id` source**: `ContainerInput` gains `messageId?: string` (the triggering
+**`reply_id` source**: `ContainerInput` has `messageId?: string` (the triggering
 `NewMessage.id`). Gateway stamps it in the `<escalation>` XML automatically — the agent
 does not need to know or pass it explicitly.
 
@@ -351,7 +357,7 @@ does not need to know or pass it explicitly.
 table to get `sender_name`, `id`, and truncated content. Max 200 chars — same limit as
 `reply_to_text`. If message not found, omit `<original_message>` block.
 
-**Reply threading**: `send_message` gains an optional `replyTo` field. The worker reads
+**Reply threading**: `send_message` has an optional `replyTo` field. The worker reads
 `reply_id` from session history and passes it as `replyTo` — Telegram threads the reply
 to the original user message. Channels without threading support ignore it gracefully.
 
@@ -359,24 +365,24 @@ to the original user message. Channels without threading support ignore it grace
 
 **Circuit breaker**: `escalate_group` passes `depth + 1` to the parent. If parent tries
 to escalate again (`depth = 1`), `depth >= MAX_DELEGATE_DEPTH` rejects it.
-Set `MAX_DELEGATE_DEPTH = 1`. No new code — constant change only.
+`MAX_DELEGATE_DEPTH = 1` is already set.
 
 **Required changes:**
 
-- `register_group`: insert `local:{folder}` into `routes` table alongside any channel JID
-- `src/types.ts` / `ContainerInput`: add `messageId?: string` (populated from triggering `NewMessage.id`)
-- `src/action-registry.ts` `ActionContext`: add `chatJid: string`, `messageId?: string`
+- ~~`register_group`: insert `local:{folder}` into `routes` table~~ — DONE
+- ~~`ContainerInput`: add `messageId?: string`~~ — DONE
+- ~~`ActionContext`: add `messageId?: string`~~ — DONE
 - `src/ipc.ts` `buildContext`: extract `chatJid` and `messageId` from IPC request JSON
-- `src/index.ts`: pass `messageId` into `ContainerInput` and into delegate/escalate calls
+- `src/index.ts`: pass `messageId` into delegate/escalate calls
 - `escalate_group` handler: change `chatJid` arg to `local:{ctx.sourceGroup}`; build
   `<escalation from=... reply_to="{ctx.chatJid}" reply_id="{ctx.messageId}">` XML;
   fetch original message from DB for `<original_message>` block
-- `send_message` action: add optional `replyTo?: string`; pass as `SendOpts` to `ctx.sendMessage`
+- ~~`send_message` action: add optional `replyTo?: string`~~ — DONE
 - `ActionContext.sendMessage`: signature becomes `(jid, text, opts?: SendOpts) => Promise<void>`
-- `MAX_DELEGATE_DEPTH = 1`
+- ~~`MAX_DELEGATE_DEPTH = 1`~~ — DONE
 
 Normal reply flow handles everything else. `local:` has no channel handler — no external send.
 
-### Host/web actions
+## Deferred
 
-Web virtual host management deferred to `8-web-virtual-hosts.md`.
+- **Host/web actions**: web virtual host management deferred to `8-web-virtual-hosts.md`.
