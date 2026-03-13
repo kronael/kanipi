@@ -161,21 +161,6 @@ Implemented. `email_threads` table maps
 See `specs/1/8-email.md`. Generalise to `channel_threads`
 only when a second channel needs it.
 
-## Open (message-threading)
-
-1. Add `replyTo` to `NewMessage` in `src/types.ts`
-2. Add `SendOpts` to `sendMessage` signature
-3. Telegram: populate from `reply_to_message?.message_id`,
-   outbound: `reply_parameters`
-4. WhatsApp: populate from `contextInfo?.stanzaId`,
-   outbound: `quoted` from `messages.raw` lookup
-5. Discord: populate from `message.reference?.messageId`,
-   outbound: `reply: { messageReference: replyTo }`
-6. `messages.raw` column: `ALTER TABLE messages ADD COLUMN
-raw TEXT`
-7. `formatMessages()`: emit `<in_reply_to>` child, add
-   `time` and `ago` attributes
-
 ## v2: plugin loading
 
 Dynamic import so unused channel deps aren't loaded.

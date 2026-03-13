@@ -2,26 +2,14 @@
 
 **Status**: shipped
 
-## What Was Done
+## Changes
 
-### Presence: Unavailable on Connect
-
-Changed `sendPresenceUpdate('available')` to `sendPresenceUpdate('unavailable')`
-on connect. This prevents the bot from suppressing phone notifications when
-connected via WhatsApp Web.
-
-### Read Receipts: Logged Failures
-
-Replaced silent `.catch(() => {})` with logged errors on `readMessages()`:
-
-```typescript
-this.sock.readMessages([msg.key]).catch((err) => {
-  logger.debug({ err, msgId: msg.key.id }, 'read receipt failed');
-});
-```
+- **Presence**: Set to `unavailable` on connect (prevents bot from
+  suppressing phone notifications via WhatsApp Web).
+- **Read receipts**: Log failures instead of silently swallowing them.
 
 ## Deferred to v2
 
-- **Voice transcription**: Gateway-level whisper for mention detection
-- **Group history injection**: Inject recent messages as context on mention
-- **Text chunking**: Agent responsibility, not gateway
+- Voice transcription for mention detection
+- Group history injection on mention
+- Text chunking (agent responsibility)
