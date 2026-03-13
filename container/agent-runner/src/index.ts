@@ -318,32 +318,8 @@ async function runQuery(
   let resultCount = 0;
   let maxTurnsHit = false;
 
-  // Watchdog: abort if no SDK message arrives for too long (stalled TCP stream)
-  // Before result: 60s timeout (agent may be thinking/using tools)
-  // After result: 5s timeout (answer delivered, stream should close)
-  const STALL_TIMEOUT_MS = 180_000;
-  const STALL_POST_RESULT_MS = 5_000;
-  const STALL_CHECK_MS = 2_000;
-  let lastMessageAt = Date.now();
-  let hasResult = false;
-  const stallWatchdog = setInterval(() => {
-    const timeout = hasResult ? STALL_POST_RESULT_MS : STALL_TIMEOUT_MS;
-    if (Date.now() - lastMessageAt > timeout) {
-      if (hasResult) {
-        log('Stream idle after result — closing cleanly');
-        clearInterval(stallWatchdog);
-        process.exit(0);
-      }
-      log('Stream stall detected — no SDK message for 3min, aborting');
-      writeOutput({
-        status: 'success',
-        result: '⚠️ Connection stalled — the AI service froze mid-response. Say "continue" to retry.',
-        newSessionId,
-      });
-      clearInterval(stallWatchdog);
-      process.exit(1);
-    }
-  }, STALL_CHECK_MS);
+  // Track the query so we can close it after getting the result
+  let activeQuery: ReturnType<typeof query> | null = null;
 
   // Additional dirs: their CLAUDE.md files are auto-loaded by the SDK
   const extraDirs: string[] = [];
@@ -359,7 +335,7 @@ async function runQuery(
   }
 
   try {
-    for await (const message of query({
+    activeQuery = query({
       prompt: stream,
       options: {
         cwd: '/home/node',
@@ -406,8 +382,8 @@ async function runQuery(
           Stop: [{ hooks: [createStopHook()] }],
         },
       }
-    })) {
-      lastMessageAt = Date.now();
+    });
+    for await (const message of activeQuery) {
       messageCount++;
       const msgType = message.type === 'system' ? `system/${(message as { subtype?: string }).subtype}` : message.type;
       log(`[msg #${messageCount}] type=${msgType}`);
@@ -442,8 +418,10 @@ async function runQuery(
             writeOutput({ status: 'success', result: `⏳ ${s}`, newSessionId });
           }
           writeOutput({ status: 'success', result: cleaned || null, newSessionId });
-          hasResult = true;
-          lastMessageAt = Date.now(); // reset timer for post-result window
+          // Result delivered — close the query to avoid hanging on a stale stream
+          log('Result delivered, closing query');
+          activeQuery?.close();
+          break;
         }
       }
     }
@@ -457,8 +435,6 @@ async function runQuery(
     } else {
       throw err;
     }
-  } finally {
-    clearInterval(stallWatchdog);
   }
 
   ipcPolling = false;
