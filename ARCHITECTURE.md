@@ -49,7 +49,8 @@ Tables: `messages`, `groups`, `routes`, `chats`, `session_history`,
 `system_messages`, `scheduled_tasks`, `task_run_logs`,
 `email_threads`, `auth_users`, `auth_sessions`.
 
-`routes` is a flat JID→target routing table. `system_messages`
+`routes` is a flat JID→target routing table. Targets may contain
+`{sender}` templates (expanded at routing time). `system_messages`
 stores pending events per group; flushed as XML before agent stdin.
 
 ### slink.ts
@@ -120,9 +121,9 @@ different JID needs the same folder, idle containers are closed.
 
 ### group-folder.ts
 
-Resolves and validates group folder paths. Enforces path
-containment (no `..` escapes). Validates folder name format
-before use in volume mounts or IPC paths.
+Resolves and validates group folder paths. Validates: no `..`,
+no `\`, no absolute paths, non-empty segments ≤128 chars.
+Used before volume mounts and IPC paths.
 
 ### router.ts
 
@@ -137,6 +138,8 @@ from agent output before sending to channel users.
 is a direct child of source within the same world (root segment).
 `resolveRoutingTarget(msg, rules)` evaluates routing rules against
 a message (tier order: command, pattern, keyword, sender, default).
+Route targets support RFC 6570 `{sender}` templates — expanded at
+routing time to create per-sender child folders (auto-threading).
 
 ### action-registry.ts + actions/
 

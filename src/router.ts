@@ -120,50 +120,45 @@ function expandTarget(target: string, msg: NewMessage): string | null {
   return target.replace('{sender}', id);
 }
 
+function routeMatches(r: Route, msg: NewMessage): boolean {
+  switch (r.type) {
+    case 'command': {
+      const t = msg.content.trim();
+      return !!(r.match && (t === r.match || t.startsWith(r.match + ' ')));
+    }
+    case 'verb':
+      return msg.verb === r.match;
+    case 'pattern':
+      if (!r.match || r.match.length > 200) return false;
+      try {
+        return new RegExp(r.match).test(msg.content);
+      } catch {
+        return false;
+      }
+    case 'keyword':
+      return !!(
+        r.match && msg.content.toLowerCase().includes(r.match.toLowerCase())
+      );
+    case 'sender':
+      if (!r.match || r.match.length > 200) return false;
+      try {
+        return new RegExp(r.match).test(msg.sender_name ?? msg.sender);
+      } catch {
+        return false;
+      }
+    case 'trigger':
+    case 'default':
+      return true;
+    default:
+      return false;
+  }
+}
+
 export function resolveRoute(msg: NewMessage, routes: Route[]): string | null {
   for (const r of routes) {
-    if (r.type === 'command') {
-      const t = msg.content.trim();
-      if (r.match && (t === r.match || t.startsWith(r.match + ' '))) {
-        const e = expandTarget(r.target, msg);
-        if (e) return e;
-      }
-    } else if (r.type === 'verb') {
-      if (msg.verb === r.match) {
-        const t = expandTarget(r.target, msg);
-        if (t) return t;
-      }
-    } else if (r.type === 'pattern') {
-      if (!r.match || r.match.length > 200) continue;
-      try {
-        if (new RegExp(r.match).test(msg.content)) {
-          const t = expandTarget(r.target, msg);
-          if (t) return t;
-        }
-      } catch {}
-    } else if (r.type === 'keyword') {
-      if (
-        r.match &&
-        msg.content.toLowerCase().includes(r.match.toLowerCase())
-      ) {
-        const t = expandTarget(r.target, msg);
-        if (t) return t;
-      }
-    } else if (r.type === 'sender') {
-      if (!r.match || r.match.length > 200) continue;
-      try {
-        if (new RegExp(r.match).test(msg.sender_name ?? msg.sender)) {
-          const t = expandTarget(r.target, msg);
-          if (t) return t;
-        }
-      } catch {}
-    } else if (r.type === 'trigger') {
-      const t = expandTarget(r.target, msg);
-      if (t) return t;
-    } else if (r.type === 'default') {
-      const t = expandTarget(r.target, msg);
-      if (t) return t;
-    }
+    if (!routeMatches(r, msg)) continue;
+    const t = expandTarget(r.target, msg);
+    if (t) return t;
   }
   return null;
 }

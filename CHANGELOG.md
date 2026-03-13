@@ -7,6 +7,25 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Auto-threading**: route targets support RFC 6570 `{sender}` templates
+  (e.g. `atlas/{sender}`). Gateway expands at routing time, auto-creates
+  child group folders per sender. `getJidToFolderMap` derives hub folder
+  from template targets.
+- Migration 032: auto-threading docs.
+
+### Changed
+
+- **Group folder validation**: dropped charset restriction (`SEGMENT_PATTERN`).
+  Now validates: no `..`, no `\`, no absolute paths, non-empty segments ≤128 chars.
+- **Session eviction**: don't evict session when output was sent (prevents
+  losing sessions on transient errors after partial delivery).
+
+---
+
 ## [v1.5.0] — 2026-03-13
 
 ### Added
