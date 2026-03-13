@@ -321,7 +321,7 @@ async function runQuery(
   // Watchdog: abort if no SDK message arrives for too long (stalled TCP stream)
   // Before result: 60s timeout (agent may be thinking/using tools)
   // After result: 5s timeout (answer delivered, stream should close)
-  const STALL_TIMEOUT_MS = 60_000;
+  const STALL_TIMEOUT_MS = 180_000;
   const STALL_POST_RESULT_MS = 5_000;
   const STALL_CHECK_MS = 2_000;
   let lastMessageAt = Date.now();
@@ -334,7 +334,7 @@ async function runQuery(
         clearInterval(stallWatchdog);
         process.exit(0);
       }
-      log('Stream stall detected — no SDK message for 1min, aborting');
+      log('Stream stall detected — no SDK message for 3min, aborting');
       writeOutput({
         status: 'success',
         result: '⚠️ Connection stalled — the AI service froze mid-response. Say "continue" to retry.',
