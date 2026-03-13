@@ -1,4 +1,4 @@
-# JID Format Normalization — spec
+# JID Format Normalization — spec (shipped)
 
 Add platform prefix to senders, enrich message XML attributes,
 add clock header. Keep WhatsApp suffixes (no collisions).

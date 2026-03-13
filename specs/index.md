@@ -72,7 +72,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | D-knowledge-system             | Memory layers pattern                             | partial    |
 | E-memory-session               | SDK sessions, .jl files                           | shipped    |
 | G-codebase-trim                | Dead code removal (~900 lines)                    | spec       |
-| H-jid-format                   | Compact JID URIs, sender IDs                      | spec       |
+| H-jid-format                   | Compact JID URIs, sender IDs                      | shipped    |
 | J-container-commands           | Generic container commands                        | shipped    |
 | K-remove-triggers              | Remove trigger pattern system                     | shipped    |
 | L-chat-bound-sessions          | Chat-bound containers, send_reply, IDLE_TIMEOUT=0 | spec       |

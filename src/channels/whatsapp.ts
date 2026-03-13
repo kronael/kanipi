@@ -31,11 +31,9 @@ import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
 
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-function stripWaSuffix(jid: string): string {
-  return jid
-    .replace(/@g\.us$/, '')
-    .replace(/@s\.whatsapp\.net$/, '')
-    .replace(/@lid$/, '');
+// Strip @lid suffix only — @g.us and @s.whatsapp.net are kept per spec
+function stripLidSuffix(jid: string): string {
+  return jid.replace(/@lid$/, '');
 }
 
 /** Convert markdown formatting to WhatsApp formatting */
@@ -56,7 +54,6 @@ export class WhatsAppChannel implements Channel {
   private sock!: WASocket;
   private connected = false;
   private lidToPhoneMap: Record<string, string> = {};
-  private jidSuffixMap: Record<string, string> = {};
   private outgoingQueue: Array<{ jid: string; text: string }> = [];
   private flushing = false;
   private groupSyncTimerStarted = false;
@@ -70,8 +67,7 @@ export class WhatsAppChannel implements Channel {
   private toWaJid(jid: string): string {
     const bare = jid.replace(/^whatsapp:/, '');
     if (bare.includes('@')) return bare;
-    const suffix = this.jidSuffixMap[bare] || '@s.whatsapp.net';
-    return `${bare}${suffix}`;
+    return `${bare}@s.whatsapp.net`;
   }
 
   async connect(): Promise<void> {
@@ -203,11 +199,7 @@ export class WhatsAppChannel implements Channel {
         // Translate LID JID to phone JID if applicable
         const translated = await this.translateJid(rawJid);
         const isGroup = translated.endsWith('@g.us');
-        const strippedId = stripWaSuffix(translated);
-        const chatJid = `whatsapp:${strippedId}`;
-        if (isGroup) this.jidSuffixMap[strippedId] = '@g.us';
-        else if (translated.endsWith('@s.whatsapp.net'))
-          this.jidSuffixMap[strippedId] = '@s.whatsapp.net';
+        const chatJid = `whatsapp:${stripLidSuffix(translated)}`;
 
         const timestamp = new Date(
           Number(msg.messageTimestamp) * 1000,
@@ -302,9 +294,8 @@ export class WhatsAppChannel implements Channel {
           if (!content && attachments.length === 0) continue;
 
           const rawSender = msg.key.participant || msg.key.remoteJid || '';
-          const senderId = rawSender.split('@')[0];
-          const senderName = msg.pushName || senderId;
-          const sender = `whatsapp:${senderId}`;
+          const senderName = msg.pushName || rawSender.split('@')[0];
+          const sender = `whatsapp:${rawSender}`;
 
           const fromMe = msg.key.fromMe || false;
           // Detect bot messages: with own number, fromMe is reliable
@@ -513,7 +504,7 @@ export class WhatsAppChannel implements Channel {
       let count = 0;
       for (const [jid, metadata] of Object.entries(groups)) {
         if (metadata.subject) {
-          updateChatName(`whatsapp:${stripWaSuffix(jid)}`, metadata.subject);
+          updateChatName(`whatsapp:${jid}`, metadata.subject);
           count++;
         }
       }

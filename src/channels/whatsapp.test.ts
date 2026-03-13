@@ -107,7 +107,7 @@ import { getLastGroupSync, updateChatName, setLastGroupSync } from '../db.js';
 function createTestOpts(
   overrides?: Partial<WhatsAppChannelOpts>,
 ): WhatsAppChannelOpts {
-  const registeredJids = new Set(['whatsapp:registered']);
+  const registeredJids = new Set(['whatsapp:registered@g.us']);
   return {
     onMessage: vi.fn(),
     onChatMetadata: vi.fn(),
@@ -351,14 +351,14 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'whatsapp:registered',
+        'whatsapp:registered@g.us',
         expect.any(String),
         undefined,
         'whatsapp',
         true,
       );
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'whatsapp:registered',
+        'whatsapp:registered@g.us',
         expect.objectContaining({
           id: 'msg-1',
           content: 'Hello Andy',
@@ -391,7 +391,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'whatsapp:unregistered',
+        'whatsapp:unregistered@g.us',
         expect.any(String),
         undefined,
         'whatsapp',
@@ -466,7 +466,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'whatsapp:registered',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ content: 'A reply message' }),
         undefined,
         undefined,
@@ -499,7 +499,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'whatsapp:registered',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ content: 'Check this photo' }),
         expect.arrayContaining([expect.objectContaining({ type: 'image' })]),
         expect.any(Function),
@@ -529,7 +529,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'whatsapp:registered',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ content: 'Watch this' }),
         expect.arrayContaining([expect.objectContaining({ type: 'video' })]),
         expect.any(Function),
@@ -560,7 +560,7 @@ describe('WhatsAppChannel', () => {
 
       // Voice note with no caption — content falls back to '[voice]', attachments passed
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'whatsapp:registered',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ content: '[voice]' }),
         expect.arrayContaining([expect.objectContaining({ type: 'voice' })]),
         expect.any(Function),
@@ -588,7 +588,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onMessage).toHaveBeenCalledWith(
-        'whatsapp:registered',
+        'whatsapp:registered@g.us',
         expect.objectContaining({ sender_name: '5551234' }),
         undefined,
         undefined,
@@ -601,7 +601,9 @@ describe('WhatsAppChannel', () => {
   describe('LID to JID translation', () => {
     it('translates known LID to phone JID', async () => {
       const opts = createTestOpts({
-        isRoutedJid: vi.fn((jid) => jid === 'whatsapp:1234567890'),
+        isRoutedJid: vi.fn(
+          (jid) => jid === 'whatsapp:1234567890@s.whatsapp.net',
+        ),
       });
       const channel = new WhatsAppChannel(opts);
 
@@ -624,7 +626,7 @@ describe('WhatsAppChannel', () => {
 
       // Should be translated to phone JID
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'whatsapp:1234567890',
+        'whatsapp:1234567890@s.whatsapp.net',
         expect.any(String),
         undefined,
         'whatsapp',
@@ -653,7 +655,7 @@ describe('WhatsAppChannel', () => {
       ]);
 
       expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'whatsapp:registered',
+        'whatsapp:registered@g.us',
         expect.any(String),
         undefined,
         'whatsapp',
@@ -797,11 +799,11 @@ describe('WhatsAppChannel', () => {
 
       expect(fakeSocket.groupFetchAllParticipating).toHaveBeenCalled();
       expect(updateChatName).toHaveBeenCalledWith(
-        'whatsapp:group1',
+        'whatsapp:group1@g.us',
         'Group One',
       );
       expect(updateChatName).toHaveBeenCalledWith(
-        'whatsapp:group2',
+        'whatsapp:group2@g.us',
         'Group Two',
       );
       expect(setLastGroupSync).toHaveBeenCalled();
@@ -841,7 +843,7 @@ describe('WhatsAppChannel', () => {
 
       expect(fakeSocket.groupFetchAllParticipating).toHaveBeenCalled();
       expect(updateChatName).toHaveBeenCalledWith(
-        'whatsapp:group',
+        'whatsapp:group@g.us',
         'Forced Group',
       );
     });
@@ -879,7 +881,7 @@ describe('WhatsAppChannel', () => {
 
       expect(updateChatName).toHaveBeenCalledTimes(1);
       expect(updateChatName).toHaveBeenCalledWith(
-        'whatsapp:group1',
+        'whatsapp:group1@g.us',
         'Has Subject',
       );
     });
