@@ -114,10 +114,12 @@ function buildContext(
   sourceGroup: string,
   deps: IpcDeps,
   chatJid?: string,
+  messageId?: string,
 ): ActionContext {
   return {
     sourceGroup,
     chatJid,
+    messageId,
     isRoot: isRoot(sourceGroup),
     tier: permissionTier(sourceGroup),
     ...deps,
@@ -211,7 +213,9 @@ export async function drainRequests(
             } else {
               const reqJid =
                 typeof data.chatJid === 'string' ? data.chatJid : undefined;
-              const ctx = buildContext(sourceGroup, deps, reqJid);
+              const reqMsgId =
+                typeof data.messageId === 'string' ? data.messageId : undefined;
+              const ctx = buildContext(sourceGroup, deps, reqJid, reqMsgId);
               const result = await action.handler(parsed.data, ctx);
               reply = { id, ok: true, result };
             }

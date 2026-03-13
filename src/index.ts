@@ -220,6 +220,18 @@ function registerGroup(jid: string, group: GroupConfig): void {
     target: group.folder,
   });
 
+  // Add synthetic local:{folder} route (idempotent)
+  const localJid = `local:${group.folder}`;
+  const existingLocal = getRoutesForJid(localJid);
+  if (existingLocal.length === 0) {
+    addRoute(localJid, {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: group.folder,
+    });
+  }
+
   // Create group folder
   fs.mkdirSync(path.join(groupDir, 'logs'), { recursive: true });
 

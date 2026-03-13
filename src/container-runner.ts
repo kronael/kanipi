@@ -698,6 +698,7 @@ async function runAgentMode(
       isScheduledTask: input.isScheduledTask,
       messageCount: input.messageCount,
       delegateDepth: input.delegateDepth,
+      messageId: input.messageId,
     };
     const startPath = path.join(groupIpcDir, 'start.json');
     const startTmp = `${startPath}.tmp`;
