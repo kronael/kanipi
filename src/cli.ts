@@ -8,6 +8,7 @@ import { execFileSync } from 'child_process';
 import { hashSync } from '@node-rs/argon2';
 import Database from 'better-sqlite3';
 
+import { getChannelAuth, listChannelAuths } from './channel-auth.js';
 import { ensureDatabase } from './migrations.js';
 
 // --- Utility functions ---
@@ -518,6 +519,50 @@ function userPasswd(
   }
 }
 
+// --- channel commands ---
+
+function handleChannel(instance: string, action: string, rest: string[]): void {
+  if (action !== 'auth') {
+    console.error(
+      'usage: kanipi config <instance> channel auth <name> [flags]',
+    );
+    process.exit(1);
+  }
+
+  const name = rest[0];
+  if (!name) {
+    const known = listChannelAuths();
+    console.error(
+      `usage: kanipi config <instance> channel auth <name> [flags]`,
+    );
+    if (known.length) {
+      console.error(`  channels: ${known.join(', ')}`);
+    }
+    process.exit(1);
+  }
+
+  const auth = getChannelAuth(name);
+  if (!auth) {
+    const known = listChannelAuths();
+    console.error(`unknown channel: ${name}`);
+    if (known.length) {
+      console.error(`  available: ${known.join(', ')}`);
+    }
+    process.exit(1);
+  }
+
+  const dataDir = getDataDir(instance);
+  if (!fs.existsSync(dataDir)) {
+    console.error(`no data dir: ${dataDir}`);
+    process.exit(1);
+  }
+
+  auth.authenticate(dataDir, rest.slice(1)).catch((err) => {
+    console.error(`Authentication failed: ${err.message}`);
+    process.exit(1);
+  });
+}
+
 // --- create command ---
 
 function create(name: string): void {
@@ -771,6 +816,7 @@ function printUsage(): void {
   console.log('       kanipi config <instance> group list');
   console.log('       kanipi config <instance> user {list|add|rm|passwd} ...');
   console.log('       kanipi config <instance> mount {list|add|rm} ...');
+  console.log('       kanipi config <instance> channel auth <name> [flags]');
   console.log('       kanipi config <instance> containers wipe');
 }
 
@@ -780,7 +826,9 @@ function handleConfig(args: string[]): void {
   const action = args[2];
 
   if (!instance) {
-    console.error('usage: kanipi config <instance> {group|user|mount} ...');
+    console.error(
+      'usage: kanipi config <instance> {group|user|mount|channel} ...',
+    );
     process.exit(1);
   }
 
@@ -842,6 +890,9 @@ function handleConfig(args: string[]): void {
           process.exit(1);
       }
       break;
+    case 'channel':
+      handleChannel(instance, action, args.slice(3));
+      break;
     case 'containers':
       switch (action) {
         case 'wipe':
@@ -854,7 +905,7 @@ function handleConfig(args: string[]): void {
       break;
     default:
       console.error(
-        'usage: kanipi config <instance> {group|user|mount|containers} ...',
+        'usage: kanipi config <instance> {group|user|mount|channel|containers} ...',
       );
       process.exit(1);
   }
