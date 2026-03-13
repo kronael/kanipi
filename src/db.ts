@@ -856,7 +856,13 @@ export function getDefaultTarget(jid: string): string | null {
       `SELECT target FROM routes WHERE jid = ? AND type = 'default' ORDER BY seq LIMIT 1`,
     )
     .get(jid) as { target: string } | undefined;
-  return row?.target ?? null;
+  if (!row) return null;
+  // Template targets like "atlas/{sender}" — return base folder
+  if (row.target.includes('{')) {
+    const slash = row.target.lastIndexOf('/');
+    return slash > 0 ? row.target.slice(0, slash) : null;
+  }
+  return row.target;
 }
 
 export function getDirectChildGroupCount(parentFolder: string): number {
