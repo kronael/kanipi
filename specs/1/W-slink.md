@@ -93,17 +93,6 @@ Thresholds configurable via `SLINK_ANON_RPM` / `SLINK_AUTH_RPM` env vars.
 
 ---
 
-## DB
-
-```sql
-ALTER TABLE registered_groups ADD COLUMN slink_token TEXT;
--- populated at group registration for web: groups
-```
-
-No separate table. Token lives on the group row.
-
----
-
 ## Agent
 
 The agent receives slink POSTs as normal inbound messages on the

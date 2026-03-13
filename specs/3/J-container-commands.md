@@ -97,19 +97,7 @@ Pipe delimiter separates folder from command. No pipe = agent default.
 The folder determines the sandbox (mounts, permissions, tier). The
 command determines what runs.
 
-## Dead code removal (prerequisite)
-
-- Drop `action_manifest.json` write (noted as dead in routing spec)
-
 ## Migration
 
 - `ALTER TABLE scheduled_tasks ADD COLUMN command TEXT`
 - Existing tasks unaffected (command = NULL = agent mode)
-
-## Key files
-
-- `src/container-runner.ts` — rename + dual path
-- `src/task-scheduler.ts` — command dispatch
-- `src/db.ts` — new column, updated CRUD
-- `container/Dockerfile` — remove ENTRYPOINT
-- `src/actions/tasks.ts` — command field in schedule_task

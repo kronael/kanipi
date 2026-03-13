@@ -58,9 +58,8 @@ atlas/               → tier 1: world admin
 Worker escalates to parent when facts insufficient. This is product
 configuration, not new gateway code — depends on `specs/2/5-permissions.md`.
 
-## Build order
+## Deferred (v2)
 
-1. ~~Facts search~~ — shipped via `/facts` skill
-2. ~~Researcher~~ — shipped via `/facts` skill
-3. ~~Verifier~~ — shipped via `/facts` skill
-4. Semantic similarity search (v2)
+- Semantic similarity search (embeddings)
+- Automatic injection into every prompt
+- Background researcher cron

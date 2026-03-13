@@ -131,37 +131,11 @@ Gateway replies with action manifest:
 Agent-runner reads the manifest and auto-registers MCP tools.
 Each tool writes a request file and waits for the reply.
 
-### Agent-side MCP stub (generic)
+### Agent-side MCP stub
 
-`ipc-mcp-stdio.ts` becomes a generic proxy — no per-action
-code. One loop generates all tools from the manifest:
-
-```typescript
-for (const action of manifest) {
-  server.tool(action.name, action.description, action.input, async (args) => {
-    const id = `${Date.now()}-${rand()}`;
-    writeIpcFile(REQUESTS_DIR, { id, type: action.name, ...args });
-    const reply = await waitForReply(id, REPLIES_DIR);
-    if (!reply.ok)
-      return { content: [{ type: 'text', text: reply.error }], isError: true };
-    return { content: [{ type: 'text', text: JSON.stringify(reply.result) }] };
-  });
-}
-```
-
-### Timeout
-
-Agent-side polls with 100ms interval, 30s timeout. If no
-reply, return error to agent. Gateway cleans stale replies
-on next drain.
-
-### Migration from fire-and-forget
-
-1. Gateway adds request watcher + reply writer alongside
-   existing message/task watchers
-2. Agent-runner checks for manifest, falls back to hardcoded
-   tools if missing (backwards compat during rollout)
-3. Remove hardcoded tools once stable
+`ipc-mcp-stdio.ts` is a generic proxy — generates all MCP tools
+from the manifest, no per-action code. 100ms poll, 30s timeout
+on replies.
 
 ## Current actions
 
@@ -258,15 +232,6 @@ wrappers that parse user input and call the action.
 - Root group can target any JID
 - Non-root can only target their own
 - Enforced in action handlers
-
-## Implementation
-
-- `src/action-registry.ts` — registry, validation
-- `src/actions/` — one file per action or by domain
-- `src/ipc.ts` — request watcher, reply writer
-- `src/commands/` — thin wrappers calling actions
-- `container/agent-runner/src/ipc-mcp-stdio.ts` — generic
-  proxy from manifest
 
 ## Open
 

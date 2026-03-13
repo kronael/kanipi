@@ -136,27 +136,7 @@ returns `<messages>...</messages>`. The gateway concatenates:
 The agent sees a self-contained prompt with identity, location,
 and conversation in one XML document.
 
-## Migration (0007-jid-format.sql)
+## Migration
 
-```sql
--- Add platform prefix to senders (no suffix stripping)
-UPDATE messages SET sender = 'telegram:' || sender
-  WHERE chat_jid LIKE 'telegram:%' AND sender NOT LIKE '%:%';
-UPDATE messages SET sender = 'whatsapp:' || sender
-  WHERE chat_jid LIKE 'whatsapp:%' AND sender NOT LIKE '%:%';
-UPDATE messages SET sender = 'discord:' || sender
-  WHERE chat_jid LIKE 'discord:%' AND sender NOT LIKE '%:%';
-UPDATE messages SET sender = 'email:' || sender
-  WHERE chat_jid LIKE 'email:%' AND sender NOT LIKE '%:%';
-```
-
-## Code changes
-
-1. All channels: sender = `scheme:${platformId}` (WhatsApp keeps suffixes)
-2. `formatMessages()`: emits `sender`, `sender_id`, `chat_id`,
-   `chat` (when group), `platform`, `time`, `ago` per message
-3. `clockXml()`: returns `<clock>` tag with UTC time and timezone
-4. `timeAgo()`: computes human-readable relative time (s/m/h/d/w)
-5. `index.ts`: prepends clock to initial prompt assembly
-6. `platformFromJid()`: unchanged (split on `:`)
-7. `sender_name` column: unchanged, carries display name
+SQL migration adds platform prefix to existing sender values in the
+messages table, matching by `chat_jid` prefix. WhatsApp suffixes kept as-is.

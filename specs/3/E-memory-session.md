@@ -95,31 +95,11 @@ Gateway enqueues system messages (see `system-messages.md`):
 | Agent request  | IPC `reset_session`        | New session |
 | User `/new`    | Gateway detects            | New session |
 
-## Episode notes (rhias, Mar 2026)
-
-Observed on live 4-day session (rhias, session 58f49dbe):
-
-- Single session ran 4+ days without reset (IPC kept
-  container alive between user turns)
-- Full message replay on every restart (no checkpoint)
-- No fallback on crash/timeout — all context lost
-- SDK resume failure handling is urgent
-
-## Shipped
-
-1. Error handling: session evicted when `status: error` and no progress (index.ts)
-2. Last 3 session IDs injected in `<previous_session>` on new session
-3. `reset_session` action in `src/actions/session.ts`
-4. `/new [message]` command: clears session for the router-resolved group
-
 ## `/new` routing
 
 `/new [message]` — clears the session for whatever group the router resolves
-for the incoming message. Optional message becomes the first prompt in the new session.
-
-The router decides the target group. Commands must not bypass routing — anyone
-sending to a JID should only be able to reset the group that JID maps to,
-not arbitrary groups by name.
+for the incoming message. Optional message becomes the first prompt in the new
+session. Commands must not bypass routing.
 
 ## Deferred
 

@@ -159,17 +159,3 @@ System context via `systemPrompt.append`:
 
 Agent CLAUDE.md at `~/.claude/CLAUDE.md`, group CLAUDE.md at
 `/home/node/CLAUDE.md` — both loaded by SDK.
-
-## Open
-
-### reply_to threading -- shipped
-
-`formatMessages()` emits `<forwarded_from>` and `<reply_to>`
-XML elements when metadata is present. Channels (telegram,
-whatsapp) extract forward origin and reply context and store
-them on the message row.
-
-### XML throughout -- closed, won't do
-
-XML for prompt content. JSON for SDK/machine interfaces.
-See `specs/res/xml-vs-json-llm.md`.

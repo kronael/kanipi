@@ -67,18 +67,6 @@ On new session, inject diary summaries as XML:
 Injects 14 entries (two weeks) until progressive summarization
 ships.
 
-## What ships
-
-| Item                                             | Status |
-| ------------------------------------------------ | ------ |
-| Mount + dir creation                             | done   |
-| Gateway injection (summaries → XML, 14 entries)  | done   |
-| Diary skill (format, rules, MEMORY.md nudge)     | done   |
-| Agent CLAUDE.md (diary + memory sections)        | done   |
-| PreCompact hook (clean nudge)                    | done   |
-| Stop hook (100-turn counter)                     | done   |
-| Recovery entries (gateway writes on error/crash) | done   |
-
 ## Progressive summarization (future)
 
 Daily → weekly → monthly rollup. See `specs/3/B-memory-episodic.md`.
