@@ -9,6 +9,24 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Added
+
+- **User context**: gateway injects `<user id="..." name="..." memory="..." />`
+  tag with sender identity. Agent reads `~/users/<id>.md` for per-user memory.
+  New `/users` skill for managing user context files.
+- **Status messages**: agent emits `<status>text</status>` blocks, agent-runner
+  strips them and sends as interim updates to users.
+- **Think blocks**: `<think>...</think>` blocks stripped by agent-runner,
+  enabling silent deliberation in group chats.
+- Migration 027: user context docs and skill.
+
+### Fixed
+
+- **Agent entrypoint**: `buildContainerArgs` now defaults to `/app/entrypoint.sh`
+  command, fixing code 127 on agent images with `/bin/bash` entrypoint.
+- **Test assertions**: updated `sendMessage` test expectations to match 3-arg
+  signature after `replyTo` addition.
+
 ---
 
 ## [v1.3.5] — 2026-03-12
