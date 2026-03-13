@@ -5,7 +5,7 @@ import {
   _setTestGroupRoute,
   createTask,
   getAllTasks,
-  getDefaultTarget,
+  getHubForJid,
   getGroupByFolder,
   getJidsForFolder,
   getRoutedJids,
@@ -68,7 +68,7 @@ beforeEach(() => {
     sendMessage: async () => {},
     clearSession: vi.fn(),
     sendDocument: async () => {},
-    getDefaultTarget,
+    getHubForJid,
     getJidsForFolder,
     getRoutedJids,
     getGroupConfig: getGroupByFolder,
@@ -349,7 +349,7 @@ describe('register_group authorization', () => {
     );
 
     // route should not have been registered
-    expect(getDefaultTarget('new@g.us')).toBeNull();
+    expect(getHubForJid('new@g.us')).toBeNull();
   });
 
   it('root group cannot register with unsafe folder path', async () => {
@@ -364,7 +364,7 @@ describe('register_group authorization', () => {
       deps,
     );
 
-    expect(getDefaultTarget('new@g.us')).toBeNull();
+    expect(getHubForJid('new@g.us')).toBeNull();
   });
 
   it('root group cannot register a folder deeper than 3 levels', async () => {
@@ -379,7 +379,7 @@ describe('register_group authorization', () => {
       deps,
     );
 
-    expect(getDefaultTarget('deep@g.us')).toBeNull();
+    expect(getHubForJid('deep@g.us')).toBeNull();
   });
 });
 
@@ -411,7 +411,7 @@ describe('IPC message authorization', () => {
     sourceGroup: string,
     targetChatJid: string,
   ): boolean {
-    const targetFolder = getDefaultTarget(targetChatJid);
+    const targetFolder = getHubForJid(targetChatJid);
     return isRoot(sourceGroup) || targetFolder === sourceGroup;
   }
 

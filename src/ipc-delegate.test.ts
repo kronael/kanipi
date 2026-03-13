@@ -13,7 +13,7 @@ import './ipc.js';
 import {
   _initTestDatabase,
   _setTestGroupRoute,
-  getDefaultTarget,
+  getHubForJid,
   getJidsForFolder,
   getRoutedJids,
   GroupConfig,
@@ -62,7 +62,7 @@ beforeEach(() => {
   deps = {
     sendMessage: vi.fn(async () => {}),
     sendDocument: vi.fn(async () => {}),
-    getDefaultTarget,
+    getHubForJid,
     getJidsForFolder,
     getRoutedJids,
     getGroupConfig: vi.fn((_folder: string) => undefined),
@@ -337,12 +337,12 @@ describe('unknown action type', () => {
 // ---------------------------------------------------------------------------
 
 describe('DB-backed routing — live reads', () => {
-  it('getDefaultTarget dep reflects DB state at call time', () => {
+  it('getHubForJid dep reflects DB state at call time', () => {
     _setTestGroupRoute('root@g.us', ROOT);
-    expect(deps.getDefaultTarget('root@g.us')).toBe('root');
+    expect(deps.getHubForJid('root@g.us')).toBe('root');
 
     _setTestGroupRoute('child@g.us', CODE);
-    expect(deps.getDefaultTarget('child@g.us')).toBe('root/code');
+    expect(deps.getHubForJid('child@g.us')).toBe('root/code');
     expect(deps.getRoutedJids()).toHaveLength(2);
   });
 

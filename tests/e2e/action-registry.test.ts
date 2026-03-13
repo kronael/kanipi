@@ -59,7 +59,7 @@ beforeEach(() => {
   deps = {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
-    getDefaultTarget: (jid: string) =>
+    getHubForJid: (jid: string) =>
       jid === 'root@g.us' ? MAIN_GROUP.folder : null,
     getJidsForFolder: (folder: string) =>
       folder === MAIN_GROUP.folder ? ['root@g.us'] : [],
@@ -147,7 +147,7 @@ describe('drainRequests flow', () => {
         tier: 0 as const,
         sendMessage: deps.sendMessage,
         sendDocument: deps.sendDocument,
-        getDefaultTarget: deps.getDefaultTarget,
+        getHubForJid: deps.getHubForJid,
         getRoutedJids: deps.getRoutedJids,
         getGroupConfig: deps.getGroupConfig,
         getDirectChildGroupCount: deps.getDirectChildGroupCount,
@@ -174,7 +174,7 @@ describe('drainRequests flow', () => {
         tier: 0 as const,
         sendMessage: deps.sendMessage,
         sendDocument: deps.sendDocument,
-        getDefaultTarget: deps.getDefaultTarget,
+        getHubForJid: deps.getHubForJid,
         getRoutedJids: deps.getRoutedJids,
         getGroupConfig: deps.getGroupConfig,
         getDirectChildGroupCount: deps.getDirectChildGroupCount,

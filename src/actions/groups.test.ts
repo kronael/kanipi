@@ -52,7 +52,7 @@ function makeCtx(
       : Math.min(sourceGroup.split('/').length, 3)) as 0 | 1 | 2 | 3,
     sendMessage: vi.fn(async () => {}),
     sendDocument: vi.fn(async () => {}),
-    getDefaultTarget: vi.fn((_jid: string) => null),
+    getHubForJid: vi.fn((_jid: string) => null),
     getRoutedJids: vi.fn(() => []),
     getGroupConfig: vi.fn((_folder: string) => undefined),
     getDirectChildGroupCount: vi.fn(() => 0),

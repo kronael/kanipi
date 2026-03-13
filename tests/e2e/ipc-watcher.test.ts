@@ -38,7 +38,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
   return {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
-    getDefaultTarget: (jid: string) => (jid === ROOT_JID ? 'root' : null),
+    getHubForJid: (jid: string) => (jid === ROOT_JID ? 'root' : null),
     getJidsForFolder: (folder: string) => (folder === 'root' ? [ROOT_JID] : []),
     getRoutedJids: () => [ROOT_JID],
     getGroupConfig: (folder: string) =>
@@ -167,7 +167,7 @@ describe('startIpcWatcher — recursive folder scan', () => {
     writeRequest('parent/child', { type: 'reset_session' });
 
     const deps = makeDeps({
-      getDefaultTarget: (_jid: string) => null,
+      getHubForJid: (_jid: string) => null,
       clearSession: vi.fn(),
     });
     const { startIpcWatcher } = await import('../../src/ipc.js');

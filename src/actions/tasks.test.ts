@@ -31,7 +31,7 @@ function makeCtx(overrides?: Partial<ActionContext>): ActionContext {
     tier: 0,
     sendMessage: vi.fn(),
     sendDocument: vi.fn(),
-    getDefaultTarget: (jid: string) => (jid === 'tg:1' ? 'root' : null),
+    getHubForJid: (jid: string) => (jid === 'tg:1' ? 'root' : null),
     getRoutedJids: vi.fn(),
     getGroupConfig: vi.fn(),
     getDirectChildGroupCount: vi.fn(),

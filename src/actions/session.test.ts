@@ -15,7 +15,7 @@ function makeCtx(): ActionContext {
     tier: 2,
     sendMessage: vi.fn(),
     sendDocument: vi.fn(),
-    getDefaultTarget: vi.fn(),
+    getHubForJid: vi.fn(),
     getRoutedJids: vi.fn(),
     getGroupConfig: vi.fn(),
     getDirectChildGroupCount: vi.fn(),

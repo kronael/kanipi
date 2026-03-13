@@ -22,7 +22,7 @@ function makeCtx(
     chatJid,
     sendMessage: vi.fn(),
     sendDocument: vi.fn(),
-    getDefaultTarget: vi.fn((jid: string) => groups?.[jid]?.folder ?? null),
+    getHubForJid: vi.fn((jid: string) => groups?.[jid]?.folder ?? null),
     getRoutedJids: vi.fn(() => Object.keys(groups ?? {})),
     getGroupConfig: vi.fn((folder: string) =>
       Object.values(groups ?? {}).find((g) => g.folder === folder),

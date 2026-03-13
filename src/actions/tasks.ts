@@ -52,7 +52,7 @@ export const scheduleTask: Action = {
     if (input.prompt && input.command) {
       throw new Error('prompt and command are mutually exclusive');
     }
-    const targetFolder = ctx.getDefaultTarget(input.targetJid);
+    const targetFolder = ctx.getHubForJid(input.targetJid);
     if (!targetFolder) {
       throw new Error('target JID has no route');
     }

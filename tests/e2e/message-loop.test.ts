@@ -149,7 +149,7 @@ vi.mock('../../src/container-runner.js', () => ({
 import {
   _initTestDatabase,
   _setTestGroupRoute,
-  getDefaultTarget,
+  getHubForJid,
   getGroupByFolder,
   getMessagesSince,
   setRoutesForJid,
@@ -348,7 +348,7 @@ describe('DB state for gateway routing', () => {
       name: 'Test',
       folder: 'test',
     });
-    expect(getDefaultTarget('g@g.us')).toBe('test');
+    expect(getHubForJid('g@g.us')).toBe('test');
     const group = getGroupByFolder('test');
     expect(group).toBeDefined();
     expect(group!.name).toBe('Test');

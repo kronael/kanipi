@@ -10,7 +10,7 @@ function assertAuthorized(
   action: string,
 ): void {
   if (ctx.tier === 0) return;
-  const targetFolder = ctx.getDefaultTarget(chatJid);
+  const targetFolder = ctx.getHubForJid(chatJid);
   if (targetFolder && isInWorld(ctx.sourceGroup, targetFolder)) return;
   logger.warn(
     { chatJid, sourceGroup: ctx.sourceGroup },

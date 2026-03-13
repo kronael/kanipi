@@ -55,7 +55,7 @@ export interface IpcDeps {
     filePath: string,
     filename?: string,
   ) => Promise<void>;
-  getDefaultTarget: (jid: string) => string | null;
+  getHubForJid: (jid: string) => string | null;
   getJidsForFolder: (folder: string) => string[];
   getRoutedJids: () => string[];
   getGroupConfig: (folder: string) => GroupConfig | undefined;

@@ -60,7 +60,7 @@ import {
   getAllGroupConfigs,
   getAllSessions,
   getAllTasks,
-  getDefaultTarget,
+  getHubForJid,
   getDirectChildGroupCount,
   getGroupByFolder,
   hasAlwaysOnRoute,
@@ -214,14 +214,12 @@ function registerGroup(jid: string, group: GroupConfig): void {
   setGroupConfig(group);
 
   // Add default route (JID -> folder)
-  if (!getDefaultTarget(jid)) {
-    addRoute(jid, {
-      seq: 0,
-      type: 'default',
-      match: null,
-      target: group.folder,
-    });
-  }
+  addRoute(jid, {
+    seq: 0,
+    type: 'default',
+    match: null,
+    target: group.folder,
+  });
 
   // Create group folder
   fs.mkdirSync(path.join(groupDir, 'logs'), { recursive: true });
@@ -295,7 +293,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   // local: JIDs resolve by convention — no DB route needed
   const folder = chatJid.startsWith('local:')
     ? chatJid.slice(6)
-    : getDefaultTarget(chatJid);
+    : getHubForJid(chatJid);
   const group = folder ? groups[folder] : undefined;
   if (!group) return true;
 
@@ -792,7 +790,7 @@ async function startMessageLoop(): Promise<void> {
         for (const [chatJid, groupMessages] of messagesByGroup) {
           const folder = chatJid.startsWith('local:')
             ? chatJid.slice(6)
-            : getDefaultTarget(chatJid);
+            : getHubForJid(chatJid);
           const group = folder ? groups[folder] : undefined;
           if (!group) continue;
 
@@ -942,7 +940,7 @@ async function startMessageLoop(): Promise<void> {
  */
 function recoverPendingMessages(): void {
   for (const chatJid of getRoutedJids()) {
-    const folder = getDefaultTarget(chatJid);
+    const folder = getHubForJid(chatJid);
     if (!folder) continue;
     const group = groups[folder];
     if (!group) continue;
@@ -1002,7 +1000,7 @@ async function main(): Promise<void> {
       if (!msg.is_from_me && !msg.is_bot_message) {
         clearChatErrored(msg.chat_jid);
       }
-      const folder = getDefaultTarget(msg.chat_jid);
+      const folder = getHubForJid(msg.chat_jid);
       const group = folder ? groups[folder] : undefined;
       if (attachments && download && group) {
         // Resolve routing to determine final target folder for media storage
@@ -1026,7 +1024,7 @@ async function main(): Promise<void> {
       channel?: string,
       isGroup?: boolean,
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
-    isRoutedJid: (jid: string) => getDefaultTarget(jid) !== null,
+    isRoutedJid: (jid: string) => getRoutedJids().includes(jid),
     hasAlwaysOnGroup: () => hasAlwaysOnRoute(),
   };
 
@@ -1166,7 +1164,7 @@ async function main(): Promise<void> {
       }
       return channel.sendDocument(jid, filePath, filename);
     },
-    getDefaultTarget,
+    getHubForJid,
     getJidsForFolder,
     getRoutedJids,
     getGroupConfig: getGroupByFolder,

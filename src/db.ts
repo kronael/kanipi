@@ -850,7 +850,7 @@ export function getJidsForFolder(folder: string): string[] {
   return rows.map((r) => r.jid);
 }
 
-export function getDefaultTarget(jid: string): string | null {
+export function getHubForJid(jid: string): string | null {
   const row = db
     .prepare(
       `SELECT target FROM routes WHERE jid = ? AND type = 'default' ORDER BY seq LIMIT 1`,

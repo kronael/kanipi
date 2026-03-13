@@ -12,7 +12,7 @@ export interface ActionContext {
   tier: 0 | 1 | 2 | 3;
   sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void>;
   sendDocument(jid: string, path: string, name?: string): Promise<void>;
-  getDefaultTarget(jid: string): string | null;
+  getHubForJid(jid: string): string | null;
   getRoutedJids(): string[];
   getGroupConfig(folder: string): GroupConfig | undefined;
   getDirectChildGroupCount(parentFolder: string): number;

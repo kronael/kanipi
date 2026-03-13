@@ -52,7 +52,7 @@ function makeDeps(overrides?: Partial<IpcDeps>): IpcDeps {
   return {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     sendDocument: vi.fn().mockResolvedValue(undefined),
-    getDefaultTarget: (_jid: string) => null,
+    getHubForJid: (_jid: string) => null,
     getJidsForFolder: (_folder: string) => [],
     getRoutedJids: () => [],
     getGroupConfig: (_folder: string) => undefined,
