@@ -107,13 +107,14 @@ their base folder (`atlas`).
 `send_message`:
 
 - tier 0: any target
-- tier 1+: any JID with at least one route target in the same world
+- tier 1: any JID with at least one route target in the same world
+- tier 2+: only JIDs with a route target matching own folder exactly
 
 `send_file`:
 
 - tier 0: any target
 - tier 1: any JID with at least one route target in the same world
-- tier 2: any JID with at least one route target in the same world
+- tier 2: only JIDs with a route target matching own folder exactly
 - tier 3: denied
 
 ### Tasks

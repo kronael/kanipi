@@ -12,7 +12,11 @@ function assertAuthorized(
 ): void {
   if (ctx.tier === 0) return;
   const targets = getRouteTargetsForJid(chatJid);
-  if (targets.some((t) => isInWorld(ctx.sourceGroup, t))) return;
+  if (ctx.tier >= 2) {
+    if (targets.includes(ctx.sourceGroup)) return;
+  } else if (targets.some((t) => isInWorld(ctx.sourceGroup, t))) {
+    return;
+  }
   logger.warn(
     { chatJid, sourceGroup: ctx.sourceGroup },
     `unauthorized ${action} blocked`,

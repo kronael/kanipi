@@ -59,8 +59,8 @@ describe('send_message', () => {
     expect(r).toEqual({ sent: true });
   });
 
-  it('tier 2 can send to JID routed to own world', async () => {
-    mockRouteTargets.mockReturnValue(['myworld/sibling']);
+  it('tier 2 can send to JID routed to own folder', async () => {
+    mockRouteTargets.mockReturnValue(['myworld/mygroup']);
     const ctx = makeCtx(2, 'myworld/mygroup');
     const r = await sendMessage.handler(
       { chatJid: 'chat@jid', text: 'hi' },
@@ -69,6 +69,15 @@ describe('send_message', () => {
 
     expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi', undefined);
     expect(r).toEqual({ sent: true });
+  });
+
+  it('tier 2 cannot send to sibling in same world', async () => {
+    mockRouteTargets.mockReturnValue(['myworld/sibling']);
+    const ctx = makeCtx(2, 'myworld/mygroup');
+
+    await expect(
+      sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
+    ).rejects.toThrow('unauthorized');
   });
 
   it('tier 2 cannot send to JID routed to other world', async () => {
