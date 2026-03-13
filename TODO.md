@@ -15,7 +15,7 @@ Finish these. Small, bounded, no new architecture.
 - [ ] sse: auth per group on stream endpoint (3/ gap)
 - [ ] permissions: close any remaining tier 0-3 gaps (3/5)
 - [ ] think-blocks: <think> stripping in agent-runner, update container/CLAUDE.md (3/M)
-- [ ] chat-bound-sessions: IDLE_TIMEOUT=0, send_reply action, chatJid on ActionContext (3/L)
+- [x] chat-bound-sessions: IDLE_TIMEOUT=0, send_reply action, chatJid on ActionContext (3/L)
 - [ ] status-messages: <status> blocks in agent-runner, update container/CLAUDE.md (3/N)
 - [ ] escalation impl: local: JID routing, escalate_group return path (3/5-permissions) — pending confirmation
 - [ ] codebase-trim: dead code removal ~900 lines (3/G)

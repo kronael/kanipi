@@ -692,7 +692,6 @@ async function runAgentMode(
       chatJid: input.chatJid,
       assistantName: input.assistantName,
       channelName: input.channelName,
-      annotations: input._annotations,
       secrets: readSecrets(),
       prompt: input.prompt,
       isScheduledTask: input.isScheduledTask,

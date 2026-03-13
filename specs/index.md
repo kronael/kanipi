@@ -75,7 +75,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | H-jid-format                   | Compact JID URIs, sender IDs                      | shipped    |
 | J-container-commands           | Generic container commands                        | shipped    |
 | K-remove-triggers              | Remove trigger pattern system                     | shipped    |
-| L-chat-bound-sessions          | Chat-bound containers, send_reply, IDLE_TIMEOUT=0 | spec       |
+| L-chat-bound-sessions          | Chat-bound containers, send_reply, IDLE_TIMEOUT=0 | shipped    |
 | M-think-blocks                 | <think> delimiter for silent decisions            | shipped    |
 | N-status-messages              | Agent-initiated status updates                    | shipped    |
 | _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes                   | open       |

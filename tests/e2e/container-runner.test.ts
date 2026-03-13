@@ -46,7 +46,6 @@ vi.mock('../../src/config.js', () => ({
   HOST_APP_DIR: '/tmp/kanipi-e2e-cr-app',
   HOST_GROUPS_DIR: '/tmp/kanipi-e2e-cr-groups',
   HOST_DATA_DIR: '/tmp/kanipi-e2e-cr',
-  IDLE_TIMEOUT: 30000,
   isRoot: (f: string) => !f.includes('/'),
   permissionTier: (f: string) =>
     f.includes('/') ? Math.min(f.split('/').length, 3) : 0,

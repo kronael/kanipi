@@ -22,7 +22,6 @@ vi.mock('../../src/config.js', () => ({
   DATA_DIR: '/tmp/kanipi-e2e-data',
   GROUPS_DIR: '/tmp/kanipi-e2e-groups',
   HOST_PROJECT_ROOT_PATH: '/tmp/kanipi-e2e-root',
-  IDLE_TIMEOUT: 1800000,
   isRoot: (f: string) => f === 'root',
   permissionTier: (f: string) =>
     f === 'root' ? 0 : Math.min(f.split('/').length, 3),
