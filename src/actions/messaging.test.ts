@@ -7,17 +7,19 @@ vi.mock('../logger.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn() },
 }));
 
-import { sendMessage, sendFile } from './messaging.js';
+import { sendMessage, sendFile, sendReply } from './messaging.js';
 
 function makeCtx(
   tier: 0 | 1 | 2 | 3,
   sourceGroup = 'root',
   groups?: Record<string, GroupConfig>,
+  chatJid?: string,
 ): ActionContext {
   return {
     sourceGroup,
     isRoot: tier === 0,
     tier,
+    chatJid,
     sendMessage: vi.fn(),
     sendDocument: vi.fn(),
     getDefaultTarget: vi.fn((jid: string) => groups?.[jid]?.folder ?? null),
@@ -93,6 +95,25 @@ describe('send_message', () => {
     await expect(
       sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
     ).rejects.toThrow('unauthorized');
+  });
+});
+
+describe('send_reply', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('sends reply when chatJid is set', async () => {
+    const ctx = makeCtx(0, 'root', undefined, 'telegram:123');
+    const r = await sendReply.handler({ text: 'hello' }, ctx);
+
+    expect(ctx.sendMessage).toHaveBeenCalledWith('telegram:123', 'hello');
+    expect(r).toEqual({ sent: true });
+  });
+
+  it('throws when chatJid is not set', async () => {
+    const ctx = makeCtx(0, 'root', undefined, undefined);
+    await expect(sendReply.handler({ text: 'hello' }, ctx)).rejects.toThrow(
+      'no bound chat JID',
+    );
   });
 });
 

@@ -170,7 +170,14 @@ function parseUserName(content: string): string | undefined {
   const fm = match[1];
   const nameMatch = fm.match(/^name:\s*(.+)$/m);
   if (!nameMatch) return undefined;
-  return nameMatch[1].trim();
+  const raw = nameMatch[1].trim();
+  if (
+    (raw.startsWith('"') && raw.endsWith('"')) ||
+    (raw.startsWith("'") && raw.endsWith("'"))
+  ) {
+    return raw.slice(1, -1);
+  }
+  return raw;
 }
 
 // Generate <user> tag for the given sender
@@ -182,7 +189,10 @@ export function userContextXml(
   if (!sender || sender === 'system') return null;
 
   const fileId = senderToUserFileId(sender);
-  const userFile = path.join(groupDir, 'users', `${fileId}.md`);
+  const usersDir = path.join(groupDir, 'users');
+  const userFile = path.join(usersDir, `${fileId}.md`);
+  const resolved = path.resolve(userFile);
+  if (!resolved.startsWith(path.resolve(usersDir) + path.sep)) return null;
   const attrs: string[] = [`id="${escapeXml(fileId)}"`];
 
   if (fs.existsSync(userFile)) {

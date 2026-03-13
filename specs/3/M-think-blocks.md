@@ -43,11 +43,24 @@ and requires zero gateway changes.
 
 ```typescript
 function stripThinkBlocks(text: string): string {
-  // Remove complete think blocks (multiline)
-  let result = text.replace(/<think>[\s\S]*?<\/think>/g, '');
-  // Strip from unclosed <think> to end of string
-  const open = result.indexOf('<think>');
-  if (open !== -1) result = result.slice(0, open);
+  // Depth-tracking parser: handles nested <think> blocks
+  let result = '';
+  let depth = 0;
+  let i = 0;
+  while (i < text.length) {
+    if (text.startsWith('<think>', i)) {
+      depth++;
+      i += 7;
+    } else if (text.startsWith('</think>', i) && depth > 0) {
+      depth--;
+      i += 8;
+    } else if (depth === 0) {
+      result += text[i];
+      i++;
+    } else {
+      i++;
+    }
+  }
   return result.trim();
 }
 ```

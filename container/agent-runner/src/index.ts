@@ -121,7 +121,8 @@ function writeOutput(output: ContainerOutput): void {
 function extractStatusBlocks(text: string): { cleaned: string; statuses: string[] } {
   const statuses: string[] = [];
   const cleaned = text.replace(/<status>([\s\S]*?)<\/status>/g, (_match, content) => {
-    statuses.push(content.trim());
+    const trimmed = content.trim();
+    if (trimmed) statuses.push(trimmed);
     return '';
   });
   return { cleaned: cleaned.trim(), statuses };

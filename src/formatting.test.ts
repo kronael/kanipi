@@ -18,8 +18,8 @@ import { NewMessage } from './types.js';
 function makeMsg(overrides: Partial<NewMessage> = {}): NewMessage {
   return {
     id: '1',
-    chat_jid: 'group@g.us',
-    sender: '123@s.whatsapp.net',
+    chat_jid: 'whatsapp:group@g.us',
+    sender: 'whatsapp:123@s.whatsapp.net',
     sender_name: 'Alice',
     content: 'hello',
     timestamp: '2024-01-01T00:00:00.000Z',
@@ -49,8 +49,8 @@ describe('formatMessages', () => {
     const result = formatMessages([makeMsg()], NOW);
     expect(result).toBe(
       '<messages>\n' +
-        '<message sender="Alice" sender_id="123@s.whatsapp.net"' +
-        ' chat_id="group@g.us"' +
+        '<message sender="Alice" sender_id="whatsapp:123@s.whatsapp.net"' +
+        ' chat_id="whatsapp:group@g.us"' +
         ' time="2024-01-01T00:00:00.000Z" ago="3h">hello</message>\n' +
         '</messages>',
     );
@@ -160,8 +160,17 @@ describe('formatMessages', () => {
 
   it('falls back to sender JID when sender_name is missing', () => {
     const result = formatMessages([makeMsg({ sender_name: undefined })], NOW);
-    expect(result).toContain('sender="123@s.whatsapp.net"');
-    expect(result).toContain('sender_id="123@s.whatsapp.net"');
+    expect(result).toContain('sender="whatsapp:123@s.whatsapp.net"');
+    expect(result).toContain('sender_id="whatsapp:123@s.whatsapp.net"');
+  });
+
+  it('sender_id contains platform prefix', () => {
+    const tg = formatMessages(
+      [makeMsg({ sender: 'telegram:99', chat_jid: 'telegram:-100123' })],
+      NOW,
+    );
+    expect(tg).toContain('sender_id="telegram:99"');
+    expect(tg).toContain('chat_id="telegram:-100123"');
   });
 });
 
@@ -328,6 +337,28 @@ describe('userContextXml', () => {
     );
   });
 
+  it('strips quotes from YAML name value', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'users', 'tg-123456.md'),
+      '---\nname: "Alice"\nfirst_seen: 2026-03-06\n---\n\nSome content',
+    );
+    const result = userContextXml('telegram:123456', tmpDir);
+    expect(result).toBe(
+      '<user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />',
+    );
+  });
+
+  it('strips single quotes from YAML name value', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'users', 'tg-123456.md'),
+      "---\nname: 'Bob'\nfirst_seen: 2026-03-06\n---\n\nSome content",
+    );
+    const result = userContextXml('telegram:123456', tmpDir);
+    expect(result).toBe(
+      '<user id="tg-123456" name="Bob" memory="~/users/tg-123456.md" />',
+    );
+  });
+
   it('handles file without name field', () => {
     fs.writeFileSync(
       path.join(tmpDir, 'users', 'tg-123456.md'),
@@ -348,13 +379,9 @@ describe('userContextXml', () => {
     expect(result).toContain('name="A &amp; B &lt;Co&gt;"');
   });
 
-  it('path traversal in sender id does not escape users dir', () => {
-    // Even if sender contains path traversal, fileId keeps it literal
+  it('path traversal in sender id is blocked', () => {
     const result = userContextXml('telegram:../../../etc/passwd', tmpDir);
-    // The id contains the literal ../../../etc/passwd, but path.join normalizes
-    // In practice the file won't exist, so no memory attribute
-    expect(result).toBe('<user id="tg-../../../etc/passwd" />');
-    expect(result).not.toContain('memory=');
+    expect(result).toBeNull();
   });
 
   it('handles invalid YAML frontmatter gracefully', () => {

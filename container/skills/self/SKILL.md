@@ -193,6 +193,7 @@ Latest migration version: **30**. If version < 30: migrations pending.
 | Tool             | Description                                                 |
 | ---------------- | ----------------------------------------------------------- |
 | `send_message`   | Send intermediate status update to user while still running |
+| `send_reply`     | Reply to the current bound conversation (uses chatJid)      |
 | `send_file`      | Send a file from workspace to user as document attachment   |
 | `schedule_task`  | Schedule recurring or one-time agent task                   |
 | `pause_task`     | Pause a scheduled task                                      |
