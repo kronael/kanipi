@@ -104,6 +104,17 @@ entrypoint. IPC is signal-driven: gateway writes a file then
 sends SIGUSR1 to the container; agent wakes immediately on
 signal, falls back to 500ms poll.
 
+**Agent output processing** (in agent-runner, before gateway sees it):
+
+- `<think>` blocks stripped — agent deliberates silently, gateway
+  never sees the content. Unclosed `<think>` hides everything after it.
+- `<status>` blocks extracted and sent as interim updates (`⏳ text`).
+  Replaces the old 100-message heartbeat.
+
+**User context**: gateway injects `<user id="tg-123456" name="Alice"
+memory="~/users/tg-123456.md" />` into agent stdin. Per-user memory
+files in `~/users/` managed by `/users` skill.
+
 **Docker-in-docker path translation**: when the gateway itself
 runs in docker, `process.cwd()` paths are container-internal.
 `config.ts:detectHostPath()` reads `/proc/self/mountinfo` to

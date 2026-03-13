@@ -64,7 +64,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | 2-autotesting                  | Subsystem test strategy                           | spec       |
 | 4-paths                        | Path translation cleanup                          | shipped    |
 | 5-permissions                  | Tier 0-3 hierarchy                                | partial    |
-| 7-user-context                 | Per-user memory files                             | impl-ready |
+| 7-user-context                 | Per-user memory files                             | shipped    |
 | 8-web-virtual-hosts            | Per-group web serving                             | spec draft |
 | 9-whatsapp-improvements        | Read receipts, presence                           | shipped    |
 | A-auth                         | Local auth, JWT                                   | shipped    |
@@ -76,8 +76,8 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | J-container-commands           | Generic container commands                        | shipped    |
 | K-remove-triggers              | Remove trigger pattern system                     | shipped    |
 | L-chat-bound-sessions          | Chat-bound containers, send_reply, IDLE_TIMEOUT=0 | spec       |
-| M-think-blocks                 | <think> delimiter for silent decisions            | spec       |
-| N-status-messages              | Agent-initiated status updates                    | spec       |
+| M-think-blocks                 | <think> delimiter for silent decisions            | shipped    |
+| N-status-messages              | Agent-initiated status updates                    | shipped    |
 | _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes                   | open       |
 | _(4/H)_ H-researcher           | Background research subagent                      | open       |
 | _(4/P)_ P-dash-status          | Health dashboard (read-only)                      | open       |
