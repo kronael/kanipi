@@ -22,6 +22,11 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ### Fixed
 
+- **Web channel sender prefix**: web channel now uses `web:anonymous` sender
+  format instead of bare `web`, matching the `scheme:id` convention.
+- **JID migration coverage**: migration 0007 now covers all platforms
+  (web, reddit, twitter, mastodon, bluesky, facebook) in addition to
+  the original four (telegram, whatsapp, discord, email).
 - **Agent entrypoint**: `buildContainerArgs` now defaults to `/app/entrypoint.sh`
   command, fixing code 127 on agent images with `/bin/bash` entrypoint.
 - **Test assertions**: updated `sendMessage` test expectations to match 3-arg

@@ -186,7 +186,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **29**. If version < 29: migrations pending.
+Latest migration version: **30**. If version < 30: migrations pending.
 
 ## MCP tools
 
@@ -300,7 +300,7 @@ These are hardcoded in the agent-runner.
 
 **`send_reply` vs `send_message`**:
 
-- `send_reply(text)` — reply to the current bound conversation (spec: 3/L, not yet implemented)
+- `send_reply(text)` — reply to the current bound conversation (uses chatJid from active session)
 - `send_message(jid, text)` — send to a different chat/group (authorized, cross-chat only)
 - `send_message` cannot target `local:` JIDs — internal plumbing only
 

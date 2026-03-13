@@ -335,7 +335,7 @@ export function startWebProxy(opts: {
           onMessage(jid, {
             id: `web-${Date.now()}`,
             chat_jid: jid,
-            sender: 'web',
+            sender: 'web:anonymous',
             sender_name: 'web',
             content,
             timestamp: new Date().toISOString(),
