@@ -1,13 +1,12 @@
 ---
-status: spec
+status: shipped
 ---
 
 # Codebase Trim
 
 Identify and remove dead code, duplicates, and over-abstraction.
-Estimated ~900 lines removable without behavior change.
 
-## 1. Dead modules (~210 lines)
+## 1. Dead modules — DONE
 
 ### ~~impulse.ts~~ — KEEP
 
@@ -15,97 +14,66 @@ Impulse is the event batching/weighting system for social
 channels (verb-based accumulation, threshold flush). Not
 yet wired but planned for social integrations (specs/3/).
 
-### Legacy IPC drain (~120 lines)
+### Legacy IPC drain — DONE (2026-03-12)
 
-`drainLegacyMessages()` and `drainLegacyTasks()` in `src/ipc.ts`
-handle pre-request-response IPC format. No code generates this
-format anymore. Delete both + related types.
+`drainLegacyMessages()` and `drainLegacyTasks()` deleted.
+All IPC goes through `requests/` since v0.5.0.
 
-## 2. container/CLAUDE.md duplication (~140 lines)
+## 2. container/CLAUDE.md duplication — DONE
 
-Lines 43-186 ("Development Wisdom", "Development Principles")
-duplicate `~/.claude/CLAUDE.md` which is loaded by the SDK
-automatically. Keep only group-specific sections (lines 1-41):
-Group Chat, Soul, Greetings, Diary, Memory, Session Continuity,
-Knowledge.
+Dev wisdom sections were already removed. File now contains
+only agent-specific content: group chat behavior, soul,
+greetings, diary, status updates, memory, session continuity,
+knowledge, tools, environment, file delivery/receiving.
 
-## 3. Test mock consolidation (~400 lines)
+## 3. Test mock consolidation — DEFERRED
 
-8 test files independently mock `./logger.js` and `./config.js`
-with nearly identical boilerplate. Extract shared mocks:
+Audit found that logger mocks are similar but config mocks
+are fundamentally different per test file (different keys,
+different values, some use importOriginal, some don't).
+A shared helper would either be too generic to save lines
+or require a complex override system. Not mechanical.
 
-```
-src/test-helpers.ts
-  mockLogger()    — vi.mock('./logger.js', ...)
-  mockConfig()    — vi.mock('./config.js', ...) with defaults
-  makeGroup()     — test GroupConfig factory
-```
+`makeGroup()` factory exists in 3 files but with different
+signatures and return shapes. Not consolidatable.
 
-Files affected: container-runner.test, ipc.test, ipc-auth.test,
-ipc-delegate.test, group-queue.test, slink.test, auth.test,
-task-scheduler.test.
+## 4. Test-only exports — DEFERRED
 
-## 4. Test-only exports (~50 lines of noise)
+15+ `_prefixed` exports across 6 production modules. Removing
+requires redesigning how tests access internal state (e.g.
+clearing singletons, resetting global maps). This is a test
+architecture decision, not a mechanical trim.
 
-`_prefixed` exports scattered across production modules:
+## 5. Repetitive try-catch-unlink — DONE (2026-03-12)
 
-| Module              | Exports                                                                                                                                       |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| index.ts            | `_setGroups`, `_processGroupMessages`, `_pushChannel`, `_setLastMessageDate`, `_getLastAgentTimestamp`, `_delegateToChild`, `_clearTestState` |
-| db.ts               | `_setRawGroupColumns`, `_setTestGroupRoute`                                                                                                   |
-| config.ts           | `_overrideConfig`, `_resetConfig`                                                                                                             |
-| container-runner.ts | `_spawnProcess`                                                                                                                               |
-| task-scheduler.ts   | `_resetSchedulerLoopForTests`                                                                                                                 |
-| slink.ts            | `_resetRateLimitBuckets`                                                                                                                      |
+`unlinkSafe()` helper already extracted in `src/ipc.ts`.
 
-These leak test concerns into production. Move to test setup
-files or use `vi.importActual` patterns.
+## 6. Trivial wrappers — DONE / KEPT
 
-## 5. Repetitive try-catch-unlink (~40 lines)
+| Function              | Status                                          |
+| --------------------- | ----------------------------------------------- |
+| `routeOutbound()`     | DONE — already deleted                          |
+| `escapeXml()`         | KEEP — used 15+ times in router.ts, not trivial |
+| `stripInternalTags()` | KEEP — used in 2 production + test files        |
+| `worldOf()`           | KEEP — used in production (permissions.ts)      |
 
-8 occurrences in `src/ipc.ts` of:
+Original spec undercounted usage. These are genuine helpers.
 
-```typescript
-try {
-  fs.unlinkSync(filePath);
-} catch (e: unknown) {
-  if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-}
-```
+## 7. Stale spec cleanup — DONE (2026-03-13)
 
-Extract `unlinkSafe(path)` helper.
+| File                                 | Action                          |
+| ------------------------------------ | ------------------------------- |
+| `specs/6/0-evangelist.md`            | Deleted (superseded by 4/R)     |
+| `specs/6/0-agent-media-awareness.md` | Deleted (shipped in CLAUDE.md)  |
+| specs/index.md phase 6+ section      | Removed                         |
+| CLAUDE.md, ROADMAP.md, specs SKILL   | Updated to remove specs/6/ refs |
 
-## 6. Trivial wrappers (~15 lines)
+## 8. Unused container types — DONE
 
-| Function              | Location         | Usage              | Action |
-| --------------------- | ---------------- | ------------------ | ------ |
-| `escapeXml()`         | router.ts:18     | 2 calls            | inline |
-| `stripInternalTags()` | router.ts:54     | 2 calls            | inline |
-| `worldOf()`           | permissions.ts:1 | 1 call             | inline |
-| `routeOutbound()`     | router.ts:62     | 0 production calls | delete |
-
-## 7. Stale spec cleanup (~50 lines)
-
-| File                                 | Action                     |
-| ------------------------------------ | -------------------------- |
-| `specs/6/0-evangelist.md`            | Delete (superseded by 3/R) |
-| `specs/5/0-agent-media-awareness.md` | Convert to migration       |
-| Shipped specs "Open" sections        | Trim completed items       |
-
-## 8. Unused container types (~3 lines)
-
-`container/agent-runner/src/index.ts` ContainerInput has unused
-optional fields: `assistantName`, `delegateDepth`, `messageCount`.
-Remove from interface.
-
-## Priority order
-
-1. Dead modules (impulse) — safe, no dependents; legacy IPC shipped
-2. container/CLAUDE.md trim — immediate agent quality win
-3. Test consolidation — biggest line savings, improves DX
-4. Test-only exports — cleaner production surface
-5. ipc.ts patterns — minor cleanup
-6. Spec housekeeping — documentation quality
+`ContainerInput` in agent-runner already has only used fields:
+`prompt`, `sessionId`, `groupFolder`, `chatJid`,
+`isScheduledTask`, `secrets`. The fields `assistantName`,
+`delegateDepth`, `messageCount` were already removed.
 
 ## Non-goals
 
