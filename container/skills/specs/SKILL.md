@@ -32,7 +32,6 @@ Phases:
 - `specs/3/` permissions, cleanup, gaps (active)
 - `specs/4/` dashboards, memory, products (deferred)
 - `specs/5/` agent extensions & workflows (future)
-- `specs/6/` products (deferred)
 - `specs/res/` resources (research, examples)
 
 ## What specs SHOULD contain

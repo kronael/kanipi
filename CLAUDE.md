@@ -151,7 +151,6 @@ specs/2/   phase 2 — social channels (shipped)
 specs/3/   phase 3 — permissions, cleanup, gaps (in progress)
 specs/4/   phase 4 — dashboards, memory, products (planned)
 specs/5/   phase 5 — agent extensions & workflows (future)
-specs/6/   phase 6+ — products (deferred)
 specs/res/ resources (examples, research)
 ```
 

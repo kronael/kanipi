@@ -41,13 +41,13 @@ Partial work, close to done. `specs/2/`
 - identities: cross-channel identity linking
 - message-wal: pending_delivery table, ack protocol
 
-## Phase 4-6 — products
+## Phase 4-5 — products
 
-`specs/4/`, `specs/5/`, `specs/6/`
+`specs/4/`, `specs/5/`
 
-- agent-media-awareness (phase 4)
-- evangelist (phase 5)
-- cheerleader (phase 6)
+- identities (phase 5)
+- agent-pipeline (phase 5)
+- agent-teams (phase 5)
 
 ## Future — memory layers, agent teams, feed adapters
 

@@ -119,13 +119,6 @@ Requires new instance or major architectural changes.
 | M-webdav                  | WebDAV workspace access            | spec              |
 | N-workflows               | Media MCP, delegation              | spec              |
 
-## Phase 6+ — Products (deferred)
-
-| Spec                    | Topic                 | Status                      |
-| ----------------------- | --------------------- | --------------------------- |
-| 0-agent-media-awareness | Agent media awareness | open (convert to migration) |
-| 0-evangelist            | Evangelist            | superseded by 4/R           |
-
 ## Resources
 
 | File                     | Topic                                  |
