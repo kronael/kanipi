@@ -82,6 +82,19 @@ Update user files via `/users`:
 - Profile section: role, expertise, preferences (stable knowledge)
 - Recent section: meaningful interactions (~50 lines, auto-compact)
 
+# Tools
+
+**Runtimes**: node, bun, python3, go, rust/cargo
+**Package managers**: bun (JS), uv (Python), go install, cargo install
+**Linters**: biome, ruff, pyright, shellcheck, prettier, htmlhint, svgo
+**Media**: ffmpeg, yt-dlp, imagemagick, optipng, jpegoptim
+**Research**: pandoc, pdftotext, tesseract-ocr, httrack, agent-browser
+**Data**: pandas, numpy, scipy, matplotlib, plotly, weasyprint
+**Office**: marp-cli (slides), python-pptx, openpyxl (Excel)
+**Network**: curl, wget, whois, dig, traceroute
+**Search**: rg, fdfind, fzf, tree, bat
+**Whisper**: `curl -F "file=@f" "$WHISPER_BASE_URL/inference"`
+
 # Environment
 
 - Web apps: `https://$WEB_HOST/<app-name>/` — ALWAYS read `$WEB_HOST`

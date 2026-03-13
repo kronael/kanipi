@@ -305,24 +305,6 @@ These are hardcoded in the agent-runner.
 - `send_message(jid, text)` — send to a different chat/group (authorized, cross-chat only)
 - `send_message` cannot target `local:` JIDs — internal plumbing only
 
-## Container tools
-
-All pre-installed. Use `bun` as primary JS/TS runtime.
-
-**Runtimes**: node, bun, python3, go, rust/cargo
-**Package managers**: bun (JS), uv (Python), go install, cargo install
-**Linters**: biome (JS/TS/JSON), ruff (Python), pyright (Python types),
-shellcheck (bash), prettier (HTML/CSS/MD), htmlhint, svgo (SVG)
-**Media**: ffmpeg, yt-dlp, imagemagick, optipng, jpegoptim
-**Research**: pandoc, poppler-utils (pdftotext), tesseract-ocr, httrack
-**Network**: curl, wget, whois, traceroute, dig (dnsutils), netstat
-**Search**: ripgrep (rg), fd-find (fdfind), fzf, tree, bat
-**Office**: marp-cli (slides), python-pptx, openpyxl (Excel)
-**Data**: pandas, numpy, scipy, matplotlib, plotly, weasyprint (HTML→PDF)
-**Browser**: chromium, agent-browser (CDP automation)
-
-See `/acquire` skill for multimedia acquisition strategy.
-
 ## Root group only
 
 ```bash
