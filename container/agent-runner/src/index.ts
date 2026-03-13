@@ -55,7 +55,9 @@ function loadAgentMcpServers(): Record<string, McpServerConfig> {
   }
 }
 
-const IPC_INPUT_DIR = '/workspace/ipc/input';
+const IPC_DIR = '/workspace/ipc';
+const IPC_START_JSON = path.join(IPC_DIR, 'start.json');
+const IPC_INPUT_DIR = path.join(IPC_DIR, 'input');
 const IPC_INPUT_CLOSE_SENTINEL = path.join(IPC_INPUT_DIR, '_close');
 const IPC_POLL_MS = 500;
 
@@ -98,6 +100,14 @@ class MessageStream {
   }
 }
 
+function readStartJson(): ContainerInput {
+  const data = fs.readFileSync(IPC_START_JSON, 'utf-8');
+  const parsed = JSON.parse(data);
+  // Delete start.json after reading — it contains secrets
+  try { fs.unlinkSync(IPC_START_JSON); } catch { /* ignore */ }
+  return parsed;
+}
+
 async function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -132,14 +142,27 @@ function extractStatusBlocks(text: string): { cleaned: string; statuses: string[
 
 /**
  * Strip <think>...</think> blocks from agent output.
- * If agent opens <think> and never closes it, everything after <think> is hidden.
+ * Handles nested blocks via depth tracking. If agent opens <think>
+ * and never closes it, everything after <think> is hidden.
  */
 function stripThinkBlocks(text: string): string {
-  // Remove complete think blocks (multiline)
-  let result = text.replace(/<think>[\s\S]*?<\/think>/g, '');
-  // Strip from unclosed <think> to end of string
-  const open = result.indexOf('<think>');
-  if (open !== -1) result = result.slice(0, open);
+  let result = '';
+  let depth = 0;
+  let i = 0;
+  while (i < text.length) {
+    if (text.startsWith('<think>', i)) {
+      depth++;
+      i += 7;
+    } else if (text.startsWith('</think>', i) && depth > 0) {
+      depth--;
+      i += 8;
+    } else if (depth === 0) {
+      result += text[i];
+      i++;
+    } else {
+      i++;
+    }
+  }
   return result.trim();
 }
 
@@ -492,8 +515,14 @@ function getScenarioResponse(scenario: string, input: ContainerInput): Container
 }
 
 async function runScenarioMode(scenario: string): Promise<void> {
-  const stdinData = await readStdin();
-  const input: ContainerInput = JSON.parse(stdinData);
+  let input: ContainerInput;
+  if (fs.existsSync(IPC_START_JSON)) {
+    input = readStartJson();
+  } else {
+    // Fallback: read from stdin for backward compatibility in tests
+    const stdinData = await readStdin();
+    input = JSON.parse(stdinData);
+  }
   log(`Scenario mode: ${scenario}, group: ${input.groupFolder}`);
   const response = getScenarioResponse(scenario, input);
   writeOutput(response);
@@ -511,16 +540,13 @@ async function main(): Promise<void> {
   let containerInput: ContainerInput;
 
   try {
-    const stdinData = await readStdin();
-    containerInput = JSON.parse(stdinData);
-    // Delete the temp file the entrypoint wrote — it contains secrets
-    try { fs.unlinkSync('/tmp/input.json'); } catch { /* may not exist */ }
+    containerInput = readStartJson();
     log(`Received input for group: ${containerInput.groupFolder}`);
   } catch (err) {
     writeOutput({
       status: 'error',
       result: null,
-      error: `Failed to parse input: ${err instanceof Error ? err.message : String(err)}`
+      error: `Failed to read start.json: ${err instanceof Error ? err.message : String(err)}`
     });
     process.exit(1);
   }

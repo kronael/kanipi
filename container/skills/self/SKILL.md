@@ -186,7 +186,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **28**. If version < 28: migrations pending.
+Latest migration version: **29**. If version < 29: migrations pending.
 
 ## MCP tools
 
