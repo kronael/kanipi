@@ -589,45 +589,53 @@ async function delegateToGroup(
   const taskId = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   queue.enqueueTask(targetFolder, taskId, async () => {
-    const output = await runContainerCommand(
-      target,
-      {
-        prompt,
-        sessionId: sessions[target.folder],
-        groupFolder: target.folder,
-        chatJid: originJid,
-        channelName: channel.name,
-        messageCount: 1,
-        delegateDepth: depth,
-      },
-      (proc, containerName) =>
-        queue.registerProcess(targetFolder, proc, containerName, target.folder),
-      async (result) => {
-        if (result.newSessionId) {
-          sessions[target.folder] = result.newSessionId;
-          setSession(target.folder, result.newSessionId);
-        }
-        if (result.result) {
-          const raw =
-            typeof result.result === 'string'
-              ? result.result
-              : JSON.stringify(result.result);
-          const text = stripInternalTags(raw);
-          if (text) await channel.sendMessage(originJid, text);
-        }
-      },
-    );
-
-    if (output.newSessionId) {
-      sessions[target.folder] = output.newSessionId;
-      setSession(target.folder, output.newSessionId);
-    }
-    stopTypingFor(originJid);
-    if (output.status === 'error') {
-      logger.warn(
-        { targetFolder, label, error: output.error },
-        `${label} agent error`,
+    try {
+      const output = await runContainerCommand(
+        target,
+        {
+          prompt,
+          sessionId: sessions[target.folder],
+          groupFolder: target.folder,
+          chatJid: originJid,
+          channelName: channel.name,
+          messageCount: 1,
+          delegateDepth: depth,
+        },
+        (proc, containerName) =>
+          queue.registerProcess(
+            targetFolder,
+            proc,
+            containerName,
+            target.folder,
+          ),
+        async (result) => {
+          if (result.newSessionId) {
+            sessions[target.folder] = result.newSessionId;
+            setSession(target.folder, result.newSessionId);
+          }
+          if (result.result) {
+            const raw =
+              typeof result.result === 'string'
+                ? result.result
+                : JSON.stringify(result.result);
+            const text = stripInternalTags(raw);
+            if (text) await channel.sendMessage(originJid, text);
+          }
+        },
       );
+
+      if (output.newSessionId) {
+        sessions[target.folder] = output.newSessionId;
+        setSession(target.folder, output.newSessionId);
+      }
+      if (output.status === 'error') {
+        logger.warn(
+          { targetFolder, label, error: output.error },
+          `${label} agent error`,
+        );
+      }
+    } finally {
+      stopTypingFor(originJid);
     }
   });
 }
@@ -693,6 +701,14 @@ async function runAgent(
   // Preempt idle container if another JID owns this folder (cross-channel routing)
   queue.preemptFolderIfNeeded(group.folder, chatJid);
 
+  let outputDelivered = false;
+  const wrappedOnOutput = onOutput
+    ? async (result: ContainerOutput) => {
+        await onOutput(result);
+        if (result.result) outputDelivered = true;
+      }
+    : undefined;
+
   try {
     const output = await runContainerCommand(
       group,
@@ -708,7 +724,7 @@ async function runAgent(
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
-      onOutput,
+      wrappedOnOutput,
     );
 
     if (output.status === 'error') {
@@ -717,8 +733,13 @@ async function runAgent(
         'Container agent error',
       );
       writeRecoveryEntry(group.folder, 'error', output.error);
-      // Evict if no progress was made (newSessionId same as input or absent)
-      if (!output.newSessionId || output.newSessionId === sessionId) {
+      // Evict only if no progress was made AND no output was sent to the user.
+      // If output was delivered, the session made progress — evicting would
+      // discard a working session and force a cold restart.
+      if (
+        !outputDelivered &&
+        (!output.newSessionId || output.newSessionId === sessionId)
+      ) {
         delete sessions[group.folder];
         deleteSession(group.folder);
         logger.warn(
@@ -726,8 +747,8 @@ async function runAgent(
           'Evicted corrupted session',
         );
       } else {
-        sessions[group.folder] = output.newSessionId;
-        setSession(group.folder, output.newSessionId);
+        sessions[group.folder] = output.newSessionId ?? sessionId;
+        setSession(group.folder, output.newSessionId ?? sessionId);
       }
       return 'error';
     }
