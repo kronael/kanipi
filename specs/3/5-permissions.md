@@ -1,10 +1,10 @@
 ---
-status: partial
+status: shipped
 ---
 
 # Group Permissions
 
-Four-tier permission model. Core enforcement is shipped. One item remains open.
+Four-tier permission model. Fully shipped.
 
 ## Terminology
 
@@ -279,109 +279,10 @@ The child replies directly to `chatJid`.
   the triggering `NewMessage.id`.
 - **send_message replyTo**: `send_message` action accepts optional `replyTo` field for threading.
 - **MAX_DELEGATE_DEPTH**: set to 1, preventing recursive escalation chains.
-
-## Open items
-
-### Escalation response protocol
-
-`escalate_group` is currently fire-and-forget: parent runs and replies to the original
-`chatJid` directly, bypassing the worker entirely.
-
-**Intended behaviour**: when a worker escalates, the parent runs with `chatJid` set to the
-**worker's own registered JID** (not the original user JID). The parent's reply is then
-routed as a normal incoming message back to the worker. The worker gets a fresh turn,
-sees the parent's answer in conversation context, and replies to the original user.
-
-```
-user → worker (chatJid = user_jid)
-  worker calls escalate_group(prompt)
-    → parent container runs with chatJid = worker_jid
-      → parent replies → routed to worker as new message
-        → worker processes answer + history → replies to user_jid
-```
-
-No special IPC injection needed — escalation reuses the normal routing pipeline.
-The parent is unaware it is servicing an escalation; it simply answers whoever
-sent the message.
-
-**Design: `local:` JID namespace**
-
-Every registered group gets a guaranteed synthetic JID: `local:{folder}`.
-
-- Created automatically at group registration time (no setup required)
-- `routes` entry: `local:atlas/support → atlas/support`
-- Never exposed to external channels — internal routing only
-- Mirrors the existing `web:{folder}` pattern
-
-**Escalation flow with `local:` JIDs:**
-
-1. Worker (`atlas/support`) bound to `chatJid = telegram:xxx` with triggering `messageId = "789"`,
-   calls `escalate_group(prompt)`
-2. Gateway fires parent (`atlas`) with `chatJid = local:atlas/support`, wrapping the prompt.
-   The wrapper includes the original message compacted (sender + ID + truncated content),
-   mirroring how `<reply_to>` works in the router:
-   ```xml
-   <escalation from="atlas/support" reply_to="telegram:xxx" reply_id="789">
-     <original_message sender="John" id="789">the user's original message text…</original_message>
-     ...worker's escalated prompt...
-   </escalation>
-   ```
-3. Parent processes, calls `send_reply(text)` → bound to `local:atlas/support` → normal router
-4. Message stored with `chatJid = local:atlas/support`, routed to `atlas/support` folder
-5. Worker gets fresh turn; session history has `reply_to`, `reply_id`, and original message
-   from step 2 — all visible in the `.jl` transcript
-6. Worker calls `send_message(telegram:xxx, text, replyTo: '789')` — NOT `send_reply`
-
-The return address and message ID travel in the prompt body — same pattern as `<delegated_by>`.
-No extra DB fields, no new mechanisms. The parent is unaware it is servicing an escalation.
-If the worker needs more history context, it can read `~/.claude/projects/-home-node/<id>.jl`
-(the session transcript) — this is standard agent capability, no new action needed.
-
-**Message ID format**: `NewMessage.id` is the raw channel-native string (e.g. `"789"` for
-Telegram, a snowflake for Discord). Channel prefix in `reply_to` JID (`telegram:xxx`)
-tells the channel handler how to interpret it:
-
-| Channel  | `reply_id` type   | Channel send call                                                    |
-| -------- | ----------------- | -------------------------------------------------------------------- |
-| Telegram | integer string    | `reply_parameters: { message_id: Number(id) }` — already implemented |
-| Discord  | snowflake string  | `message.reply()` — not yet implemented                              |
-| WhatsApp | stanza ID         | requires quoted message object — deferred                            |
-| Mastodon | status ID         | `client.reply(id, text)` — stub exists                               |
-| Email    | Message-ID header | `In-Reply-To` — handled separately via thread                        |
-
-**`reply_id` source**: `ContainerInput` has `messageId?: string` (the triggering
-`NewMessage.id`). Gateway stamps it in the `<escalation>` XML automatically — the agent
-does not need to know or pass it explicitly.
-
-**`original_message` content**: gateway reads the triggering `NewMessage` from the messages
-table to get `sender_name`, `id`, and truncated content. Max 200 chars — same limit as
-`reply_to_text`. If message not found, omit `<original_message>` block.
-
-**Reply threading**: `send_message` has an optional `replyTo` field. The worker reads
-`reply_id` from session history and passes it as `replyTo` — Telegram threads the reply
-to the original user message. Channels without threading support ignore it gracefully.
-
-**Maximum one escalation level** — no recursive chaining.
-
-**Circuit breaker**: `escalate_group` passes `depth + 1` to the parent. If parent tries
-to escalate again (`depth = 1`), `depth >= MAX_DELEGATE_DEPTH` rejects it.
-`MAX_DELEGATE_DEPTH = 1` is already set.
-
-**Required changes:**
-
-- ~~`register_group`: insert `local:{folder}` into `routes` table~~ — DONE
-- ~~`ContainerInput`: add `messageId?: string`~~ — DONE
-- ~~`ActionContext`: add `messageId?: string`~~ — DONE
-- `src/ipc.ts` `buildContext`: extract `chatJid` and `messageId` from IPC request JSON
-- `src/index.ts`: pass `messageId` into delegate/escalate calls
-- `escalate_group` handler: change `chatJid` arg to `local:{ctx.sourceGroup}`; build
-  `<escalation from=... reply_to="{ctx.chatJid}" reply_id="{ctx.messageId}">` XML;
-  fetch original message from DB for `<original_message>` block
-- ~~`send_message` action: add optional `replyTo?: string`~~ — DONE
-- `ActionContext.sendMessage`: signature becomes `(jid, text, opts?: SendOpts) => Promise<void>`
-- ~~`MAX_DELEGATE_DEPTH = 1`~~ — DONE
-
-Normal reply flow handles everything else. `local:` has no channel handler — no external send.
+- **Escalation response protocol**: `escalate_group` wraps prompt in `<escalation>` XML
+  with `from`, `reply_to`, `reply_id`, and optional `<original_message>` block. Parent runs
+  with `chatJid = local:{worker_folder}`. `LocalChannel` stores replies as DB messages,
+  message loop routes them back to worker. Round-trip via `local:` JIDs, no special IPC.
 
 ## Deferred
 
