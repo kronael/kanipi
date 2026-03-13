@@ -7,22 +7,31 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [Unreleased]
+## [v1.6.0] — 2026-03-13
 
 ### Added
 
 - **Auto-threading**: route targets support RFC 6570 `{sender}` templates
   (e.g. `atlas/{sender}`). Gateway expands at routing time, auto-creates
-  child group folders per sender. `getJidToFolderMap` derives hub folder
-  from template targets.
-- Migration 032: auto-threading docs.
+  child group folders per sender via `spawnGroupFromPrototype`.
+
+### Fixed
+
+- **Agent-runner stream stall**: close SDK query after result delivery
+  instead of waiting for 60s watchdog timeout. Fixes session timeouts.
+- **Agent-runner max-turns**: add try-catch and break to prevent hang on
+  summary query failure.
+- **Session eviction**: don't evict session when output was already sent
+  to user (prevents losing working sessions on transient errors).
+- **Delegate typing**: wrap `delegateToGroup` callback in try-finally so
+  typing indicator always stops, even on error.
+- **Dockerfile**: `--break-system-packages` for uv pip install.
 
 ### Changed
 
-- **Group folder validation**: dropped charset restriction (`SEGMENT_PATTERN`).
-  Now validates: no `..`, no `\`, no absolute paths, non-empty segments ≤128 chars.
-- **Session eviction**: don't evict session when output was sent (prevents
-  losing sessions on transient errors after partial delivery).
+- **Group folder validation**: dropped `SEGMENT_PATTERN` charset
+  restriction. Validates traversal safety only (no `..`, no `\`, no
+  absolute paths, non-empty segments ≤128 chars).
 
 ---
 
