@@ -12,7 +12,7 @@ import type { NewMessage, Route } from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
-  _setGroups({}, {});
+  _setGroups({});
 });
 
 // --- spawnFolderName ---
@@ -150,16 +150,13 @@ describe('getAvailableGroups', () => {
       true,
     );
 
-    _setGroups(
-      {
-        registered: {
-          name: 'Registered',
-          folder: 'registered',
-          added_at: '2024-01-01T00:00:00.000Z',
-        },
+    _setGroups({
+      registered: {
+        name: 'Registered',
+        folder: 'registered',
+        added_at: '2024-01-01T00:00:00.000Z',
       },
-      { 'reg@g.us': 'registered' },
-    );
+    });
 
     const groups = getAvailableGroups();
     const reg = groups.find((g) => g.jid === 'reg@g.us');

@@ -63,7 +63,6 @@ import {
   getDefaultTarget,
   getDirectChildGroupCount,
   getGroupByFolder,
-  getJidToFolderMap,
   hasAlwaysOnRoute,
   getJidsForFolder,
   getMessagesSince,
@@ -117,7 +116,6 @@ import { logger } from './logger.js';
 let lastTimestamp = '';
 let sessions: Record<string, string> = {};
 let groups: Record<string, GroupConfig> = {};
-let jidToFolder: Record<string, string> = {};
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
@@ -180,11 +178,10 @@ function loadState(): void {
   }
   sessions = getAllSessions();
   groups = getAllGroupConfigs();
-  jidToFolder = getJidToFolderMap();
   logger.info(
     {
       groupCount: Object.keys(groups).length,
-      jidCount: Object.keys(jidToFolder).length,
+      jidCount: getRoutedJids().length,
     },
     'State loaded',
   );
@@ -197,17 +194,7 @@ function saveState(): void {
 
 /** Refresh groups and routes from DB, close orphaned containers */
 function refreshGroups(): void {
-  const freshGroups = getAllGroupConfigs();
-  const freshJidMap = getJidToFolderMap();
-  const removedJids = Object.keys(jidToFolder).filter(
-    (jid) => !freshJidMap[jid],
-  );
-  for (const jid of removedJids) {
-    logger.info({ jid }, 'Route removed, closing container');
-    queue.closeStdin(jid);
-  }
-  groups = freshGroups;
-  jidToFolder = freshJidMap;
+  groups = getAllGroupConfigs();
 }
 
 function registerGroup(jid: string, group: GroupConfig): void {
@@ -227,8 +214,7 @@ function registerGroup(jid: string, group: GroupConfig): void {
   setGroupConfig(group);
 
   // Add default route (JID -> folder)
-  if (!jidToFolder[jid]) {
-    jidToFolder[jid] = group.folder;
+  if (!getDefaultTarget(jid)) {
     addRoute(jid, {
       seq: 0,
       type: 'default',
@@ -252,7 +238,7 @@ function registerGroup(jid: string, group: GroupConfig): void {
  */
 export function getAvailableGroups(): import('./container-runner.js').AvailableGroup[] {
   const chats = getAllChats();
-  const routedJids = new Set(Object.keys(jidToFolder));
+  const routedJids = new Set(getRoutedJids());
 
   return chats
     .filter((c) => c.jid !== '__group_sync__' && c.is_group)
@@ -265,12 +251,8 @@ export function getAvailableGroups(): import('./container-runner.js').AvailableG
 }
 
 /** @internal - exported for testing */
-export function _setGroups(
-  g: Record<string, GroupConfig>,
-  j2f: Record<string, string>,
-): void {
+export function _setGroups(g: Record<string, GroupConfig>): void {
   groups = g;
-  jidToFolder = j2f;
 }
 
 /** @internal - exported for testing */
@@ -313,7 +295,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   // local: JIDs resolve by convention — no DB route needed
   const folder = chatJid.startsWith('local:')
     ? chatJid.slice(6)
-    : jidToFolder[chatJid];
+    : getDefaultTarget(chatJid);
   const group = folder ? groups[folder] : undefined;
   if (!group) return true;
 
@@ -565,7 +547,6 @@ function spawnGroupFromPrototype(
   };
   groups[targetFolder] = group;
   setGroupConfig(group);
-  jidToFolder[jid] = targetFolder;
   addRoute(jid, { seq: 0, type: 'default', match: null, target: targetFolder });
   logger.info({ parentFolder, targetFolder }, 'spawned child group');
   return { ...group, jid };
@@ -690,11 +671,7 @@ async function runAgent(
 
   // Update available groups snapshot (root group only can see all groups)
   const availableGroups = getAvailableGroups();
-  writeGroupsSnapshot(
-    group.folder,
-    availableGroups,
-    new Set(Object.keys(jidToFolder)),
-  );
+  writeGroupsSnapshot(group.folder, availableGroups, new Set(getRoutedJids()));
 
   // Inject diary summaries on session start (no existing session)
   const annotations: string[] = [];
@@ -787,7 +764,7 @@ async function startMessageLoop(): Promise<void> {
       // Refresh groups from DB (closes orphaned containers for removed routes)
       refreshGroups();
 
-      const jids = Object.keys(jidToFolder);
+      const jids = getRoutedJids();
       const { messages, newTimestamp } = getNewMessages(
         jids,
         lastTimestamp,
@@ -815,7 +792,7 @@ async function startMessageLoop(): Promise<void> {
         for (const [chatJid, groupMessages] of messagesByGroup) {
           const folder = chatJid.startsWith('local:')
             ? chatJid.slice(6)
-            : jidToFolder[chatJid];
+            : getDefaultTarget(chatJid);
           const group = folder ? groups[folder] : undefined;
           if (!group) continue;
 
@@ -964,7 +941,9 @@ async function startMessageLoop(): Promise<void> {
  * Handles crash between advancing lastTimestamp and processing messages.
  */
 function recoverPendingMessages(): void {
-  for (const [chatJid, folder] of Object.entries(jidToFolder)) {
+  for (const chatJid of getRoutedJids()) {
+    const folder = getDefaultTarget(chatJid);
+    if (!folder) continue;
     const group = groups[folder];
     if (!group) continue;
     const sinceTimestamp = lastAgentTimestamp[chatJid] || '';
@@ -1023,7 +1002,7 @@ async function main(): Promise<void> {
       if (!msg.is_from_me && !msg.is_bot_message) {
         clearChatErrored(msg.chat_jid);
       }
-      const folder = jidToFolder[msg.chat_jid];
+      const folder = getDefaultTarget(msg.chat_jid);
       const group = folder ? groups[folder] : undefined;
       if (attachments && download && group) {
         // Resolve routing to determine final target folder for media storage

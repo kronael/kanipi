@@ -174,7 +174,7 @@ import type { ContainerInput } from '../../src/container-runner.js';
 beforeEach(() => {
   vi.useFakeTimers();
   _initTestDatabase();
-  _setGroups({}, {});
+  _setGroups({});
   _clearTestState();
   vi.resetAllMocks();
 });
@@ -198,16 +198,13 @@ describe('getAvailableGroups (gateway export)', () => {
       'telegram',
       true,
     );
-    _setGroups(
-      {
-        g1: {
-          name: 'G1',
-          folder: 'g1',
-          added_at: '2024-01-01T00:00:00.000Z',
-        },
+    _setGroups({
+      g1: {
+        name: 'G1',
+        folder: 'g1',
+        added_at: '2024-01-01T00:00:00.000Z',
       },
-      { 'g1@g.us': 'g1' },
-    );
+    });
     const groups = getAvailableGroups();
     expect(groups).toHaveLength(1);
     expect(groups[0].isRegistered).toBe(true);
@@ -392,7 +389,7 @@ function setupGroup(): Channel & { sendMessage: ReturnType<typeof vi.fn> } {
     content: 'hello',
     timestamp: '2024-01-01T00:01:00.000Z',
   });
-  _setGroups({ [TEST_FOLDER]: TEST_GROUP }, { [TEST_JID]: TEST_FOLDER });
+  _setGroups({ [TEST_FOLDER]: TEST_GROUP });
   const ch = makeChannel(TEST_JID);
   _pushChannel(ch);
   return ch;
@@ -553,7 +550,7 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
     jidMap[CHILD_JID] = CHILD_FOLDER;
   }
 
-  _setGroups(groupConfigs, jidMap);
+  _setGroups(groupConfigs);
 
   // Set up flat routing via routes table
   setRoutesForJid(ROUTED_JID, [
@@ -717,16 +714,13 @@ function setupUnauthorizedRouting(
     content: '/route me somewhere',
     timestamp: UNAUTH_TS,
   });
-  _setGroups(
-    {
-      [sourceFolder]: {
-        name: 'Source',
-        folder: sourceFolder,
-        added_at: '2024-04-01T00:00:00.000Z',
-      },
+  _setGroups({
+    [sourceFolder]: {
+      name: 'Source',
+      folder: sourceFolder,
+      added_at: '2024-04-01T00:00:00.000Z',
     },
-    { [sourceJid]: sourceFolder },
-  );
+  });
 
   // Set up flat routing via routes table
   setRoutesForJid(sourceJid, [

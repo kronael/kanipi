@@ -867,30 +867,6 @@ export function getDirectChildGroupCount(parentFolder: string): number {
   return rows.filter((r) => r.folder.split('/').length === depth).length;
 }
 
-/**
- * Build a mapping from JID to default folder (for message loop polling).
- * Returns the target of the default route for each JID.
- */
-export function getJidToFolderMap(): Record<string, string> {
-  const rows = db
-    .prepare(
-      `SELECT jid, target FROM routes WHERE type IN ('default', 'trigger') ORDER BY jid, seq`,
-    )
-    .all() as { jid: string; target: string }[];
-  const result: Record<string, string> = {};
-  for (const r of rows) {
-    if (result[r.jid]) continue;
-    // Template targets like "atlas/{sender}" — use base folder as hub
-    if (r.target.includes('{')) {
-      const slash = r.target.lastIndexOf('/');
-      if (slash > 0) result[r.jid] = r.target.slice(0, slash);
-    } else {
-      result[r.jid] = r.target;
-    }
-  }
-  return result;
-}
-
 export function hasAlwaysOnRoute(): boolean {
   return (
     db.prepare("SELECT 1 FROM routes WHERE type = 'default' LIMIT 1").get() !=
