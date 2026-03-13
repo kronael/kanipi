@@ -65,64 +65,14 @@ via `.pre-commit-config.yaml`. Prettier uses single quotes.
 
 ## Architecture
 
-TypeScript (ESM, NodeNext). Gateway polls channels for
-messages, routes to containerized Claude agents via docker.
+See `ARCHITECTURE.md` for full details. Key facts:
 
-**Flow**: Channel → DB (store message) → message loop polls
-→ GroupQueue → runContainerCommand (docker run) → stream
-output back to channel.
-
-Key modules:
-
-- `index.ts` — main loop, channel init, message routing
-- `config.ts` — config from `.env` + env vars (no web config)
-- `db.ts` — SQLite (better-sqlite3) for messages, state, tasks
-- `container-runner.ts` — spawns agent containers (dual mode: agent ceremony vs raw bash), streams I/O
-- `container-runtime.ts` — docker lifecycle, orphan cleanup
-- `group-queue.ts` — per-group message queueing, stdin piping
-- `router.ts` — message formatting, channel→JID resolution
-- `action-registry.ts` — unified action system (Zod schemas, authorization)
-- `actions/` — action handlers by domain (messaging, tasks, groups, session, inject)
-- `ipc.ts` — container↔gateway IPC (request-response + legacy fire-and-forget)
-- `task-scheduler.ts` — cron-based scheduled tasks
-- `group-folder.ts` — folder validation and path resolution (prevents traversal)
-- `mount-security.ts` — validates additional mounts against `~/.config/nanoclaw/mount-allowlist.json` (stored outside project to prevent agent tampering)
-- `logger.ts` — pino logger (JSON in production, pino-pretty in dev)
-- `mime.ts` — shared `mimeFromFile()` via file-type (magic bytes detection), `mediaLine()` for container-relative paths
-- `channels/` — telegram (grammy), whatsapp (baileys), discord (discord.js),
-  email (IMAP IDLE + SMTP threading)
-
-**Web**: vite dev server managed by bash entrypoint (not
-the TS gateway). No `web-server.ts` — web is external.
-
-**Container model**: each agent runs in a docker container.
-The group folder is mounted as `/home/node` (home + cwd).
-`.claude/` state lives inside the group folder — one directory,
-one mount. Agent reads prompt from stdin, writes results to
-stdout as JSON. `container/agent-runner/` is the in-container
-entrypoint. IPC is signal-driven: gateway writes a file then
-sends SIGUSR1 to the container; agent wakes immediately on
-signal, falls back to 500ms poll.
-
-**Agent output processing** (in agent-runner, before gateway sees it):
-
-- `<think>` blocks stripped — agent deliberates silently, gateway
-  never sees the content. Unclosed `<think>` hides everything after it.
-- `<status>` blocks extracted and sent as interim updates (`⏳ text`).
-  Replaces the old 100-message heartbeat.
-
-**User context**: gateway injects `<user id="tg-123456" name="Alice"
-memory="~/users/tg-123456.md" />` into agent stdin. Per-user memory
-files in `~/users/` managed by `/users` skill.
-
-**Docker-in-docker path translation**: when the gateway itself
-runs in docker, `process.cwd()` paths are container-internal.
-`config.ts:detectHostPath()` reads `/proc/self/mountinfo` to
-find the host-side path of `PROJECT_ROOT` so child containers
-receive correct host mount paths. Mount paths use explicit
-`HOST_GROUPS_DIR`, `HOST_DATA_DIR`, and `HOST_APP_DIR` exports
-from config. `chownRecursive()` ensures they are writable by
-node uid 1000 inside agent containers.
+- TypeScript (ESM, NodeNext), SQLite, Docker
+- Flow: Channel → DB → message loop → GroupQueue → docker run → stream back
+- Group folder mounts as `/home/node` (agent's home + cwd)
+- IPC: gateway writes `start.json` + SIGUSR1 signal, agent polls `/workspace/ipc/input/`
+- Agent output: `<think>` blocks stripped, `<status>` blocks sent as interim updates
+- Docker-in-docker: `HOST_GROUPS_DIR`, `HOST_DATA_DIR`, `HOST_APP_DIR` for path translation
 
 ## Layout
 
@@ -141,124 +91,74 @@ specs/                design specs (see below)
 
 ## Specs
 
-Specs live in `specs/` organized by phase. Each milestone
-gets its own phase directory. Files use base58 prefixes
-(0-9, A-H, J-N, P-Z, a-k, m-z) for stable sort order.
-
-```
-specs/1/   phase 1 — core gateway (shipped)
-specs/2/   phase 2 — social channels (shipped)
-specs/3/   phase 3 — permissions, cleanup, gaps (in progress)
-specs/4/   phase 4 — dashboards, memory, products (planned)
-specs/5/   phase 5 — agent extensions & workflows (future)
-specs/res/ resources (examples, research)
-```
-
-Naming: `<phase>/<base58>-<topic>.md` e.g. `1/0-actions.md`,
-`2/5-permissions.md`. `specs/index.md` is the master index of all specs with status.
-The user controls releases and tags — TODO.md may suggest which specs
-a version should cover, but the user decides what ships when.
+Specs in `specs/<phase>/` with base58 prefixes for sort order.
+`specs/index.md` is the master index. Phase 1-2 shipped, 3 in
+progress, 4-5 planned. Naming: `<phase>/<base58>-<topic>.md`.
 
 ## Data Dir
 
-`/srv/data/kanipi_<name>/` per instance:
-
-- `.env` — config (gateway reads from cwd)
-- `store/` — SQLite DB, whatsapp auth
-- `groups/main/logs/` — conversation logs
-- `web/` — vite web app (seeded from template/web/)
-- `data/` — IPC
+`/srv/data/kanipi_<name>/`: `.env`, `store/` (SQLite, whatsapp auth),
+`groups/` (per-group folders), `web/` (vite app), `data/` (IPC).
 
 ## Config
 
-All config via `.env` in data dir or env vars. Key values:
-`ASSISTANT_NAME`, `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`,
-`EMAIL_IMAP_HOST`, `EMAIL_SMTP_HOST`, `EMAIL_ACCOUNT`, `EMAIL_PASSWORD`,
-`CONTAINER_IMAGE`, `IDLE_TIMEOUT`, `MAX_CONCURRENT_CONTAINERS`.
-
-`CONTAINER_IMAGE` is read from both `.env` and env vars (env var
-wins). Most other container settings are env-var only.
-
-`env.ts` handles raw `.env` file loading; `config.ts` exports
-typed constants derived from env. Always import from `config.ts`.
-
-Channels enabled by token presence (telegram/discord), auth dir existence
-(whatsapp), or `EMAIL_IMAP_HOST` presence (email).
+All config via `.env` in data dir or env vars. `env.ts` loads raw
+`.env`; `config.ts` exports typed constants (always import from
+`config.ts`). `CONTAINER_IMAGE` from `.env` or env var (env wins,
+default `nanoclaw-agent:latest`). Channels enabled by token
+presence (telegram/discord), auth dir (whatsapp), or
+`EMAIL_IMAP_HOST` (email). See `README.md` for full config table.
 
 ## Entrypoint
 
-CLI implemented in TypeScript (`src/cli.ts`), run via `npm run cli` or
-`npx tsx src/cli.ts`. The bash `kanipi` script at repo root is legacy
-but still works for production docker deployments.
-
-```bash
-kanipi create <name>                      # seed data dir, .env, systemd unit
-kanipi config <instance> group list       # list registered/discovered groups
-kanipi config <instance> group add [folder]        # register a group (folder only)
-kanipi config <instance> group rm <folder>         # unregister (keeps folder on disk)
-kanipi config <instance> user list|add|rm|passwd   # manage web auth users
-kanipi config <instance> mount list|add|rm         # manage container mounts
-kanipi <instance>                         # run gateway + vite
-```
-
-Legacy shorthand: `kanipi <instance> group ...` (same as `config <instance> group`).
-
-`group add` creates the DB + schema if missing (solves bootstrap).
-First group defaults to folder=root, requires_trigger=0.
-Subsequent groups require folder arg and use trigger mode.
-
-## Related projects
-
-- `/home/onvos/app/eliza-atlas` — ElizaOS fork with deep facts/memory system;
-  the evangelist plugin (`/home/onvos/app/eliza-plugin-evangelist`) implements
-  YAML-based facts repository, vector search, and Claude Code-powered research.
-  This is the reference implementation for kanipi's v2 facts/long-term memory.
-  Key files: `src/services/factsService.ts`, `src/services/researchService.ts`
-- `/home/onvos/app/refs/brainpro` — brainpro agent (Rust/gateway); reference
-  for `memory/YYYY-MM-DD.md` daily notes pattern and session map design
+CLI: `src/cli.ts` (run via `npx tsx src/cli.ts`). The bash `kanipi`
+script at repo root works for production docker deployments.
+`group add` creates DB+schema if missing. First group defaults to
+folder=root, requires_trigger=0. See `README.md` for CLI reference.
 
 ## Design Philosophy
 
-See `README.md` for full principles. TL;DR: minimal, orthogonal,
-Claude Code-native. Components swap independently. Products are
-configurations. Extensibility over speed.
+See `README.md` for principles. TL;DR: minimal, orthogonal,
+Claude Code-native. Products are configurations.
+
+## Multi-instance Deployment
+
+Each instance runs independently with its own data dir, agent image,
+and systemd service. Per-instance image tags allow independent upgrades.
+
+```
+/srv/data/kanipi_<name>/     data dir per instance
+kanipi-agent-<name>:latest   agent image per instance
+kanipi_<name>.service        systemd unit per instance
+```
+
+**Upgrade workflow** (selective per instance):
+
+```bash
+make agent-image                                    # build kanipi-agent:latest
+sudo docker tag kanipi-agent:latest kanipi-agent-<name>:latest  # tag for instance
+sudo systemctl restart kanipi_<name>                # restart only upgraded instances
+```
+
+Set `CONTAINER_IMAGE=kanipi-agent-<name>:latest` in each instance's
+`.env`. Default is `nanoclaw-agent:latest` (config.ts fallback).
+
+Gateway image follows the same pattern: `kanipi:latest` →
+`kanipi-<name>:latest` per instance.
 
 ## Operational check (post-deploy)
 
-After deploying a new version, run this check sequence:
-
 ```bash
-# 1. Service health — should be active (running), no restart loops
 sudo systemctl status kanipi_<instance>
-
-# 2. Startup sequence — expect these lines in order:
-#    "Database initialized", "State loaded", "<channel> connected",
-#    "IPC watcher started", "Scheduler loop started", "NanoClaw running"
-sudo journalctl -u kanipi_<instance> --since "5 minutes ago" --no-pager | head -30
-
-# 3. Errors/warnings — should return nothing
-sudo journalctl -u kanipi_<instance> --since "5 minutes ago" --no-pager \
-  | grep -iE 'error|warn|fatal|crash|unhandled|reject'
-
-# 4. Container orphans — nanoclaw-* containers >1h old are suspect
+sudo journalctl -u kanipi_<instance> --since "5 min ago" --no-pager | head -30
+sudo journalctl -u kanipi_<instance> --since "5 min ago" | grep -iE 'error|fatal'
 sudo docker ps --filter "name=nanoclaw-" --format "{{.Names}} {{.Status}}"
-
-# 5. IPC file accumulation — request files should drain, not pile up
-find /srv/data/kanipi_<instance>/data/ipc/*/requests/ -name '*.json' 2>/dev/null | wc -l
 ```
 
-Red flags in journalctl:
-
-- `"Error in message loop"` — unhandled error, likely repeating
-- `"Container timeout with no output"` — agent hung
-- `"Max retries exceeded, dropping messages"` — persistent failure
-- `"Failed to parse container output"` — agent output malformed
-- No log activity for >30s — message loop stalled
-
-When investigating issues, correlate journalctl timestamps with
-source code error paths. Key error emitters: `index.ts` (message
-loop), `group-queue.ts` (retry/concurrency), `container-runner.ts`
-(spawn/timeout), `ipc.ts` (drain errors).
+Red flags: `"Error in message loop"`, `"Container timeout with no output"`,
+`"Max retries exceeded"`, `"Failed to parse container output"`, no log
+activity >30s. Key error emitters: `index.ts`, `group-queue.ts`,
+`container-runner.ts`, `ipc.ts`.
 
 ## Shipping changes (agent skills / web convention)
 
@@ -272,14 +172,9 @@ When making notable kanipi changes:
 
 ## Docs
 
-Product docs live at krons.fiu.wtf/kanipi. Source of truth:
-`/srv/data/kanipi_krons/web/kanipi/index.html`. Local copy
-kept in sync at `docs/kanipi.html`.
-
-When shipping a new version, update both:
-
-1. Edit `docs/kanipi.html` (version, stats, features, LLM context)
-2. Copy to `/srv/data/kanipi_krons/web/kanipi/index.html`
+Source of truth: `docs/kanipi.html` (deployed to krons.fiu.wtf/kanipi).
+On version ship: edit `docs/kanipi.html`, copy to
+`/srv/data/kanipi_krons/web/kanipi/index.html`.
 
 ## Tagging a new version
 
@@ -289,6 +184,6 @@ After all changes are committed:
 2. Update `CHANGELOG.md` — move [Unreleased] to `[vX.Y.Z] — YYYY-MM-DD`
 3. Update `docs/kanipi.html` + deploy to krons
 4. `git tag vX.Y.Z`
-5. Tag docker images: `docker tag kanipi:latest kanipi:vX.Y.Z` and same for `kanipi-agent`
-6. Per-instance gateway tags: `docker tag kanipi:vX.Y.Z kanipi-<name>:latest` for instances being upgraded
+5. Tag docker images: `sudo docker tag kanipi:latest kanipi:vX.Y.Z` (same for kanipi-agent)
+6. Per-instance tags: `sudo docker tag kanipi-agent:vX.Y.Z kanipi-agent-<name>:latest`
 7. Add `.diary/YYYYMMDD.md` entry documenting what was deployed and which instances

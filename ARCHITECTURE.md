@@ -35,10 +35,8 @@ Handles group registration and discovery across channels.
 ### config.ts
 
 All config from `.env` + env vars. Exports typed constants.
-Channel enablement by token presence (telegram/discord),
+Channels enabled by token presence (telegram/discord),
 auth dir (whatsapp), or `EMAIL_IMAP_HOST` (email).
-Test helpers `_overrideConfig`/`_resetConfig` gated behind
-`NODE_ENV=test`.
 
 ### db.ts
 
@@ -51,15 +49,8 @@ Tables: `messages`, `groups`, `routes`, `chats`, `session_history`,
 `system_messages`, `scheduled_tasks`, `task_run_logs`,
 `email_threads`, `auth_users`, `auth_sessions`.
 
-`groups` holds group config (folder, name, container_config,
-slink_token, max_children). `routes` is a flat JID→target
-routing table: `getDefaultTarget(jid)` returns the default
-target folder for a JID; `getRoutedJids()` lists all registered
-JIDs; `getDirectChildGroupCount(parentFolder)` counts direct
-children by folder depth.
-
-`system_messages` stores pending events per group; flushed as
-XML before agent stdin.
+`routes` is a flat JID→target routing table. `system_messages`
+stores pending events per group; flushed as XML before agent stdin.
 
 ### slink.ts
 
@@ -95,23 +86,17 @@ Auth boundary: `/pub/` and `/_sloth/` bypass basic auth.
 
 ### mime.ts + mime-enricher.ts + mime-handlers/
 
-Attachment pipeline. `mime.ts` downloads attachments in parallel,
-saves to session dir, runs matching handlers, returns annotation
-lines for the agent prompt. `mime-enricher.ts` runs enrichment at
-storage time (decoupled from dispatch); `waitForEnrichments()`
-blocks until all pending jobs complete so transcriptions are
-present when the prompt is assembled.
-
-Handlers: `voice.ts` (multi-pass whisper transcription per
-`.whisper-language`), `video.ts` (audio track extraction),
-`whisper.ts` (shared HTTP client to whisper service, 60s timeout).
+Attachment pipeline. Downloads attachments in parallel, runs
+enrichment handlers (whisper transcription, video audio extraction),
+returns annotation lines for the agent prompt.
 
 ### container-runner.ts
 
 Spawns docker containers per agent invocation. Builds tier-aware
-volume mounts, writes prompt to stdin, reads JSON output from
-stdout between sentinel markers (`---NANOCLAW_OUTPUT_START---` /
-`---NANOCLAW_OUTPUT_END---`). Output: `{ status, result, newSessionId, error }`.
+volume mounts, writes `start.json` to IPC dir (prompt + secrets),
+reads JSON output from stdout between sentinel markers
+(`---NANOCLAW_OUTPUT_START/END---`).
+Output: `{ status, result, newSessionId, error }`.
 
 Writes `groups.json` and `tasks.json` snapshots into group IPC
 directory before each run. `_spawnProcess` is a test seam.
@@ -127,8 +112,11 @@ docker volume flags.
 ### group-queue.ts
 
 Per-group message queue. Ensures sequential agent invocations
-per group (no concurrent runs for the same group). Pipes stdin
-to running containers for multi-turn within a session.
+per group (no concurrent runs for the same group). Follow-up
+messages are written to IPC input files, not piped via stdin.
+Circuit breaker trips after 3 consecutive failures per group
+(reset by next user message). Cross-channel preemption: if a
+different JID needs the same folder, idle containers are closed.
 
 ### group-folder.ts
 
@@ -153,11 +141,8 @@ a message (tier order: command, pattern, keyword, sender, default).
 ### action-registry.ts + actions/
 
 Unified action system. Each action has name, Zod schema, handler,
-and optional command/MCP flags. Registry is the single source of
-truth — IPC dispatch, MCP tools, and commands all reference it.
-
-`getManifest()` serializes MCP-exposed actions as JSON Schema
-for agent-side tool discovery (fetched via `list_actions` IPC).
+and optional command/MCP flags. Single source of truth for IPC
+dispatch, MCP tools, and commands.
 
 ### ipc.ts
 
@@ -186,7 +171,9 @@ Allowlist stored outside project root to prevent tampering.
 
 ## Container Model
 
-Each agent invocation runs in a fresh docker container:
+Each agent invocation runs in a docker container. Containers
+persist between messages (idle timeout) -- follow-up messages
+arrive via IPC files, not new containers.
 
 ```
 docker run
@@ -202,6 +189,7 @@ docker run
   -v web/:/workspace/web                 # web output (rw, tier 0/1 only)
   -v data/ipc/<folder>:/workspace/ipc    # IPC directory (rw)
   -v <additional>:/workspace/extra/...   # allowlisted mounts (ro)
+  -v app/container/agent-runner/src:/app/src  # agent-runner source (live)
 ```
 
 The group folder IS the agent's home directory (`/home/node`).
@@ -217,12 +205,19 @@ files (CLAUDE.md, SOUL.md, `.claude/skills`, `settings.json`,
 gets RO home with explicit RW overlays for `.claude/projects`,
 `media`, and `tmp` only.
 
-The container entrypoint (`container/agent-runner/`) reads the
-prompt from stdin and writes JSON output to stdout. The agent-side
-MCP server (`ipc-mcp-stdio.ts`) exposes gateway actions as tools
-via request-response IPC (writes to `requests/`, polls `replies/`).
-Agent-written `mcpServers` entries in `settings.json` are merged
-with the built-in server at spawn time.
+**Agent I/O**: gateway writes `start.json` to the IPC directory
+before spawn (contains prompt, session ID, secrets). Container
+stdin is closed immediately -- all input is file-based. Agent
+reads `start.json` (deletes after reading for security), runs
+the SDK query, writes JSON output to stdout between sentinel
+markers (`---NANOCLAW_OUTPUT_START/END---`). Follow-up messages
+arrive as JSON files in `/workspace/ipc/input/`; gateway sends
+SIGUSR1 to wake the agent (fallback: 500ms poll).
+
+The agent-side MCP server (`ipc-mcp-stdio.ts`) exposes gateway
+actions as tools via request-response IPC (writes to `requests/`,
+polls `replies/`). Agent-written `mcpServers` entries in
+`settings.json` are merged with the built-in server at spawn time.
 
 A `<clock>` header (UTC time + timezone) is prepended to the
 initial prompt, followed by system messages (new-session, new-day)
@@ -252,11 +247,26 @@ changes.
 to the container; agent wakes immediately on signal rather than
 waiting for the 500ms poll interval.
 
-**Progress updates**: every 100 SDK messages, the agent runner
-emits partial output to the channel.
-
 **`error_max_turns` recovery**: resumes with `maxTurns=3`, asks
 Claude to summarise progress, prompts user to say "continue".
+
+## Multi-instance Architecture
+
+Each kanipi instance is independent: own data dir, gateway
+container, agent image tag, and systemd service. This allows:
+
+- Independent upgrades per instance (tag agent image per instance)
+- Isolated data and credentials per instance
+- Different channel configurations per instance
+
+```
+/srv/data/kanipi_foo/           data dir (.env, store/, groups/, data/)
+kanipi-agent-foo:latest         agent image (CONTAINER_IMAGE in .env)
+kanipi_foo.service              systemd unit
+```
+
+Each instance can run a different agent image version. Build
+once, tag per instance, restart only what you want to upgrade.
 
 ## State
 
