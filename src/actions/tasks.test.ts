@@ -54,7 +54,7 @@ describe('schedule_task', () => {
   it('creates a cron task', async () => {
     const r = (await scheduleTask.handler(
       {
-        targetJid: 'tg:1',
+        targetFolder: 'root',
         prompt: 'do something',
         schedule_type: 'cron',
         schedule_value: '0 2 * * *',
@@ -72,7 +72,7 @@ describe('schedule_task', () => {
   it('creates an interval task', async () => {
     const r = (await scheduleTask.handler(
       {
-        targetJid: 'tg:1',
+        targetFolder: 'root',
         prompt: 'check',
         schedule_type: 'interval',
         schedule_value: '3600000',
@@ -87,7 +87,7 @@ describe('schedule_task', () => {
     const future = new Date(Date.now() + 86400000).toISOString();
     const r = (await scheduleTask.handler(
       {
-        targetJid: 'tg:1',
+        targetFolder: 'root',
         prompt: 'once',
         schedule_type: 'once',
         schedule_value: future,
@@ -102,7 +102,7 @@ describe('schedule_task', () => {
     await expect(
       scheduleTask.handler(
         {
-          targetJid: 'tg:1',
+          targetFolder: 'root',
           prompt: 'a',
           command: 'b',
           schedule_type: 'cron',
@@ -113,25 +113,11 @@ describe('schedule_task', () => {
     ).rejects.toThrow('mutually exclusive');
   });
 
-  it('rejects unknown target JID', async () => {
-    await expect(
-      scheduleTask.handler(
-        {
-          targetJid: 'unknown:99',
-          prompt: 'a',
-          schedule_type: 'cron',
-          schedule_value: '0 * * * *',
-        },
-        makeCtx(),
-      ),
-    ).rejects.toThrow('no route');
-  });
-
   it('rejects tier 3 (unauthorized)', async () => {
     await expect(
       scheduleTask.handler(
         {
-          targetJid: 'tg:1',
+          targetFolder: 'root',
           prompt: 'a',
           schedule_type: 'cron',
           schedule_value: '0 * * * *',
@@ -144,7 +130,7 @@ describe('schedule_task', () => {
   it('defaults context_mode to isolated', async () => {
     const r = (await scheduleTask.handler(
       {
-        targetJid: 'tg:1',
+        targetFolder: 'root',
         prompt: 'a',
         schedule_type: 'interval',
         schedule_value: '60000',
@@ -158,7 +144,7 @@ describe('schedule_task', () => {
   it('allows group context_mode', async () => {
     const r = (await scheduleTask.handler(
       {
-        targetJid: 'tg:1',
+        targetFolder: 'root',
         prompt: 'a',
         schedule_type: 'interval',
         schedule_value: '60000',
@@ -174,7 +160,7 @@ describe('schedule_task', () => {
     await expect(
       scheduleTask.handler(
         {
-          targetJid: 'tg:1',
+          targetFolder: 'root',
           prompt: 'a',
           schedule_type: 'interval',
           schedule_value: 'notanumber',
@@ -191,7 +177,7 @@ describe('pause_task / resume_task / cancel_task', () => {
   beforeEach(async () => {
     const r = (await scheduleTask.handler(
       {
-        targetJid: 'tg:1',
+        targetFolder: 'root',
         prompt: 'test',
         schedule_type: 'interval',
         schedule_value: '60000',

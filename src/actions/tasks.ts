@@ -9,10 +9,10 @@ import { logger } from '../logger.js';
 import { isInWorld } from '../permissions.js';
 
 const ScheduleTaskInput = z.object({
-  targetJid: z
+  targetFolder: z
     .string()
     .describe(
-      'The JID (Jabber ID) to route task execution to. Format: phone@channel or groupid@channel.',
+      'Group folder to run the task in (e.g. "root", "atlas/support").',
     ),
   prompt: z
     .string()
@@ -52,10 +52,7 @@ export const scheduleTask: Action = {
     if (input.prompt && input.command) {
       throw new Error('prompt and command are mutually exclusive');
     }
-    const targetFolder = ctx.getHubForJid(input.targetJid);
-    if (!targetFolder) {
-      throw new Error('target JID has no route');
-    }
+    const targetFolder = input.targetFolder;
     if (ctx.tier >= 3) throw new Error('unauthorized');
     if (ctx.tier === 2 && targetFolder !== ctx.sourceGroup) {
       throw new Error('unauthorized');
@@ -89,7 +86,7 @@ export const scheduleTask: Action = {
     createTask({
       id: taskId,
       group_folder: targetFolder,
-      chat_jid: input.targetJid,
+      chat_jid: ctx.chatJid ?? '',
       prompt: input.prompt,
       command: input.command ?? null,
       schedule_type: input.schedule_type,
