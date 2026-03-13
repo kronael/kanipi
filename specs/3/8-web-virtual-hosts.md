@@ -15,23 +15,27 @@ per-world configuration in the gateway.
 
 ## Design
 
-### Convention-based routing
+### Explicit hostname assignment
 
-DNS wildcard (`*.fiu.wtf`) resolves all subdomains. Web server
-maps `Host` header to directory:
+Root agent assigns hostnames when setting up a world. No
+convention, no automatic mapping. The infra skill guides
+root through the process:
 
+1. Root registers a world (`register_group`)
+2. Infra skill asks: "what hostname for this world?"
+3. Root writes the mapping to `vhosts.json` at web root
+4. Vite middleware picks it up
+
+```json
+// DATA_DIR/web/vhosts.json
+{
+  "krons.fiu.wtf": "krons",
+  "support.acme.co": "atlas"
+}
 ```
-{world}.{WEB_DOMAIN} → DATA_DIR/web/{world}/
-```
 
-No DB table, no IPC actions, no gateway code. The mapping is
-implicit — registering a world gives it a hostname.
-
-`.env`:
-
-```
-WEB_DOMAIN=fiu.wtf
-```
+No gateway code, no DB table, no IPC actions. Root has rw
+access to `/workspace/web/` and edits the file directly.
 
 ### Mount changes
 
@@ -72,37 +76,17 @@ No per-world vite process. One vite instance, one middleware.
 ### Root infra skill
 
 Root agent gets an `infra` skill (`~/.claude/skills/infra/`)
-responsible for instance-level operations:
+that guides instance-level setup. When root sets up a world,
+the skill covers:
 
-- Web server config (vite middleware, vhost routing)
-- DNS verification (check subdomain resolves)
-- SSL/TLS (caddy auto-cert or similar)
-- Instance health checks
+- Hostname assignment (write to `vhosts.json`)
+- DNS verification (resolve check)
+- SSL/TLS notes (caddy auto-cert or manual)
+- Web directory structure
 
 The infra skill is baked into the agent image for tier 0 only.
-Worlds don't see it.
-
-Actions the root agent performs via infra skill (no new IPC —
-root has rw access to web config):
-
-- Edit vite config directly
-- Restart vite process (via `/workspace/web/` file watch or signal)
-- Add/remove custom domain overrides in a `vhosts.json` at web root
-
-### Custom domains (optional, v2)
-
-For non-convention hostnames (`coolsite.com` → world `krons`),
-a `vhosts.json` at the web root:
-
-```json
-{
-  "coolsite.com": "krons",
-  "support.acme.co": "atlas"
-}
-```
-
-Read by the vite middleware. Root agent edits this file. DNS and
-SSL setup is manual or caddy-managed.
+Worlds don't see it. Root has rw access to `/workspace/web/`
+and edits config files directly — no IPC actions needed.
 
 ## World workflow
 
@@ -120,11 +104,9 @@ it just writes files. The vhost middleware serves them at
 
 ## Implementation order
 
-1. Add `WEB_DOMAIN` to `.env` / config.ts
-2. Vite middleware for hostname → subdirectory routing
-3. Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`
-4. Root infra skill (skeleton)
-5. Custom domains via `vhosts.json` (optional)
+1. Vite middleware: read `vhosts.json`, route by `Host` header
+2. Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`
+3. `infra` skill for root agent (world setup guide, vhost management)
 
 ## Related
 
