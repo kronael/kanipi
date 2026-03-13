@@ -865,6 +865,19 @@ export function getHubForJid(jid: string): string | null {
   return row.target;
 }
 
+export function getRouteTargetsForJid(jid: string): string[] {
+  const rows = db
+    .prepare('SELECT DISTINCT target FROM routes WHERE jid = ?')
+    .all(jid) as { target: string }[];
+  return rows.map((r) => {
+    if (r.target.includes('{')) {
+      const slash = r.target.lastIndexOf('/');
+      return slash > 0 ? r.target.slice(0, slash) : r.target;
+    }
+    return r.target;
+  });
+}
+
 export function getDirectChildGroupCount(parentFolder: string): number {
   const depth = parentFolder.split('/').length + 1;
   const rows = db

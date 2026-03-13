@@ -99,24 +99,29 @@ inside existing worlds are allowed.
 
 ### Messaging
 
+Authorization checks all route targets for the JID (`getRouteTargetsForJid`),
+not just the default route. A JID is authorized if **any** of its route targets
+is in the sender's world. Template targets like `atlas/{sender}` resolve to
+their base folder (`atlas`).
+
 `send_message`:
 
 - tier 0: any target
-- tier 1: any registered target in same world (`isInWorld()` check in `messaging.ts`)
-- tier 2/3: only own group's registered JID
+- tier 1+: any JID with at least one route target in the same world
 
 `send_file`:
 
 - tier 0: any target
-- tier 1: any registered target in same world
-- tier 2: only own group's registered JID
+- tier 1: any JID with at least one route target in the same world
+- tier 2: any JID with at least one route target in the same world
 - tier 3: denied
 
 ### Tasks
 
-`schedule_task`, `pause_task`, `resume_task`, `cancel_task`:
+`schedule_task` takes `targetFolder` directly (not a JID).
+`pause_task`, `resume_task`, `cancel_task` take `taskId`.
 
-- tier 0: any registered target/task
+- tier 0: any folder/task
 - tier 1: same world only
 - tier 2: own group only
 - tier 3: denied
@@ -262,8 +267,9 @@ The child replies directly to `chatJid`.
 
 - **Depth rejection**: `register_group` now rejects folders deeper than 3 levels.
 - **maxTier rename**: `minTier` renamed to `maxTier` throughout — tier 0 = most privileged.
-- **Tier auth for send_message/send_file**: `assertAuthorized` uses `isInWorld` for all non-root
-  tiers; tier 2 agents can send to any JID routed within their world.
+- **Tier auth for send_message/send_file**: `assertAuthorized` checks all route targets for the
+  JID via `getRouteTargetsForJid()`, authorizes if any target is in the sender's world.
+- **Task scheduling**: `schedule_task` takes `targetFolder` directly, no JID reverse-mapping.
 - **Main → root**: `isRoot()` checks `folder === 'root'`; CLI defaults new instances to `root`;
   `'main'` wiped from all source and test files.
 

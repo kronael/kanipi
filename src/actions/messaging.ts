@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { Action, ActionContext } from '../action-registry.js';
+import { getRouteTargetsForJid } from '../db.js';
 import { logger } from '../logger.js';
 import { isInWorld } from '../permissions.js';
 
@@ -10,8 +11,8 @@ function assertAuthorized(
   action: string,
 ): void {
   if (ctx.tier === 0) return;
-  const targetFolder = ctx.getHubForJid(chatJid);
-  if (targetFolder && isInWorld(ctx.sourceGroup, targetFolder)) return;
+  const targets = getRouteTargetsForJid(chatJid);
+  if (targets.some((t) => isInWorld(ctx.sourceGroup, t))) return;
   logger.warn(
     { chatJid, sourceGroup: ctx.sourceGroup },
     `unauthorized ${action} blocked`,
