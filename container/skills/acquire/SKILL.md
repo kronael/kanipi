@@ -90,27 +90,7 @@ use the agent-browser skill (CDP-based Chromium automation).
 | Semantic Scholar   | `semanticscholar.org`         | AI-powered paper search + API      |
 | Common Crawl       | `index.commoncrawl.org`       | Bulk web archive index             |
 
-## Installing tools
-
-Use `bun` for JS/TS packages and `uv` for Python packages.
-Both are fast and work without sudo.
-
-```bash
-# JS/TS tools
-bun install -g <package>
-
-# Python tools and scripts
-uv pip install --system <package>
-uv run <script.py>
-
-# Go tools (compiles from source)
-go install github.com/user/tool@latest
-
-# Rust tools (compiles from source)
-cargo install <tool>
-```
-
-## Acquisition strategy
+## Strategy
 
 1. **Prefer transcripts over raw media** — text is cheaper to
    process and more useful for synthesis

@@ -3,7 +3,7 @@
 
 FROM node:22-slim
 
-# Install system dependencies for Chromium
+# System packages: chromium deps, media, research, network, dev tools
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -35,6 +35,18 @@ RUN apt-get update && apt-get install -y \
     dnsutils \
     net-tools \
     whois \
+    shellcheck \
+    ripgrep \
+    fd-find \
+    tree \
+    bat \
+    fzf \
+    optipng \
+    jpegoptim \
+    imagemagick \
+    pandoc \
+    poppler-utils \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/* \
     && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
        -o /usr/local/bin/yt-dlp && chmod +x /usr/local/bin/yt-dlp
@@ -51,15 +63,23 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     && chmod -R a+rw /usr/local/cargo /usr/local/rustup
 ENV PATH="/usr/local/cargo/bin:$PATH"
 
-# uv — fast Python package manager (no sudo needed)
+# uv — fast Python package manager
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
 # Set Chromium path for agent-browser
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install bun, agent-browser and claude-code globally
-RUN npm install -g bun agent-browser @anthropic-ai/claude-code
+# JS/TS tooling (bun is the primary runtime)
+RUN npm install -g bun agent-browser @anthropic-ai/claude-code \
+    && bun install -g @biomejs/biome prettier svgo \
+       @marp-team/marp-cli htmlhint
+
+# Python tooling
+RUN uv pip install --system \
+    ruff pyright \
+    pandas matplotlib plotly numpy scipy \
+    python-pptx openpyxl weasyprint
 
 # Create app directory
 WORKDIR /app
