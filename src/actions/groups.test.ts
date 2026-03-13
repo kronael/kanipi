@@ -128,7 +128,7 @@ describe('delegateGroup — authorization', () => {
   it('direct parent can delegate to its child', async () => {
     const ctx = makeCtx('root/code');
     const result = await delegateGroup.handler(
-      { group: 'root/code/py', prompt: 'lint', chatJid: 'tg/-100', depth: 1 },
+      { group: 'root/code/py', prompt: 'lint', chatJid: 'tg/-100', depth: 0 },
       ctx,
     );
     expect(result).toEqual({ queued: true });
@@ -136,7 +136,7 @@ describe('delegateGroup — authorization', () => {
       'root/code/py',
       'lint',
       'tg/-100',
-      2,
+      1,
     );
   });
 
@@ -173,7 +173,7 @@ describe('delegateGroup — authorization', () => {
 
 describe('escalateGroup', () => {
   it('tier 2 group can escalate to direct parent', async () => {
-    const ctx = makeCtx('root/code');
+    const ctx = makeCtx('root/code', { chatJid: 'tg/-100' });
     const result = await escalateGroup.handler(
       { prompt: 'need help', chatJid: 'tg/-100' },
       ctx,
@@ -181,24 +181,28 @@ describe('escalateGroup', () => {
     expect(result).toEqual({ queued: true, parent: 'root' });
     expect(ctx.delegateToParent).toHaveBeenCalledWith(
       'root',
-      'need help',
-      'tg/-100',
+      expect.stringContaining('<escalation from="root/code"'),
+      'local:root/code',
       1,
     );
+    const prompt = (ctx.delegateToParent as ReturnType<typeof vi.fn>).mock
+      .calls[0][1] as string;
+    expect(prompt).toContain('need help');
+    expect(prompt).toContain('reply_to="tg/-100"');
   });
 
   it('tier 3 group can escalate to direct parent', async () => {
-    const ctx = makeCtx('root/code/py');
+    const ctx = makeCtx('root/code/py', { chatJid: 'tg/-100' });
     const result = await escalateGroup.handler(
-      { prompt: 'need parent', chatJid: 'tg/-100', depth: 1 },
+      { prompt: 'need parent', chatJid: 'tg/-100', depth: 0 },
       ctx,
     );
     expect(result).toEqual({ queued: true, parent: 'root/code' });
     expect(ctx.delegateToParent).toHaveBeenCalledWith(
       'root/code',
-      'need parent',
-      'tg/-100',
-      2,
+      expect.stringContaining('<escalation from="root/code/py"'),
+      'local:root/code/py',
+      1,
     );
   });
 
@@ -389,10 +393,10 @@ describe('delegateGroup — depth limit', () => {
     );
   });
 
-  it('allows delegation at depth 2 (just under limit)', async () => {
+  it('allows delegation at depth 0 (under limit)', async () => {
     const ctx = makeCtx('root');
     const result = await delegateGroup.handler(
-      { group: 'root/sub', prompt: 'task', chatJid: 'tg/-100', depth: 2 },
+      { group: 'root/sub', prompt: 'task', chatJid: 'tg/-100', depth: 0 },
       ctx,
     );
     expect(result).toEqual({ queued: true });
@@ -400,15 +404,15 @@ describe('delegateGroup — depth limit', () => {
       'root/sub',
       'task',
       'tg/-100',
-      3,
+      1,
     );
   });
 
-  it('rejects delegation at depth >= 3', async () => {
+  it('rejects delegation at depth >= 1', async () => {
     const ctx = makeCtx('root');
     await expect(
       delegateGroup.handler(
-        { group: 'root/sub', prompt: 'task', chatJid: 'tg/-100', depth: 3 },
+        { group: 'root/sub', prompt: 'task', chatJid: 'tg/-100', depth: 1 },
         ctx,
       ),
     ).rejects.toThrow('depth');

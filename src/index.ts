@@ -32,6 +32,7 @@ import {
 import { BlueskyChannel } from './channels/bluesky/index.js';
 import { DiscordChannel } from './channels/discord.js';
 import { EmailChannel } from './channels/email.js';
+import { LocalChannel } from './channels/local.js';
 import { FacebookChannel } from './channels/facebook/index.js';
 import { MastodonChannel } from './channels/mastodon/index.js';
 import { RedditChannel } from './channels/reddit/index.js';
@@ -1137,6 +1138,8 @@ async function main(): Promise<void> {
       webPublic: WEB_PUBLIC,
     });
   }
+
+  channels.push(new LocalChannel());
 
   // Start subsystems (independently of connection handler)
   startSchedulerLoop({

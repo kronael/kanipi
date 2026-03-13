@@ -200,7 +200,7 @@ describe('drainRequests — real fs request/reply protocol', () => {
     const deps = makeDeps();
     const id = writeRequest('root', {
       type: 'schedule_task',
-      targetJid: ROOT_JID,
+      targetFolder: 'root',
       prompt: 'run daily report',
       schedule_type: 'interval',
       schedule_value: '86400000',

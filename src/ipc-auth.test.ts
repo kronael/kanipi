@@ -94,7 +94,7 @@ describe('schedule_task authorization', () => {
         prompt: 'do something',
         schedule_type: 'once',
         schedule_value: '2027-06-01T00:00:00',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -113,7 +113,7 @@ describe('schedule_task authorization', () => {
         prompt: 'self task',
         schedule_type: 'once',
         schedule_value: '2027-06-01T00:00:00',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'discord/other-group',
       deps,
@@ -131,7 +131,7 @@ describe('schedule_task authorization', () => {
         prompt: 'unauthorized',
         schedule_type: 'once',
         schedule_value: '2025-06-01T00:00:00.000Z',
-        targetJid: 'main@g.us',
+        targetFolder: 'root',
       },
       'discord/other-group',
       deps,
@@ -141,21 +141,22 @@ describe('schedule_task authorization', () => {
     expect(allTasks.length).toBe(0);
   });
 
-  it('rejects schedule_task for unregistered target JID', async () => {
+  it('root can schedule for any folder', async () => {
     await processTaskIpc(
       {
         type: 'schedule_task',
         prompt: 'no target',
         schedule_type: 'once',
-        schedule_value: '2025-06-01T00:00:00.000Z',
-        targetJid: 'unknown@g.us',
+        schedule_value: '2027-06-01T00:00:00.000Z',
+        targetFolder: 'nonexistent',
       },
       'root',
       deps,
     );
 
     const allTasks = getAllTasks();
-    expect(allTasks.length).toBe(0);
+    expect(allTasks.length).toBe(1);
+    expect(allTasks[0].group_folder).toBe('nonexistent');
   });
 });
 
@@ -453,7 +454,7 @@ describe('schedule_task schedule types', () => {
         prompt: 'cron task',
         schedule_type: 'cron',
         schedule_value: '0 9 * * *', // every day at 9am
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -476,7 +477,7 @@ describe('schedule_task schedule types', () => {
         prompt: 'bad cron',
         schedule_type: 'cron',
         schedule_value: 'not a cron',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -494,7 +495,7 @@ describe('schedule_task schedule types', () => {
         prompt: 'interval task',
         schedule_type: 'interval',
         schedule_value: '3600000', // 1 hour
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -516,7 +517,7 @@ describe('schedule_task schedule types', () => {
         prompt: 'bad interval',
         schedule_type: 'interval',
         schedule_value: 'abc',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -532,7 +533,7 @@ describe('schedule_task schedule types', () => {
         prompt: 'zero interval',
         schedule_type: 'interval',
         schedule_value: '0',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -548,7 +549,7 @@ describe('schedule_task schedule types', () => {
         prompt: 'bad once',
         schedule_type: 'once',
         schedule_value: 'not-a-date',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -569,7 +570,7 @@ describe('schedule_task context_mode', () => {
         schedule_type: 'once',
         schedule_value: '2027-06-01T00:00:00',
         context_mode: 'group',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -587,7 +588,7 @@ describe('schedule_task context_mode', () => {
         schedule_type: 'once',
         schedule_value: '2027-06-01T00:00:00',
         context_mode: 'isolated',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -606,7 +607,7 @@ describe('schedule_task context_mode', () => {
         schedule_type: 'once',
         schedule_value: '2025-06-01T00:00:00.000Z',
         context_mode: 'bogus' as any,
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,
@@ -622,7 +623,7 @@ describe('schedule_task context_mode', () => {
         prompt: 'no context mode',
         schedule_type: 'once',
         schedule_value: '2027-06-01T00:00:00',
-        targetJid: 'other@g.us',
+        targetFolder: 'discord/other-group',
       },
       'root',
       deps,

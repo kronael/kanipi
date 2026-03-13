@@ -357,7 +357,7 @@ describe('DB-backed routing — live reads', () => {
       group: 'root/code/py',
       prompt: 'run tests',
       chatJid: 'tg/-100',
-      depth: 1,
+      depth: 0,
     });
 
     await drainRequests(tmpDir, 'root/code', deps);
@@ -368,7 +368,7 @@ describe('DB-backed routing — live reads', () => {
       'root/code/py',
       'run tests',
       'tg/-100',
-      2,
+      1,
     );
   });
 });

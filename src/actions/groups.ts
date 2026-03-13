@@ -6,6 +6,7 @@ import {
   addRoute,
   deleteRoute,
   getAllRoutes,
+  getMessageById,
   getRouteById,
   getRoutesForJid,
 } from '../db.js';
@@ -130,11 +131,39 @@ export const escalateGroup: Action = {
       throw new Error('unauthorized: no parent group');
     }
     const parent = ctx.sourceGroup.slice(0, slash);
+
+    const workerLocalJid = `local:${ctx.sourceGroup}`;
+
+    // Build <escalation> XML wrapper
+    let originalBlock = '';
+    if (ctx.messageId) {
+      const msg = getMessageById(ctx.messageId);
+      if (msg) {
+        const content =
+          msg.content.length > 200
+            ? msg.content.slice(0, 200) + '...'
+            : msg.content;
+        originalBlock =
+          `\n  <original_message sender="${msg.sender_name}" id="${msg.id}">` +
+          `${content}</original_message>`;
+      }
+    }
+    const wrappedPrompt =
+      `<escalation from="${ctx.sourceGroup}" reply_to="${ctx.chatJid}"` +
+      ` reply_id="${ctx.messageId ?? ''}">` +
+      originalBlock +
+      `\n  ${input.prompt}\n</escalation>`;
+
     logger.info(
       { sourceGroup: ctx.sourceGroup, parent, depth },
       'escalating to parent group',
     );
-    await ctx.delegateToParent(parent, input.prompt, input.chatJid, depth + 1);
+    await ctx.delegateToParent(
+      parent,
+      wrappedPrompt,
+      workerLocalJid,
+      depth + 1,
+    );
     return { queued: true, parent };
   },
 };

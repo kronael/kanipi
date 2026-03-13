@@ -186,6 +186,12 @@ export function storeMessage(msg: NewMessage): void {
   );
 }
 
+export function getMessageById(id: string): NewMessage | undefined {
+  return db.prepare('SELECT * FROM messages WHERE id = ? LIMIT 1').get(id) as
+    | NewMessage
+    | undefined;
+}
+
 export function getNewMessages(
   jids: string[],
   lastTimestamp: string,
