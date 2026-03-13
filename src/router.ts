@@ -111,32 +111,58 @@ export function findChannel(
 }
 
 // First match wins. Routes ordered by seq from DB.
+// RFC 6570 Level 1 template expansion for route targets.
+// Only {sender} is supported — expands to senderToUserFileId(msg.sender).
+function expandTarget(target: string, msg: NewMessage): string | null {
+  if (!target.includes('{')) return target;
+  const id = senderToUserFileId(msg.sender);
+  if (!id || id === '-' || id === '-unknown') return null;
+  return target.replace('{sender}', id);
+}
+
 export function resolveRoute(msg: NewMessage, routes: Route[]): string | null {
   for (const r of routes) {
     if (r.type === 'command') {
       const t = msg.content.trim();
-      if (r.match && (t === r.match || t.startsWith(r.match + ' ')))
-        return r.target;
+      if (r.match && (t === r.match || t.startsWith(r.match + ' '))) {
+        const e = expandTarget(r.target, msg);
+        if (e) return e;
+      }
     } else if (r.type === 'verb') {
-      if (msg.verb === r.match) return r.target;
+      if (msg.verb === r.match) {
+        const t = expandTarget(r.target, msg);
+        if (t) return t;
+      }
     } else if (r.type === 'pattern') {
       if (!r.match || r.match.length > 200) continue;
       try {
-        if (new RegExp(r.match).test(msg.content)) return r.target;
+        if (new RegExp(r.match).test(msg.content)) {
+          const t = expandTarget(r.target, msg);
+          if (t) return t;
+        }
       } catch {}
     } else if (r.type === 'keyword') {
-      if (r.match && msg.content.toLowerCase().includes(r.match.toLowerCase()))
-        return r.target;
+      if (
+        r.match &&
+        msg.content.toLowerCase().includes(r.match.toLowerCase())
+      ) {
+        const t = expandTarget(r.target, msg);
+        if (t) return t;
+      }
     } else if (r.type === 'sender') {
       if (!r.match || r.match.length > 200) continue;
       try {
-        if (new RegExp(r.match).test(msg.sender_name ?? msg.sender))
-          return r.target;
+        if (new RegExp(r.match).test(msg.sender_name ?? msg.sender)) {
+          const t = expandTarget(r.target, msg);
+          if (t) return t;
+        }
       } catch {}
     } else if (r.type === 'trigger') {
-      return r.target;
+      const t = expandTarget(r.target, msg);
+      if (t) return t;
     } else if (r.type === 'default') {
-      return r.target;
+      const t = expandTarget(r.target, msg);
+      if (t) return t;
     }
   }
   return null;

@@ -2,17 +2,11 @@ import path from 'path';
 
 import { DATA_DIR, GROUPS_DIR } from './config.js';
 
-const SEGMENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
-const RESERVED_FOLDERS = new Set(['share']);
-
 export function isValidGroupFolder(folder: string): boolean {
   if (!folder || folder !== folder.trim()) return false;
   if (folder.includes('..') || folder.includes('\\')) return false;
-  const segments = folder.split('/');
-  return (
-    segments.every((s) => SEGMENT_PATTERN.test(s)) &&
-    !segments.some((s) => RESERVED_FOLDERS.has(s.toLowerCase()))
-  );
+  if (folder.startsWith('/')) return false;
+  return folder.split('/').every((s) => s.length > 0 && s.length <= 128);
 }
 
 export function assertValidGroupFolder(folder: string): void {

@@ -879,7 +879,14 @@ export function getJidToFolderMap(): Record<string, string> {
     .all() as { jid: string; target: string }[];
   const result: Record<string, string> = {};
   for (const r of rows) {
-    if (!result[r.jid]) result[r.jid] = r.target;
+    if (result[r.jid]) continue;
+    // Template targets like "atlas/{sender}" — use base folder as hub
+    if (r.target.includes('{')) {
+      const slash = r.target.lastIndexOf('/');
+      if (slash > 0) result[r.jid] = r.target.slice(0, slash);
+    } else {
+      result[r.jid] = r.target;
+    }
   }
   return result;
 }

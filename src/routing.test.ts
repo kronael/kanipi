@@ -616,4 +616,75 @@ describe('resolveRoute — flat routing table', () => {
       resolveRoute(msg('hi', 'alice@s.whatsapp.net', 'alice'), routes),
     ).toBe('general');
   });
+
+  it('expands {sender} template in default route target', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'default',
+        match: null,
+        target: 'atlas/{sender}',
+      },
+    ];
+    expect(resolveRoute(msg('hi', 'telegram:123456'), routes)).toBe(
+      'atlas/tg-123456',
+    );
+  });
+
+  it('expands {sender} template in command route target', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'command',
+        match: '/ask',
+        target: 'atlas/{sender}',
+      },
+    ];
+    expect(resolveRoute(msg('/ask something', 'telegram:789'), routes)).toBe(
+      'atlas/tg-789',
+    );
+  });
+
+  it('falls through template route to static fallback', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'default',
+        match: null,
+        target: 'atlas/{sender}',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'atlas/support',
+      },
+    ];
+    // Empty sender — template fails, falls through to support
+    expect(resolveRoute(msg('hi', ''), routes)).toBe('atlas/support');
+  });
+
+  it('handles whatsapp sender in template', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'wa:1',
+        seq: 0,
+        type: 'default',
+        match: null,
+        target: 'atlas/{sender}',
+      },
+    ];
+    expect(
+      resolveRoute(msg('hi', 'whatsapp:5551234@s.whatsapp.net'), routes),
+    ).toBe('atlas/wa-5551234@s.whatsapp.net');
+  });
 });

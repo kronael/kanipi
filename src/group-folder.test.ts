@@ -20,10 +20,15 @@ describe('group folder validation', () => {
     expect(isValidGroupFolder('a/b/c')).toBe(true);
   });
 
-  it('rejects traversal and reserved names', () => {
+  it('accepts sender-derived folder names', () => {
+    expect(isValidGroupFolder('atlas/wa-5551234@s.whatsapp.net')).toBe(true);
+    expect(isValidGroupFolder('atlas/em-user@example.com')).toBe(true);
+    expect(isValidGroupFolder('atlas/tg-123456')).toBe(true);
+  });
+
+  it('rejects traversal and empty', () => {
     expect(isValidGroupFolder('a/../b')).toBe(false);
     expect(isValidGroupFolder('/tmp')).toBe(false);
-    expect(isValidGroupFolder('share')).toBe(false);
     expect(isValidGroupFolder('')).toBe(false);
   });
 
