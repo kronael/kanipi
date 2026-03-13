@@ -1,3 +1,7 @@
+---
+status: spec
+---
+
 # Workflows (v2)
 
 Agent-driven multi-step processes across sessions.

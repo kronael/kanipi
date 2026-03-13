@@ -1,6 +1,8 @@
-# Channels
+---
+status: shipped
+---
 
-**Status**: shipped
+# Channels
 
 Interface, callbacks, activation, threading.
 

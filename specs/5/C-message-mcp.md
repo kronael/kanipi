@@ -1,3 +1,7 @@
+---
+status: spec
+---
+
 # Message MCP -- v2
 
 MCP tools for agent-side message history queries.

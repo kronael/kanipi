@@ -1,6 +1,8 @@
-# Memory: Diary
+---
+status: shipped
+---
 
-**Status**: shipped
+# Memory: Diary
 
 Agent-written daily notes. The diary IS the task log.
 
@@ -39,8 +41,6 @@ MEMORY.md, prune stale entries, save preferences there.
 On compaction, nudge with the skill's description text.
 Agent decides whether to act. Resets turn counter.
 
-**Status**: done — clean diary nudge only.
-
 ### 3. Stop hook (every 100 turns)
 
 ```ts
@@ -51,7 +51,6 @@ if (messageCount >= 100 && !input.stop_hook_active) {
 ```
 
 Same nudge text as PreCompact. Guard prevents loops.
-**Status**: done.
 
 ## Gateway injection
 

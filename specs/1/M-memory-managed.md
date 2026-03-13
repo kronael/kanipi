@@ -1,6 +1,8 @@
-# Memory: Managed
+---
+status: shipped
+---
 
-**Status**: shipped
+# Memory: Managed
 
 Claude Code's built-in persistent memory. No custom code required.
 Automatic, always on. Agent controls content entirely.

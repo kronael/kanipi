@@ -1,6 +1,8 @@
-# Instance Config as Git Repos
+---
+status: planned
+---
 
-**Status**: open (v2)
+# Instance Config as Git Repos
 
 Kanipi instance configs should ship as bare git repos with a known structure.
 Like Helm charts for agent deployments.

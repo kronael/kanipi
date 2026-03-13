@@ -1,6 +1,8 @@
-# Platform Permissions
+---
+status: spec
+---
 
-**Status**: spec — not implemented. Current behavior: all allowed.
+# Platform Permissions
 
 Groups can act on platforms (post to Twitter, send email, etc.) via
 social actions. There is no enforcement today — any group that has a

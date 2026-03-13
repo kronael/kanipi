@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # JID Format Normalization — spec (shipped)
 
 Add platform prefix to senders, enrich message XML attributes,

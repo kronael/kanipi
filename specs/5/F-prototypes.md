@@ -1,6 +1,9 @@
+---
+status: planned
+---
+
 # Prototypes
 
-**Status**: open. Core mechanism for group creation.
 See `S-social-events.md` for social channel usage.
 
 ## Model

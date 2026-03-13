@@ -1,6 +1,8 @@
-# User Context
+---
+status: shipped
+---
 
-**Status**: shipped
+# User Context
 
 Per-user memory files. Agent-controlled like facts.
 

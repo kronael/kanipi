@@ -1,6 +1,8 @@
-# Agent Teams: Analysis and Decision
+---
+status: planned
+---
 
-**Status**: decided (use SDK subagents)
+# Agent Teams: Analysis and Decision
 
 ## What Claude Code calls "Agent Teams" vs "Subagents"
 

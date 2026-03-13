@@ -1,6 +1,8 @@
-# Agent Media Awareness
+---
+status: planned
+---
 
-**Status**: open
+# Agent Media Awareness
 
 Agents don't know how to handle media attachments. When users send
 documents, images, or voice messages, agents see placeholder text

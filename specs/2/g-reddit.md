@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # Reddit channel
 
 Reddit inbox (private messages + comment replies) as inbound/outbound.

@@ -1,6 +1,8 @@
-# File Handling
+---
+status: shipped
+---
 
-**Status**: shipped
+# File Handling
 
 Two separate shipped pieces exist today:
 

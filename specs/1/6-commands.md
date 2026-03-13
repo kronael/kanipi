@@ -1,6 +1,8 @@
-# Commands
+---
+status: shipped
+---
 
-**Status**: shipped
+# Commands
 
 Gateway-intercepted commands live in `src/commands/`.
 

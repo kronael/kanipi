@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # Forwarded Message Metadata — shipped
 
 ## Problem

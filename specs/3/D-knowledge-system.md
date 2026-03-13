@@ -1,6 +1,8 @@
-# Knowledge System
+---
+status: partial
+---
 
-**Status**: partial
+# Knowledge System
 
 The pattern underlying diary, facts, episodes, and user context.
 Each is an instance of: markdown files in a directory, with

@@ -1,6 +1,8 @@
-# Agent Code Modification (Staging Area)
+---
+status: planned
+---
 
-**Status**: not started. Depends on specs/2/5-permissions.md.
+# Agent Code Modification (Staging Area)
 
 ## Problem
 

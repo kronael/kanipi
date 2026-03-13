@@ -1,6 +1,8 @@
-# Message IDs: Reply and Forward Metadata
+---
+status: spec
+---
 
-**Status**: spec
+# Message IDs: Reply and Forward Metadata
 
 Enrich inbound message metadata with channel-native IDs for reply threading
 and forward attribution. Mirrors the reply_msgid work in 5-permissions.

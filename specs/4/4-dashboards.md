@@ -1,6 +1,8 @@
-# Dashboards
+---
+status: planned
+---
 
-**Status**: open
+# Dashboards
 
 Long-running web services for operator/admin interaction with
 gateway state. Not ephemeral like agent containers, not static

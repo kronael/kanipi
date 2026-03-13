@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # ElizaOS Prompt Patterns — Reference
 
 Extracted from eliza-atlas and eliza-plugin-evangelist. These are

@@ -1,6 +1,8 @@
-# Remove Trigger Pattern System
+---
+status: shipped
+---
 
-**Status**: shipped
+# Remove Trigger Pattern System
 
 ## Problem
 

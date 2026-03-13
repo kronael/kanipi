@@ -1,6 +1,8 @@
-# Testing
+---
+status: reference
+---
 
-**Status**: reference
+# Testing
 
 ## Test tiers
 

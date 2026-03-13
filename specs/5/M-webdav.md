@@ -1,3 +1,7 @@
+---
+status: spec
+---
+
 # WebDAV Workspace Access — open (v2)
 
 Expose each group's workspace directory over WebDAV so users can mount

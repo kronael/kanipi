@@ -1,6 +1,8 @@
-# Marinade Atlas on Kanipi
+---
+status: shipped
+---
 
-**Status**: shipped
+# Marinade Atlas on Kanipi
 
 Migration from ElizaOS (eliza_atlas_marinade) to kanipi_marinade.
 

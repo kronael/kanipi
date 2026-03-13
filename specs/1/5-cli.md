@@ -1,6 +1,8 @@
-# CLI spec (v1)
+---
+status: shipped
+---
 
-**Status**: shipped (v1.0.6)
+# CLI spec (v1)
 
 TypeScript CLI (`src/cli.ts`) with manual arg parsing. Bash entrypoint
 (`kanipi`) remains for docker deployments.

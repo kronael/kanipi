@@ -1,6 +1,8 @@
-# Systems
+---
+status: reference
+---
 
-**Status**: reference
+# Systems
 
 Kanipi decomposes into orthogonal systems.
 

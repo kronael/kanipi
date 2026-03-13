@@ -1,6 +1,8 @@
-# Gateway Routing
+---
+status: shipped
+---
 
-**Status**: done
+# Gateway Routing
 
 The gateway has one routing table. Messages arrive on a JID,
 the router scans the table, and resolves a destination folder.

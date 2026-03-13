@@ -1,3 +1,7 @@
+---
+status: planned
+---
+
 # Committer — moved to tools repo
 
 Spec moved to `~/app/tools/assistants/claude-template/specs/committer.md`.

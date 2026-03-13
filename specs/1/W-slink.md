@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # Slink Specification — shipped
 
 ## What it is

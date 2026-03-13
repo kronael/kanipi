@@ -1,6 +1,8 @@
-# Researcher
+---
+status: planned
+---
 
-**Status**: open
+# Researcher
 
 Background task that explores repos, web, docs — writes findings to facts/.
 

@@ -1,3 +1,7 @@
+---
+status: planned
+---
+
 # Gmail channel (v2) — speculative
 
 Gmail-specific upgrade over the generic email channel (v1).

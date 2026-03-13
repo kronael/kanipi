@@ -1,6 +1,8 @@
-# Sync spec (v1) — solved
+---
+status: shipped
+---
 
-**Status**: shipped
+# Sync spec (v1) — solved
 
 ## Problem
 

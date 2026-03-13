@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # Twitter/X channel
 
 Inbound/outbound via `agent-twitter-client` (elizaOS scraper).

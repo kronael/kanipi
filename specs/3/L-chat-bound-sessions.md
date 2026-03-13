@@ -1,6 +1,8 @@
-# Chat-Bound Sessions
+---
+status: shipped
+---
 
-**Status**: shipped
+# Chat-Bound Sessions
 
 One container per folder, strictly serial within folder, parallel across folders.
 All I/O via IPC files — no stdin. File deletion is acknowledgment.

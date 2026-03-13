@@ -1,6 +1,8 @@
-# Cheerleader
+---
+status: planned
+---
 
-**Status**: superseded by `specs/3/R-evangelist.md`
+# Cheerleader
 
 Eliza-inspired social media curator. Watches inbound channels, suggests
 or drafts responses, and routes them through human review before posting.

@@ -1,6 +1,8 @@
-# System Messages
+---
+status: shipped
+---
 
-**Status**: shipped
+# System Messages
 
 Gateway-generated annotations riding alongside user messages
 into agent stdin. Never sent to channel, never trigger agent

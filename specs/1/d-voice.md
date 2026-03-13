@@ -1,6 +1,8 @@
-# Voice Transcription
+---
+status: shipped
+---
 
-**Status**: shipped through the MIME pipeline
+# Voice Transcription
 
 Voice transcription is no longer a Telegram-only path. The current
 implementation is channel-agnostic media enrichment.

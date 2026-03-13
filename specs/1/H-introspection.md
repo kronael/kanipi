@@ -1,6 +1,8 @@
-# introspection — Agent capability introspection and configuration
+---
+status: shipped
+---
 
-**Status**: shipped
+# introspection — Agent capability introspection and configuration
 
 ## Problem
 

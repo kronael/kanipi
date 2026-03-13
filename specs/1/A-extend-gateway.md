@@ -1,6 +1,8 @@
-# Extensibility
+---
+status: reference
+---
 
-**Status**: reference
+# Extensibility
 
 Two surfaces: agent-side (SDK, see `extend-agent.md`) and
 gateway-side (compiled TypeScript registries, this doc).

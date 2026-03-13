@@ -1,6 +1,8 @@
-# Think Blocks
+---
+status: shipped
+---
 
-**Status**: shipped
+# Think Blocks
 
 Agent uses `<think>` delimiters for internal reasoning. The agent-runner
 strips the block before the gateway sees it. If the agent never exits

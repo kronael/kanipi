@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # Email channel (v1) — shipped
 
 IMAP inbound + SMTP outbound. Generic mail provider support.

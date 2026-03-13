@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # File Output — shipped
 
 Agent sending files back to the channel.

@@ -1,6 +1,8 @@
-# Atlas: What We Actually Need
+---
+status: shipped
+---
 
-**Status**: partial
+# Atlas: What We Actually Need
 
 The evangelist plugin's real value stripped of ElizaOS scaffolding.
 

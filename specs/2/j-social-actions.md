@@ -1,6 +1,8 @@
-# Social Actions — Outbound
+---
+status: shipped
+---
 
-**Status**: open
+# Social Actions — Outbound
 
 Outbound actions for social platforms. Not a new interface —
 entries in the existing action registry, exposed as MCP tools.

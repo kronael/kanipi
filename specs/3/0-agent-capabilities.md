@@ -1,6 +1,8 @@
-# Agent Capabilities
+---
+status: spec
+---
 
-**Status**: shipping
+# Agent Capabilities
 
 Agent containers are rich environments with multimedia
 acquisition, compilation toolchains, and browser automation.

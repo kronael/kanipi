@@ -1,6 +1,8 @@
-# Agent-Initiated Status Updates
+---
+status: shipped
+---
 
-**Status**: shipped
+# Agent-Initiated Status Updates
 
 Agent emits `<status>` blocks during long tasks. The agent-runner extracts
 them, sends each as an interim message, and strips them from the final text.

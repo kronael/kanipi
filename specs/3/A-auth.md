@@ -1,6 +1,8 @@
-# Auth
+---
+status: shipped
+---
 
-**Status**: shipped (local auth); OAuth deferred to phase 4
+# Auth
 
 What ships today:
 

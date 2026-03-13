@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Experiment 1 — SDK stale session ID behavior — DONE
 
 ## Result

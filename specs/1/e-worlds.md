@@ -1,6 +1,8 @@
-# Worlds
+---
+status: shipped
+---
 
-**Status**: partial
+# Worlds
 
 What ships today:
 

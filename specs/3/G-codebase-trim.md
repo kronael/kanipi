@@ -1,6 +1,8 @@
-# Codebase Trim
+---
+status: spec
+---
 
-**Status**: spec
+# Codebase Trim
 
 Identify and remove dead code, duplicates, and over-abstraction.
 Estimated ~900 lines removable without behavior change.

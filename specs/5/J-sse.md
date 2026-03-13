@@ -1,3 +1,7 @@
+---
+status: planned
+---
+
 # SSE Stream — incomplete
 
 ## Current behaviour

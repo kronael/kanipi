@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # DB bootstrap spec — shipped
 
 ## Problem

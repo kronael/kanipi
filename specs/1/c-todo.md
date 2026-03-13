@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # v1 specs — status
 
 ## Shipped

@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # Path translation spec (v2) — shipped
 
 ## Problem
@@ -13,3 +17,8 @@ Replace all path translation with explicit `HOST_*` exports computed
 once at startup: `HOST_DATA_DIR`, `HOST_GROUPS_DIR`, `HOST_APP_DIR`.
 Each mount path constructed explicitly from these constants — no string
 replacement. `hostPath()` and `GATEWAY_ROOT` deleted.
+
+## Where
+
+- `src/config.ts` — `detectHostPath()`, `HOST_*` exports
+- `src/container-runner.ts` — mount path construction using `HOST_*`

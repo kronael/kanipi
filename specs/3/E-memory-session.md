@@ -1,6 +1,8 @@
-# Memory: Session
+---
+status: shipped
+---
 
-**Status**: shipped
+# Memory: Session
 
 SDK session continuity across container invocations.
 

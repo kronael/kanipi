@@ -1,6 +1,8 @@
-# Plugin Specification -- open
+---
+status: planned
+---
 
-**Status**: not implemented.
+# Plugin Specification -- open
 
 ## Overview
 

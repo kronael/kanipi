@@ -1,6 +1,8 @@
-# MIME Pipeline
+---
+status: shipped
+---
 
-**Status**: shipped
+# MIME Pipeline
 
 Media attachment processing. Runs on every inbound message
 before container spawn — downloads, transcribes, annotates.

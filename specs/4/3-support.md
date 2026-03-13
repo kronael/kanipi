@@ -1,3 +1,7 @@
+---
+status: spec
+---
+
 # Code Researcher
 
 A kanipi product configuration that turns a group into a codebase Q&A

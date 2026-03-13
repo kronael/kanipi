@@ -1,6 +1,8 @@
-# Detached Containers
+---
+status: planned
+---
 
-**Status**: open (arizuko)
+# Detached Containers
 
 ## Problem
 

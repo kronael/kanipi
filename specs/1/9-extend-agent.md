@@ -1,6 +1,8 @@
-# Agent Self-Extension
+---
+status: shipped
+---
 
-**Status**: shipped
+# Agent Self-Extension
 
 How the agent extends itself across sessions. Runs Claude
 Code inside a container with persistent `~/.claude/`.

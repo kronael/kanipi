@@ -1,6 +1,8 @@
-# Prompt format
+---
+status: shipped
+---
 
-**Status**: shipped
+# Prompt format
 
 ## Status key
 

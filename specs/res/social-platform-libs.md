@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Social Platform Libraries — Node.js/TypeScript
 
 Research date: 2026-03-10

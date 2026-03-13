@@ -1,6 +1,8 @@
-# Topic routing and agent hierarchy
+---
+status: planned
+---
 
-**Status**: open
+# Topic routing and agent hierarchy
 
 General pattern for multi-agent message routing in chat systems.
 

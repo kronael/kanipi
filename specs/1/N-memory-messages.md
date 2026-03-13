@@ -1,6 +1,8 @@
-# Memory: Messages
+---
+status: shipped
+---
 
-**Status**: shipped
+# Memory: Messages
 
 Recent message history piped to agent on each invocation.
 

@@ -1,6 +1,8 @@
-# Group Permissions
+---
+status: partial
+---
 
-**Status**: partial
+# Group Permissions
 
 Four-tier permission model. Core enforcement is shipped. Two items remain open.
 

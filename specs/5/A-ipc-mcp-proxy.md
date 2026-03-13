@@ -1,3 +1,7 @@
+---
+status: spec
+---
+
 # IPC -> MCP Proxy (v2)
 
 ## Problem

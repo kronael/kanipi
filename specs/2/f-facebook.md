@@ -1,3 +1,7 @@
+---
+status: shipped
+---
+
 # Facebook Page channel
 
 Inbound/outbound via Graph API raw fetch. Page Access Token auth.

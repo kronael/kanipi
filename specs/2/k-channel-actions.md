@@ -1,6 +1,8 @@
-# Channel Actions — Dynamic Registration and Filtered Manifest
+---
+status: shipped
+---
 
-**Status**: open
+# Channel Actions — Dynamic Registration and Filtered Manifest
 
 Each social channel registers its outbound actions on connect.
 The gateway filters the manifest per group so agents only see

@@ -1,6 +1,8 @@
-# Task Scheduler
+---
+status: shipped
+---
 
-**Status**: shipped (v1)
+# Task Scheduler
 
 ## Overview
 

@@ -1,6 +1,8 @@
-# WhatsApp Channel Improvements
+---
+status: shipped
+---
 
-**Status**: shipped
+# WhatsApp Channel Improvements
 
 ## Changes
 

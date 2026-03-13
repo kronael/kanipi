@@ -1,6 +1,8 @@
-# Agent Routing & Specialized Workers — open (v2)
+---
+status: planned
+---
 
-**Status**: open (v2)
+# Agent Routing & Specialized Workers — open (v2)
 
 Pipeline-based message routing to specialized agents within a group.
 Group-configurable from inside (agent or operator sets up routing rules).

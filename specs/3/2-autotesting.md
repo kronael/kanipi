@@ -1,3 +1,7 @@
+---
+status: spec
+---
+
 # autotesting — subsystem test strategy
 
 ## Tiers

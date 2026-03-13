@@ -1,6 +1,8 @@
-# Social Events — Unified Inbound Model
+---
+status: shipped
+---
 
-**Status**: open
+# Social Events — Unified Inbound Model
 
 Normalize inbound events from all platforms into a typed
 event struct. Gateway filters by impulse weights and routes

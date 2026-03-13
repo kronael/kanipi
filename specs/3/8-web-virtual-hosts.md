@@ -1,6 +1,8 @@
-# Web Virtual Hosts
+---
+status: draft
+---
 
-**Status**: spec draft
+# Web Virtual Hosts
 
 One DNS hostname per world. Root controls routing. World-level web
 management is deferred — defined by the world itself when needed.

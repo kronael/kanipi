@@ -1,3 +1,7 @@
+---
+status: planned
+---
+
 # Cross-channel identity — open
 
 Link a single user across multiple channels and auth providers.
