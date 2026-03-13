@@ -1,3 +1,6 @@
+-- Defer FK checks so chats.jid and messages.chat_jid can update in any order
+PRAGMA defer_foreign_keys = ON;
+
 -- Strip WhatsApp suffixes from chat JIDs
 UPDATE chats SET jid = REPLACE(jid, '@g.us', '')
   WHERE jid LIKE 'whatsapp:%@g.us';
