@@ -15,7 +15,7 @@ import { isDirectChild } from '../permissions.js';
 import { isAuthorizedRoutingTarget } from '../router.js';
 import { ContainerConfigSchema } from '../types.js';
 
-const MAX_DELEGATE_DEPTH = 3;
+const MAX_DELEGATE_DEPTH = 1;
 
 export const refreshGroups: Action = {
   name: 'refresh_groups',

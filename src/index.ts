@@ -310,7 +310,10 @@ export function _clearTestState(): void {
 async function processGroupMessages(chatJid: string): Promise<boolean> {
   const t0 = Date.now();
   const traceId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  const folder = jidToFolder[chatJid];
+  // local: JIDs resolve by convention — no DB route needed
+  const folder = chatJid.startsWith('local:')
+    ? chatJid.slice(6)
+    : jidToFolder[chatJid];
   const group = folder ? groups[folder] : undefined;
   if (!group) return true;
 
@@ -446,6 +449,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       chatJid,
       missedMessages.length,
       channel.name,
+      userMessages[userMessages.length - 1]?.id,
       async (result) => {
         // Streaming output callback — called for each agent result
         if (result.result) {
@@ -664,6 +668,7 @@ async function runAgent(
   chatJid: string,
   messageCount: number,
   channelName?: string,
+  messageId?: string,
   onOutput?: (output: ContainerOutput) => Promise<void>,
 ): Promise<'success' | 'error'> {
   const sessionId = sessions[group.folder];
@@ -720,6 +725,7 @@ async function runAgent(
         assistantName: ASSISTANT_NAME,
         messageCount,
         channelName,
+        messageId,
         _annotations: annotations.length > 0 ? annotations : undefined,
       },
       (proc, containerName) =>
@@ -807,7 +813,9 @@ async function startMessageLoop(): Promise<void> {
         }
 
         for (const [chatJid, groupMessages] of messagesByGroup) {
-          const folder = jidToFolder[chatJid];
+          const folder = chatJid.startsWith('local:')
+            ? chatJid.slice(6)
+            : jidToFolder[chatJid];
           const group = folder ? groups[folder] : undefined;
           if (!group) continue;
 

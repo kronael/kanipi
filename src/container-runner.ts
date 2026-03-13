@@ -75,6 +75,7 @@ export interface ContainerInput {
   messageCount?: number;
   channelName?: string;
   delegateDepth?: number;
+  messageId?: string;
   // Enricher annotations prepended to prompt before container sees it.
   // Populated by runEnrichers() in index.ts — not sent as a separate field.
   _annotations?: string[];
