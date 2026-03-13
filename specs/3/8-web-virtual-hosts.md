@@ -1,93 +1,131 @@
 ---
-status: draft
+status: spec
 ---
 
 # Web Virtual Hosts
 
-One DNS hostname per world. Root controls routing. World-level web
-management is deferred — defined by the world itself when needed.
+Convention-based hostname routing. Root agent manages infra.
+Worlds write content to their subdirectory.
 
 ## Problem
 
-A single kanipi instance hosts multiple worlds. Today all groups share
-one web root (`DATA_DIR/web/`). Each world needs its own hostname so
-it can be addressed independently.
-
-## Current state (shipped)
-
-Tier 0-1 groups get `/workspace/web/` mounted rw, pointing to the
-instance web root. Groups use subdirectories:
-
-```
-/srv/data/kanipi_krons/web/
-  index.html              ← instance landing
-  happy/index.html        ← krons.fiu.wtf/happy/
-  mayai/index.html        ← krons.fiu.wtf/mayai/
-```
+A single kanipi instance hosts multiple worlds. Each world needs
+its own hostname (`krons.fiu.wtf`, `atlas.fiu.wtf`) without
+per-world configuration in the gateway.
 
 ## Design
 
-### One hostname per world
+### Convention-based routing
 
-Each tier 1 world can have one DNS hostname assigned to it. Requests
-to that hostname are routed to `groups/<world>/web/`.
-
-```sql
-ALTER TABLE registered_groups ADD COLUMN web_host TEXT;
-```
-
-Proxy logic:
-
-1. Match `Host` header against `registered_groups.web_host`
-2. If matched → serve from `groups/<folder>/web/`
-3. If no match → serve from instance `web/`
-
-### Permissions
-
-Root (tier 0) controls hostname assignment. World agents (tier 1) read
-their own hostname but cannot change it.
-
-| Action       | Tier 0 | Tier 1 | Tier 2+ |
-| ------------ | ------ | ------ | ------- |
-| set_web_host | any    | no     | no      |
-| get_web_host | any    | self   | no      |
-
-New IPC actions:
+DNS wildcard (`*.fiu.wtf`) resolves all subdomains. Web server
+maps `Host` header to directory:
 
 ```
-set_web_host   { folder, host }     tier 0 only
-get_web_host   { folder }           tier 0-1
+{world}.{WEB_DOMAIN} → DATA_DIR/web/{world}/
 ```
 
-CLI equivalent:
+No DB table, no IPC actions, no gateway code. The mapping is
+implicit — registering a world gives it a hostname.
 
-```bash
-kanipi config <instance> group set-web-host atlas atlas.example.com
+`.env`:
+
+```
+WEB_DOMAIN=fiu.wtf
 ```
 
-Validation: `host` must be a valid hostname (no scheme, no path), no
-duplicates across groups, folder must exist.
+### Mount changes
 
-### Serving
+Root owns the web root (vite config, top-level assets). Worlds
+write to their subdirectory only.
 
-One vite process per world web dir, same pattern as the instance web dir.
-The bash entrypoint starts vite for `DATA_DIR/web/` on an internal port;
-world vhosts start additional vite processes for `groups/<folder>/web/`.
-The proxy routes by `Host` header to the correct vite port.
+| Mount                     | Tier 0 | Tier 1              | Tier 2+ |
+| ------------------------- | ------ | ------------------- | ------- |
+| `/workspace/web`          | rw     | no                  | no      |
+| `/workspace/web/<world>/` | —      | rw (own world only) | no      |
 
-### World-level web management
+Tier 1 sees `/workspace/web/` as a directory containing only its
+own world subdirectory. Implemented as a bind mount of
+`DATA_DIR/web/<world>/` → `/workspace/web/` inside the container.
 
-How a world agent manages its own web content (deploy flows, tooling,
-vite if needed) is left to the world itself. Not specified here.
+### Vite config
+
+Vite serves from `DATA_DIR/web/`. Config lives at the web root
+alongside `index.html`. Root agent (tier 0) owns vite config —
+restart, middleware, build settings.
+
+Vite middleware handles hostname routing:
+
+```typescript
+// Pseudocode — vite plugin or middleware
+function vhostMiddleware(req, res, next) {
+  const host = req.headers.host;
+  const sub = host?.split('.')[0];
+  if (sub && existsSync(join(webDir, sub))) {
+    req.url = `/${sub}${req.url}`;
+  }
+  next();
+}
+```
+
+No per-world vite process. One vite instance, one middleware.
+
+### Root infra skill
+
+Root agent gets an `infra` skill (`~/.claude/skills/infra/`)
+responsible for instance-level operations:
+
+- Web server config (vite middleware, vhost routing)
+- DNS verification (check subdomain resolves)
+- SSL/TLS (caddy auto-cert or similar)
+- Instance health checks
+
+The infra skill is baked into the agent image for tier 0 only.
+Worlds don't see it.
+
+Actions the root agent performs via infra skill (no new IPC —
+root has rw access to web config):
+
+- Edit vite config directly
+- Restart vite process (via `/workspace/web/` file watch or signal)
+- Add/remove custom domain overrides in a `vhosts.json` at web root
+
+### Custom domains (optional, v2)
+
+For non-convention hostnames (`coolsite.com` → world `krons`),
+a `vhosts.json` at the web root:
+
+```json
+{
+  "coolsite.com": "krons",
+  "support.acme.co": "atlas"
+}
+```
+
+Read by the vite middleware. Root agent edits this file. DNS and
+SSL setup is manual or caddy-managed.
+
+## World workflow
+
+A tier 1 world agent writes web content:
+
+```
+/workspace/web/index.html     ← its own web root
+/workspace/web/assets/         ← static files
+```
+
+Inside the container, `/workspace/web/` is bind-mounted to
+`DATA_DIR/web/<world>/`. The world doesn't know about hostnames —
+it just writes files. The vhost middleware serves them at
+`{world}.{domain}`.
 
 ## Implementation order
 
-1. Add `web_host` column to `registered_groups`
-2. Web proxy routes by `Host` header to `groups/<folder>/web/`
-3. Static file serving for matched hosts
-4. CLI: `group set-web-host <folder> <host>`
-5. IPC actions: `set_web_host` / `get_web_host`
+1. Add `WEB_DOMAIN` to `.env` / config.ts
+2. Vite middleware for hostname → subdirectory routing
+3. Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`
+4. Root infra skill (skeleton)
+5. Custom domains via `vhosts.json` (optional)
 
 ## Related
 
-- `specs/3/5-permissions.md` — tier model, `/workspace/web` mount enforcement
+- `specs/3/5-permissions.md` — tier model, mount table
