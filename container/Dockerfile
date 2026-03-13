@@ -75,8 +75,8 @@ RUN npm install -g bun agent-browser @anthropic-ai/claude-code \
     && bun install -g @biomejs/biome prettier svgo \
        @marp-team/marp-cli htmlhint
 
-# Python tooling
-RUN uv pip install --system \
+# Python tooling (break-system-packages: container-only, no venv needed)
+RUN uv pip install --system --break-system-packages \
     ruff pyright \
     pandas matplotlib plotly numpy scipy \
     python-pptx openpyxl weasyprint
