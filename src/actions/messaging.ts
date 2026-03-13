@@ -52,6 +52,26 @@ const SendFileInput = z.object({
   filename: z.string().optional(),
 });
 
+const SendReplyInput = z.object({
+  text: z.string(),
+});
+
+export const sendReply: Action = {
+  name: 'send_reply',
+  description: 'Reply to the current conversation.',
+  input: SendReplyInput,
+  async handler(raw, ctx) {
+    const input = SendReplyInput.parse(raw);
+    if (!ctx.chatJid) throw new Error('no bound chat JID');
+    await ctx.sendMessage(ctx.chatJid, input.text);
+    logger.info(
+      { chatJid: ctx.chatJid, sourceGroup: ctx.sourceGroup },
+      'IPC reply sent',
+    );
+    return { sent: true };
+  },
+};
+
 export const sendFile: Action = {
   name: 'send_file',
   description: 'Send a file to a channel',

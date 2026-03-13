@@ -94,6 +94,9 @@ vi.mock('fs', async () => {
         isFile: () => false,
       })),
       copyFileSync: vi.fn(),
+      renameSync: vi.fn(),
+      unlinkSync: vi.fn(),
+      chownSync: vi.fn(),
     },
   };
 });

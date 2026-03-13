@@ -3,6 +3,8 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  decodeFolderPath,
+  encodeFolderPath,
   isValidGroupFolder,
   resolveGroupFolderPath,
   resolveGroupIpcPath,
@@ -44,5 +46,41 @@ describe('group folder validation', () => {
   it('throws for unsafe folder names', () => {
     expect(() => resolveGroupFolderPath('../../etc')).toThrow();
     expect(() => resolveGroupIpcPath('/tmp')).toThrow();
+  });
+});
+
+describe('folder path encoding', () => {
+  it('encodes simple folder unchanged', () => {
+    expect(encodeFolderPath('root')).toBe('root');
+  });
+
+  it('encodes slashes as single dash', () => {
+    expect(encodeFolderPath('atlas/support')).toBe('atlas-support');
+  });
+
+  it('escapes dashes before encoding slashes', () => {
+    expect(encodeFolderPath('atlas-v2')).toBe('atlas--v2');
+  });
+
+  it('handles folder with both dashes and slashes', () => {
+    expect(encodeFolderPath('my-world/sub-group')).toBe('my--world-sub--group');
+  });
+
+  it('roundtrips through decode', () => {
+    for (const folder of [
+      'root',
+      'atlas/support',
+      'atlas-v2',
+      'a/b/c',
+      'a-b/c-d/e',
+    ]) {
+      expect(decodeFolderPath(encodeFolderPath(folder))).toBe(folder);
+    }
+  });
+
+  it('decodes encoded paths', () => {
+    expect(decodeFolderPath('root')).toBe('root');
+    expect(decodeFolderPath('atlas-support')).toBe('atlas/support');
+    expect(decodeFolderPath('atlas--v2')).toBe('atlas-v2');
   });
 });

@@ -35,6 +35,25 @@ export function resolveGroupFolderPath(folder: string): string {
   return groupPath;
 }
 
+/**
+ * Encode a folder path for flat IPC directory naming.
+ * `-` → `--`, `/` → `-`.  Decode is the reverse.
+ */
+export function encodeFolderPath(folder: string): string {
+  return folder.replace(/-/g, '--').replace(/\//g, '-');
+}
+
+export function decodeFolderPath(encoded: string): string {
+  // Split on single `-` (not `--`), then restore `-` from `--`.
+  // Strategy: replace `--` with a placeholder, split on `-`, restore.
+  const placeholder = '\0';
+  return encoded
+    .replace(/--/g, placeholder)
+    .split('-')
+    .map((s) => s.replace(new RegExp(placeholder, 'g'), '-'))
+    .join('/');
+}
+
 export function resolveGroupIpcPath(folder: string): string {
   assertValidGroupFolder(folder);
   const ipcBaseDir = path.resolve(DATA_DIR, 'ipc');

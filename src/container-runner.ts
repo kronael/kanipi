@@ -19,7 +19,6 @@ import {
   HOST_APP_DIR,
   HOST_DATA_DIR,
   HOST_GROUPS_DIR,
-  IDLE_TIMEOUT,
   MEDIA_ENABLED,
   MEDIA_MAX_FILE_BYTES,
   TIMEZONE,
@@ -515,7 +514,7 @@ async function runRawCommand(
 
     let timedOut = false;
     const configTimeout = group.containerConfig?.timeout || CONTAINER_TIMEOUT;
-    const timeoutMs = Math.max(configTimeout, IDLE_TIMEOUT + 30_000);
+    const timeoutMs = configTimeout;
 
     const killOnTimeout = () => {
       timedOut = true;
@@ -674,12 +673,39 @@ async function runAgentMode(
     }
     delete input._annotations;
 
-    // Pass secrets via stdin (never written to disk or mounted as files)
-    input.secrets = readSecrets();
-    container.stdin.write(JSON.stringify(input));
+    // Write start.json to IPC dir (container reads on startup)
+    const groupIpcDir = resolveGroupIpcPath(group.folder);
+    const inputDir = path.join(groupIpcDir, 'input');
+    // Clear stale input files from previous runs
+    try {
+      for (const f of fs.readdirSync(inputDir)) {
+        fs.unlinkSync(path.join(inputDir, f));
+      }
+    } catch {
+      /* dir may not exist yet */
+    }
+    fs.mkdirSync(inputDir, { recursive: true });
+
+    const startJson = {
+      sessionId: input.sessionId,
+      groupFolder: input.groupFolder,
+      chatJid: input.chatJid,
+      assistantName: input.assistantName,
+      channelName: input.channelName,
+      annotations: input._annotations,
+      secrets: readSecrets(),
+      prompt: input.prompt,
+      isScheduledTask: input.isScheduledTask,
+      messageCount: input.messageCount,
+      delegateDepth: input.delegateDepth,
+    };
+    const startPath = path.join(groupIpcDir, 'start.json');
+    const startTmp = `${startPath}.tmp`;
+    fs.writeFileSync(startTmp, JSON.stringify(startJson));
+    fs.renameSync(startTmp, startPath);
+
+    // Close stdin immediately — all I/O is via IPC files
     container.stdin.end();
-    // Remove secrets from input so they don't appear in logs
-    delete input.secrets;
 
     // Streaming output: parse OUTPUT_START/END marker pairs as they arrive
     let parseBuffer = '';
@@ -765,9 +791,7 @@ async function runAgentMode(
     let timedOut = false;
     let hadStreamingOutput = false;
     const configTimeout = group.containerConfig?.timeout || CONTAINER_TIMEOUT;
-    // Grace period: hard timeout must be at least IDLE_TIMEOUT + 30s so the
-    // graceful _close sentinel has time to trigger before the hard kill fires.
-    const timeoutMs = Math.max(configTimeout, IDLE_TIMEOUT + 30_000);
+    const timeoutMs = configTimeout;
 
     const killOnTimeout = () => {
       timedOut = true;

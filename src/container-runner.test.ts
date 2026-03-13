@@ -18,7 +18,7 @@ vi.mock('./config.js', () => ({
   HOST_DATA_DIR: '/tmp/nanoclaw-test-root/data',
   HOST_GROUPS_DIR: '/tmp/nanoclaw-test-root/groups',
   HOST_WEB_DIR: '/tmp/nanoclaw-test-root/web',
-  IDLE_TIMEOUT: 1800000,
+  IDLE_TIMEOUT: 1800000, // kept for backward compat, unused in agent mode
   TIMEZONE: 'America/Los_Angeles',
   WEB_DIR: '/tmp/nanoclaw-test-web',
   WEB_HOST: '',
@@ -63,6 +63,9 @@ vi.mock('fs', async () => {
       statSync: vi.fn(() => ({ isDirectory: () => false })),
       copyFileSync: vi.fn(),
       cpSync: vi.fn(),
+      renameSync: vi.fn(),
+      unlinkSync: vi.fn(),
+      chownSync: vi.fn(),
     },
   };
 });
@@ -176,8 +179,8 @@ describe('container-runner timeout behavior', () => {
     // Let output processing settle
     await vi.advanceTimersByTimeAsync(10);
 
-    // Fire the hard timeout (IDLE_TIMEOUT + 30s = 1830000ms)
-    await vi.advanceTimersByTimeAsync(1830000);
+    // Fire the hard timeout (CONTAINER_TIMEOUT = 1800000ms)
+    await vi.advanceTimersByTimeAsync(1800000);
 
     // Emit close event (as if container was stopped by the timeout)
     fakeProc.emit('close', 137);

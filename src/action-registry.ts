@@ -6,6 +6,7 @@ import { SendOpts } from './types.js';
 
 export interface ActionContext {
   sourceGroup: string;
+  chatJid?: string;
   isRoot: boolean;
   tier: 0 | 1 | 2 | 3;
   sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void>;

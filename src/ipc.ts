@@ -10,7 +10,7 @@ import {
 } from './action-registry.js';
 import { SendOpts } from './types.js';
 import { injectMessage } from './actions/inject.js';
-import { sendFile, sendMessage } from './actions/messaging.js';
+import { sendFile, sendMessage, sendReply } from './actions/messaging.js';
 import { resetSession } from './actions/session.js';
 import {
   cancelTask,
@@ -77,6 +77,7 @@ export interface IpcDeps {
 
 const allActions: Action[] = [
   sendMessage,
+  sendReply,
   sendFile,
   injectMessage,
   scheduleTask,
@@ -101,9 +102,14 @@ const groupWatchers = new Map<string, { requests: fs.FSWatcher | null }>();
 
 const drainLocks = new Map<string, boolean>();
 
-function buildContext(sourceGroup: string, deps: IpcDeps): ActionContext {
+function buildContext(
+  sourceGroup: string,
+  deps: IpcDeps,
+  chatJid?: string,
+): ActionContext {
   return {
     sourceGroup,
+    chatJid,
     isRoot: isRoot(sourceGroup),
     tier: permissionTier(sourceGroup),
     ...deps,
@@ -203,7 +209,9 @@ export async function drainRequests(
             if (!parsed.success) {
               reply = { id, ok: false, error: parsed.error.message };
             } else {
-              const ctx = buildContext(sourceGroup, deps);
+              const reqJid =
+                typeof data.chatJid === 'string' ? data.chatJid : undefined;
+              const ctx = buildContext(sourceGroup, deps, reqJid);
               const result = await action.handler(parsed.data, ctx);
               reply = { id, ok: true, result };
             }

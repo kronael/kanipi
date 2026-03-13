@@ -7,7 +7,6 @@ import {
   DISCORD_BOT_TOKEN,
   EMAIL_IMAP_HOST,
   GROUPS_DIR,
-  IDLE_TIMEOUT,
   POLL_INTERVAL,
   SLOTH_USERS,
   TELEGRAM_BOT_TOKEN,
@@ -439,20 +438,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     'Processing messages',
   );
 
-  // Track idle timer for closing stdin when agent is idle
-  let idleTimer: ReturnType<typeof setTimeout> | null = null;
-
-  const resetIdleTimer = () => {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-      logger.debug(
-        { group: group.name },
-        'Idle timeout, closing container stdin',
-      );
-      queue.closeStdin(chatJid);
-    }, IDLE_TIMEOUT);
-  };
-
   startTyping(channel, chatJid);
   let hadError = false;
   let outputSentToUser = false;
@@ -484,7 +469,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
             await channel.sendMessage(chatJid, text, { replyTo: lastMsg.id });
             outputSentToUser = true;
           }
-          resetIdleTimer();
         }
 
         if (result.status === 'success') {
@@ -501,7 +485,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     );
   } finally {
     stopTypingFor(chatJid);
-    clearTimeout(idleTimer ?? undefined);
   }
 
   const dur = Date.now() - t0;
