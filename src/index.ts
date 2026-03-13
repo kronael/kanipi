@@ -120,10 +120,6 @@ let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
 
-function folderForJid(jid: string): string | null {
-  return jid.startsWith('local:') ? jid.slice(6) : getHubForJid(jid);
-}
-
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 
@@ -293,7 +289,9 @@ export function _clearTestState(): void {
 async function processGroupMessages(chatJid: string): Promise<boolean> {
   const t0 = Date.now();
   const traceId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  const folder = folderForJid(chatJid);
+  const folder = chatJid.startsWith('local:')
+    ? chatJid.slice(6)
+    : getHubForJid(chatJid);
   const group = folder ? groups[folder] : undefined;
   if (!group) return true;
 
@@ -787,7 +785,9 @@ async function startMessageLoop(): Promise<void> {
         }
 
         for (const [chatJid, groupMessages] of messagesByGroup) {
-          const folder = folderForJid(chatJid);
+          const folder = chatJid.startsWith('local:')
+            ? chatJid.slice(6)
+            : getHubForJid(chatJid);
           const group = folder ? groups[folder] : undefined;
           if (!group) continue;
 
