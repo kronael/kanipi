@@ -418,9 +418,14 @@ async function runQuery(
             writeOutput({ status: 'success', result: `⏳ ${s}`, newSessionId });
           }
           writeOutput({ status: 'success', result: cleaned || null, newSessionId });
-          // Result delivered — close the query to avoid hanging on a stale stream
+          // Stop IPC polling before closing query to prevent race
+          ipcPolling = false;
+          wakeup = null;
           log('Result delivered, closing query');
-          activeQuery?.close();
+          try { activeQuery?.close(); } catch (e) {
+            log(`activeQuery.close() threw: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          stream.end();
           break;
         }
       }
@@ -443,20 +448,26 @@ async function runQuery(
 
   if (maxTurnsHit && newSessionId) {
     log('Max turns hit — requesting summary + resumption nudge');
-    for await (const msg of query({
-      prompt: 'You ran out of turns mid-task. Summarise concisely: what you accomplished, what is still pending. Then tell the user they can say "continue" to resume where you left off.',
-      options: {
-        cwd: '/home/node',
-        maxTurns: 3,
-        resume: newSessionId,
-        permissionMode: 'bypassPermissions' as const,
-        allowDangerouslySkipPermissions: true,
-      },
-    })) {
-      if (msg.type === 'result') {
-        const txt = (msg as { result?: string }).result ?? null;
-        writeOutput({ status: 'success', result: txt ?? '⚠️ ran out of turns — say "continue" to resume.', newSessionId });
+    try {
+      for await (const msg of query({
+        prompt: 'You ran out of turns mid-task. Summarise concisely: what you accomplished, what is still pending. Then tell the user they can say "continue" to resume where you left off.',
+        options: {
+          cwd: '/home/node',
+          maxTurns: 3,
+          resume: newSessionId,
+          permissionMode: 'bypassPermissions' as const,
+          allowDangerouslySkipPermissions: true,
+        },
+      })) {
+        if (msg.type === 'result') {
+          const txt = (msg as { result?: string }).result ?? null;
+          writeOutput({ status: 'success', result: txt ?? '⚠️ ran out of turns — say "continue" to resume.', newSessionId });
+          break;
+        }
       }
+    } catch (err) {
+      log(`Max turns summary query failed: ${err instanceof Error ? err.message : String(err)}`);
+      writeOutput({ status: 'success', result: '⚠️ ran out of turns — say "continue" to resume.', newSessionId });
     }
   }
 
