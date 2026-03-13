@@ -14,41 +14,7 @@ Real containers, actual IPC round-trip. Run before releases only.
 
 `make test` runs unit + integration (<12s). `make smoke` for docker tests.
 
-## Coverage status
-
-### Fully tested (46 files)
-
-| Subsystem                                                                  | Test file(s)                                                           | Tests |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----- |
-| DB + migrations                                                            | `db.test.ts`                                                           | 42    |
-| Routing + formatting                                                       | `routing.test.ts`, `formatting.test.ts`                                | 90    |
-| IPC dispatch + watcher                                                     | `ipc.test.ts`, `ipc-auth.test.ts`, `ipc-delegate.test.ts`              | 63    |
-| Action registry                                                            | `action-registry.test.ts`, `tests/e2e/action-registry.test.ts`         | 20    |
-| Actions (all)                                                              | `actions/{groups,social,session,inject,messaging,tasks}.test.ts`       | 78    |
-| Commands (all)                                                             | `commands/{index,ping,chatid,new,file,stop}.test.ts`                   | 33    |
-| Container runner/runtime                                                   | `container-runner.test.ts`, `container-runtime.test.ts`                | 20    |
-| Group queue                                                                | `group-queue.test.ts`                                                  | 12    |
-| MIME + enricher + handlers                                                 | `mime.test.ts`, `mime-enricher.test.ts`, `mime-handlers/*.test.ts`     | 40    |
-| Security                                                                   | `mount-security.test.ts`, `auth.test.ts`, `permissions.test.ts`        | 54    |
-| Config/env                                                                 | `config.test.ts`, `env.test.ts`                                        | 16    |
-| Other (slink, diary, impulse, web-proxy, task-scheduler, agent-runner-fns) | various                                                                | 87+   |
-| Channels                                                                   | `whatsapp.test.ts`, `web.test.ts`                                      | 49    |
-| E2E                                                                        | `tests/e2e/{message-loop,container-runner,ipc-watcher,ipc-fs}.test.ts` | 51    |
-
-### Intentionally untested
-
-These modules are not unit-testable or not worth testing in isolation:
-
-- `index.ts` — main loop orchestration (tested via e2e/message-loop)
-- `cli.ts` — CLI entrypoint, thin wrapper
-- `logger.ts` — pino config, no logic
-- `types.ts` — type definitions only
-- `migrations.ts` — exercised transitively by every test that calls `_initTestDatabase()`
-- `whatsapp-auth.ts` — external auth flow
-- `channels/{telegram,discord,email}.ts` — external SDK wrappers
-- `channels/{reddit,twitter,mastodon,bluesky,facebook}/**` — social channel adapters (external APIs)
-
-## Test design principles
+## Conventions
 
 - Test the feature, not the fix
 - Mock only at system boundaries
