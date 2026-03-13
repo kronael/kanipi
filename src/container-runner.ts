@@ -516,7 +516,6 @@ async function runRawCommand(
 
     let timedOut = false;
     const configTimeout = group.containerConfig?.timeout || CONTAINER_TIMEOUT;
-    const timeoutMs = configTimeout;
 
     const killOnTimeout = () => {
       timedOut = true;
@@ -535,7 +534,7 @@ async function runRawCommand(
       stop.on('error', () => container.kill('SIGKILL'));
     };
 
-    const timeout = setTimeout(killOnTimeout, timeoutMs);
+    const timeout = setTimeout(killOnTimeout, configTimeout);
 
     container.on('close', (code) => {
       clearTimeout(timeout);
@@ -792,7 +791,6 @@ async function runAgentMode(
     let timedOut = false;
     let hadStreamingOutput = false;
     const configTimeout = group.containerConfig?.timeout || CONTAINER_TIMEOUT;
-    const timeoutMs = configTimeout;
 
     const killOnTimeout = () => {
       timedOut = true;
@@ -817,12 +815,12 @@ async function runAgentMode(
       stop.on('error', () => container.kill('SIGKILL'));
     };
 
-    let timeout = setTimeout(killOnTimeout, timeoutMs);
+    let timeout = setTimeout(killOnTimeout, configTimeout);
 
     // Reset the timeout whenever there's activity (streaming output)
     const resetTimeout = () => {
       clearTimeout(timeout);
-      timeout = setTimeout(killOnTimeout, timeoutMs);
+      timeout = setTimeout(killOnTimeout, configTimeout);
     };
 
     const finishSession = (

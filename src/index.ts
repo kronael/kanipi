@@ -120,6 +120,10 @@ let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
 
+function folderForJid(jid: string): string | null {
+  return jid.startsWith('local:') ? jid.slice(6) : getHubForJid(jid);
+}
+
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 
@@ -192,7 +196,6 @@ function saveState(): void {
   setRouterState('last_agent_timestamp', JSON.stringify(lastAgentTimestamp));
 }
 
-/** Refresh groups and routes from DB, close orphaned containers */
 function refreshGroups(): void {
   groups = getAllGroupConfigs();
 }
@@ -290,10 +293,7 @@ export function _clearTestState(): void {
 async function processGroupMessages(chatJid: string): Promise<boolean> {
   const t0 = Date.now();
   const traceId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  // local: JIDs resolve by convention — no DB route needed
-  const folder = chatJid.startsWith('local:')
-    ? chatJid.slice(6)
-    : getHubForJid(chatJid);
+  const folder = folderForJid(chatJid);
   const group = folder ? groups[folder] : undefined;
   if (!group) return true;
 
@@ -759,7 +759,6 @@ async function startMessageLoop(): Promise<void> {
 
   while (true) {
     try {
-      // Refresh groups from DB (closes orphaned containers for removed routes)
       refreshGroups();
 
       const jids = getRoutedJids();
@@ -788,9 +787,7 @@ async function startMessageLoop(): Promise<void> {
         }
 
         for (const [chatJid, groupMessages] of messagesByGroup) {
-          const folder = chatJid.startsWith('local:')
-            ? chatJid.slice(6)
-            : getHubForJid(chatJid);
+          const folder = folderForJid(chatJid);
           const group = folder ? groups[folder] : undefined;
           if (!group) continue;
 
