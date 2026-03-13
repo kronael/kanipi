@@ -857,7 +857,7 @@ export function getDefaultTarget(jid: string): string | null {
     )
     .get(jid) as { target: string } | undefined;
   if (!row) return null;
-  // Template targets like "atlas/{sender}" — return base folder
+  // Template targets like "atlas/{sender}" — return base folder (hub)
   if (row.target.includes('{')) {
     const slash = row.target.lastIndexOf('/');
     return slash > 0 ? row.target.slice(0, slash) : null;
