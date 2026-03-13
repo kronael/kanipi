@@ -1,13 +1,17 @@
 ---
 name: acquire
-description: Multimedia data acquisition. Video/audio download, transcription, screenshots, web scraping, non-obvious search services.
+description: >
+  Low-level data acquisition patterns — video/audio download,
+  transcription, web scraping. Used by /research for source
+  material gathering.
 ---
 
 # Data Acquisition
 
-Download, convert, and make sense of multimedia content.
-General strategy: download source, extract audio, transcribe
-to text, take key screenshots, synthesize.
+Low-level patterns for downloading and converting source
+material into text the agent can reason about. The `/research`
+skill orchestrates multi-agent research workflows that use
+these techniques for gathering.
 
 ## Video (yt-dlp + ffmpeg)
 
