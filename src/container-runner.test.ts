@@ -28,6 +28,7 @@ vi.mock('./config.js', () => ({
   MEDIA_MAX_FILE_BYTES: 10485760,
   VIDEO_TRANSCRIPTION_ENABLED: false,
   VOICE_TRANSCRIPTION_ENABLED: false,
+  WHISPER_BASE_URL: 'http://localhost:8080',
   WHISPER_MODEL: 'base',
 }));
 

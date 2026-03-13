@@ -56,6 +56,7 @@ vi.mock('../../src/config.js', () => ({
   VOICE_TRANSCRIPTION_ENABLED: false,
   WEB_DIR: '/tmp/kanipi-e2e-cr-web',
   WEB_HOST: '',
+  WHISPER_BASE_URL: 'http://localhost:8080',
   WHISPER_MODEL: 'base',
 }));
 

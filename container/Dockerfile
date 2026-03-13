@@ -22,8 +22,37 @@ RUN apt-get update && apt-get install -y \
     libdrm2 \
     libxshmfence1 \
     curl \
+    wget \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    jq \
+    ffmpeg \
+    python3 \
+    python3-pip \
+    build-essential \
+    pkg-config \
+    httrack \
+    traceroute \
+    dnsutils \
+    net-tools \
+    whois \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+       -o /usr/local/bin/yt-dlp && chmod +x /usr/local/bin/yt-dlp
+
+# Go (agent can fetch+compile Go tools)
+RUN curl -fsSL https://go.dev/dl/go1.24.1.linux-$(dpkg --print-architecture).tar.gz \
+    | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:$PATH"
+
+# Rust (agent can cargo install tools)
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --default-toolchain stable --profile minimal \
+    && chmod -R a+rw /usr/local/cargo /usr/local/rustup
+ENV PATH="/usr/local/cargo/bin:$PATH"
+
+# uv — fast Python package manager (no sudo needed)
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
 # Set Chromium path for agent-browser
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium

@@ -25,6 +25,7 @@ import {
   VOICE_TRANSCRIPTION_ENABLED,
   WEB_DIR,
   WEB_HOST,
+  WHISPER_BASE_URL,
   WHISPER_MODEL,
   isRoot,
   permissionTier,
@@ -257,6 +258,7 @@ function buildVolumeMounts(
     NANOCLAW_GROUP_FOLDER: group.folder,
     NANOCLAW_DELEGATE_DEPTH: String(delegateDepth ?? 0),
     ...(group.slinkToken ? { SLINK_TOKEN: group.slinkToken } : {}),
+    ...(WHISPER_BASE_URL ? { WHISPER_BASE_URL } : {}),
   });
 
   // Seed skills once per group — agent can modify, persists across spawns
