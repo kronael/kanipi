@@ -12,9 +12,28 @@ import {
   getTaskById,
   GroupConfig,
 } from './db.js';
-import { processTaskIpc, IpcDeps } from './ipc-compat.js';
+import { getAction } from './action-registry.js';
+import { isRoot, permissionTier } from './config.js';
+import { IpcDeps } from './ipc.js';
 // Ensure actions are registered (ipc.ts side-effect)
 import './ipc.js';
+
+async function processTaskIpc(
+  data: { type: string; [key: string]: unknown },
+  sourceGroup: string,
+  deps: IpcDeps,
+): Promise<void> {
+  const action = getAction(data.type);
+  if (!action) return;
+  try {
+    await action.handler(data, {
+      sourceGroup,
+      isRoot: isRoot(sourceGroup),
+      tier: permissionTier(sourceGroup),
+      ...deps,
+    });
+  } catch {}
+}
 
 // Set up registered groups used across tests
 const ROOT_GROUP: GroupConfig = {

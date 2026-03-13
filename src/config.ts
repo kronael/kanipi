@@ -152,10 +152,8 @@ export const FACEBOOK_PAGE_ACCESS_TOKEN =
 
 export const WEB_DIR = path.resolve(PROJECT_ROOT, 'web');
 
-// Web proxy (sloth): WEB_PORT is the single external port.
-// Falls back to VITE_PORT for backward compat with existing instances.
-// VITE_PORT_INTERNAL: bash entrypoint exports the actual internal Vite port;
-// falls back to WEB_PORT+1 if not set.
+// Web proxy: WEB_PORT is the single external port (VITE_PORT also accepted).
+// VITE_PORT_INTERNAL: actual internal Vite port; defaults to WEB_PORT+1.
 const _webPort =
   process.env.WEB_PORT ||
   envConfig.WEB_PORT ||

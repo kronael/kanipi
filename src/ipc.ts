@@ -1,6 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 
+function unlinkSafe(p: string): void {
+  try {
+    fs.unlinkSync(p);
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+  }
+}
+
 import {
   Action,
   ActionContext,
@@ -144,11 +152,7 @@ export async function drainRequests(
       const type = typeof data.type === 'string' ? data.type : '';
       if (!id || !type) {
         logger.warn({ file, sourceGroup }, 'IPC request missing id or type');
-        try {
-          fs.unlinkSync(filePath);
-        } catch (e: unknown) {
-          if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-        }
+        unlinkSafe(filePath);
         continue;
       }
 
@@ -196,11 +200,7 @@ export async function drainRequests(
                     'send_file: path must be under ~/ — save to ~/tmp/ first if needed',
                 };
                 writeReply(repliesDir, reply);
-                try {
-                  fs.unlinkSync(filePath);
-                } catch (e: unknown) {
-                  if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-                }
+                unlinkSafe(filePath);
                 continue;
               }
             }
@@ -227,18 +227,10 @@ export async function drainRequests(
         { sourceGroup, type, id, dur: Date.now() - t0 },
         'IPC request handled',
       );
-      try {
-        fs.unlinkSync(filePath);
-      } catch (e: unknown) {
-        if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-      }
+      unlinkSafe(filePath);
     } catch (err) {
       logger.error({ file, sourceGroup, err }, 'error processing IPC request');
-      try {
-        fs.unlinkSync(filePath);
-      } catch (e: unknown) {
-        if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-      }
+      unlinkSafe(filePath);
     }
   }
 }

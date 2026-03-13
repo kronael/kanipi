@@ -14,7 +14,6 @@ import {
   CONTAINER_IMAGE,
   CONTAINER_MAX_OUTPUT_SIZE,
   CONTAINER_TIMEOUT,
-  DATA_DIR,
   GROUPS_DIR,
   HOST_APP_DIR,
   HOST_DATA_DIR,
@@ -990,7 +989,7 @@ async function runAgentMode(
         return;
       }
 
-      // Legacy mode: parse the last output marker pair from accumulated stdout
+      // Non-streaming mode (raw commands): parse output markers from stdout
       try {
         // Extract JSON between sentinel markers for robust parsing
         const startIdx = stdout.indexOf(OUTPUT_START_MARKER);
@@ -1002,7 +1001,7 @@ async function runAgentMode(
             .slice(startIdx + OUTPUT_START_MARKER.length, endIdx)
             .trim();
         } else {
-          // Fallback: last non-empty line (backwards compatibility)
+          // Fallback: last non-empty line
           const lines = stdout.trim().split('\n');
           jsonLine = lines[lines.length - 1];
         }

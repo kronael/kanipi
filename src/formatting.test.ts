@@ -8,7 +8,6 @@ import {
   clockXml,
   escapeXml,
   formatMessages,
-  formatOutbound,
   senderToUserFileId,
   stripInternalTags,
   timeAgo,
@@ -248,12 +247,12 @@ describe('stripInternalTags', () => {
   });
 });
 
-describe('formatOutbound', () => {
+describe('stripInternalTags', () => {
   it('strips internal tags and trims', () => {
     expect(
-      formatOutbound('<internal>thinking</internal>The answer is 42'),
+      stripInternalTags('<internal>thinking</internal>The answer is 42'),
     ).toBe('The answer is 42');
-    expect(formatOutbound('<internal>x</internal>   ')).toBe('');
+    expect(stripInternalTags('<internal>x</internal>   ')).toBe('');
   });
 });
 

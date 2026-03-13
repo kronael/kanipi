@@ -197,5 +197,3 @@ export interface ChannelOpts {
   isRoutedJid: (jid: string) => boolean;
   hasAlwaysOnGroup: () => boolean;
 }
-
-export type InboundEvent = NewMessage;

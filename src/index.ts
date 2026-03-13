@@ -6,12 +6,10 @@ import {
   CONTAINER_IMAGE,
   DISCORD_BOT_TOKEN,
   EMAIL_IMAP_HOST,
-  GROUPS_DIR,
   POLL_INTERVAL,
   SLOTH_USERS,
   TELEGRAM_BOT_TOKEN,
   VITE_PORT_INTERNAL,
-  WEB_DIR,
   WEB_PORT,
   WEB_PUBLIC,
   MASTODON_INSTANCE_URL,
@@ -108,9 +106,8 @@ import {
   clockXml,
   findChannel,
   formatMessages,
-  formatOutbound,
-  isAuthorizedRoutingTarget,
   resolveRoute,
+  stripInternalTags,
   userContextXml,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
@@ -346,7 +343,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   const target = resolveRoute(lastMsg, routes);
   if (target && target !== group.folder) {
     const formatted = formatMessages(missedMessages);
-    const prevCursor = lastAgentTimestamp[chatJid] || '';
     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
     saveState();
     delegateToChild(target, formatted, chatJid, 0).catch((err) => {
@@ -616,7 +612,7 @@ async function delegateToGroup(
             typeof result.result === 'string'
               ? result.result
               : JSON.stringify(result.result);
-          const text = formatOutbound(raw);
+          const text = stripInternalTags(raw);
           if (text) await channel.sendMessage(originJid, text);
         }
       },
@@ -875,7 +871,6 @@ async function startMessageLoop(): Promise<void> {
               const toDelegate =
                 allForRoute.length > 0 ? allForRoute : nonCommandMessages;
               const routedPrompt = formatMessages(toDelegate);
-              const prevCursor = lastAgentTimestamp[chatJid] || '';
               lastAgentTimestamp[chatJid] =
                 toDelegate[toDelegate.length - 1].timestamp;
               saveState();
@@ -1141,7 +1136,7 @@ async function main(): Promise<void> {
         logger.warn({ jid }, 'no channel owns JID, cannot send message');
         return;
       }
-      const text = formatOutbound(rawText);
+      const text = stripInternalTags(rawText);
       if (text) await channel.sendMessage(jid, text);
     },
   });

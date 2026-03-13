@@ -97,13 +97,6 @@ export interface ChatInfo {
   is_group: number;
 }
 
-export function getChatName(chatJid: string): string | null {
-  const row = db
-    .prepare('SELECT name FROM chats WHERE jid = ?')
-    .get(chatJid) as { name: string } | undefined;
-  return row?.name ?? null;
-}
-
 /**
  * Get all known chats, ordered by most recent activity.
  */

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { query, HookCallback, PreCompactHookInput, PreToolUseHookInput, StopHookInput } from '@anthropic-ai/claude-agent-sdk';
+import { query, HookCallback, PreToolUseHookInput, StopHookInput } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
 
 interface ContainerInput {
@@ -9,10 +9,7 @@ interface ContainerInput {
   groupFolder: string;
   chatJid: string;
   isScheduledTask?: boolean;
-  assistantName?: string;
   secrets?: Record<string, string>;
-  messageCount?: number;
-  delegateDepth?: number;
 }
 
 interface ContainerOutput {
@@ -106,16 +103,6 @@ function readStartJson(): ContainerInput {
   // Delete start.json after reading — it contains secrets
   try { fs.unlinkSync(IPC_START_JSON); } catch { /* ignore */ }
   return parsed;
-}
-
-async function readStdin(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', chunk => { data += chunk; });
-    process.stdin.on('end', () => resolve(data));
-    process.stdin.on('error', reject);
-  });
 }
 
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
@@ -515,14 +502,7 @@ function getScenarioResponse(scenario: string, input: ContainerInput): Container
 }
 
 async function runScenarioMode(scenario: string): Promise<void> {
-  let input: ContainerInput;
-  if (fs.existsSync(IPC_START_JSON)) {
-    input = readStartJson();
-  } else {
-    // Fallback: read from stdin for backward compatibility in tests
-    const stdinData = await readStdin();
-    input = JSON.parse(stdinData);
-  }
+  const input = readStartJson();
   log(`Scenario mode: ${scenario}, group: ${input.groupFolder}`);
   const response = getScenarioResponse(scenario, input);
   writeOutput(response);
