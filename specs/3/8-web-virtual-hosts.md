@@ -1,5 +1,5 @@
 ---
-status: partial
+status: shipped
 ---
 
 # Web Virtual Hosts
@@ -102,7 +102,7 @@ it just writes files. The redirect serves them at `{world}.{domain}`.
 
 1. ~~web-proxy.ts: read `vhosts.json`, redirect by `Host` header~~ **shipped**
 2. ~~Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`~~ **shipped**
-3. `infra` skill for root agent
+3. ~~`infra` skill for root agent~~ **shipped**
 
 ## Implementation notes
 
