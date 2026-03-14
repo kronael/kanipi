@@ -31,17 +31,17 @@ injection into every prompt, background researcher cron.
 
 How the agent behaves, who it responds to, honesty rules.
 
-**Status:** Done. CLAUDE.md + character.json + group trigger mode.
+**Status:** Done. CLAUDE.md + SOUL.md + group trigger mode.
 
 ## Also missing (not evangelist-specific, but needed)
 
-### Forwarded messages — shipped (v0.7.0)
+### Forwarded messages — shipped
 
 Telegram and WhatsApp extract `forward_origin` metadata and store
 `forwarded_from` on the message row. `formatMessages()` emits
 `<forwarded_from sender="..."/>` XML in the prompt.
 
-### Reply-to threading — shipped (v0.7.0)
+### Reply-to threading — shipped
 
 Channels extract reply context (`reply_to_text`, `reply_to_sender`)
 and store on the message row. `formatMessages()` emits
