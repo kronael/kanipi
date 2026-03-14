@@ -7,6 +7,32 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.8.0] — 2026-03-14
+
+### Added
+
+- **Auth overhaul**: removed Basic auth (`SLOTH_USERS`), session-based auth
+  via `AUTH_SECRET` + JWT. OAuth login for GitHub, Discord, Telegram.
+  User management CLI: `kanipi user add/remove/list/passwd`.
+- **Vhost redirects**: `web-proxy.ts` reads `vhosts.json`, redirects by
+  `Host` header with path traversal protection.
+- **Tier 1 web mount isolation**: tier 1 containers mount only their
+  world's web subdirectory, not the full web dir.
+- **Infra skill**: root agent skill for hostname assignment, DNS
+  verification, and web directory setup.
+- **Gateway-level impulse filter**: replaced 5 per-channel filters with
+  one `Map<string, ImpulseState>` in the message loop.
+
+### Changed
+
+- **Test suite**: pruned ~100 redundant tests (891→792), coverage audit
+  added 219 tests across all subsystems.
+- **Specs audit**: fixed 12 inaccuracies across phase 3 specs.
+- **Code refinement**: -148 lines from auth, config, web-proxy,
+  container-runner, db.
+
+---
+
 ## [v1.7.0] — 2026-03-14
 
 ### Added
@@ -36,11 +62,6 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
   tier 1 can manage any task (cancel/pause/resume).
 - **Local JID convention**: `local:{folder}` auto-routed to group folder,
   `messageId` wired through `start.json` and `ActionContext`.
-- **Auth overhaul**: removed Basic auth (`SLOTH_USERS`), session-based auth
-  via `AUTH_SECRET` + JWT. OAuth login for GitHub, Discord, Telegram.
-  User management CLI: `kanipi user add/remove/list/passwd`.
-- **Vhost redirects**: `web-proxy.ts` reads `vhosts.json`, redirects by
-  `Host` header with path traversal protection. Tier 1 web mount isolation.
 
 ### Changed
 
