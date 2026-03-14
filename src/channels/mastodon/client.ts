@@ -1,6 +1,7 @@
 import { createRestAPIClient, type mastodon } from 'masto';
 
 import { PlatformClient } from '../../actions/social.js';
+import { logger } from '../../logger.js';
 
 export interface MastodonConfig {
   instanceUrl: string;
@@ -19,7 +20,28 @@ export class MastodonClient implements PlatformClient {
     });
   }
 
-  async post(content: string, _media?: string[]): Promise<unknown> {
+  async post(content: string, media?: string[]): Promise<unknown> {
+    let mediaIds: string[] | undefined;
+    if (media && media.length > 0) {
+      try {
+        mediaIds = await Promise.all(
+          media.map(async (url) => {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const attachment = await this.api.v2.media.create({ file: blob });
+            return attachment.id;
+          }),
+        );
+      } catch (e) {
+        logger.warn(
+          { err: e },
+          'mastodon: media upload failed, posting without media',
+        );
+      }
+    }
+    if (mediaIds && mediaIds.length > 0) {
+      return this.api.v1.statuses.create({ status: content, mediaIds });
+    }
     return this.api.v1.statuses.create({ status: content });
   }
 
