@@ -73,9 +73,32 @@ export class BlueskyClient implements PlatformClient {
     if (!this.ready) throw new Error('bluesky not connected');
   }
 
-  async post(content: string, _media?: string[]): Promise<unknown> {
+  async post(content: string, media?: string[]): Promise<unknown> {
     this.assertReady();
-    return this.agent.post({ text: content });
+    let embed:
+      | { $type: string; images: { image: unknown; alt: string }[] }
+      | undefined;
+    if (media && media.length > 0) {
+      try {
+        const images = await Promise.all(
+          media.map(async (url) => {
+            const res = await fetch(url);
+            const encoding = res.headers.get('content-type') ?? 'image/jpeg';
+            const buf = await res.arrayBuffer();
+            const blob = new Uint8Array(buf);
+            const uploaded = await this.agent.uploadBlob(blob, { encoding });
+            return { image: uploaded.data.blob, alt: '' };
+          }),
+        );
+        embed = { $type: 'app.bsky.embed.images', images };
+      } catch (e) {
+        logger.warn(
+          { err: e },
+          'bluesky: media upload failed, posting without media',
+        );
+      }
+    }
+    return this.agent.post({ text: content, ...(embed ? { embed } : {}) });
   }
 
   async reply(target: string, content: string): Promise<unknown> {
