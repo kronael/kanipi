@@ -171,7 +171,7 @@ Escalation is LLM-to-LLM: the parent's response goes to
 `local:worker`, not directly to the user. The worker then
 forwards to the user. Threading matters on the final hop.
 
-**Current escalation flow (traced):**
+**Current flow:**
 
 ```
 1. Worker processes telegram:12345 (messageId="567")
@@ -179,31 +179,23 @@ forwards to the user. Threading matters on the final hop.
 3. escalate_group wraps in <escalation reply_to="telegram:12345"
    reply_id="567">
 4. delegateToParent("atlas", xml, "local:atlas/tg-98765", depth)
-5. Parent container: chatJid="local:atlas/tg-98765", no messageId
-6. Parent responds → LocalChannel stores in local:atlas/tg-98765
-7. Message loop: chatJid="local:atlas/tg-98765" → folder=atlas/tg-98765
-8. Worker processes parent's response
-   - chatJid is now "local:atlas/tg-98765" (NOT telegram:12345)
-   - send_reply would target local channel, not user
-   - Worker must use send_message(chatJid="telegram:12345") explicitly
+5. Parent responds → LocalChannel stores in local:atlas/tg-98765
+6. Message loop picks up local:atlas/tg-98765 → worker processes
+7. Worker's chatJid is now "local:atlas/tg-98765" (not telegram:)
+   → send_reply goes to local channel, not user
+   → worker must remember telegram:12345 from session transcript
 ```
 
-**Problem**: at step 8, the worker's current `chatJid` is the
-local channel. `send_reply` goes to the wrong place. The worker
-must remember the original user JID and messageId from its earlier
-invocation (preserved in session transcript) and explicitly
-`send_message` to the user.
+**Problem**: the worker must remember the original user JID and
+messageId across the local: boundary. This works when session
+context is preserved but is fragile — no structural guarantee.
 
-This works but is fragile — it depends on the agent remembering
-context across the local: boundary. The gateway doesn't track the
-original user JID through the escalation round-trip.
+**Fix — annotate local: responses with origin:**
 
-**Fix — propagate origin through local: responses:**
-
-When the parent responds to `local:worker`, the escalation XML
-carried `reply_to` and `reply_id`. The gateway can use these to
-annotate the local: message stored in the DB, so when the worker
-processes it, the gateway injects the origin context:
+The `escalate_group` action already embeds `reply_to` and
+`reply_id` in the XML sent to the parent. When the parent
+responds and the gateway stores the response in LocalChannel,
+wrap the stored message with origin metadata:
 
 ```xml
 <escalation_response origin_jid="telegram:12345"
@@ -212,94 +204,117 @@ processes it, the gateway injects the origin context:
 </escalation_response>
 ```
 
-The worker's agent sees the origin and can `send_message` with
-the correct JID and `replyTo`. The chunk-chaining mechanism
-(section B) handles threading from there.
+The worker agent sees the origin and uses `send_message` with
+the correct JID and `replyTo`. Chunk chaining (section B)
+handles subsequent threading.
 
-Alternatively, the gateway could auto-forward: when a local:
-response is the final hop (worker has no further parent), the
-gateway bypasses the agent and sends directly to `reply_to` JID
-with `replyTo: reply_id`. This is simpler but removes the
-worker's ability to filter or augment the parent's response.
+**Implementation:**
 
-**Decision needed**: agent-mediated forwarding (annotate + let
-agent decide) vs gateway auto-forward (bypass agent on final hop).
-Agent-mediated is more flexible; auto-forward is more reliable.
+The gateway needs to know that a response to `local:X` is an
+escalation response. Two approaches:
+
+1. **Track escalation metadata on the queue entry.** When
+   `delegateToGroup` runs with `label='escalate'`, store
+   `{reply_to, reply_id}` alongside the task. When the
+   streaming callback fires, wrap the response text before
+   storing via LocalChannel.
+
+2. **Parse the input prompt.** The `<escalation>` XML is the
+   prompt. Extract `reply_to` and `reply_id` from it when
+   storing the response. Simpler but couples to XML format.
+
+Option 1 is cleaner. `delegateToGroup` already has `label`
+to distinguish escalate from delegate. Add `escalationOrigin?:
+{jid: string, messageId: string}` to the function signature.
+`escalate_group` passes it; the streaming callback uses it
+to wrap stored messages.
+
+**Code changes:**
+
+| File                     | Change                                     |
+| ------------------------ | ------------------------------------------ |
+| `src/index.ts`           | `delegateToGroup` gains `escalationOrigin` |
+| `src/index.ts`           | streaming callback wraps local: responses  |
+| `src/actions/groups.ts`  | `escalate_group` passes origin metadata    |
+| `src/action-registry.ts` | `delegateToParent` gains origin param      |
+| `src/ipc.ts`             | `IpcDeps.delegateToParent` signature       |
 
 ### G. Platform threads
 
 Discord, Slack, and Telegram (topics) support native threads.
-These provide true visual isolation — each user's messages are
-in their own thread, no interleaving.
+These provide true visual isolation per user — no interleaving.
 
-This is subsumed by the routing model. Reply-threading (this spec)
-plus `{sender}` routing already creates virtual per-user threads.
-Platform threads would be an optimization on top — replacing
-reply-chain visual noise with clean thread isolation.
+Reply-threading (A-E) plus `{sender}` routing already creates
+virtual per-user threads via reply chains. Platform threads
+replace reply-chain noise with clean thread isolation.
 
 **How it maps:**
 
 ```
-Current:    {sender} route → per-user group folder
-                           → reply-chain in shared channel
-Platform:   {sender} route → per-user group folder
-                           → dedicated platform thread per user
+Current:    {sender} route → per-user group → reply-chain in channel
+Platform:   {sender} route → per-user group → dedicated thread per user
 ```
 
-The routing, batching, and cursor mechanisms are identical.
-The only difference is at the channel send layer: instead of
-`sendMessage(chatJid, text, { replyTo })` sending to the main
-channel with reply threading, it would `sendMessage(threadJid,
-text)` to a dedicated thread.
+Routing, batching, and cursor mechanisms are identical. The
+difference is at the channel send layer: `sendMessage(threadJid,
+text)` to a dedicated thread instead of reply-chaining in the
+main channel.
 
-**Implementation sketch:**
+**Design:**
+
+Thread lifecycle:
+
+- On first message from a sender in a `{sender}`-routed channel,
+  create a platform thread (Discord: `channel.threads.create()`,
+  Telegram: `forumTopicCreate`)
+- Store thread ID in routes table: `jid → thread_jid` mapping
+- Subsequent messages from same sender go to existing thread
+- Thread JID encoded as `discord:thread_id` / `telegram:thread_id`
+
+Mapping to existing primitives:
 
 - `NewMessage.thread` field already exists (used by email)
-- Discord/Telegram channels could populate it with thread ID
-- Route resolution could include thread creation: when `{sender}`
-  resolves and no thread exists for that sender, create one
-- `chatJid` encoding: `discord:channel_id` stays for the main
-  channel; `discord:thread_id` for per-user threads
-- Thread JID would be registered as a route target just like
-  group folders are today
+- Discord/Telegram channels populate it with thread ID on ingest
+- Route resolution includes thread lookup: sender → thread JID
+- `chatJid` for the group becomes the thread JID, not the main
+  channel — all existing reply-threading works unchanged
 
-**Not in scope for this spec.** Reply-threading (sections A-E)
-ships first. Platform threads are a channel-layer enhancement
-that layers on top without changing the routing model.
+Thread creation:
 
-## Code changes
+- Discord: `TextChannel.threads.create({ name: senderName })`
+- Telegram: requires forum-enabled group (`forumTopicCreated`)
+- WhatsApp: no thread support — reply-chain only
+- Threads are per-sender per-channel, stored in routes table
 
-| File                       | Change                                         | Size      |
-| -------------------------- | ---------------------------------------------- | --------- |
-| `src/types.ts`             | `sendMessage` returns `Promise<string\|undef>` | ~1 line   |
-| `src/channels/telegram.ts` | return `msg.message_id` from `sendMessage`     | ~3 lines  |
-| `src/channels/discord.ts`  | return `msg.id` from `sendMessage`             | ~3 lines  |
-| `src/channels/whatsapp.ts` | return `msg.key.id` from `sendMessage`         | ~3 lines  |
-| `src/channels/local.ts`    | return `id` from `sendMessage`                 | ~1 line   |
-| `src/index.ts`             | `delegateToChild/Parent` + `messageId` param   | ~5 lines  |
-| `src/index.ts`             | `delegateToGroup` reply chaining               | ~8 lines  |
-| `src/index.ts`             | `processGroupMessages` reply chaining          | ~5 lines  |
-| `src/index.ts`             | message loop: per-sender split                 | ~25 lines |
-| `src/index.ts`             | pass `messageId` at delegation callsites       | ~4 lines  |
-| `src/ipc.ts`               | `send_reply` auto-inject `replyTo` + chaining  | ~10 lines |
-| `src/action-registry.ts`   | `sendMessage` return type update               | ~1 line   |
+**Code changes:**
 
-No schema changes. No new config. No new route types.
+| File                       | Change                                     |
+| -------------------------- | ------------------------------------------ |
+| `src/db.ts`                | thread_jid column in routes or new table   |
+| `src/channels/discord.ts`  | thread create/lookup on `{sender}` resolve |
+| `src/channels/telegram.ts` | forum topic create/lookup                  |
+| `src/router.ts`            | thread JID resolution in route matching    |
+| `src/index.ts`             | use thread JID as chatJid when available   |
+
+No changes to routing model — threads are a channel-layer
+optimization that plugs into existing `{sender}` routing.
+
+## Shipped code changes (A-E)
+
+| File                       | Change                                                |
+| -------------------------- | ----------------------------------------------------- |
+| `src/types.ts`             | `sendMessage` returns `Promise<string\|undef>`        |
+| `src/channels/*.ts`        | return sent message ID from `sendMessage`             |
+| `src/index.ts`             | `delegateToChild/Parent` + `messageId` param          |
+| `src/index.ts`             | streaming callbacks: chunk chaining via `lastSentId`  |
+| `src/index.ts`             | message loop + processGroupMessages: per-sender split |
+| `src/actions/messaging.ts` | `send_reply` auto-injects `replyTo` from context      |
+| `src/actions/groups.ts`    | `delegate_group` passes `ctx.messageId`               |
+| `src/action-registry.ts`   | `sendMessage` return type, delegation `messageId`     |
+| `src/ipc.ts`               | `IpcDeps` signature updates                           |
 
 ## Implementation order
 
-Sections A-E are self-contained and can ship together. Sections
-F and G depend on messaging changes that need to be worked through
-after A-E land:
-
-1. **A-E**: sendMessage return type, chunk chaining, delegation
-   messageId, IPC auto-inject, per-sender batching
-2. **F**: escalation origin propagation (requires messaging design
-   for local: → user forwarding)
-3. **G**: platform threads (channel-layer enhancement, separate spec)
-
-## Open decisions
-
-- **Section F**: agent-mediated forwarding vs gateway auto-forward
-  for escalation responses. Agent-mediated is more flexible;
-  auto-forward is more reliable.
+1. **A-E**: shipped (5500182)
+2. **F**: escalation origin annotation — small, self-contained
+3. **G**: platform threads — larger, separate spec recommended
