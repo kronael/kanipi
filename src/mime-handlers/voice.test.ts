@@ -91,6 +91,67 @@ describe('voiceHandler.handle', () => {
     expect(lines).toEqual(['[voice/auto→en: hello]']);
   });
 
+  it('returns [] when whisper returns empty text', async () => {
+    mockWhisper.mockResolvedValue({ text: '', language: 'en' });
+    const lines = await voiceHandler.handle(
+      { mediaType: 'voice' },
+      '/path/0.ogg',
+    );
+    expect(lines).toEqual([]);
+  });
+
+  it('handles multi-language passes with .whisper-language file', async () => {
+    // Simulate .whisper-language file by mocking fs.readFileSync
+    const fs = await import('fs');
+    vi.spyOn(fs.default, 'readFileSync').mockReturnValue('cs\nen\n');
+
+    // auto-detect + cs + en = 3 calls
+    mockWhisper
+      .mockResolvedValueOnce({ text: 'auto result', language: 'en' })
+      .mockResolvedValueOnce({ text: 'czech result', language: 'cs' })
+      .mockResolvedValueOnce({ text: 'english result', language: 'en' });
+
+    const lines = await voiceHandler.handle(
+      { mediaType: 'voice' },
+      '/groups/root/media/20260314/msg1/0.ogg',
+    );
+
+    expect(mockWhisper).toHaveBeenCalledTimes(3);
+    expect(mockWhisper).toHaveBeenCalledWith(
+      '/groups/root/media/20260314/msg1/0.ogg',
+      undefined,
+    );
+    expect(mockWhisper).toHaveBeenCalledWith(
+      '/groups/root/media/20260314/msg1/0.ogg',
+      'cs',
+    );
+    expect(mockWhisper).toHaveBeenCalledWith(
+      '/groups/root/media/20260314/msg1/0.ogg',
+      'en',
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('voice/auto');
+    expect(lines[0]).toContain('voice/cs');
+    expect(lines[0]).toContain('voice/en');
+  });
+
+  it('partial failure: auto-detect fails but forced language succeeds', async () => {
+    const fs = await import('fs');
+    vi.spyOn(fs.default, 'readFileSync').mockReturnValue('cs\n');
+
+    mockWhisper
+      .mockRejectedValueOnce(new Error('auto failed'))
+      .mockResolvedValueOnce({ text: 'czech text', language: 'cs' });
+
+    const lines = await voiceHandler.handle(
+      { mediaType: 'voice' },
+      '/groups/root/media/20260314/msg1/0.ogg',
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('voice/cs');
+    expect(lines[0]).not.toContain('auto');
+  });
+
   it('returns [] when all whisper passes throw', async () => {
     mockWhisper.mockRejectedValue(new Error('network error'));
     const lines = await voiceHandler.handle(

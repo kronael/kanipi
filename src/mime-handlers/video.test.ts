@@ -112,6 +112,28 @@ describe('videoHandler.handle', () => {
     expect(lines).toEqual([]);
   });
 
+  it('returns [] when ffmpeg spawn emits error (e.g. not found)', async () => {
+    const proc = new EventEmitter() as EventEmitter & { stderr: EventEmitter };
+    proc.stderr = new EventEmitter();
+    setTimeout(() => proc.emit('error', new Error('ENOENT')), 0);
+    mockSpawn.mockReturnValue(proc);
+    const lines = await videoHandler.handle(
+      { mediaType: 'video' },
+      '/path/0.mp4',
+    );
+    expect(lines).toEqual([]);
+  });
+
+  it('does not match image mediaType', () => {
+    expect(videoHandler.match({ mediaType: 'image' })).toBe(false);
+  });
+
+  it('does not match audio mimeType', () => {
+    expect(
+      videoHandler.match({ mediaType: 'document', mimeType: 'audio/mp3' }),
+    ).toBe(false);
+  });
+
   it('kills ffmpeg and returns [] after 60s timeout', async () => {
     vi.useFakeTimers();
     const proc = new EventEmitter() as EventEmitter & {

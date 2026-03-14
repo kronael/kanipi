@@ -157,6 +157,84 @@ describe('formatMessages', () => {
     expect(result).toContain('thread="&lt;unsafe&gt;&amp;&quot;value"');
   });
 
+  it('formats forwarded_from with all attributes', () => {
+    const result = formatMessages(
+      [
+        makeMsg({
+          forwarded_from: 'Fwd User',
+          forwarded_from_id: 'chat:fwd',
+          forwarded_msgid: 'orig-123',
+          content: 'forwarded text',
+        }),
+      ],
+      NOW,
+    );
+    expect(result).toContain('<forwarded_from sender="Fwd User"');
+    expect(result).toContain('chat="chat:fwd"');
+    expect(result).toContain('id="orig-123"');
+    expect(result).toContain('forwarded text');
+  });
+
+  it('formats forwarded_from with only sender', () => {
+    const result = formatMessages(
+      [makeMsg({ forwarded_from: 'Fwd User', content: 'text' })],
+      NOW,
+    );
+    expect(result).toContain('<forwarded_from sender="Fwd User"/>');
+    expect(result).not.toContain('chat=');
+  });
+
+  it('formats reply_to_text with sender and id', () => {
+    const result = formatMessages(
+      [
+        makeMsg({
+          reply_to_text: 'original msg',
+          reply_to_sender: 'Bob',
+          reply_to_id: 'msg-orig',
+          content: 'reply text',
+        }),
+      ],
+      NOW,
+    );
+    expect(result).toContain('<reply_to sender="Bob" id="msg-orig">');
+    expect(result).toContain('original msg');
+    expect(result).toContain('</reply_to>');
+    expect(result).toContain('reply text');
+  });
+
+  it('formats reply_to_text without sender defaults to (unknown)', () => {
+    const result = formatMessages(
+      [makeMsg({ reply_to_text: 'quoted', content: 'response' })],
+      NOW,
+    );
+    expect(result).toContain('sender="(unknown)"');
+  });
+
+  it('formats reply_to_text without id omits id attr', () => {
+    const result = formatMessages(
+      [
+        makeMsg({
+          reply_to_text: 'quoted',
+          reply_to_sender: 'Alice',
+          content: 'response',
+        }),
+      ],
+      NOW,
+    );
+    expect(result).toContain('sender="Alice"');
+    expect(result).toContain('<reply_to sender="Alice">quoted</reply_to>');
+  });
+
+  it('multiline output when forwarded + content', () => {
+    const result = formatMessages(
+      [makeMsg({ forwarded_from: 'X', content: 'body' })],
+      NOW,
+    );
+    // When parts.length > 1, message tag has newlines inside
+    expect(result).toContain('>\n<forwarded_from');
+    expect(result).toContain('body\n</message>');
+  });
+
   it('falls back to sender JID when sender_name is missing', () => {
     const result = formatMessages([makeMsg({ sender_name: undefined })], NOW);
     expect(result).toContain('sender="whatsapp:123@s.whatsapp.net"');
@@ -346,6 +424,17 @@ describe('userContextXml', () => {
   it('path traversal in sender id is blocked', () => {
     const result = userContextXml('telegram:../../../etc/passwd', tmpDir);
     expect(result).toBeNull();
+  });
+
+  it('handles file without frontmatter at all', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'users', 'tg-123456.md'),
+      'Just plain text, no frontmatter',
+    );
+    const result = userContextXml('telegram:123456', tmpDir);
+    expect(result).toBe(
+      '<user id="tg-123456" memory="~/users/tg-123456.md" />',
+    );
   });
 
   it('handles invalid YAML frontmatter gracefully', () => {

@@ -341,6 +341,88 @@ describe('POST /_sloth/message', () => {
   });
 });
 
+describe('GET /_sloth/sloth.js', () => {
+  it('returns 200 with JS content', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const res = await get(port, '/_sloth/sloth.js');
+      expect(res.status).toBe(200);
+      expect(res.ct).toContain('javascript');
+      expect(res.body).toContain('EventSource');
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe('POST /_sloth/message edge cases', () => {
+  it('defaults group to root when missing', async () => {
+    const { port, onMessage, close } = await startProxy();
+    try {
+      const res = await post(port, '/_sloth/message', '{"msg":"hello"}');
+      expect(res.status).toBe(200);
+      const [jid] = onMessage.mock.calls[0];
+      expect(jid).toBe('web:root');
+    } finally {
+      await close();
+    }
+  });
+
+  it('concatenates msg, context, and url into content', async () => {
+    const { port, onMessage, close } = await startProxy();
+    try {
+      await post(
+        port,
+        '/_sloth/message',
+        '{"group":"main","msg":"hello","context":"sidebar","url":"https://example.com"}',
+      );
+      const [, msg] = onMessage.mock.calls[0];
+      const content = (msg as { content: string }).content;
+      expect(content).toContain('hello');
+      expect(content).toContain('sidebar');
+      expect(content).toContain('https://example.com');
+    } finally {
+      await close();
+    }
+  });
+
+  it('includes chat_jid in event', async () => {
+    const { port, onMessage, close } = await startProxy();
+    try {
+      await post(port, '/_sloth/message', '{"group":"test","msg":"hi"}');
+      const [, msg] = onMessage.mock.calls[0];
+      expect((msg as { chat_jid: string }).chat_jid).toBe('web:test');
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe('POST /pub/s/:token validation', () => {
+  it('rejects token with special characters (no route match)', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const res = await post(port, '/pub/s/tok!@#$', '{"text":"hi"}');
+      // The regex won't match, so it falls through to the vite proxy
+      // which will fail with 502 (no vite running)
+      expect(res.status).not.toBe(200);
+    } finally {
+      await close();
+    }
+  });
+
+  it('rejects token longer than 64 chars (no route match)', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const longToken = 'a'.repeat(65);
+      const res = await post(port, `/pub/s/${longToken}`, '{"text":"hi"}');
+      expect(res.status).not.toBe(200);
+    } finally {
+      await close();
+    }
+  });
+});
+
 describe('basic auth', () => {
   it('redirects / to /pub/ without credentials', async () => {
     const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
@@ -379,6 +461,46 @@ describe('basic auth', () => {
     try {
       const res = await post(port, '/pub/s/tok', '{"text":"hi"}');
       expect(res.status).toBe(200);
+    } finally {
+      await close();
+    }
+  });
+
+  it('allows authenticated request with valid Basic credentials', async () => {
+    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+    try {
+      const creds = Buffer.from('alice:secret').toString('base64');
+      // Vite proxy will 502, but auth passes (not 401)
+      const res = await get(port, '/howto/', {
+        Authorization: `Basic ${creds}`,
+      });
+      expect(res.status).not.toBe(401);
+    } finally {
+      await close();
+    }
+  });
+
+  it('rejects request with wrong Basic password', async () => {
+    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+    try {
+      const creds = Buffer.from('alice:wrong').toString('base64');
+      const res = await get(port, '/howto/', {
+        Authorization: `Basic ${creds}`,
+      });
+      expect(res.status).toBe(401);
+    } finally {
+      await close();
+    }
+  });
+
+  it('rejects request with unknown Basic user', async () => {
+    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+    try {
+      const creds = Buffer.from('eve:secret').toString('base64');
+      const res = await get(port, '/howto/', {
+        Authorization: `Basic ${creds}`,
+      });
+      expect(res.status).toBe(401);
     } finally {
       await close();
     }

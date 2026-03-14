@@ -53,6 +53,50 @@ describe('addSseListener / removeSseListener lifecycle', () => {
   });
 });
 
+describe('WebChannel basics', () => {
+  it('name is web', () => {
+    const ch = new WebChannel();
+    expect(ch.name).toBe('web');
+  });
+
+  it('connect resolves without error', async () => {
+    const ch = new WebChannel();
+    await expect(ch.connect()).resolves.toBeUndefined();
+  });
+
+  it('disconnect resolves without error', async () => {
+    const ch = new WebChannel();
+    await expect(ch.disconnect()).resolves.toBeUndefined();
+  });
+
+  it('isConnected returns true', () => {
+    const ch = new WebChannel();
+    expect(ch.isConnected()).toBe(true);
+  });
+});
+
+describe('ownsJid', () => {
+  it('owns web: prefix', () => {
+    const ch = new WebChannel();
+    expect(ch.ownsJid('web:main')).toBe(true);
+  });
+
+  it('does not own local: prefix', () => {
+    const ch = new WebChannel();
+    expect(ch.ownsJid('local:main')).toBe(false);
+  });
+
+  it('does not own telegram: prefix', () => {
+    const ch = new WebChannel();
+    expect(ch.ownsJid('telegram:123')).toBe(false);
+  });
+
+  it('does not own empty string', () => {
+    const ch = new WebChannel();
+    expect(ch.ownsJid('')).toBe(false);
+  });
+});
+
 describe('sendMessage', () => {
   it('delivers text to active SSE stream', async () => {
     const ch = new WebChannel();
@@ -114,5 +158,26 @@ describe('sendMessage', () => {
     expect(res1.written.length).toBe(1);
     expect(res2.written.length).toBe(1);
     expect(res1.written[0]).toBe(res2.written[0]);
+  });
+
+  it('returns undefined', async () => {
+    const ch = new WebChannel();
+    const res = fakeRes();
+    addSseListener('ret-group', res);
+    const ret = await ch.sendMessage('web:ret-group', 'test');
+    removeSseListener('ret-group', res);
+    expect(ret).toBeUndefined();
+  });
+
+  it('payload is valid SSE data line with JSON text field', async () => {
+    const ch = new WebChannel();
+    const res = fakeRes();
+    addSseListener('json-group', res);
+    await ch.sendMessage('web:json-group', 'special "chars" & <html>');
+    removeSseListener('json-group', res);
+    const payload = res.written[0];
+    expect(payload).toMatch(/^data: .+\n\n$/);
+    const json = JSON.parse(payload.replace(/^data: /, '').trim());
+    expect(json.text).toBe('special "chars" & <html>');
   });
 });

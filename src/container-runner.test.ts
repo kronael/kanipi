@@ -436,6 +436,45 @@ describe('unified home mount behavior', () => {
   });
 });
 
+describe('runContainerCommand input validation', () => {
+  it('throws when agent mode receives string input', async () => {
+    await expect(
+      runContainerCommand(testGroup, 'string input', () => {}),
+    ).rejects.toThrow('agent mode requires ContainerInput object');
+  });
+});
+
+describe('container spawn error', () => {
+  it('resolves with error on spawn failure', async () => {
+    const resultPromise = runContainerCommand(testGroup, testInput, () => {});
+    await vi.advanceTimersByTimeAsync(10);
+
+    fakeProc.emit('error', new Error('ENOENT: command not found'));
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('spawn error');
+    expect(result.error).toContain('ENOENT');
+  });
+});
+
+describe('container non-zero exit without streaming', () => {
+  it('returns error with stderr excerpt', async () => {
+    const resultPromise = runContainerCommand(testGroup, testInput, () => {});
+    await vi.advanceTimersByTimeAsync(10);
+
+    fakeProc.stderr.push('fatal: something went wrong\n');
+    fakeProc.emit('close', 1);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('code 1');
+    expect(result.error).toContain('something went wrong');
+  });
+});
+
 describe('raw command mode', () => {
   it('skips agent ceremony and captures stdout as result', async () => {
     const db = await import('./db.js');
@@ -484,6 +523,44 @@ describe('raw command mode', () => {
     const result = await resultPromise;
     expect(result.status).toBe('error');
     expect(result.error).toContain('code 1');
+  });
+
+  it('returns error on raw command spawn error', async () => {
+    const resultPromise = runContainerCommand(
+      testGroup,
+      'input',
+      () => {},
+      undefined,
+      ['bash', '-c', 'fail'],
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    fakeProc.emit('error', new Error('spawn ENOENT'));
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('spawn error');
+  });
+
+  it('returns null result on empty stdout', async () => {
+    const resultPromise = runContainerCommand(
+      testGroup,
+      '',
+      () => {},
+      undefined,
+      ['bash', '-c', 'true'],
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result.status).toBe('success');
+    expect(result.result).toBeNull();
   });
 
   it('passes command array to buildContainerArgs', async () => {

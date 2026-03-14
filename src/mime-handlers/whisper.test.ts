@@ -52,6 +52,66 @@ describe('whisperTranscribe', () => {
     );
   });
 
+  it('passes language parameter in form data', async () => {
+    let formBody: FormData | undefined;
+    global.fetch = vi.fn().mockImplementation((_url: string, opts: any) => {
+      formBody = opts.body;
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ text: 'ahoj', language: 'cs' }),
+      });
+    });
+
+    const result = await whisperTranscribe('/tmp/audio.ogg', 'cs');
+    expect(result).toEqual({ text: 'ahoj', language: 'cs' });
+    expect(formBody).toBeInstanceOf(FormData);
+    expect(formBody!.get('language')).toBe('cs');
+  });
+
+  it('does not include language in form data when undefined', async () => {
+    let formBody: FormData | undefined;
+    global.fetch = vi.fn().mockImplementation((_url: string, opts: any) => {
+      formBody = opts.body;
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ text: 'hello', language: 'en' }),
+      });
+    });
+
+    await whisperTranscribe('/tmp/audio.ogg');
+    expect(formBody!.get('language')).toBeNull();
+  });
+
+  it('defaults language to "unknown" when response has no language', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ text: 'hello' }),
+    } as Response);
+
+    const result = await whisperTranscribe('/tmp/audio.ogg');
+    expect(result.language).toBe('unknown');
+  });
+
+  it('defaults text to empty string when response has no text', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ language: 'en' }),
+    } as Response);
+
+    const result = await whisperTranscribe('/tmp/audio.ogg');
+    expect(result.text).toBe('');
+  });
+
+  it('uses forced language as fallback when response language is missing', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ text: 'test' }),
+    } as Response);
+
+    const result = await whisperTranscribe('/tmp/audio.ogg', 'de');
+    expect(result.language).toBe('de');
+  });
+
   it('aborts fetch after 60s', async () => {
     vi.useFakeTimers();
     let aborted = false;

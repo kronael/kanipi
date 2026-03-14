@@ -724,4 +724,196 @@ describe('resolveRoute — flat routing table', () => {
       command: null,
     });
   });
+
+  it('trigger type always matches', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'trigger',
+        match: null,
+        target: 'triggered',
+      },
+    ];
+    expect(resolveRoute(mkMsg('anything'), routes)).toEqual({
+      target: 'triggered',
+      command: null,
+    });
+  });
+
+  it('unknown route type does not match', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'bogus' as Route['type'],
+        match: null,
+        target: 'nope',
+      },
+    ];
+    expect(resolveRoute(mkMsg('hello'), routes)).toBeNull();
+  });
+
+  it('command type matches exact command without trailing space', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'command',
+        match: '@root',
+        target: 'root',
+      },
+    ];
+    expect(resolveRoute(mkMsg('@root'), routes)?.target).toBe('root');
+  });
+
+  it('command with null match does not match', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'command',
+        match: null,
+        target: 'nope',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'fallback',
+      },
+    ];
+    expect(resolveRoute(mkMsg('hello'), routes)?.target).toBe('fallback');
+  });
+
+  it('keyword with null match does not match', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'keyword',
+        match: null,
+        target: 'nope',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'fallback',
+      },
+    ];
+    expect(resolveRoute(mkMsg('hello'), routes)?.target).toBe('fallback');
+  });
+
+  it('sender type skips regex longer than 200 chars', () => {
+    const longRegex = 'a'.repeat(201);
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'sender',
+        match: longRegex,
+        target: 'long',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'general',
+      },
+    ];
+    expect(
+      resolveRoute(msg('hi', 'alice@s.whatsapp.net', 'alice'), routes),
+    ).toEqual({ target: 'general', command: null });
+  });
+
+  it('route with command field passes it through', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'command',
+        match: '/code',
+        target: 'code',
+        command: 'run lint',
+      },
+    ];
+    expect(resolveRoute(mkMsg('/code check'), routes)).toEqual({
+      target: 'code',
+      command: 'run lint',
+    });
+  });
+
+  it('pattern with null match does not match', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'pattern',
+        match: null,
+        target: 'nope',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'fallback',
+      },
+    ];
+    expect(resolveRoute(mkMsg('hello'), routes)?.target).toBe('fallback');
+  });
+
+  it('sender with null match does not match', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'sender',
+        match: null,
+        target: 'nope',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 1,
+        type: 'default',
+        match: null,
+        target: 'fallback',
+      },
+    ];
+    expect(
+      resolveRoute(msg('hi', 'alice@s.whatsapp.net', 'alice'), routes),
+    ).toEqual({ target: 'fallback', command: null });
+  });
+
+  it('verb type does not match when msg has no verb', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'verb',
+        match: 'join',
+        target: 'welcome',
+      },
+    ];
+    expect(resolveRoute(mkMsg('hello'), routes)).toBeNull();
+  });
 });

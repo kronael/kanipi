@@ -156,6 +156,92 @@ describe('schedule_task', () => {
     expect(task!.context_mode).toBe('group');
   });
 
+  it('tier 2 cannot schedule task for another group', async () => {
+    await expect(
+      scheduleTask.handler(
+        {
+          targetFolder: 'other',
+          prompt: 'a',
+          schedule_type: 'cron',
+          schedule_value: '0 * * * *',
+        },
+        makeCtx({ tier: 2, sourceGroup: 'myworld/mygroup', isRoot: false }),
+      ),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('tier 2 can schedule task for own group', async () => {
+    const r = (await scheduleTask.handler(
+      {
+        targetFolder: 'myworld/mygroup',
+        prompt: 'self task',
+        schedule_type: 'interval',
+        schedule_value: '60000',
+      },
+      makeCtx({ tier: 2, sourceGroup: 'myworld/mygroup', isRoot: false }),
+    )) as { taskId: string };
+    expect(r.taskId).toBeTruthy();
+  });
+
+  it('tier 1 cannot schedule task for other world', async () => {
+    await expect(
+      scheduleTask.handler(
+        {
+          targetFolder: 'other/group',
+          prompt: 'a',
+          schedule_type: 'cron',
+          schedule_value: '0 * * * *',
+        },
+        makeCtx({ tier: 1, sourceGroup: 'atlas', isRoot: false }),
+      ),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('command forces context_mode to isolated even when group requested', async () => {
+    const r = (await scheduleTask.handler(
+      {
+        targetFolder: 'root',
+        prompt: '',
+        command: 'echo hi',
+        schedule_type: 'interval',
+        schedule_value: '60000',
+        context_mode: 'group',
+      },
+      makeCtx(),
+    )) as { taskId: string };
+    expect(r.taskId).toBeTruthy();
+    const task = getTaskById(r.taskId);
+    expect(task!.context_mode).toBe('isolated');
+  });
+
+  it('rejects invalid once timestamp', async () => {
+    await expect(
+      scheduleTask.handler(
+        {
+          targetFolder: 'root',
+          prompt: 'a',
+          schedule_type: 'once',
+          schedule_value: 'not-a-date',
+        },
+        makeCtx(),
+      ),
+    ).rejects.toThrow('invalid timestamp');
+  });
+
+  it('negative interval is rejected', async () => {
+    await expect(
+      scheduleTask.handler(
+        {
+          targetFolder: 'root',
+          prompt: 'a',
+          schedule_type: 'interval',
+          schedule_value: '-1000',
+        },
+        makeCtx(),
+      ),
+    ).rejects.toThrow('invalid interval');
+  });
+
   it('rejects invalid interval', async () => {
     await expect(
       scheduleTask.handler(
@@ -212,6 +298,58 @@ describe('pause_task / resume_task / cancel_task', () => {
   it('rejects nonexistent task', async () => {
     await expect(
       pauseTask.handler({ taskId: 'nope' }, makeCtx()),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('tier 2 can pause own group task', async () => {
+    // Create task as root targeting 'myworld/mygroup'
+    const r = (await scheduleTask.handler(
+      {
+        targetFolder: 'myworld/mygroup',
+        prompt: 'test',
+        schedule_type: 'interval',
+        schedule_value: '60000',
+      },
+      makeCtx(),
+    )) as { taskId: string };
+
+    // Tier 2 from same group can pause it
+    await pauseTask.handler(
+      { taskId: r.taskId },
+      makeCtx({ tier: 2, sourceGroup: 'myworld/mygroup', isRoot: false }),
+    );
+    expect(getTaskById(r.taskId)!.status).toBe('paused');
+  });
+
+  it('tier 2 cannot pause task belonging to other group', async () => {
+    // Create task targeting root
+    const r = (await scheduleTask.handler(
+      {
+        targetFolder: 'root',
+        prompt: 'test',
+        schedule_type: 'interval',
+        schedule_value: '60000',
+      },
+      makeCtx(),
+    )) as { taskId: string };
+
+    await expect(
+      pauseTask.handler(
+        { taskId: r.taskId },
+        makeCtx({ tier: 2, sourceGroup: 'myworld/mygroup', isRoot: false }),
+      ),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('tier 3 cannot resume task', async () => {
+    await expect(
+      resumeTask.handler({ taskId }, makeCtx({ tier: 3 })),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('tier 3 cannot cancel task', async () => {
+    await expect(
+      cancelTask.handler({ taskId }, makeCtx({ tier: 3 })),
     ).rejects.toThrow('unauthorized');
   });
 });

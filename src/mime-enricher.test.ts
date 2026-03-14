@@ -109,6 +109,52 @@ describe('waitForEnrichments', () => {
     expect(mockAppend).toHaveBeenCalledWith('m2', '\n[voice/auto→en: text]');
   });
 
+  it('waits for multiple in-flight enrichments', async () => {
+    let resolve1!: () => void;
+    let resolve2!: () => void;
+    mockProcess
+      .mockReturnValueOnce(
+        new Promise<string[]>((r) => {
+          resolve1 = () => r(['[voice/auto→en: first]']);
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise<string[]>((r) => {
+          resolve2 = () => r(['[voice/auto→en: second]']);
+        }),
+      );
+
+    enqueueEnrichment('multi1', 'root', [attachment], download);
+    enqueueEnrichment('multi2', 'root', [attachment], download);
+
+    let done = false;
+    const waiter = waitForEnrichments(['multi1', 'multi2']).then(() => {
+      done = true;
+    });
+
+    await Promise.resolve();
+    expect(done).toBe(false);
+
+    resolve1();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(done).toBe(false);
+
+    resolve2();
+    await waiter;
+    expect(done).toBe(true);
+    expect(mockAppend).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles mix of pending and unknown ids', async () => {
+    mockProcess.mockResolvedValue(['[voice/auto→en: text]']);
+    enqueueEnrichment('mix1', 'root', [attachment], download);
+    // 'unknown-id' has no pending enrichment — should not block
+    await expect(
+      waitForEnrichments(['mix1', 'unknown-id']),
+    ).resolves.toBeUndefined();
+  });
+
   it('resolves immediately if enrichment already completed (race: fast whisper)', async () => {
     mockProcess.mockResolvedValue(['[voice/auto→cs: ahoj]']);
     enqueueEnrichment('m3', 'root', [attachment], download);
