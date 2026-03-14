@@ -92,11 +92,15 @@ group name (message origin, not agent run group), `chat_id` = JID.
 
 ## Session context injection
 
-**Status: phase 3 — not yet implemented**
+**Status: shipped** — context is delivered via env vars in
+`settings.json` (NANOCLAW_GROUP_FOLDER, NANOCLAW_CHAT_JID,
+NANOCLAW_CHANNEL_NAME, NANOCLAW_GROUP_NAME, NANOCLAW_TIER, etc.)
+rather than XML `<context>` block injection. The agent reads
+these from `settings.json` at startup. The XML injection approach
+described below was the original design but env vars proved simpler.
 
-When the gateway builds the prompt for an agent invocation, prepend
-a `<context>` block before `<messages>`. This replaces the agent's
-need to read env vars and settings.json for identity/location info.
+The original design proposed prepending a `<context>` block
+before `<messages>`:
 
 ```xml
 <context>
@@ -126,19 +130,11 @@ need to read env vars and settings.json for identity/location info.
 | `platform` | platformFromJid(jid) | always         |
 | `is_group` | chats.is_group       | always         |
 
-### Injection point
+### Implementation
 
-`index.ts` builds the prompt string passed to `container-runner`.
-The `<context>` block is prepended before the `formatMessages()`
-output. `formatMessages()` in `router.ts` is unchanged — it still
-returns `<messages>...</messages>`. The gateway concatenates:
-
-```
-<context>...</context>\n<messages>...</messages>
-```
-
-The agent sees a self-contained prompt with identity, location,
-and conversation in one XML document.
+`container-runner.ts` writes env vars to `settings.json` before
+each agent invocation. The agent reads them via the SDK's settings
+mechanism. No XML prompt injection needed.
 
 ## Migration
 

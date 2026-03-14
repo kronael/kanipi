@@ -87,8 +87,13 @@ raw mode + isolated context.
 
 ### Routing table
 
-The `target` column currently holds a folder name. Extend to
-support command targets:
+> **Not implemented.** The pipe-delimited syntax below is a design
+> sketch only. The `command` field is implemented for scheduled tasks
+> (raw mode in `container-runner.ts`) but routing targets do not
+> support inline commands. The `target` column holds a folder name.
+
+The original design proposed extending `target` to support command
+targets:
 
 ```
 target = "atlas"                        → agent on atlas folder
