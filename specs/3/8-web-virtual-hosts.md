@@ -4,8 +4,8 @@ status: spec
 
 # Web Virtual Hosts
 
-Convention-based hostname routing. Root agent manages infra.
-Worlds write content to their subdirectory.
+Hostname-based routing via web-proxy.ts redirect. Root agent
+manages mappings. Worlds write content to their subdirectory.
 
 ## Problem
 
@@ -15,78 +15,75 @@ per-world configuration in the gateway.
 
 ## Design
 
-### Explicit hostname assignment
+### Hostname → redirect
 
-Root agent assigns hostnames when setting up a world. No
-convention, no automatic mapping. The infra skill guides
-root through the process:
+`web-proxy.ts` reads `vhosts.json`, matches `Host` header,
+and issues a `301` redirect to the world's subdirectory.
+Vite serves the subdirectory normally — no plugins, no
+`server.fs.allow` changes, no hidden rewrites.
 
-1. Root registers a world (`register_group`)
-2. Infra skill asks: "what hostname for this world?"
-3. Root writes the mapping to `vhosts.json` at web root
-4. Vite middleware picks it up
+```
+GET / Host: krons.fiu.wtf
+→ 301 Location: /krons/
+→ Vite serves DATA_DIR/web/krons/index.html
+```
+
+### vhosts.json
 
 ```json
-// DATA_DIR/web/vhosts.json
 {
   "krons.fiu.wtf": "krons",
   "support.acme.co": "atlas"
 }
 ```
 
-No gateway code, no DB table, no IPC actions. Root has rw
-access to `/workspace/web/` and edits the file directly.
+Lives at `DATA_DIR/web/vhosts.json`. Root agent (tier 0) writes
+it directly — no gateway code, no DB table, no IPC actions.
+
+### Path safety
+
+Two layers prevent cross-world serving:
+
+1. **Mount isolation** — tier 1 container bind-mounts
+   `DATA_DIR/web/<world>/` as `/workspace/web/`. Cannot write
+   outside own directory. Symlinks resolve inside the mount.
+
+2. **Redirect validation** — web-proxy normalizes the URL and
+   rejects traversal before redirecting:
+
+```typescript
+const normalized = path.posix.normalize(req.url);
+if (normalized.startsWith('..') || normalized.includes('/..')) {
+  res.writeHead(400).end();
+  return;
+}
+res.writeHead(301, { Location: `/${world}${normalized}` });
+```
+
+`vhosts.json` is only writable by root (tier 0), so worlds
+cannot redirect to each other's namespaces.
 
 ### Mount changes
-
-Root owns the web root (vite config, top-level assets). Worlds
-write to their subdirectory only.
 
 | Mount                     | Tier 0 | Tier 1              | Tier 2+ |
 | ------------------------- | ------ | ------------------- | ------- |
 | `/workspace/web`          | rw     | no                  | no      |
 | `/workspace/web/<world>/` | —      | rw (own world only) | no      |
 
-Tier 1 sees `/workspace/web/` as a directory containing only its
-own world subdirectory. Implemented as a bind mount of
-`DATA_DIR/web/<world>/` → `/workspace/web/` inside the container.
-
-### Vite config
-
-Vite serves from `DATA_DIR/web/`. Config lives at the web root
-alongside `index.html`. Root agent (tier 0) owns vite config —
-restart, middleware, build settings.
-
-Vite middleware handles hostname routing:
-
-```typescript
-// Pseudocode — vite plugin or middleware
-function vhostMiddleware(req, res, next) {
-  const host = req.headers.host;
-  const sub = host?.split('.')[0];
-  if (sub && existsSync(join(webDir, sub))) {
-    req.url = `/${sub}${req.url}`;
-  }
-  next();
-}
-```
-
-No per-world vite process. One vite instance, one middleware.
+Tier 1 sees `/workspace/web/` as its own web root. Implemented
+as a bind mount of `DATA_DIR/web/<world>/` → `/workspace/web/`.
 
 ### Root infra skill
 
 Root agent gets an `infra` skill (`~/.claude/skills/infra/`)
-that guides instance-level setup. When root sets up a world,
-the skill covers:
+for instance-level setup:
 
 - Hostname assignment (write to `vhosts.json`)
 - DNS verification (resolve check)
-- SSL/TLS notes (caddy auto-cert or manual)
+- SSL/TLS notes
 - Web directory structure
 
-The infra skill is baked into the agent image for tier 0 only.
-Worlds don't see it. Root has rw access to `/workspace/web/`
-and edits config files directly — no IPC actions needed.
+Baked into agent image for tier 0 only. Worlds don't see it.
 
 ## World workflow
 
@@ -99,14 +96,13 @@ A tier 1 world agent writes web content:
 
 Inside the container, `/workspace/web/` is bind-mounted to
 `DATA_DIR/web/<world>/`. The world doesn't know about hostnames —
-it just writes files. The vhost middleware serves them at
-`{world}.{domain}`.
+it just writes files. The redirect serves them at `{world}.{domain}`.
 
 ## Implementation order
 
-1. Vite middleware: read `vhosts.json`, route by `Host` header
+1. web-proxy.ts: read `vhosts.json`, redirect by `Host` header
 2. Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`
-3. `infra` skill for root agent (world setup guide, vhost management)
+3. `infra` skill for root agent
 
 ## Related
 
