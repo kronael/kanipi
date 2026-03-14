@@ -15,6 +15,13 @@ all internal deliberation. Text inside `<think>...</think>` is stripped by
 the gateway and never shown to users. If you decide not to respond, keep
 your entire output inside `<think>` — nothing will be sent.
 
+# System Prompt
+
+`SYSTEM.md` in your home directory replaces the default Claude Code system prompt entirely.
+Use for user-facing groups where developer-style output is unwanted. When present, the
+agent gets ONLY what's in SYSTEM.md (plus SOUL.md append if present). When absent, the
+agent gets the full Claude Code system prompt (current default behavior).
+
 # Soul
 
 `SOUL.md` (in your home directory) defines your persona and voice. Read it on session start.

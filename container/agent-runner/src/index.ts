@@ -342,12 +342,24 @@ async function runQuery(
         additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
         resume: sessionId,
         resumeSessionAt: resumeAt,
-        systemPrompt: {
-          type: 'preset',
-          preset: 'claude_code',
-          ...(fs.existsSync('/home/node/SOUL.md')
-            && { append: 'Respond in your ~/SOUL.md persona. Read it if you haven\'t already.' }),
-        },
+        systemPrompt: (() => {
+          const systemMdPath = '/home/node/SYSTEM.md';
+          const soulMdPath = '/home/node/SOUL.md';
+          const hasSoul = fs.existsSync(soulMdPath);
+          const hasSystem = fs.existsSync(systemMdPath);
+          if (hasSystem) {
+            let content = fs.readFileSync(systemMdPath, 'utf-8');
+            if (hasSoul) {
+              content += '\n\nRespond in your ~/SOUL.md persona. Read it if you haven\'t already.';
+            }
+            return content;
+          }
+          return {
+            type: 'preset' as const,
+            preset: 'claude_code' as const,
+            ...(hasSoul && { append: 'Respond in your ~/SOUL.md persona. Read it if you haven\'t already.' }),
+          };
+        })(),
         allowedTools: [
           'Bash',
           'Read', 'Write', 'Edit', 'Glob', 'Grep',
