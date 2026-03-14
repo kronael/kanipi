@@ -190,23 +190,23 @@ Latest migration version: **32**. If version < 32: migrations pending.
 
 ## MCP tools
 
-| Tool             | Description                                                 |
-| ---------------- | ----------------------------------------------------------- |
-| `send_message`   | Send intermediate status update to user while still running |
-| `send_reply`     | Reply to the current bound conversation (uses chatJid)      |
-| `send_file`      | Send a file from workspace to user as document attachment   |
-| `schedule_task`  | Schedule recurring or one-time agent task                   |
-| `pause_task`     | Pause a scheduled task                                      |
-| `resume_task`    | Resume a paused task                                        |
-| `cancel_task`    | Cancel and delete a scheduled task                          |
-| `register_group` | Register new WhatsApp group (root only)                     |
-| `refresh_groups` | Sync group metadata from channel (root only)                |
-| `delegate_group` | Forward a message to a child group for processing           |
-| `escalate_group` | Escalate a prompt to the parent group                       |
-| `get_routes`     | Get routing rules (pass jid to filter, omit for all)        |
-| `add_route`      | Add a routing rule — use `$NANOCLAW_CHAT_JID` for jid       |
-| `delete_route`   | Delete a routing rule by ID                                 |
-| `reset_session`  | Clear this group's session and start fresh                  |
+| Tool             | Description                                                               |
+| ---------------- | ------------------------------------------------------------------------- |
+| `send_message`   | Send to a specific JID; returns sent `messageId`                          |
+| `send_reply`     | Reply to current conversation (auto-injects replyTo); returns `messageId` |
+| `send_file`      | Send a file from workspace to user as document attachment                 |
+| `schedule_task`  | Schedule recurring or one-time agent task                                 |
+| `pause_task`     | Pause a scheduled task                                                    |
+| `resume_task`    | Resume a paused task                                                      |
+| `cancel_task`    | Cancel and delete a scheduled task                                        |
+| `register_group` | Register new WhatsApp group (root only)                                   |
+| `refresh_groups` | Sync group metadata from channel (root only)                              |
+| `delegate_group` | Forward a message to a child group (passes messageId)                     |
+| `escalate_group` | Escalate a prompt to parent group (passes escalationOrigin)               |
+| `get_routes`     | Get routing rules (pass jid to filter, omit for all)                      |
+| `add_route`      | Add a routing rule — use `$NANOCLAW_CHAT_JID` for jid                     |
+| `delete_route`   | Delete a routing rule by ID                                               |
+| `reset_session`  | Clear this group's session and start fresh                                |
 
 ### send_file usage
 
@@ -297,12 +297,12 @@ These are hardcoded in the agent-runner.
 - Gateway runs parent with `chatJid = local:{worker_folder}`
 - Parent's reply routes back to worker as a new message (via `local:` JID)
 - Worker gets fresh turn with parent's answer in context, replies to original user
-- NOTE: spec confirmed (3/5) but `local:` JID routing not yet implemented
+- Parent's reply is wrapped with `<escalation_origin jid="..." messageId="...">` for context
 
 **`send_reply` vs `send_message`**:
 
-- `send_reply(text)` — reply to the current bound conversation (uses chatJid from active session)
-- `send_message(jid, text)` — send to a different chat/group (authorized, cross-chat only)
+- `send_reply(text)` — reply to the current bound conversation (auto-injects `replyTo` from context); returns `messageId`
+- `send_message(jid, text)` — send to a specific JID (authorized, cross-chat only); returns `messageId`
 - `send_message` cannot target `local:` JIDs — internal plumbing only
 
 ## Root group only

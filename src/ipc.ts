@@ -339,7 +339,6 @@ export function startIpcWatcher(deps: IpcDeps): void {
     });
   };
 
-  // Startup drain sweep
   const startupDrain = async () => {
     let groupFolders: string[];
     try {
@@ -362,7 +361,6 @@ export function startIpcWatcher(deps: IpcDeps): void {
     logger.error({ err, ipcBaseDir }, 'IPC startup drain error'),
   );
 
-  // Poll for new group folders
   const pollForNewGroups = () => {
     let groupFolders: string[];
     try {

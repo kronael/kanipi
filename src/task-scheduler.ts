@@ -45,7 +45,6 @@ async function runTask(
     groupDir = resolveGroupFolderPath(task.group_folder);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
-    // Stop retry churn for malformed legacy rows.
     updateTask(task.id, { status: 'paused' });
     logger.error(
       { taskId: task.id, groupFolder: task.group_folder, error },
@@ -86,7 +85,6 @@ async function runTask(
     return;
   }
 
-  // Update tasks snapshot for container to read (filtered by group)
   const tasks = getAllTasks();
   writeTasksSnapshot(
     task.group_folder,
@@ -105,7 +103,6 @@ async function runTask(
   let result: string | null = null;
   let error: string | null = null;
 
-  // Raw command mode: run command directly, skip agent ceremony
   if (task.command) {
     try {
       const output = await runContainerCommand(
@@ -133,20 +130,15 @@ async function runTask(
       logger.error({ taskId: task.id, error }, 'Task failed (raw command)');
     }
   } else {
-    // Agent mode: full agent ceremony
-    // For group context mode, use the group's current session
     const sessions = deps.getSessions();
     const sessionId =
       task.context_mode === 'group' ? sessions[task.group_folder] : undefined;
 
-    // After the task produces a result, close the container promptly.
-    // Tasks are single-turn — close promptly after producing a result.
-    // A short delay handles any final MCP calls.
     const TASK_CLOSE_DELAY_MS = 10000;
     let closeTimer: ReturnType<typeof setTimeout> | null = null;
 
     const scheduleClose = () => {
-      if (closeTimer) return; // already scheduled
+      if (closeTimer) return;
       closeTimer = setTimeout(() => {
         logger.debug(
           { taskId: task.id },
@@ -172,7 +164,6 @@ async function runTask(
         async (streamedOutput: ContainerOutput) => {
           if (streamedOutput.result) {
             result = streamedOutput.result;
-            // Forward result to user (sendMessage handles formatting)
             await deps.sendMessage(task.chat_jid, streamedOutput.result);
             scheduleClose();
           }
@@ -190,7 +181,6 @@ async function runTask(
       if (output.status === 'error') {
         error = output.error || 'Unknown error';
       } else if (output.result) {
-        // Messages are sent via MCP tool (IPC), result text is just logged
         result = output.result;
       }
 
@@ -226,8 +216,6 @@ async function runTask(
     const ms = parseInt(task.schedule_value, 10);
     nextRun = new Date(Date.now() + ms).toISOString();
   }
-  // 'once' tasks have no next run
-
   const resultSummary = error
     ? `Error: ${error}`
     : result
@@ -254,7 +242,6 @@ export function startSchedulerLoop(deps: SchedulerDependencies): void {
       }
 
       for (const task of dueTasks) {
-        // Re-check task status in case it was paused/cancelled
         const currentTask = getTaskById(task.id);
         if (!currentTask || currentTask.status !== 'active') {
           continue;
@@ -274,7 +261,6 @@ export function startSchedulerLoop(deps: SchedulerDependencies): void {
   loop();
 }
 
-/** @internal - for tests only. */
 export function _resetSchedulerLoopForTests(): void {
   schedulerRunning = false;
 }

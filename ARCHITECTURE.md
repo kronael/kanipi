@@ -75,9 +75,11 @@ One file per channel. Each implements `Channel` interface:
 
 Each channel stores incoming messages via `storeMessage` and
 provides `sendMessage(jid, text)` for outbound delivery.
-`ChannelOpts` supplies `isRoutedJid(jid)` (DB routes lookup)
-and `hasAlwaysOnGroup()` (any group with `requires_trigger=0`)
-so channels can decide whether to filter unregistered JIDs.
+`sendMessage` returns the platform message ID (`string|undefined`)
+for reply threading. `ChannelOpts` supplies `isRoutedJid(jid)`
+(DB routes lookup) and `hasAlwaysOnGroup()` (any group with
+`requires_trigger=0`) so channels can decide whether to filter
+unregistered JIDs.
 
 ### web-proxy.ts
 
@@ -131,8 +133,7 @@ Message formatting and outbound routing. `formatMessages()`
 emits `<messages>` XML with per-message attributes (`sender`,
 `sender_id`, `chat_id`, `chat`, `platform`, `time`, `ago`).
 `clockXml()` emits a `<clock>` header (UTC time + timezone),
-prepended once per agent invocation. Strips `<internal>` tags
-from agent output before sending to channel users.
+prepended once per agent invocation.
 
 `isAuthorizedRoutingTarget(source, target)` validates that target
 is a direct child of source within the same world (root segment).
@@ -141,11 +142,19 @@ a message (tier order: command, pattern, keyword, sender, default).
 Route targets support RFC 6570 `{sender}` templates — expanded at
 routing time to create per-sender child folders (auto-threading).
 
+Outbound message delivery tracks `lastSentId` per chunk sequence
+for reply-threading on platforms that support it. `delegatePerSender`
+batches messages by sender before forwarding to child groups.
+Escalation responses via `local:` JIDs are wrapped with
+`<escalation_origin>` XML carrying the origin JID and messageId.
+
 ### action-registry.ts + actions/
 
 Unified action system. Each action has name, Zod schema, handler,
 and optional command/MCP flags. Single source of truth for IPC
-dispatch, MCP tools, and commands.
+dispatch, MCP tools, and commands. `ActionContext` carries
+`messageId` for reply threading on delegation; `send_message`
+and `send_reply` return the sent message ID.
 
 ### ipc.ts
 
@@ -246,30 +255,25 @@ contains numbered migration files (`NNN-desc.md`). The `/migrate`
 skill syncs all groups from the canonical source when the version
 changes.
 
-**Signal-driven IPC**: gateway writes IPC file then sends SIGUSR1
-to the container; agent wakes immediately on signal rather than
-waiting for the 500ms poll interval.
+**Signal-driven IPC**: gateway writes IPC file then sends SIGUSR1;
+agent wakes immediately rather than waiting for 500ms poll.
 
 **`error_max_turns` recovery**: resumes with `maxTurns=3`, asks
 Claude to summarise progress, prompts user to say "continue".
 
+**`<internal>` tag stripping**: agent-runner strips `<internal>`
+blocks from output before sending to channel users.
+
 ## Multi-instance Architecture
 
-Each kanipi instance is independent: own data dir, gateway
-container, agent image tag, and systemd service. This allows:
-
-- Independent upgrades per instance (tag agent image per instance)
-- Isolated data and credentials per instance
-- Different channel configurations per instance
+Each instance is independent: own data dir, agent image tag, and
+systemd service. Instances can run different agent image versions.
 
 ```
 /srv/data/kanipi_foo/           data dir (.env, store/, groups/, data/)
 kanipi-agent-foo:latest         agent image (CONTAINER_IMAGE in .env)
 kanipi_foo.service              systemd unit
 ```
-
-Each instance can run a different agent image version. Build
-once, tag per instance, restart only what you want to upgrade.
 
 ## State
 

@@ -7,6 +7,39 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Reply routing**: `Channel.sendMessage` returns sent message ID
+  (`string|undefined`). All channels (telegram, whatsapp, discord, email)
+  return the platform message ID.
+- **Chunk chaining**: consecutive message chunks track `lastSentId` for
+  reply-threading on platforms that support it.
+- **Per-sender batching**: `delegatePerSender` helper batches messages by
+  sender before delegating to child groups.
+- **Escalation origin annotation**: `local:` responses wrapped with
+  `<escalation_origin jid="..." messageId="...">` XML for round-trip
+  context.
+- **`send_reply` auto-injects `replyTo`**: reply context from
+  `ActionContext` is automatically applied; `send_message` and `send_reply`
+  return the sent `messageId`.
+- **`delegate_group` / `escalate_group`**: now pass `messageId` and
+  `escalationOrigin` through IPC.
+- **SYSTEM.md override**: agent-runner uses `SYSTEM.md` in group home to
+  replace the default Claude Code system prompt entirely.
+- **`<internal>` tag stripping**: moved from gateway (`router.ts`) to
+  agent-runner for cleaner separation.
+
+### Changed
+
+- **ActionContext**: `messageId` added on delegation methods; dead `command`
+  field removed.
+- **IpcDeps**: delegation signatures updated with `messageId` and
+  `escalationOrigin` parameters.
+
+---
+
 ## [v1.6.0] — 2026-03-13
 
 ### Added

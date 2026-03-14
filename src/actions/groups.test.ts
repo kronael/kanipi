@@ -34,6 +34,7 @@ vi.mock('../db.js', () => ({
   addRoute: vi.fn(),
   getRouteById: vi.fn(),
   deleteRoute: vi.fn(),
+  getMessageById: vi.fn(),
 }));
 
 vi.mock('../router.js', () => ({
@@ -95,6 +96,7 @@ describe('delegateGroup — authorization', () => {
       'fix it',
       'tg/-100',
       1,
+      undefined,
     );
   });
 
@@ -137,6 +139,7 @@ describe('delegateGroup — authorization', () => {
       'lint',
       'tg/-100',
       1,
+      undefined,
     );
   });
 
@@ -184,6 +187,8 @@ describe('escalateGroup', () => {
       expect.stringContaining('<escalation from="root/code"'),
       'local:root/code',
       1,
+      undefined,
+      { jid: 'tg/-100', messageId: undefined },
     );
     const prompt = (ctx.delegateToParent as ReturnType<typeof vi.fn>).mock
       .calls[0][1] as string;
@@ -203,6 +208,8 @@ describe('escalateGroup', () => {
       expect.stringContaining('<escalation from="root/code/py"'),
       'local:root/code/py',
       1,
+      undefined,
+      { jid: 'tg/-100', messageId: undefined },
     );
   });
 
@@ -390,6 +397,7 @@ describe('delegateGroup — depth limit', () => {
       'do it',
       'tg/-100',
       1,
+      undefined,
     );
   });
 
@@ -405,6 +413,7 @@ describe('delegateGroup — depth limit', () => {
       'task',
       'tg/-100',
       1,
+      undefined,
     );
   });
 
@@ -430,6 +439,7 @@ describe('delegateGroup — depth limit', () => {
       'go',
       'tg/-100',
       1,
+      undefined,
     );
   });
 });

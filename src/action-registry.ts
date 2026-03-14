@@ -51,8 +51,7 @@ export interface Action {
   description: string;
   input: z.ZodType;
   handler(input: unknown, ctx: ActionContext): Promise<unknown>;
-  command?: string;
-  mcp?: boolean; // default true
+  mcp?: boolean;
   maxTier?: number;
   platforms?: string[];
 }

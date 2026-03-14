@@ -205,6 +205,9 @@ describe('getAvailableGroups (gateway export)', () => {
         added_at: '2024-01-01T00:00:00.000Z',
       },
     });
+    setRoutesForJid('g1@g.us', [
+      { seq: 0, type: 'default', match: null, target: 'g1' },
+    ]);
     const groups = getAvailableGroups();
     expect(groups).toHaveLength(1);
     expect(groups[0].isRegistered).toBe(true);
@@ -390,6 +393,9 @@ function setupGroup(): Channel & { sendMessage: ReturnType<typeof vi.fn> } {
     timestamp: '2024-01-01T00:01:00.000Z',
   });
   _setGroups({ [TEST_FOLDER]: TEST_GROUP });
+  setRoutesForJid(TEST_JID, [
+    { seq: 0, type: 'default', match: null, target: TEST_FOLDER },
+  ]);
   const ch = makeChannel(TEST_JID);
   _pushChannel(ch);
   return ch;
@@ -552,9 +558,10 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
 
   _setGroups(groupConfigs);
 
-  // Set up flat routing via routes table
+  // Set up flat routing via routes table: default route to root + command override
   setRoutesForJid(ROUTED_JID, [
     { seq: 0, type: 'command', match: '/code', target: CHILD_FOLDER },
+    { seq: 1, type: 'default', match: null, target: 'root' },
   ]);
 
   const ch = makeChannel(ROUTED_JID);
@@ -722,9 +729,10 @@ function setupUnauthorizedRouting(
     },
   });
 
-  // Set up flat routing via routes table
+  // Set up flat routing via routes table: default route to source + command override
   setRoutesForJid(sourceJid, [
     { seq: 0, type: 'command', match: '/route', target: unauthorizedTarget },
+    { seq: 1, type: 'default', match: null, target: sourceFolder },
   ]);
   _pushChannel(makeChannel(sourceJid));
   mockRunContainerAgent.mockResolvedValue({

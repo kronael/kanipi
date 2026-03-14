@@ -19,13 +19,15 @@ function makeCtx(
   tier: 0 | 1 | 2 | 3,
   sourceGroup = 'root',
   chatJid?: string,
+  messageId?: string,
 ): ActionContext {
   return {
     sourceGroup,
     isRoot: tier === 0,
     tier,
     chatJid,
-    sendMessage: vi.fn(),
+    messageId,
+    sendMessage: vi.fn().mockResolvedValue('msg-001'),
     sendDocument: vi.fn(),
     getHubForJid: vi.fn(),
     getRoutedJids: vi.fn(),
@@ -56,7 +58,7 @@ describe('send_message', () => {
       'hello',
       undefined,
     );
-    expect(r).toEqual({ sent: true });
+    expect(r).toEqual({ sent: true, messageId: 'msg-001' });
   });
 
   it('tier 2 can send to JID routed to own folder', async () => {
@@ -68,7 +70,7 @@ describe('send_message', () => {
     );
 
     expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi', undefined);
-    expect(r).toEqual({ sent: true });
+    expect(r).toEqual({ sent: true, messageId: 'msg-001' });
   });
 
   it('tier 2 cannot send to sibling in same world', async () => {
@@ -107,7 +109,7 @@ describe('send_message', () => {
     );
 
     expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi', undefined);
-    expect(r).toEqual({ sent: true });
+    expect(r).toEqual({ sent: true, messageId: 'msg-001' });
   });
 });
 
@@ -115,11 +117,13 @@ describe('send_reply', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('sends reply when chatJid is set', async () => {
-    const ctx = makeCtx(0, 'root', 'telegram:123');
+    const ctx = makeCtx(0, 'root', 'telegram:123', 'orig-msg-42');
     const r = await sendReply.handler({ text: 'hello' }, ctx);
 
-    expect(ctx.sendMessage).toHaveBeenCalledWith('telegram:123', 'hello');
-    expect(r).toEqual({ sent: true });
+    expect(ctx.sendMessage).toHaveBeenCalledWith('telegram:123', 'hello', {
+      replyTo: 'orig-msg-42',
+    });
+    expect(r).toEqual({ sent: true, messageId: 'msg-001' });
   });
 
   it('throws when chatJid is not set', async () => {

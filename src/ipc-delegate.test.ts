@@ -132,6 +132,7 @@ describe('delegate_group IPC — real files', () => {
       'fix the bug',
       'tg/-100',
       1,
+      undefined,
     );
   });
 
@@ -258,6 +259,7 @@ describe('delegate_group IPC — real files', () => {
       'start',
       'tg/-100',
       1,
+      undefined,
     );
   });
 
@@ -369,6 +371,7 @@ describe('DB-backed routing — live reads', () => {
       'run tests',
       'tg/-100',
       1,
+      undefined,
     );
   });
 });

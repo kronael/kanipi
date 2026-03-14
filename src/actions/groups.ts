@@ -133,8 +133,6 @@ export const escalateGroup: Action = {
     const parent = ctx.sourceGroup.slice(0, slash);
 
     const workerLocalJid = `local:${ctx.sourceGroup}`;
-
-    // Build <escalation> XML wrapper
     let originalBlock = '';
     if (ctx.messageId) {
       const msg = getMessageById(ctx.messageId);
@@ -213,8 +211,6 @@ export const delegateGroup: Action = {
     return { queued: true };
   },
 };
-
-// --- Flat routing table actions ---
 
 const RouteSchema = z.object({
   seq: z.number().int().min(0),

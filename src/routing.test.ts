@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { _initTestDatabase, storeChatMetadata } from './db.js';
+import { _initTestDatabase, storeChatMetadata, setRoutesForJid } from './db.js';
 import { getAvailableGroups, _setGroups } from './index.js';
 import {
   isAuthorizedRoutingTarget,
@@ -157,6 +157,9 @@ describe('getAvailableGroups', () => {
         added_at: '2024-01-01T00:00:00.000Z',
       },
     });
+    setRoutesForJid('reg@g.us', [
+      { seq: 0, type: 'default', match: null, target: 'registered' },
+    ]);
 
     const groups = getAvailableGroups();
     const reg = groups.find((g) => g.jid === 'reg@g.us');

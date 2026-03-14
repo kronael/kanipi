@@ -124,7 +124,6 @@ const lastMessageDate: Record<string, string> = {};
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 
-// Per-group typing indicator intervals
 const typingState: Record<
   string,
   { interval: ReturnType<typeof setInterval>; channel: Channel }
@@ -151,7 +150,6 @@ function stopTypingFor(jid: string): void {
   delete typingState[jid];
 }
 
-// Cache attachment data for /file put — keyed by message ID, TTL 60s
 const attachmentCache = new Map<
   string,
   { attachments: RawAttachment[]; download: AttachmentDownloader; ts: number }
@@ -209,11 +207,9 @@ function registerGroup(jid: string, group: GroupConfig): void {
     return;
   }
 
-  // Store group config (folder-keyed)
   groups[group.folder] = group;
   setGroupConfig(group);
 
-  // Add default route (JID -> folder)
   addRoute(jid, {
     seq: 0,
     type: 'default',
@@ -221,7 +217,6 @@ function registerGroup(jid: string, group: GroupConfig): void {
     target: group.folder,
   });
 
-  // Add synthetic local:{folder} route (idempotent)
   const localJid = `local:${group.folder}`;
   const existingLocal = getRoutesForJid(localJid);
   if (existingLocal.length === 0) {
@@ -233,7 +228,6 @@ function registerGroup(jid: string, group: GroupConfig): void {
     });
   }
 
-  // Create group folder
   fs.mkdirSync(path.join(groupDir, 'logs'), { recursive: true });
 
   logger.info(
@@ -242,10 +236,6 @@ function registerGroup(jid: string, group: GroupConfig): void {
   );
 }
 
-/**
- * Get available groups list for the agent.
- * Returns groups ordered by most recent activity.
- */
 export function getAvailableGroups(): import('./container-runner.js').AvailableGroup[] {
   const chats = getAllChats();
   const routedJids = new Set(getRoutedJids());
@@ -260,34 +250,27 @@ export function getAvailableGroups(): import('./container-runner.js').AvailableG
     }));
 }
 
-/** @internal - exported for testing */
 export function _setGroups(g: Record<string, GroupConfig>): void {
   groups = g;
 }
 
-/** @internal - exported for testing */
 export const _processGroupMessages = processGroupMessages;
 
-/** @internal - exported for testing */
 export function _pushChannel(ch: Channel): void {
   channels.push(ch);
 }
 
-/** @internal - exported for testing */
 export function _setLastMessageDate(folder: string, date: string): void {
   lastMessageDate[folder] = date;
 }
 
-/** @internal - exported for testing */
 export function _getLastAgentTimestamp(jid: string): string {
   return lastAgentTimestamp[jid] ?? '';
 }
 
-/** @internal - exported for testing */
 export const _delegateToChild = delegateToChild;
 export const _delegateToParent = delegateToParent;
 
-/** @internal - exported for testing */
 export function _clearTestState(): void {
   sessions = {};
   for (const k of Object.keys(lastMessageDate)) delete lastMessageDate[k];
@@ -295,10 +278,6 @@ export function _clearTestState(): void {
   channels.splice(0);
 }
 
-/**
- * Process all pending messages for a group.
- * Called by the GroupQueue when it's this group's turn.
- */
 async function processGroupMessages(chatJid: string): Promise<boolean> {
   const t0 = Date.now();
   const traceId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -331,7 +310,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     return true;
   }
 
-  // Apply flat routing rules before spawning agent.
   const lastMsg = missedMessages[missedMessages.length - 1];
   const routes = getRoutesForJid(chatJid);
   const target = resolveRoute(lastMsg, routes);
@@ -381,10 +359,8 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   }
   lastMessageDate[group.folder] = today;
 
-  // Flush pending system messages (prepended to stdin)
   const sysXml = flushSystemMessages(group.folder);
 
-  // Consume any pending args stashed by /new
   const pendingArgs = pendingCommandArgs.get(chatJid);
   if (pendingArgs) pendingCommandArgs.delete(chatJid);
 
@@ -396,7 +372,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   );
   const formatted = formatMessages(userMessages);
   const clock = clockXml(TIMEZONE);
-  // Inject user context for the last message sender
   const groupDir = resolveGroupFolderPath(group.folder);
   const lastSender = userMessages[userMessages.length - 1]?.sender;
   const userXml = lastSender ? userContextXml(lastSender, groupDir) : null;
@@ -720,7 +695,6 @@ async function runAgent(
 ): Promise<'success' | 'error'> {
   const sessionId = sessions[group.folder];
 
-  // Update tasks snapshot for container to read (filtered by group)
   const tasks = getAllTasks();
   writeTasksSnapshot(
     group.folder,
@@ -736,18 +710,15 @@ async function runAgent(
     })),
   );
 
-  // Update available groups snapshot (root group only can see all groups)
   const availableGroups = getAvailableGroups();
   writeGroupsSnapshot(group.folder, availableGroups, new Set(getRoutedJids()));
 
-  // Inject diary summaries on session start (no existing session)
   const annotations: string[] = [];
   if (!sessionId) {
     const diary = formatDiaryXml(readDiaryEntries(group.folder));
     if (diary) annotations.push(diary);
   }
 
-  // Preempt idle container if another JID owns this folder (cross-channel routing)
   queue.preemptFolderIfNeeded(group.folder, chatJid);
 
   let outputDelivered = false;
@@ -840,11 +811,9 @@ async function startMessageLoop(): Promise<void> {
       if (messages.length > 0) {
         logger.info({ count: messages.length }, 'New messages');
 
-        // Advance the "seen" cursor for all messages immediately
         lastTimestamp = newTimestamp;
         saveState();
 
-        // Deduplicate by group
         const messagesByGroup = new Map<string, NewMessage[]>();
         for (const msg of messages) {
           const existing = messagesByGroup.get(msg.chat_jid);
@@ -868,7 +837,6 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          // Separate commands from content (deferred until routing resolves target).
           type DeferredCmd = { msg: NewMessage; word: string; args: string };
           const deferredCmds: DeferredCmd[] = [];
           const nonCommandMessages: NewMessage[] = [];
@@ -888,8 +856,6 @@ async function startMessageLoop(): Promise<void> {
             nonCommandMessages.push(msg);
           }
 
-          // Apply flat routing rules. Commands run on the routed group — not the
-          // JID default — so /new routes to whatever group the message targets.
           {
             const candidateMsgs =
               nonCommandMessages.length > 0
@@ -901,7 +867,6 @@ async function startMessageLoop(): Promise<void> {
             const routedGroup =
               target && groups[target] ? groups[target] : group;
 
-            // Run deferred commands with the routing-resolved group as context.
             for (const { msg, word, args } of deferredCmds) {
               const handler = findCommand(word.toLowerCase())!;
               const cached = attachmentCache.get(msg.id);
@@ -950,7 +915,6 @@ async function startMessageLoop(): Promise<void> {
             }
           }
 
-          // Pull all messages since lastAgentTimestamp for full context.
           const allPending = getMessagesSince(
             chatJid,
             lastAgentTimestamp[chatJid] || '',
@@ -959,7 +923,6 @@ async function startMessageLoop(): Promise<void> {
           const messagesToSend =
             allPending.length > 0 ? allPending : groupMessages;
           await waitForEnrichments(messagesToSend.map((m) => m.id));
-          // Re-fetch after enrichment so voice/video content is included
           const enriched = getMessagesSince(
             chatJid,
             lastAgentTimestamp[chatJid] || '',
@@ -978,10 +941,8 @@ async function startMessageLoop(): Promise<void> {
             lastAgentTimestamp[chatJid] =
               messagesToSend[messagesToSend.length - 1].timestamp;
             saveState();
-            // Show typing indicator while the container processes the piped message
             startTyping(channel, chatJid);
           } else {
-            // No active container — enqueue for a new one
             clearChatErrored(chatJid);
             queue.enqueueMessageCheck(chatJid);
           }
@@ -994,10 +955,6 @@ async function startMessageLoop(): Promise<void> {
   }
 }
 
-/**
- * Startup recovery: check for unprocessed messages in registered groups.
- * Handles crash between advancing lastTimestamp and processing messages.
- */
 function recoverPendingMessages(): void {
   for (const chatJid of getRoutedJids()) {
     const folder = getHubForJid(chatJid);
@@ -1038,7 +995,6 @@ async function main(): Promise<void> {
     writeCommandsXml(group.folder);
   }
 
-  // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutdown signal received');
     await queue.shutdown(10000);
@@ -1048,7 +1004,6 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  // Channel callbacks (shared by all channels)
   const channelOpts = {
     onMessage: (
       _chatJid: string,
@@ -1063,12 +1018,9 @@ async function main(): Promise<void> {
       const folder = getHubForJid(msg.chat_jid);
       const group = folder ? groups[folder] : undefined;
       if (attachments && download && group) {
-        // Resolve routing to determine final target folder for media storage
         const routes = getRoutesForJid(msg.chat_jid);
         const targetFolder = resolveRoute(msg, routes) || group.folder;
-
         enqueueEnrichment(msg.id, targetFolder, attachments, download);
-        // Cache for /file put command — command interception reads from DB later
         attachmentCache.set(msg.id, {
           attachments,
           download,
@@ -1088,7 +1040,6 @@ async function main(): Promise<void> {
     hasAlwaysOnGroup: () => hasAlwaysOnRoute(),
   };
 
-  // Create and connect channels
   if (TELEGRAM_BOT_TOKEN) {
     const telegram = new TelegramChannel(TELEGRAM_BOT_TOKEN, channelOpts);
     channels.push(telegram);
@@ -1191,7 +1142,6 @@ async function main(): Promise<void> {
 
   channels.push(new LocalChannel());
 
-  // Start subsystems (independently of connection handler)
   startSchedulerLoop({
     getGroupConfig: getGroupByFolder,
     getSessions: () => sessions,
@@ -1256,7 +1206,6 @@ async function main(): Promise<void> {
   });
 }
 
-// Guard: only run when executed directly, not when imported by tests
 const isDirectRun =
   process.argv[1] &&
   new URL(import.meta.url).pathname ===
