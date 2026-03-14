@@ -92,7 +92,7 @@ describe('valid token', () => {
     expect(JSON.parse(r.body)).toMatchObject({ ok: true });
     expect(messages).toHaveLength(1);
     expect(messages[0].content).toBe('hello world');
-    expect(messages[0].jid).toBe('web:main');
+    expect(messages[0].chat_jid).toBe('web:main');
   });
 });
 

@@ -1,5 +1,5 @@
 ---
-status: spec
+status: shipped
 ---
 
 # autotesting — subsystem test strategy

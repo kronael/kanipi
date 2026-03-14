@@ -83,7 +83,7 @@ export function formatMessages(messages: InboundEvent[], now?: number): string {
     const a = [
       `sender="${escapeXml(m.sender_name ?? m.sender)}"`,
       `sender_id="${escapeXml(m.sender)}"`,
-      `chat_id="${escapeXml(m.jid)}"`,
+      `chat_id="${escapeXml(m.chat_jid)}"`,
       m.group_name && `chat="${escapeXml(m.group_name)}"`,
       m.platform && `platform="${escapeXml(m.platform)}"`,
       `time="${m.timestamp}" ago="${timeAgo(m.timestamp, t)}"`,

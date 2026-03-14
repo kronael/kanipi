@@ -6,7 +6,7 @@ vi.mock('../config.js', () => ({ ASSISTANT_NAME: 'TestBot' }));
 
 const MSG = {
   id: '1',
-  jid: 'g@g.us',
+  chat_jid: 'g@g.us',
   sender: 's',
   content: 'hi',
   timestamp: '2024-01-01T00:00:00.000Z',

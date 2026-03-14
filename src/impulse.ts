@@ -85,7 +85,7 @@ export function createImpulseFilter(
 
   function fireFlush(result: FlushResult): void {
     for (const event of result.events) {
-      onMsg(event.jid, event);
+      onMsg(event.chat_jid, event);
     }
   }
 

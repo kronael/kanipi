@@ -347,7 +347,7 @@ export class WhatsAppChannel implements Channel {
             chatJid,
             {
               id: msg.key.id || '',
-              jid: chatJid,
+              chat_jid: chatJid,
               sender,
               sender_name: senderName,
               content: content || `[${attachments[0]?.type || 'media'}]`,

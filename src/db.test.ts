@@ -33,7 +33,7 @@ beforeEach(() => {
 // Helper to store a message using the normalized InboundEvent interface
 function store(overrides: {
   id: string;
-  jid: string;
+  chat_jid: string;
   sender: string;
   sender_name: string;
   content: string;
@@ -42,7 +42,7 @@ function store(overrides: {
 }) {
   storeMessage({
     id: overrides.id,
-    jid: overrides.jid,
+    chat_jid: overrides.chat_jid,
     sender: overrides.sender,
     sender_name: overrides.sender_name,
     content: overrides.content,
@@ -59,7 +59,7 @@ describe('storeMessage', () => {
 
     store({
       id: 'msg-1',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: '123@s.whatsapp.net',
       sender_name: 'Alice',
       content: 'hello world',
@@ -83,7 +83,7 @@ describe('storeMessage', () => {
 
     store({
       id: 'msg-2',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: '111@s.whatsapp.net',
       sender_name: 'Dave',
       content: '',
@@ -103,7 +103,7 @@ describe('storeMessage', () => {
 
     store({
       id: 'msg-3',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: 'me@s.whatsapp.net',
       sender_name: 'Me',
       content: 'my message',
@@ -125,7 +125,7 @@ describe('storeMessage', () => {
 
     store({
       id: 'msg-dup',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: '123@s.whatsapp.net',
       sender_name: 'Alice',
       content: 'original',
@@ -134,7 +134,7 @@ describe('storeMessage', () => {
 
     store({
       id: 'msg-dup',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: '123@s.whatsapp.net',
       sender_name: 'Alice',
       content: 'updated',
@@ -159,7 +159,7 @@ describe('getMessagesSince', () => {
 
     store({
       id: 'm1',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: 'Alice@s.whatsapp.net',
       sender_name: 'Alice',
       content: 'first',
@@ -167,7 +167,7 @@ describe('getMessagesSince', () => {
     });
     store({
       id: 'm2',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: 'Bob@s.whatsapp.net',
       sender_name: 'Bob',
       content: 'second',
@@ -175,7 +175,7 @@ describe('getMessagesSince', () => {
     });
     storeMessage({
       id: 'm3',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: 'Bot@s.whatsapp.net',
       sender_name: 'Bot',
       content: 'bot reply',
@@ -184,7 +184,7 @@ describe('getMessagesSince', () => {
     });
     store({
       id: 'm4',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: 'Carol@s.whatsapp.net',
       sender_name: 'Carol',
       content: 'third',
@@ -223,7 +223,7 @@ describe('getMessagesSince', () => {
     // Simulate a message written before migration: has prefix but is_bot_message = 0
     store({
       id: 'm5',
-      jid: 'group@g.us',
+      chat_jid: 'group@g.us',
       sender: 'Bot@s.whatsapp.net',
       sender_name: 'Bot',
       content: 'Andy: old bot reply',
@@ -247,7 +247,7 @@ describe('getNewMessages', () => {
 
     store({
       id: 'a1',
-      jid: 'group1@g.us',
+      chat_jid: 'group1@g.us',
       sender: 'user@s.whatsapp.net',
       sender_name: 'User',
       content: 'g1 msg1',
@@ -255,7 +255,7 @@ describe('getNewMessages', () => {
     });
     store({
       id: 'a2',
-      jid: 'group2@g.us',
+      chat_jid: 'group2@g.us',
       sender: 'user@s.whatsapp.net',
       sender_name: 'User',
       content: 'g2 msg1',
@@ -263,7 +263,7 @@ describe('getNewMessages', () => {
     });
     storeMessage({
       id: 'a3',
-      jid: 'group1@g.us',
+      chat_jid: 'group1@g.us',
       sender: 'user@s.whatsapp.net',
       sender_name: 'User',
       content: 'bot reply',
@@ -272,7 +272,7 @@ describe('getNewMessages', () => {
     });
     store({
       id: 'a4',
-      jid: 'group1@g.us',
+      chat_jid: 'group1@g.us',
       sender: 'user@s.whatsapp.net',
       sender_name: 'User',
       content: 'g1 msg2',

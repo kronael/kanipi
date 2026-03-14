@@ -39,7 +39,7 @@ export function startWatcher(
           if (lastTs && p.created_time <= lastTs) continue;
           const msg: InboundEvent = {
             id: p.id,
-            jid: `facebook:${cfg.pageId}`,
+            chat_jid: `facebook:${cfg.pageId}`,
             sender: `facebook:${p.from.id}`,
             sender_name: p.from.name,
             content: p.message,
@@ -47,7 +47,7 @@ export function startWatcher(
             verb: Verb.Message,
             platform: Platform.Facebook,
           };
-          onMsg(msg.jid, msg);
+          onMsg(msg.chat_jid, msg);
         }
         if (data.data.length > 0) lastTs = data.data[0].created_time;
       }

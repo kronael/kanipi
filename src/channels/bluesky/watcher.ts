@@ -21,7 +21,7 @@ function toMessage(n: {
   const parentUri = rec.reply?.parent?.uri;
   return {
     id: n.uri,
-    jid: `bluesky:${n.author.did}`,
+    chat_jid: `bluesky:${n.author.did}`,
     sender: `bluesky:${n.author.did}`,
     sender_name: n.author.displayName || n.author.handle,
     content: rec.text ?? '',
@@ -55,7 +55,7 @@ export function startWatcher(
         for (const n of notifs) {
           if (n.isRead) continue;
           const msg = toMessage(n);
-          onMsg(msg.jid, msg);
+          onMsg(msg.chat_jid, msg);
         }
         await agent.updateSeenNotifications();
       }

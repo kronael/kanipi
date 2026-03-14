@@ -247,9 +247,11 @@ keyed by group JID, alongside the existing message loop
 state. Existing chat channels have weight 100 for Message,
 so every message flushes immediately — zero behavior change.
 
-**Wired**: `createImpulseFilter()` is exported from `src/impulse.ts`
-and used in `src/index.ts` for all social channels (mastodon,
-bluesky, reddit, twitter, facebook). Core chat channels unchanged.
+**Wired**: impulse sits in the message loop (`src/index.ts`),
+between DB poll and group processing. One `Map<string, ImpulseState>`
+for all channels. `accumulate()` gates each group's messages;
+`checkTimeout()` flushes stale state at end of tick. Channels
+are oblivious — they store messages in DB normally.
 
 ### Flush delivery
 

@@ -13,7 +13,7 @@ import {
 function msg(overrides: Partial<InboundEvent> = {}): InboundEvent {
   return {
     id: '1',
-    jid: 'chat@test',
+    chat_jid: 'chat@test',
     sender: 'user@test',
     content: 'hello',
     timestamp: new Date().toISOString(),
@@ -198,8 +198,8 @@ describe('createImpulseFilter', () => {
     const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
     const filter = createImpulseFilter(onMsg);
 
-    filter.onMsg('a@test', msg({ id: 'a1', jid: 'a@test' }));
-    filter.onMsg('b@test', msg({ id: 'b1', jid: 'b@test' }));
+    filter.onMsg('a@test', msg({ id: 'a1', chat_jid: 'a@test' }));
+    filter.onMsg('b@test', msg({ id: 'b1', chat_jid: 'b@test' }));
     expect(received).toHaveLength(2);
     expect(received.map((e) => e.id)).toEqual(['a1', 'b1']);
   });

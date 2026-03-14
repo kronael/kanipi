@@ -157,7 +157,7 @@ export class EmailChannel implements Channel {
 
         this.opts.onMessage(chatJid, {
           id: msgId,
-          jid: chatJid,
+          chat_jid: chatJid,
           sender: `email:${fromAddress}`,
           sender_name: fromName,
           content,

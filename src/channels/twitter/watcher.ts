@@ -11,7 +11,7 @@ function toMessage(tweet: Tweet): InboundEvent {
   const handle = tweet.username ?? tweet.userId ?? 'unknown';
   return {
     id: tweet.id ?? `${Date.now()}`,
-    jid: `twitter:${tweet.userId ?? 'unknown'}`,
+    chat_jid: `twitter:${tweet.userId ?? 'unknown'}`,
     sender: `twitter:${tweet.userId ?? 'unknown'}`,
     sender_name: tweet.name ?? handle,
     content: tweet.text ?? '',
@@ -50,7 +50,7 @@ export async function startWatcher(
 
     for (const tweet of tweets) {
       const msg = toMessage(tweet);
-      onMsg(msg.jid, msg);
+      onMsg(msg.chat_jid, msg);
     }
 
     // Update cursor to newest tweet

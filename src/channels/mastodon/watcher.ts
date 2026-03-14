@@ -29,7 +29,7 @@ function handleEvent(
 
   const msg: InboundEvent = {
     id: n.status.id,
-    jid: `mastodon:${n.account.id}`,
+    chat_jid: `mastodon:${n.account.id}`,
     sender: `mastodon:${n.account.id}`,
     sender_name: n.account.displayName || n.account.username,
     content: stripHtml(n.status.content),
@@ -40,7 +40,7 @@ function handleEvent(
   };
 
   log.debug('mention from @%s: %s', n.account.acct, msg.content);
-  onMsg(msg.jid, msg);
+  onMsg(msg.chat_jid, msg);
 }
 
 export async function startWatcher(

@@ -302,7 +302,7 @@ function msg(
 ): InboundEvent {
   return {
     id: '1',
-    jid: 'group@g.us',
+    chat_jid: 'group@g.us',
     sender,
     sender_name,
     content,
@@ -313,7 +313,7 @@ function msg(
 function mkMsg(content: string): InboundEvent {
   return {
     id: '1',
-    jid: 'test:1',
+    chat_jid: 'test:1',
     sender: 'user',
     content,
     timestamp: new Date().toISOString(),

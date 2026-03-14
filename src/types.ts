@@ -104,7 +104,7 @@ export interface SendOpts {
 
 export interface InboundEvent {
   id: string;
-  jid: string;
+  chat_jid: string;
   sender: string;
   sender_name?: string;
   content: string;

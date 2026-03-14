@@ -33,7 +33,7 @@ function toMessage(thing: RedditThing, source: string): InboundEvent {
       : `reddit:${d.subreddit ?? source}`;
   return {
     id: d.name,
-    jid,
+    chat_jid: jid,
     sender: `reddit:${d.author}`,
     sender_name: d.author,
     content: d.body ?? d.selftext ?? d.title ?? '',
@@ -62,7 +62,7 @@ async function pollListing(
   if (!before) return;
   for (const item of items.reverse()) {
     const msg = toMessage(item, source);
-    onMsg(msg.jid, msg);
+    onMsg(msg.chat_jid, msg);
   }
 }
 
