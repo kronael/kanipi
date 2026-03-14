@@ -7,7 +7,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [Unreleased]
+## [v1.7.0] — 2026-03-14
 
 ### Added
 
@@ -30,6 +30,12 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
   replace the default Claude Code system prompt entirely.
 - **`<internal>` tag stripping**: moved from gateway (`router.ts`) to
   agent-runner for cleaner separation.
+- **Escalation protocol**: `escalate_group` wraps prompt in `<escalation>`
+  XML, round-trips via `local:` JIDs with `LocalChannel`.
+- **Permission tiers**: tier 2 `send_message` restricted to own JID,
+  tier 1 can manage any task (cancel/pause/resume).
+- **Local JID convention**: `local:{folder}` auto-routed to group folder,
+  `messageId` wired through `start.json` and `ActionContext`.
 
 ### Changed
 
@@ -37,6 +43,8 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
   field removed.
 - **IpcDeps**: delegation signatures updated with `messageId` and
   `escalationOrigin` parameters.
+- **Route authorization**: messaging authorized by all route targets, not
+  just hub group.
 
 ---
 
