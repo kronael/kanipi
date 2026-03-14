@@ -16,8 +16,11 @@ const envConfig = readEnvFile([
   'CONTAINER_IMAGE',
   'WEB_PORT',
   'VITE_PORT',
-  'SLOTH_USERS',
   'AUTH_SECRET',
+  'GITHUB_CLIENT_ID',
+  'GITHUB_CLIENT_SECRET',
+  'DISCORD_CLIENT_ID',
+  'DISCORD_CLIENT_SECRET',
   'MEDIA_ENABLED',
   'MEDIA_MAX_FILE_BYTES',
   'VOICE_TRANSCRIPTION_ENABLED',
@@ -159,6 +162,7 @@ export const FACEBOOK_PAGE_ACCESS_TOKEN =
   '';
 
 export const WEB_DIR = path.resolve(PROJECT_ROOT, 'web');
+export const HOST_WEB_DIR = path.resolve(HOST_PROJECT_ROOT, 'web');
 
 // Web proxy: WEB_PORT is the single external port (VITE_PORT also accepted).
 // VITE_PORT_INTERNAL: actual internal Vite port; defaults to WEB_PORT+1.
@@ -175,10 +179,6 @@ export const VITE_PORT_INTERNAL = _viteInternal
   : WEB_PORT
     ? WEB_PORT + 1
     : 5174;
-// SLOTH_USERS format: "alice:pass,bob:pass2"
-export const SLOTH_USERS =
-  process.env.SLOTH_USERS || envConfig.SLOTH_USERS || '';
-
 // Slink rate limits (requests per minute)
 export let SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
 export let SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
@@ -194,10 +194,14 @@ export const AUTH_SECRET =
   process.env.AUTH_SECRET || envConfig.AUTH_SECRET || '';
 
 // OAuth providers
-export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
-export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
-export const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
-export const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
+export const GITHUB_CLIENT_ID =
+  process.env.GITHUB_CLIENT_ID || envConfig.GITHUB_CLIENT_ID || '';
+export const GITHUB_CLIENT_SECRET =
+  process.env.GITHUB_CLIENT_SECRET || envConfig.GITHUB_CLIENT_SECRET || '';
+export const DISCORD_CLIENT_ID =
+  process.env.DISCORD_CLIENT_ID || envConfig.DISCORD_CLIENT_ID || '';
+export const DISCORD_CLIENT_SECRET =
+  process.env.DISCORD_CLIENT_SECRET || envConfig.DISCORD_CLIENT_SECRET || '';
 
 export function _overrideConfig(patch: {
   SLINK_ANON_RPM?: number;

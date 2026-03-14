@@ -50,6 +50,25 @@ export function mintJwt(sub: string, name: string, secret: string): string {
 }
 
 export function loginPageHtml(): string {
+  const oauthButtons: string[] = [];
+  if (GITHUB_CLIENT_ID) {
+    oauthButtons.push(
+      '<a href="/auth/github" class="oauth-btn gh">Sign in with GitHub</a>',
+    );
+  }
+  if (DISCORD_CLIENT_ID) {
+    oauthButtons.push(
+      '<a href="/auth/discord" class="oauth-btn dc">Sign in with Discord</a>',
+    );
+  }
+  if (TELEGRAM_BOT_TOKEN) {
+    oauthButtons.push(
+      '<a href="javascript:void(0)" class="oauth-btn tg" onclick="alert(\'Use the Telegram Login Widget on your site\')">Sign in with Telegram</a>',
+    );
+  }
+  const oauthSection = oauthButtons.length
+    ? `<div class="divider"><span>or</span></div>${oauthButtons.join('\n  ')}`
+    : '';
   return `<!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Login</title>
@@ -58,6 +77,12 @@ body{font-family:sans-serif;display:flex;align-items:center;justify-content:cent
 form{background:#fff;padding:2rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);display:flex;flex-direction:column;gap:1rem;min-width:280px}
 input{padding:.5rem;border:1px solid #ccc;border-radius:4px;font-size:1rem}
 button{padding:.5rem;background:#333;color:#fff;border:none;border-radius:4px;font-size:1rem;cursor:pointer}
+.oauth-btn{display:block;text-align:center;padding:.5rem;border-radius:4px;font-size:1rem;text-decoration:none;color:#fff}
+.oauth-btn.gh{background:#24292e}
+.oauth-btn.dc{background:#5865f2}
+.oauth-btn.tg{background:#0088cc}
+.divider{text-align:center;color:#999;font-size:.85rem;margin:.5rem 0}
+.divider span{background:#fff;padding:0 .5rem}
 #err{color:#c00;font-size:.9rem;display:none}
 </style>
 </head>
@@ -68,6 +93,7 @@ button{padding:.5rem;background:#333;color:#fff;border:none;border-radius:4px;fo
   <input name="password" type="password" placeholder="Password" required autocomplete="current-password">
   <button type="submit">Sign in</button>
   <div id="err"></div>
+  ${oauthSection}
 </form>
 <script>
 document.getElementById('f').addEventListener('submit', async function(e) {

@@ -340,8 +340,8 @@ if [ "${1:-}" = "create" ]; then
   [ ! -d "$SEED" ] && SEED="$(cd "$(dirname "$0")" && pwd)/prototype"
   cp "$SEED/env.example" "$DATA/.env"
   sed -i "s/^ASSISTANT_NAME=.*/ASSISTANT_NAME=${NAME}/" "$DATA/.env"
-  SLOTH_PASS=$(openssl rand -hex 8 2>/dev/null || tr -dc a-z0-9 < /dev/urandom | head -c 16)
-  sed -i "s/^SLOTH_USERS=.*/SLOTH_USERS=admin:${SLOTH_PASS}/" "$DATA/.env"
+  AUTH_SECRET=$(openssl rand -hex 32 2>/dev/null || tr -dc a-z0-9 < /dev/urandom | head -c 64)
+  sed -i "s/^#\?AUTH_SECRET=.*/AUTH_SECRET=${AUTH_SECRET}/" "$DATA/.env"
   echo "created: $DATA/.env"
 
   # seed web template

@@ -1,5 +1,5 @@
 ---
-status: spec
+status: shipped (1-2), spec (3)
 ---
 
 # Web Virtual Hosts
@@ -48,15 +48,15 @@ Two layers prevent cross-world serving:
    `DATA_DIR/web/<world>/` as `/workspace/web/`. Cannot write
    outside own directory. Symlinks resolve inside the mount.
 
-2. **Redirect validation** — web-proxy normalizes the URL and
-   rejects traversal before redirecting:
+2. **Redirect validation** — web-proxy rejects traversal in
+   the raw URL, then normalizes before redirecting:
 
 ```typescript
-const normalized = path.posix.normalize(req.url);
-if (normalized.startsWith('..') || normalized.includes('/..')) {
+if (url.includes('..')) {
   res.writeHead(400).end();
   return;
 }
+const normalized = path.posix.normalize(url);
 res.writeHead(301, { Location: `/${world}${normalized}` });
 ```
 
@@ -100,9 +100,19 @@ it just writes files. The redirect serves them at `{world}.{domain}`.
 
 ## Implementation order
 
-1. web-proxy.ts: read `vhosts.json`, redirect by `Host` header
-2. Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`
+1. ~~web-proxy.ts: read `vhosts.json`, redirect by `Host` header~~ **shipped**
+2. ~~Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`~~ **shipped**
 3. `infra` skill for root agent
+
+## Implementation notes
+
+- `loadVhosts()` in `web-proxy.ts` caches `vhosts.json`, re-checks
+  file mtime every 5s. Redirect runs before auth check.
+- `HOST_WEB_DIR` added to `config.ts` for host-path mount resolution.
+- `container-runner.ts` `buildVolumeMounts()`: tier 0 mounts full
+  `WEB_DIR`, tier 1 mounts `WEB_DIR/<world>/` as `/workspace/web/`.
+- Tests in `web-proxy.test.ts`: vhost redirect, path traversal
+  rejection, no-match fallthrough, missing vhosts.json.
 
 ## Related
 

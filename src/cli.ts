@@ -479,10 +479,16 @@ function userRm(instance: string, username: string): void {
 
   const db = new Database(dbPath);
   try {
-    const r = db
-      .prepare('DELETE FROM auth_users WHERE username = ?')
-      .run(username);
-    console.log(r.changes ? `removed: ${username}` : `not found: ${username}`);
+    const user = db
+      .prepare('SELECT sub FROM auth_users WHERE username = ?')
+      .get(username) as { sub: string } | undefined;
+    if (!user) {
+      console.log(`not found: ${username}`);
+      return;
+    }
+    db.prepare('DELETE FROM auth_sessions WHERE user_sub = ?').run(user.sub);
+    db.prepare('DELETE FROM auth_users WHERE username = ?').run(username);
+    console.log(`removed: ${username}`);
   } finally {
     db.close();
   }
@@ -614,10 +620,10 @@ function create(name: string): void {
       /^ASSISTANT_NAME=.*/m,
       `ASSISTANT_NAME=${name}`,
     );
-    const slothPass = crypto.randomBytes(8).toString('hex');
+    const authSecret = crypto.randomBytes(32).toString('hex');
     envContent = envContent.replace(
-      /^SLOTH_USERS=.*/m,
-      `SLOTH_USERS=admin:${slothPass}`,
+      /^#?AUTH_SECRET=.*/m,
+      `AUTH_SECRET=${authSecret}`,
     );
     fs.writeFileSync(envDst, envContent);
     console.log(`created: ${envDst}`);

@@ -727,6 +727,10 @@ export function deleteAuthSession(tokenHash: string): void {
   db.prepare(`DELETE FROM auth_sessions WHERE token_hash = ?`).run(tokenHash);
 }
 
+export function deleteAuthSessionsByUserSub(userSub: string): void {
+  db.prepare(`DELETE FROM auth_sessions WHERE user_sub = ?`).run(userSub);
+}
+
 export function pruneExpiredSessions(): void {
   db.prepare(`DELETE FROM auth_sessions WHERE expires_at < ?`).run(
     new Date().toISOString(),

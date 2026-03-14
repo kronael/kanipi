@@ -253,26 +253,29 @@ verification. OAuth providers described in some specs are not implemented.
 
 All via `.env` (seeded from `template/env.example`):
 
-| Key                       | Purpose                                       |
-| ------------------------- | --------------------------------------------- |
-| ASSISTANT_NAME            | instance name                                 |
-| TELEGRAM_BOT_TOKEN        | enables telegram channel                      |
-| DISCORD_BOT_TOKEN         | enables discord channel                       |
-| CONTAINER_IMAGE           | agent docker image                            |
-| CLAUDE_CODE_OAUTH_TOKEN   | passed to agent containers                    |
-| IDLE_TIMEOUT              | container idle shutdown (ms)                  |
-| MAX_CONCURRENT_CONTAINERS | concurrent agent limit                        |
-| VITE_PORT                 | enables vite web serving                      |
-| WEB_HOST                  | vite host binding                             |
-| SLOTH_USERS               | basic auth users (alice:pw,bob:pw2)           |
-| AUTH_SECRET               | HMAC secret for JWT verification (slink)      |
-| WHISPER_BASE_URL          | whisper service URL for transcription         |
-| EMAIL_IMAP_HOST           | enables email channel (IMAP IDLE)             |
-| EMAIL_SMTP_HOST           | SMTP for reply threading (defaults from IMAP) |
-| EMAIL_ACCOUNT             | email account address                         |
-| EMAIL_PASSWORD            | email account password                        |
-| MEDIA_ENABLED             | enable attachment pipeline (default false)    |
-| TIMEZONE                  | cron timezone (validated, fallback UTC)       |
+| Key                       | Purpose                                                   |
+| ------------------------- | --------------------------------------------------------- |
+| ASSISTANT_NAME            | instance name                                             |
+| TELEGRAM_BOT_TOKEN        | enables telegram channel                                  |
+| DISCORD_BOT_TOKEN         | enables discord channel                                   |
+| CONTAINER_IMAGE           | agent docker image                                        |
+| CLAUDE_CODE_OAUTH_TOKEN   | passed to agent containers                                |
+| IDLE_TIMEOUT              | container idle shutdown (ms)                              |
+| MAX_CONCURRENT_CONTAINERS | concurrent agent limit                                    |
+| VITE_PORT                 | enables vite web serving                                  |
+| WEB_HOST                  | vite host binding                                         |
+| AUTH_SECRET               | JWT secret for session auth (required for non-public web) |
+| GITHUB_CLIENT_ID          | GitHub OAuth app client ID                                |
+| GITHUB_CLIENT_SECRET      | GitHub OAuth app client secret                            |
+| DISCORD_CLIENT_ID         | Discord OAuth app client ID                               |
+| DISCORD_CLIENT_SECRET     | Discord OAuth app client secret                           |
+| WHISPER_BASE_URL          | whisper service URL for transcription                     |
+| EMAIL_IMAP_HOST           | enables email channel (IMAP IDLE)                         |
+| EMAIL_SMTP_HOST           | SMTP for reply threading (defaults from IMAP)             |
+| EMAIL_ACCOUNT             | email account address                                     |
+| EMAIL_PASSWORD            | email account password                                    |
+| MEDIA_ENABLED             | enable attachment pipeline (default false)                |
+| TIMEZONE                  | cron timezone (validated, fallback UTC)                   |
 
 Channels enabled by token presence (telegram/discord),
 auth dir existence (whatsapp: `store/auth/creds.json`),

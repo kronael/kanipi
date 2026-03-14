@@ -1,5 +1,8 @@
+import fs from 'fs';
 import http from 'http';
+import path from 'path';
 
+import { WEB_DIR } from './config.js';
 import {
   checkSessionCookie,
   handleDiscordAuth,
@@ -116,55 +119,86 @@ const SLOTH_JS = `(function(){
   };
 })();`;
 
-// Parse "alice:pass,bob:pass2" into a map
-function parseUsers(s: string): Map<string, string> {
-  const m = new Map<string, string>();
-  for (const pair of s.split(',')) {
-    const colon = pair.indexOf(':');
-    if (colon === -1) continue;
-    m.set(pair.slice(0, colon).trim(), pair.slice(colon + 1).trim());
+// --- vhosts.json cache ---
+let vhostsCache: Record<string, string> = {};
+let vhostsMtime = 0;
+let vhostsLastCheck = 0;
+const VHOSTS_CHECK_INTERVAL = 5000; // check file mtime every 5s
+
+export function loadVhosts(webDir?: string): Record<string, string> {
+  const dir = webDir ?? WEB_DIR;
+  const file = path.join(dir, 'vhosts.json');
+  const now = Date.now();
+  if (now - vhostsLastCheck < VHOSTS_CHECK_INTERVAL) return vhostsCache;
+  vhostsLastCheck = now;
+  try {
+    const stat = fs.statSync(file);
+    const mtime = stat.mtimeMs;
+    if (mtime === vhostsMtime) return vhostsCache;
+    vhostsMtime = mtime;
+    const raw = fs.readFileSync(file, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      vhostsCache = parsed as Record<string, string>;
+      logger.info({ count: Object.keys(vhostsCache).length }, 'vhosts loaded');
+    }
+  } catch {
+    // file missing or invalid — keep previous cache
   }
-  return m;
+  return vhostsCache;
+}
+
+export function _resetVhosts(): void {
+  vhostsCache = {};
+  vhostsMtime = 0;
+  vhostsLastCheck = 0;
 }
 
 const PUBLIC_PREFIXES = ['/pub/', '/_sloth/'];
 
-function checkAuth(
-  req: http.IncomingMessage,
-  users: Map<string, string>,
-  authSecret?: string,
-): boolean {
+function checkAuth(req: http.IncomingMessage, authSecret?: string): boolean {
   const url = req.url || '/';
   if (PUBLIC_PREFIXES.some((p) => url.startsWith(p))) return true;
   if (url.startsWith('/auth/')) return true;
 
   if (authSecret) return checkSessionCookie(req.headers.cookie || '');
 
-  if (users.size === 0) return true;
-  const header = req.headers['authorization'] || '';
-  if (!header.startsWith('Basic ')) return false;
-  const decoded = Buffer.from(header.slice(6), 'base64').toString('utf-8');
-  const colon = decoded.indexOf(':');
-  if (colon === -1) return false;
-  const user = decoded.slice(0, colon);
-  const pass = decoded.slice(colon + 1);
-  return users.get(user) === pass;
+  // No auth secret = no auth required
+  return true;
 }
 
 export function startWebProxy(opts: {
   webPort: number;
   vitePort: number;
-  slothUsers: string;
   onMessage: OnInboundMessage;
   authSecret?: string;
   webPublic?: boolean;
 }): http.Server {
-  const { webPort, vitePort, slothUsers, onMessage, authSecret, webPublic } =
-    opts;
-  const users = parseUsers(slothUsers);
+  const { webPort, vitePort, onMessage, authSecret, webPublic } = opts;
 
   const server = http.createServer((req, res) => {
     const url = req.url || '/';
+
+    // Vhost redirect — before auth, public
+    const host = req.headers.host?.replace(/:\d+$/, '');
+    if (host) {
+      const vhosts = loadVhosts();
+      const world = vhosts[host];
+      if (world) {
+        if (url.includes('..')) {
+          res.writeHead(400).end();
+          return;
+        }
+        const normalized = path.posix.normalize(url);
+        res.writeHead(301, { Location: `/${world}${normalized}` });
+        res.end();
+        return;
+      }
+    }
 
     // Landing page redirects to /pub/ (public, no auth)
     if (!webPublic && (url === '/' || url === '/index.html')) {
@@ -174,17 +208,9 @@ export function startWebProxy(opts: {
     }
 
     // Auth check (skipped in public mode)
-    if (!webPublic && !checkAuth(req, users, authSecret)) {
-      if (authSecret) {
-        res.writeHead(302, { Location: '/auth/login' });
-        res.end();
-      } else {
-        res.writeHead(401, {
-          'WWW-Authenticate': 'Basic realm="sloth"',
-          'Content-Type': 'text/plain',
-        });
-        res.end('Unauthorized');
-      }
+    if (!webPublic && !checkAuth(req, authSecret)) {
+      res.writeHead(302, { Location: '/auth/login' });
+      res.end();
       return;
     }
 

@@ -7,7 +7,6 @@ import {
   DISCORD_BOT_TOKEN,
   EMAIL_IMAP_HOST,
   POLL_INTERVAL,
-  SLOTH_USERS,
   TELEGRAM_BOT_TOKEN,
   VITE_PORT_INTERNAL,
   WEB_PORT,
@@ -1194,7 +1193,6 @@ async function main(): Promise<void> {
     startWebProxy({
       webPort: WEB_PORT,
       vitePort: VITE_PORT_INTERNAL,
-      slothUsers: SLOTH_USERS,
       onMessage: channelOpts.onMessage,
       authSecret: process.env.AUTH_SECRET,
       webPublic: WEB_PUBLIC,

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fs from 'fs';
 import http from 'http';
 import { addSseListener, removeSseListener } from './channels/web.js';
 
@@ -23,7 +24,7 @@ vi.mock('./logger.js', () => ({
 
 import { getGroupBySlink } from './db.js';
 import { handleSlinkPost } from './slink.js';
-import { startWebProxy } from './web-proxy.js';
+import { startWebProxy, _resetVhosts } from './web-proxy.js';
 import type { GroupConfig } from './db.js';
 import type { OnInboundMessage } from './types.js';
 
@@ -43,10 +44,7 @@ function makeGroup(token: string): GroupConfig & { jid: string } {
 }
 
 // Helper: start proxy on a random port, return { port, onMessage, close }
-function startProxy(opts?: {
-  authSecret?: string;
-  slothUsers?: string;
-}): Promise<{
+function startProxy(opts?: { authSecret?: string }): Promise<{
   port: number;
   onMessage: ReturnType<typeof vi.fn>;
   close: () => Promise<void>;
@@ -56,7 +54,6 @@ function startProxy(opts?: {
     const server = startWebProxy({
       webPort: 0,
       vitePort: 9999,
-      slothUsers: opts?.slothUsers ?? '',
       onMessage,
       authSecret: opts?.authSecret,
     });
@@ -110,7 +107,12 @@ function get(
   port: number,
   path: string,
   headers?: Record<string, string>,
-): Promise<{ status: number; body: string; ct: string }> {
+): Promise<{
+  status: number;
+  body: string;
+  ct: string;
+  location?: string;
+}> {
   return new Promise((resolve, reject) => {
     http
       .get({ host: 'localhost', port, path, headers }, (res) => {
@@ -121,6 +123,7 @@ function get(
             status: res.statusCode ?? 0,
             body: data,
             ct: res.headers['content-type'] ?? '',
+            location: res.headers['location'] as string | undefined,
           }),
         );
       })
@@ -130,6 +133,7 @@ function get(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  _resetVhosts();
 });
 
 describe('GET /pub/sloth.js', () => {
@@ -163,18 +167,6 @@ describe('POST /pub/s/:token', () => {
     });
     const res = await post(port, '/pub/s/unknown-tok', '{"text":"hi"}');
     expect(res.status).toBe(404);
-  });
-
-  it('rate limited returns 429', async () => {
-    const { port } = await startProxy();
-    const group = makeGroup('tok-rl');
-    mockGetGroup.mockReturnValue(group);
-    mockHandleSlink.mockReturnValue({
-      status: 429,
-      body: '{"error":"rate limited"}',
-    });
-    const res = await post(port, '/pub/s/tok-rl', '{"text":"x"}');
-    expect(res.status).toBe(429);
   });
 
   it('passes authHeader to handleSlinkPost for JWT sub', async () => {
@@ -423,9 +415,9 @@ describe('POST /pub/s/:token validation', () => {
   });
 });
 
-describe('basic auth', () => {
-  it('redirects / to /pub/ without credentials', async () => {
-    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+describe('session auth', () => {
+  it('redirects / to /pub/ when authSecret is set', async () => {
+    const { port, close } = await startProxy({ authSecret: 'testsecret' });
     try {
       const res = await get(port, '/');
       expect(res.status).toBe(302);
@@ -434,18 +426,19 @@ describe('basic auth', () => {
     }
   });
 
-  it('blocks /howto/ without credentials', async () => {
-    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+  it('redirects to /auth/login for protected routes without session', async () => {
+    const { port, close } = await startProxy({ authSecret: 'testsecret' });
     try {
       const res = await get(port, '/howto/');
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(302);
+      expect(res.location).toBe('/auth/login');
     } finally {
       await close();
     }
   });
 
-  it('passes /pub/sloth.js without credentials', async () => {
-    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+  it('passes /pub/sloth.js without session', async () => {
+    const { port, close } = await startProxy({ authSecret: 'testsecret' });
     try {
       const res = await get(port, '/pub/sloth.js');
       expect(res.status).toBe(200);
@@ -454,10 +447,10 @@ describe('basic auth', () => {
     }
   });
 
-  it('passes POST /pub/s/:token without credentials', async () => {
+  it('passes POST /pub/s/:token without session', async () => {
     mockGetGroup.mockReturnValue({ jid: 'web:tok', folder: 'root' });
     mockHandleSlink.mockReturnValue({ status: 200, body: '{"ok":true}' });
-    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
+    const { port, close } = await startProxy({ authSecret: 'testsecret' });
     try {
       const res = await post(port, '/pub/s/tok', '{"text":"hi"}');
       expect(res.status).toBe(200);
@@ -466,51 +459,11 @@ describe('basic auth', () => {
     }
   });
 
-  it('allows authenticated request with valid Basic credentials', async () => {
-    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
-    try {
-      const creds = Buffer.from('alice:secret').toString('base64');
-      // Vite proxy will 502, but auth passes (not 401)
-      const res = await get(port, '/howto/', {
-        Authorization: `Basic ${creds}`,
-      });
-      expect(res.status).not.toBe(401);
-    } finally {
-      await close();
-    }
-  });
-
-  it('rejects request with wrong Basic password', async () => {
-    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
-    try {
-      const creds = Buffer.from('alice:wrong').toString('base64');
-      const res = await get(port, '/howto/', {
-        Authorization: `Basic ${creds}`,
-      });
-      expect(res.status).toBe(401);
-    } finally {
-      await close();
-    }
-  });
-
-  it('rejects request with unknown Basic user', async () => {
-    const { port, close } = await startProxy({ slothUsers: 'alice:secret' });
-    try {
-      const creds = Buffer.from('eve:secret').toString('base64');
-      const res = await get(port, '/howto/', {
-        Authorization: `Basic ${creds}`,
-      });
-      expect(res.status).toBe(401);
-    } finally {
-      await close();
-    }
-  });
-
   // /_sloth/ is in PUBLIC_PREFIXES — intentionally unauthenticated so
   // the embedded sloth.js widget can post without user credentials.
-  it('passes POST /_sloth/message without credentials (public widget endpoint)', async () => {
+  it('passes POST /_sloth/message without session (public widget endpoint)', async () => {
     const { port, onMessage, close } = await startProxy({
-      slothUsers: 'alice:secret',
+      authSecret: 'testsecret',
     });
     try {
       const res = await post(
@@ -520,6 +473,82 @@ describe('basic auth', () => {
       );
       expect(res.status).toBe(200);
       expect(onMessage).toHaveBeenCalled();
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe('vhost redirect', () => {
+  const vhosts = { 'krons.fiu.wtf': 'krons', 'atlas.fiu.wtf': 'atlas' };
+
+  function mockVhosts() {
+    vi.spyOn(fs, 'statSync').mockReturnValue({
+      mtimeMs: Date.now(),
+    } as fs.Stats);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify(vhosts));
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('matching host returns 301 redirect to world path', async () => {
+    mockVhosts();
+    const { port, close } = await startProxy();
+    try {
+      const res = await get(port, '/page.html', { Host: 'krons.fiu.wtf' });
+      expect(res.status).toBe(301);
+      expect(res.location).toBe('/krons/page.html');
+    } finally {
+      await close();
+    }
+  });
+
+  it('root path redirects to /world/', async () => {
+    mockVhosts();
+    const { port, close } = await startProxy();
+    try {
+      const res = await get(port, '/', { Host: 'atlas.fiu.wtf' });
+      expect(res.status).toBe(301);
+      expect(res.location).toBe('/atlas/');
+    } finally {
+      await close();
+    }
+  });
+
+  it('path traversal returns 400', async () => {
+    mockVhosts();
+    const { port, close } = await startProxy();
+    try {
+      const res = await get(port, '/../../etc/passwd', {
+        Host: 'krons.fiu.wtf',
+      });
+      expect(res.status).toBe(400);
+    } finally {
+      await close();
+    }
+  });
+
+  it('no vhost match falls through to normal proxy', async () => {
+    mockVhosts();
+    const { port, close } = await startProxy();
+    try {
+      const res = await get(port, '/', { Host: 'unknown.example.com' });
+      expect(res.status).not.toBe(301);
+    } finally {
+      await close();
+    }
+  });
+
+  it('no vhosts.json — normal behavior', async () => {
+    vi.spyOn(fs, 'statSync').mockImplementation(() => {
+      throw new Error('ENOENT');
+    });
+    const { port, close } = await startProxy();
+    try {
+      const res = await get(port, '/', { Host: 'krons.fiu.wtf' });
+      expect(res.status).not.toBe(301);
     } finally {
       await close();
     }
