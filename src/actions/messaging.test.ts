@@ -100,6 +100,36 @@ describe('send_message', () => {
     ).rejects.toThrow('unauthorized');
   });
 
+  it('tier 1 cannot send to unrouted JID', async () => {
+    mockRouteTargets.mockReturnValue([]);
+    const ctx = makeCtx(1, 'atlas');
+
+    await expect(
+      sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('tier 1 cannot send to JID routed only to other world', async () => {
+    mockRouteTargets.mockReturnValue(['other/group']);
+    const ctx = makeCtx(1, 'atlas');
+
+    await expect(
+      sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('sends with replyTo option', async () => {
+    const ctx = makeCtx(0);
+    await sendMessage.handler(
+      { chatJid: 'chat@jid', text: 'reply', replyTo: 'msg-99' },
+      ctx,
+    );
+
+    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'reply', {
+      replyTo: 'msg-99',
+    });
+  });
+
   it('tier 1 can send to JID with any route in same world', async () => {
     mockRouteTargets.mockReturnValue(['atlas/deep/child', 'other']);
     const ctx = makeCtx(1, 'atlas');
@@ -130,6 +160,17 @@ describe('send_reply', () => {
     const ctx = makeCtx(0, 'root', undefined);
     await expect(sendReply.handler({ text: 'hello' }, ctx)).rejects.toThrow(
       'no bound chat JID',
+    );
+  });
+
+  it('sends without replyTo when messageId is not set', async () => {
+    const ctx = makeCtx(0, 'root', 'telegram:123', undefined);
+    await sendReply.handler({ text: 'hello' }, ctx);
+
+    expect(ctx.sendMessage).toHaveBeenCalledWith(
+      'telegram:123',
+      'hello',
+      undefined,
     );
   });
 });

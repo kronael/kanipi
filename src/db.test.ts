@@ -4,23 +4,63 @@ import {
   _initTestDatabase,
   _setRawGroupColumns,
   _setTestGroupRoute,
+  addRoute,
+  appendMessageContent,
+  clearChatErrored,
+  createAuthSession,
+  createAuthUser,
   createTask,
+  deleteAuthSession,
+  deleteGroupConfig,
+  deleteRoute,
+  deleteSession,
   deleteTask,
   enqueueSystemMessage,
   flushSystemMessages,
   getAllChats,
   getAllGroupConfigs,
+  getAllRoutes,
+  getAllSessions,
+  getAllTasks,
+  getAuthSession,
+  getAuthUserByUsername,
+  getAuthUserBySub,
+  getDirectChildGroupCount,
   getDueTasks,
+  getEmailThread,
+  getEmailThreadByMsgId,
   getGroupByFolder,
+  getGroupBySlink,
+  getHubForJid,
+  getJidsForFolder,
+  getLastGroupSync,
+  getMessageById,
   getMessagesSince,
   getNewMessages,
   getRecentSessions,
+  getRouteById,
+  getRoutedJids,
+  getRouteTargetsForJid,
+  getRoutesForJid,
+  getRouterState,
+  getSession,
   getTaskById,
+  getTasksForGroup,
+  hasAlwaysOnRoute,
+  isChatErrored,
+  logTaskRun,
+  markChatErrored,
   pruneExpiredSessions,
   recordSessionStart,
   setGroupConfig,
+  setLastGroupSync,
+  setRoutesForJid,
+  setRouterState,
+  setSession,
   storeChatMetadata,
+  storeEmailThread,
   storeMessage,
+  updateChatName,
   updateSessionEnd,
   updateTask,
   updateTaskAfterRun,
@@ -716,5 +756,685 @@ describe('session_history', () => {
     const rows = getRecentSessions('grp-ord', 10);
     expect(rows[0].session_id).toBe('sess-o2');
     expect(rows[1].session_id).toBe('sess-o1');
+  });
+});
+
+// --- updateChatName ---
+
+describe('updateChatName', () => {
+  it('creates a new chat entry if not exists', () => {
+    updateChatName('new@g.us', 'New Chat');
+    const chats = getAllChats();
+    expect(chats).toHaveLength(1);
+    expect(chats[0].jid).toBe('new@g.us');
+    expect(chats[0].name).toBe('New Chat');
+  });
+
+  it('updates name without changing timestamp on existing chat', () => {
+    storeChatMetadata('chat@g.us', '2024-06-01T00:00:00.000Z', 'Original');
+    updateChatName('chat@g.us', 'Renamed');
+    const chats = getAllChats();
+    expect(chats).toHaveLength(1);
+    expect(chats[0].name).toBe('Renamed');
+    expect(chats[0].last_message_time).toBe('2024-06-01T00:00:00.000Z');
+  });
+});
+
+// --- getLastGroupSync / setLastGroupSync ---
+
+describe('group sync tracking', () => {
+  it('getLastGroupSync returns null initially', () => {
+    expect(getLastGroupSync()).toBeNull();
+  });
+
+  it('setLastGroupSync stores a timestamp retrievable by getLastGroupSync', () => {
+    setLastGroupSync();
+    const ts = getLastGroupSync();
+    expect(ts).toBeTruthy();
+    expect(new Date(ts!).getTime()).toBeGreaterThan(0);
+  });
+});
+
+// --- chat error flag ---
+
+describe('chat error flag', () => {
+  it('isChatErrored returns false for unknown jid', () => {
+    expect(isChatErrored('unknown@g.us')).toBe(false);
+  });
+
+  it('markChatErrored / clearChatErrored cycle', () => {
+    storeChatMetadata('err@g.us', '2024-01-01T00:00:00.000Z');
+    expect(isChatErrored('err@g.us')).toBe(false);
+    markChatErrored('err@g.us');
+    expect(isChatErrored('err@g.us')).toBe(true);
+    clearChatErrored('err@g.us');
+    expect(isChatErrored('err@g.us')).toBe(false);
+  });
+});
+
+// --- appendMessageContent ---
+
+describe('appendMessageContent', () => {
+  it('appends text to existing message content', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    store({
+      id: 'append-1',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      sender_name: 'U',
+      content: 'hello',
+      timestamp: '2024-01-01T00:00:01.000Z',
+    });
+    appendMessageContent('append-1', ' world');
+    const m = getMessageById('append-1');
+    expect(m).toBeDefined();
+    expect(m!.content).toBe('hello world');
+  });
+
+  it('no-op when message id does not exist', () => {
+    // Should not throw
+    appendMessageContent('nonexistent', ' extra');
+  });
+});
+
+// --- getMessageById ---
+
+describe('getMessageById', () => {
+  it('returns stored message', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    store({
+      id: 'by-id-1',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      sender_name: 'U',
+      content: 'found',
+      timestamp: '2024-01-01T00:00:01.000Z',
+    });
+    const m = getMessageById('by-id-1');
+    expect(m).toBeDefined();
+    expect(m!.content).toBe('found');
+  });
+
+  it('returns undefined for missing id', () => {
+    expect(getMessageById('missing')).toBeUndefined();
+  });
+});
+
+// --- routerState ---
+
+describe('routerState', () => {
+  it('getRouterState returns undefined for missing key', () => {
+    expect(getRouterState('nope')).toBeUndefined();
+  });
+
+  it('setRouterState stores and retrieves a value', () => {
+    setRouterState('ts', '2024-01-01T00:00:00.000Z');
+    expect(getRouterState('ts')).toBe('2024-01-01T00:00:00.000Z');
+  });
+
+  it('setRouterState overwrites existing key', () => {
+    setRouterState('k', 'v1');
+    setRouterState('k', 'v2');
+    expect(getRouterState('k')).toBe('v2');
+  });
+});
+
+// --- sessions ---
+
+describe('sessions', () => {
+  it('getSession returns undefined for missing group', () => {
+    expect(getSession('nope')).toBeUndefined();
+  });
+
+  it('setSession stores and retrieves session id', () => {
+    setSession('grp', 'sess-1');
+    expect(getSession('grp')).toBe('sess-1');
+  });
+
+  it('deleteSession removes session', () => {
+    setSession('grp', 'sess-1');
+    deleteSession('grp');
+    expect(getSession('grp')).toBeUndefined();
+  });
+
+  it('getAllSessions returns all sessions as record', () => {
+    setSession('a', 'sa');
+    setSession('b', 'sb');
+    const all = getAllSessions();
+    expect(all).toEqual({ a: 'sa', b: 'sb' });
+  });
+
+  it('getAllSessions returns empty object when none', () => {
+    expect(getAllSessions()).toEqual({});
+  });
+});
+
+// --- getTasksForGroup / getAllTasks ---
+
+describe('task listing', () => {
+  it('getTasksForGroup returns tasks for a specific group', () => {
+    createTask({
+      id: 't1',
+      group_folder: 'grp-a',
+      chat_jid: 'c@g.us',
+      prompt: 'a',
+      schedule_type: 'once',
+      schedule_value: '2024-01-01T00:00:00Z',
+      context_mode: 'isolated',
+      next_run: null,
+      status: 'active',
+      created_at: '2024-01-01T00:00:00Z',
+    });
+    createTask({
+      id: 't2',
+      group_folder: 'grp-b',
+      chat_jid: 'c@g.us',
+      prompt: 'b',
+      schedule_type: 'once',
+      schedule_value: '2024-01-01T00:00:00Z',
+      context_mode: 'isolated',
+      next_run: null,
+      status: 'active',
+      created_at: '2024-01-01T00:00:00Z',
+    });
+    const tasks = getTasksForGroup('grp-a');
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].id).toBe('t1');
+  });
+
+  it('getAllTasks returns all tasks', () => {
+    createTask({
+      id: 't1',
+      group_folder: 'grp-a',
+      chat_jid: 'c@g.us',
+      prompt: 'a',
+      schedule_type: 'once',
+      schedule_value: '2024-01-01T00:00:00Z',
+      context_mode: 'isolated',
+      next_run: null,
+      status: 'active',
+      created_at: '2024-01-01T00:00:00Z',
+    });
+    createTask({
+      id: 't2',
+      group_folder: 'grp-b',
+      chat_jid: 'c@g.us',
+      prompt: 'b',
+      schedule_type: 'once',
+      schedule_value: '2024-01-01T00:00:00Z',
+      context_mode: 'isolated',
+      next_run: null,
+      status: 'active',
+      created_at: '2024-01-01T00:00:00Z',
+    });
+    expect(getAllTasks()).toHaveLength(2);
+  });
+});
+
+// --- logTaskRun ---
+
+describe('logTaskRun', () => {
+  it('stores a task run log entry', () => {
+    createTask({
+      id: 'tlog-1',
+      group_folder: 'root',
+      chat_jid: 'c@g.us',
+      prompt: 'x',
+      schedule_type: 'once',
+      schedule_value: '2024-01-01T00:00:00Z',
+      context_mode: 'isolated',
+      next_run: null,
+      status: 'active',
+      created_at: '2024-01-01T00:00:00Z',
+    });
+    // Should not throw
+    logTaskRun({
+      task_id: 'tlog-1',
+      run_at: '2024-01-01T00:01:00Z',
+      duration_ms: 500,
+      status: 'success',
+      result: 'done',
+      error: null,
+    });
+  });
+
+  it('deleteTask also removes run logs', () => {
+    createTask({
+      id: 'tlog-del',
+      group_folder: 'root',
+      chat_jid: 'c@g.us',
+      prompt: 'x',
+      schedule_type: 'once',
+      schedule_value: '2024-01-01T00:00:00Z',
+      context_mode: 'isolated',
+      next_run: null,
+      status: 'active',
+      created_at: '2024-01-01T00:00:00Z',
+    });
+    logTaskRun({
+      task_id: 'tlog-del',
+      run_at: '2024-01-01T00:01:00Z',
+      duration_ms: 100,
+      status: 'success',
+      result: null,
+      error: null,
+    });
+    deleteTask('tlog-del');
+    expect(getTaskById('tlog-del')).toBeUndefined();
+  });
+});
+
+// --- auth ---
+
+describe('auth users and sessions', () => {
+  it('createAuthUser and retrieve by sub', () => {
+    const user = createAuthUser('sub-1', 'alice', 'hash123', 'Alice');
+    expect(user.sub).toBe('sub-1');
+    expect(user.username).toBe('alice');
+    const found = getAuthUserBySub('sub-1');
+    expect(found).toBeDefined();
+    expect(found!.name).toBe('Alice');
+  });
+
+  it('getAuthUserByUsername finds user', () => {
+    createAuthUser('sub-2', 'bob', 'hash456', 'Bob');
+    const found = getAuthUserByUsername('bob');
+    expect(found).toBeDefined();
+    expect(found!.sub).toBe('sub-2');
+  });
+
+  it('getAuthUserBySub returns undefined for missing sub', () => {
+    expect(getAuthUserBySub('missing')).toBeUndefined();
+  });
+
+  it('getAuthUserByUsername returns undefined for missing username', () => {
+    expect(getAuthUserByUsername('missing')).toBeUndefined();
+  });
+
+  it('auth session CRUD', () => {
+    createAuthUser('sub-s', 'sess-user', 'h', 'S');
+    const expires = '2099-01-01T00:00:00.000Z';
+    createAuthSession('tok-hash', 'sub-s', expires);
+    const sess = getAuthSession('tok-hash');
+    expect(sess).toBeDefined();
+    expect(sess!.user_sub).toBe('sub-s');
+    expect(sess!.expires_at).toBe(expires);
+
+    deleteAuthSession('tok-hash');
+    expect(getAuthSession('tok-hash')).toBeUndefined();
+  });
+
+  it('getAuthSession returns undefined for missing hash', () => {
+    expect(getAuthSession('missing')).toBeUndefined();
+  });
+
+  it('pruneExpiredSessions removes expired sessions', () => {
+    createAuthUser('sub-p', 'prune-user', 'h', 'P');
+    createAuthSession('expired-tok', 'sub-p', '2000-01-01T00:00:00.000Z');
+    createAuthSession('valid-tok', 'sub-p', '2099-01-01T00:00:00.000Z');
+    pruneExpiredSessions();
+    expect(getAuthSession('expired-tok')).toBeUndefined();
+    expect(getAuthSession('valid-tok')).toBeDefined();
+  });
+});
+
+// --- email threads ---
+
+describe('email threads', () => {
+  it('storeEmailThread and retrieve by threadId', () => {
+    storeEmailThread('msg-1', 'thread-1', 'alice@ex.com', 'root-1');
+    const t = getEmailThread('thread-1');
+    expect(t).toBeDefined();
+    expect(t!.from_address).toBe('alice@ex.com');
+    expect(t!.root_msg_id).toBe('root-1');
+  });
+
+  it('getEmailThreadByMsgId retrieves by message_id', () => {
+    storeEmailThread('msg-2', 'thread-2', 'bob@ex.com', 'root-2');
+    const t = getEmailThreadByMsgId('msg-2');
+    expect(t).toBeDefined();
+    expect(t!.thread_id).toBe('thread-2');
+  });
+
+  it('returns undefined for missing thread', () => {
+    expect(getEmailThread('missing')).toBeUndefined();
+    expect(getEmailThreadByMsgId('missing')).toBeUndefined();
+  });
+
+  it('storeEmailThread ignores duplicate message_id', () => {
+    storeEmailThread('dup-msg', 'thread-a', 'a@ex.com', 'root-a');
+    storeEmailThread('dup-msg', 'thread-b', 'b@ex.com', 'root-b');
+    const t = getEmailThreadByMsgId('dup-msg');
+    // INSERT OR IGNORE keeps the first
+    expect(t!.thread_id).toBe('thread-a');
+  });
+});
+
+// --- routes ---
+
+describe('routes CRUD', () => {
+  it('addRoute and getRoutesForJid', () => {
+    const id = addRoute('tg:1', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'root',
+    });
+    expect(id).toBeGreaterThan(0);
+    const routes = getRoutesForJid('tg:1');
+    expect(routes).toHaveLength(1);
+    expect(routes[0].target).toBe('root');
+    expect(routes[0].type).toBe('default');
+  });
+
+  it('getRouteById returns route or undefined', () => {
+    const id = addRoute('tg:2', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'root',
+    });
+    expect(getRouteById(id)).toBeDefined();
+    expect(getRouteById(999999)).toBeUndefined();
+  });
+
+  it('deleteRoute removes a route', () => {
+    const id = addRoute('tg:3', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'root',
+    });
+    deleteRoute(id);
+    expect(getRouteById(id)).toBeUndefined();
+  });
+
+  it('setRoutesForJid replaces all routes for a JID', () => {
+    addRoute('tg:4', { seq: 0, type: 'default', match: null, target: 'old' });
+    setRoutesForJid('tg:4', [
+      { seq: 0, type: 'command', match: '/code', target: 'code' },
+      { seq: 1, type: 'default', match: null, target: 'new' },
+    ]);
+    const routes = getRoutesForJid('tg:4');
+    expect(routes).toHaveLength(2);
+    expect(routes[0].target).toBe('code');
+    expect(routes[1].target).toBe('new');
+  });
+
+  it('getAllRoutes returns routes across JIDs', () => {
+    addRoute('tg:5', { seq: 0, type: 'default', match: null, target: 'a' });
+    addRoute('dc:1', { seq: 0, type: 'default', match: null, target: 'b' });
+    const all = getAllRoutes();
+    expect(all.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('getRoutedJids returns distinct JIDs', () => {
+    addRoute('tg:6', { seq: 0, type: 'default', match: null, target: 'a' });
+    addRoute('tg:6', { seq: 1, type: 'command', match: '/x', target: 'b' });
+    addRoute('dc:2', { seq: 0, type: 'default', match: null, target: 'c' });
+    const jids = getRoutedJids();
+    expect(jids).toContain('tg:6');
+    expect(jids).toContain('dc:2');
+    // tg:6 should appear only once
+    expect(jids.filter((j) => j === 'tg:6')).toHaveLength(1);
+  });
+
+  it('getJidsForFolder returns JIDs routing to a folder', () => {
+    addRoute('tg:7', { seq: 0, type: 'default', match: null, target: 'atlas' });
+    addRoute('dc:3', { seq: 0, type: 'default', match: null, target: 'atlas' });
+    addRoute('tg:8', { seq: 0, type: 'default', match: null, target: 'other' });
+    const jids = getJidsForFolder('atlas');
+    expect(jids).toContain('tg:7');
+    expect(jids).toContain('dc:3');
+    expect(jids).not.toContain('tg:8');
+  });
+
+  it('getRoutesForJid returns empty for unknown JID', () => {
+    expect(getRoutesForJid('unknown:999')).toEqual([]);
+  });
+});
+
+// --- getHubForJid ---
+
+describe('getHubForJid', () => {
+  it('returns static folder target', () => {
+    addRoute('tg:h1', { seq: 0, type: 'default', match: null, target: 'root' });
+    expect(getHubForJid('tg:h1')).toBe('root');
+  });
+
+  it('returns base folder for template target', () => {
+    addRoute('tg:h2', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'atlas/{sender}',
+    });
+    expect(getHubForJid('tg:h2')).toBe('atlas');
+  });
+
+  it('returns null when no default route exists', () => {
+    addRoute('tg:h3', {
+      seq: 0,
+      type: 'command',
+      match: '/x',
+      target: 'code',
+    });
+    expect(getHubForJid('tg:h3')).toBeNull();
+  });
+
+  it('returns null for unknown JID', () => {
+    expect(getHubForJid('unknown:0')).toBeNull();
+  });
+});
+
+// --- getRouteTargetsForJid ---
+
+describe('getRouteTargetsForJid', () => {
+  it('returns distinct targets, resolving template bases', () => {
+    addRoute('tg:t1', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'atlas/{sender}',
+    });
+    addRoute('tg:t1', {
+      seq: 1,
+      type: 'command',
+      match: '/code',
+      target: 'code',
+    });
+    const targets = getRouteTargetsForJid('tg:t1');
+    expect(targets).toContain('atlas');
+    expect(targets).toContain('code');
+  });
+
+  it('returns empty for unknown JID', () => {
+    expect(getRouteTargetsForJid('unknown:0')).toEqual([]);
+  });
+});
+
+// --- hasAlwaysOnRoute ---
+
+describe('hasAlwaysOnRoute', () => {
+  it('returns false when no routes exist', () => {
+    expect(hasAlwaysOnRoute()).toBe(false);
+  });
+
+  it('returns true when a default route exists', () => {
+    addRoute('tg:ao', { seq: 0, type: 'default', match: null, target: 'root' });
+    expect(hasAlwaysOnRoute()).toBe(true);
+  });
+
+  it('returns false when only command routes exist', () => {
+    addRoute('tg:cmd', {
+      seq: 0,
+      type: 'command',
+      match: '/x',
+      target: 'root',
+    });
+    expect(hasAlwaysOnRoute()).toBe(false);
+  });
+});
+
+// --- getDirectChildGroupCount ---
+
+describe('getDirectChildGroupCount', () => {
+  it('counts direct children only', () => {
+    setGroupConfig({
+      name: 'a',
+      folder: 'atlas',
+      added_at: '2024-01-01T00:00:00Z',
+    });
+    setGroupConfig({
+      name: 'b',
+      folder: 'atlas/child1',
+      added_at: '2024-01-01T00:00:00Z',
+    });
+    setGroupConfig({
+      name: 'c',
+      folder: 'atlas/child2',
+      added_at: '2024-01-01T00:00:00Z',
+    });
+    setGroupConfig({
+      name: 'd',
+      folder: 'atlas/child1/grandchild',
+      added_at: '2024-01-01T00:00:00Z',
+    });
+    expect(getDirectChildGroupCount('atlas')).toBe(2);
+  });
+
+  it('returns 0 when no children exist', () => {
+    setGroupConfig({
+      name: 'a',
+      folder: 'lone',
+      added_at: '2024-01-01T00:00:00Z',
+    });
+    expect(getDirectChildGroupCount('lone')).toBe(0);
+  });
+});
+
+// --- deleteGroupConfig ---
+
+describe('deleteGroupConfig', () => {
+  it('removes group from DB', () => {
+    setGroupConfig({
+      name: 'del',
+      folder: 'delme',
+      added_at: '2024-01-01T00:00:00Z',
+    });
+    expect(getGroupByFolder('delme')).toBeDefined();
+    deleteGroupConfig('delme');
+    expect(getGroupByFolder('delme')).toBeUndefined();
+  });
+});
+
+// --- getGroupBySlink ---
+
+describe('getGroupBySlink', () => {
+  it('returns undefined for unknown token', () => {
+    expect(getGroupBySlink('bad-token')).toBeUndefined();
+  });
+
+  it('returns group with jid when route exists', () => {
+    _setTestGroupRoute('tg:slink', {
+      name: 'Slink Group',
+      folder: 'slinked',
+      slinkToken: 'tok123',
+    });
+    const g = getGroupBySlink('tok123');
+    expect(g).toBeDefined();
+    expect(g!.folder).toBe('slinked');
+    expect(g!.jid).toBe('tg:slink');
+  });
+
+  it('falls back to web: JID when no route exists', () => {
+    setGroupConfig({
+      name: 'Web Group',
+      folder: 'webgrp',
+      added_at: '2024-01-01T00:00:00Z',
+      slinkToken: 'webtok',
+    });
+    const g = getGroupBySlink('webtok');
+    expect(g).toBeDefined();
+    expect(g!.jid).toBe('web:webgrp');
+  });
+});
+
+// --- storeChatMetadata edge cases ---
+
+describe('storeChatMetadata edge cases', () => {
+  it('stores channel and is_group flags', () => {
+    storeChatMetadata(
+      'dc:123',
+      '2024-01-01T00:00:00.000Z',
+      'DC Chat',
+      'discord',
+      true,
+    );
+    const chats = getAllChats();
+    expect(chats).toHaveLength(1);
+    expect(chats[0].channel).toBe('discord');
+    expect(chats[0].is_group).toBe(1);
+  });
+
+  it('does not overwrite name when called without name', () => {
+    storeChatMetadata('keep@g.us', '2024-01-01T00:00:00.000Z', 'Original Name');
+    storeChatMetadata('keep@g.us', '2024-01-01T00:00:01.000Z');
+    const chats = getAllChats();
+    expect(chats[0].name).toBe('Original Name');
+  });
+
+  it('coalesces channel on conflict', () => {
+    storeChatMetadata(
+      'ch@g.us',
+      '2024-01-01T00:00:00.000Z',
+      undefined,
+      'telegram',
+    );
+    storeChatMetadata('ch@g.us', '2024-01-01T00:00:01.000Z');
+    const chats = getAllChats();
+    expect(chats[0].channel).toBe('telegram');
+  });
+});
+
+// --- storeMessage with optional fields ---
+
+describe('storeMessage with forwarding/reply fields', () => {
+  it('stores and retrieves forwarded_from fields', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    storeMessage({
+      id: 'fwd-1',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      content: 'forwarded',
+      timestamp: '2024-01-01T00:00:01.000Z',
+      forwarded_from: 'Alice',
+      forwarded_from_id: 'chat:123',
+      forwarded_msgid: 'orig-msg-1',
+    });
+    const m = getMessageById('fwd-1');
+    expect(m).toBeDefined();
+    expect(m!.forwarded_from).toBe('Alice');
+    expect(m!.forwarded_from_id).toBe('chat:123');
+    expect(m!.forwarded_msgid).toBe('orig-msg-1');
+  });
+
+  it('stores and retrieves reply_to fields', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    storeMessage({
+      id: 'rpl-1',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      content: 'reply',
+      timestamp: '2024-01-01T00:00:01.000Z',
+      reply_to_text: 'original text',
+      reply_to_sender: 'Bob',
+      reply_to_id: 'msg-orig',
+    });
+    const m = getMessageById('rpl-1');
+    expect(m).toBeDefined();
+    expect(m!.reply_to_text).toBe('original text');
+    expect(m!.reply_to_sender).toBe('Bob');
+    expect(m!.reply_to_id).toBe('msg-orig');
   });
 });

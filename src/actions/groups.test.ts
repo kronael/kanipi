@@ -30,6 +30,7 @@ vi.mock('../commands/index.js', () => ({
 
 vi.mock('../db.js', () => ({
   getRoutesForJid: vi.fn(),
+  getAllRoutes: vi.fn(() => []),
   setRoutesForJid: vi.fn(),
   addRoute: vi.fn(),
   getRouteById: vi.fn(),
@@ -213,6 +214,48 @@ describe('escalateGroup', () => {
     );
   });
 
+  it('escalation at depth >= 1 is rejected', async () => {
+    const ctx = makeCtx('root/code', { chatJid: 'tg/-100' });
+    await expect(
+      escalateGroup.handler({ prompt: 'x', chatJid: 'tg/-100', depth: 1 }, ctx),
+    ).rejects.toThrow('depth');
+  });
+
+  it('tier 1 (world admin) cannot escalate', async () => {
+    const ctx = makeCtx('atlas');
+    await expect(
+      escalateGroup.handler({ prompt: 'x', chatJid: 'tg/-100' }, ctx),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('escalation includes original message when messageId set', async () => {
+    const { getMessageById } = await import('../db.js');
+    vi.mocked(getMessageById).mockReturnValue({
+      id: 'msg-99',
+      chat_jid: 'tg/-100',
+      sender: 'user',
+      sender_name: 'Alice',
+      content: 'Help me with this bug',
+      timestamp: '2026-01-01T00:00:00Z',
+      is_from_me: false,
+      is_bot_message: false,
+    });
+    const ctx = makeCtx('root/code', {
+      chatJid: 'tg/-100',
+      messageId: 'msg-99',
+    });
+    await escalateGroup.handler(
+      { prompt: 'need help', chatJid: 'tg/-100' },
+      ctx,
+    );
+
+    const prompt = (ctx.delegateToParent as ReturnType<typeof vi.fn>).mock
+      .calls[0][1] as string;
+    expect(prompt).toContain('<original_message');
+    expect(prompt).toContain('Alice');
+    expect(prompt).toContain('Help me with this bug');
+  });
+
   it('root cannot escalate', async () => {
     const ctx = makeCtx('root');
     await expect(
@@ -370,6 +413,46 @@ describe('registerGroup', () => {
     ).rejects.toThrow('CLI-only');
   });
 
+  it('tier 2 cannot register a group', async () => {
+    const ctx = makeCtx('root/code');
+    await expect(
+      registerGroup.handler(
+        { jid: 'new@g.us', name: 'New', folder: 'root/code/sub' },
+        ctx,
+      ),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('tier 3 cannot register a group', async () => {
+    const ctx = makeCtx('root/code/py');
+    await expect(
+      registerGroup.handler(
+        { jid: 'new@g.us', name: 'New', folder: 'root/code/py/sub' },
+        ctx,
+      ),
+    ).rejects.toThrow('unauthorized');
+  });
+
+  it('rejects invalid folder name', async () => {
+    const ctx = makeCtx('root');
+    await expect(
+      registerGroup.handler(
+        { jid: 'new@g.us', name: 'New', folder: 'root/INVALID_CAPS' },
+        ctx,
+      ),
+    ).rejects.toThrow('invalid folder name');
+  });
+
+  it('rejects folder depth exceeding 3 levels', async () => {
+    const ctx = makeCtx('root');
+    await expect(
+      registerGroup.handler(
+        { jid: 'new@g.us', name: 'New', folder: 'root/a/b/c' },
+        ctx,
+      ),
+    ).rejects.toThrow('depth exceeds maximum');
+  });
+
   it('root can create a child inside an existing world', async () => {
     const ctx = makeCtx('root');
     const result = await registerGroup.handler(
@@ -470,6 +553,24 @@ describe('getRoutes', () => {
     });
   });
 
+  it('returns all routes when jid is omitted', async () => {
+    const { getAllRoutes } = await import('../db.js');
+    vi.mocked(getAllRoutes).mockReturnValue([
+      {
+        id: 1,
+        jid: 'tg/-100',
+        seq: 0,
+        type: 'default',
+        match: null,
+        target: 'root',
+      },
+    ]);
+    const ctx = makeCtx('root');
+    const result = await getRoutes.handler({}, ctx);
+    expect(result).toHaveProperty('routes');
+    expect(getAllRoutes).toHaveBeenCalled();
+  });
+
   it('rejects tier 2 group', async () => {
     const ctx = makeCtx('root/code');
     await expect(getRoutes.handler({ jid: 'tg/-100' }, ctx)).rejects.toThrow(
@@ -562,6 +663,23 @@ describe('deleteRouteAction', () => {
   it('rejects tier 2 group', async () => {
     const ctx = makeCtx('root/code');
     await expect(deleteRouteAction.handler({ id: 1 }, ctx)).rejects.toThrow(
+      'unauthorized',
+    );
+  });
+
+  it('tier 1 cannot delete route to unauthorized target', async () => {
+    const { getRouteById } = await import('../db.js');
+    const { isAuthorizedRoutingTarget } = await import('../router.js');
+    vi.mocked(getRouteById).mockReturnValue({
+      id: 7,
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'other/world',
+    });
+    vi.mocked(isAuthorizedRoutingTarget).mockReturnValue(false);
+    const ctx = makeCtx('atlas');
+    await expect(deleteRouteAction.handler({ id: 7 }, ctx)).rejects.toThrow(
       'unauthorized',
     );
   });

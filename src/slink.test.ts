@@ -606,6 +606,301 @@ describe('guessType with query string', () => {
   });
 });
 
+// --- malformed/edge-case body ---
+
+describe('malformed body handling', () => {
+  it('returns 400 for empty string body', () => {
+    const { onMessage } = collect();
+    const r = handleSlinkPost({
+      token: 'tok-empty',
+      body: '',
+      ip: '1.2.3.4',
+      group: makeGroup('web:empty', 'tok-empty'),
+      onMessage,
+    });
+    expect(r.status).toBe(400);
+    expect(JSON.parse(r.body)).toMatchObject({ error: 'bad request' });
+  });
+
+  it('returns 200 with empty text when text field is missing', () => {
+    const { messages, onMessage } = collect();
+    const r = handleSlinkPost({
+      token: 'tok-notext',
+      body: '{}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:notext', 'tok-notext'),
+      onMessage,
+    });
+    expect(r.status).toBe(200);
+    expect(messages[0].content).toBe('');
+  });
+
+  it('coerces numeric text to string', () => {
+    const { messages, onMessage } = collect();
+    handleSlinkPost({
+      token: 'tok-numtext',
+      body: '{"text":42}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:numtext', 'tok-numtext'),
+      onMessage,
+    });
+    expect(messages[0].content).toBe('42');
+  });
+
+  it('ignores non-string media_url', () => {
+    function captureAll(): {
+      calls: Parameters<OnInboundMessage>[];
+      onMessage: OnInboundMessage;
+    } {
+      const calls: Parameters<OnInboundMessage>[] = [];
+      return { calls, onMessage: (...args) => calls.push(args) };
+    }
+    const { calls, onMessage } = captureAll();
+    handleSlinkPost({
+      token: 'tok-badmedia',
+      body: '{"text":"hi","media_url":123}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:badmedia', 'tok-badmedia'),
+      onMessage,
+    });
+    expect(calls).toHaveLength(1);
+    const [, , attachments] = calls[0];
+    expect(attachments).toBeUndefined();
+  });
+});
+
+// --- auth bucket reset after 60s window ---
+
+describe('auth rate limit bucket reset', () => {
+  it('resets auth bucket after 60s window', async () => {
+    const { vi } = await import('vitest');
+    vi.useFakeTimers();
+    try {
+      const { onMessage } = collect();
+      const group = makeGroup('web:authreset', 'tok-authreset');
+      const jwt = makeJwt({ sub: 'resetuser' });
+      const rpm = 2;
+
+      // Exhaust the auth bucket
+      Array.from({ length: rpm }, () =>
+        handleSlinkPost({
+          token: 'tok-authreset',
+          body: '{"text":"x"}',
+          ip: '1.2.3.4',
+          authHeader: `Bearer ${jwt}`,
+          group,
+          onMessage,
+          authRpm: rpm,
+        }),
+      );
+
+      const blocked = handleSlinkPost({
+        token: 'tok-authreset',
+        body: '{"text":"x"}',
+        ip: '1.2.3.4',
+        authHeader: `Bearer ${jwt}`,
+        group,
+        onMessage,
+        authRpm: rpm,
+      });
+      expect(blocked.status).toBe(429);
+
+      // Advance time past 60s to reset bucket
+      vi.advanceTimersByTime(61_000);
+
+      const after = handleSlinkPost({
+        token: 'tok-authreset',
+        body: '{"text":"x"}',
+        ip: '1.2.3.4',
+        authHeader: `Bearer ${jwt}`,
+        group,
+        onMessage,
+        authRpm: rpm,
+      });
+      expect(after.status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// --- guessType edge cases ---
+
+describe('guessType edge cases', () => {
+  function captureType(url: string): string {
+    const calls: Parameters<OnInboundMessage>[] = [];
+    const onMessage: OnInboundMessage = (...args) => calls.push(args);
+    handleSlinkPost({
+      token: 'tok-gt',
+      body: JSON.stringify({ text: 'x', media_url: url }),
+      ip: '1.2.3.4',
+      group: makeGroup('web:gt', 'tok-gt'),
+      onMessage,
+      anonRpm: 1000,
+    });
+    return calls[0][2]![0].type as string;
+  }
+
+  it('unknown extension falls back to document', () => {
+    expect(captureType('https://ex.com/file.xyz')).toBe('document');
+  });
+
+  it('url with no extension falls back to document', () => {
+    expect(captureType('https://ex.com/noext')).toBe('document');
+  });
+
+  it('webm is video', () => {
+    expect(captureType('https://ex.com/clip.webm')).toBe('video');
+  });
+
+  it('wav is audio', () => {
+    expect(captureType('https://ex.com/sound.wav')).toBe('audio');
+  });
+
+  it('gif is image', () => {
+    expect(captureType('https://ex.com/meme.gif')).toBe('image');
+  });
+
+  it('webp is image', () => {
+    expect(captureType('https://ex.com/photo.webp')).toBe('image');
+  });
+});
+
+// --- sender_name presence ---
+
+describe('sender_name edge cases', () => {
+  it('omits sender_name when JWT has sub but no name', () => {
+    const { messages, onMessage } = collect();
+    const jwt = makeJwt({ sub: 'noname-user' });
+    handleSlinkPost({
+      token: 'tok-noname',
+      body: '{"text":"hi"}',
+      ip: '1.2.3.4',
+      authHeader: `Bearer ${jwt}`,
+      group: makeGroup('web:noname', 'tok-noname'),
+      onMessage,
+    });
+    expect(messages[0].sender).toBe('noname-user');
+    expect('sender_name' in messages[0]).toBe(false);
+  });
+});
+
+// --- JWT with future exp is accepted ---
+
+describe('JWT with future exp', () => {
+  const SECRET = 'test-secret-key';
+
+  it('accepts JWT with exp in the future', () => {
+    const { messages, onMessage } = collect();
+    const futureJwt = makeSignedJwt(
+      { sub: 'future', exp: Math.floor(Date.now() / 1000) + 3600 },
+      SECRET,
+    );
+    const r = handleSlinkPost({
+      token: 'tok-future',
+      body: '{"text":"valid"}',
+      ip: '1.2.3.4',
+      authHeader: `Bearer ${futureJwt}`,
+      authSecret: SECRET,
+      group: makeGroup('web:future', 'tok-future'),
+      onMessage,
+    });
+    expect(r.status).toBe(200);
+    expect(messages[0].sender).toBe('future');
+  });
+});
+
+// --- Non-Bearer auth header is treated as anon ---
+
+describe('non-Bearer auth header', () => {
+  it('treats Basic auth header as anon (no JWT parsing)', () => {
+    const { messages, onMessage } = collect();
+    handleSlinkPost({
+      token: 'tok-basic',
+      body: '{"text":"hi"}',
+      ip: '5.5.5.5',
+      authHeader: 'Basic dXNlcjpwYXNz',
+      group: makeGroup('web:basic', 'tok-basic'),
+      onMessage,
+    });
+    expect(messages[0].sender).toMatch(/^anon_/);
+  });
+});
+
+// --- rate limit at exact boundary ---
+
+describe('rate limit boundary', () => {
+  it('allows exactly rpm requests (boundary)', () => {
+    const { onMessage } = collect();
+    const group = makeGroup('web:boundary', 'tok-boundary');
+    const rpm = 3;
+
+    const results = Array.from({ length: rpm }, () =>
+      handleSlinkPost({
+        token: 'tok-boundary',
+        body: '{"text":"x"}',
+        ip: '1.2.3.4',
+        group,
+        onMessage,
+        anonRpm: rpm,
+      }),
+    );
+    expect(results.every((r) => r.status === 200)).toBe(true);
+
+    // rpm+1 is blocked
+    const extra = handleSlinkPost({
+      token: 'tok-boundary',
+      body: '{"text":"x"}',
+      ip: '1.2.3.4',
+      group,
+      onMessage,
+      anonRpm: rpm,
+    });
+    expect(extra.status).toBe(429);
+  });
+
+  it('rpm=1 allows exactly one request', () => {
+    const { onMessage } = collect();
+    const group = makeGroup('web:rpm1', 'tok-rpm1');
+
+    const first = handleSlinkPost({
+      token: 'tok-rpm1',
+      body: '{"text":"x"}',
+      ip: '1.2.3.4',
+      group,
+      onMessage,
+      anonRpm: 1,
+    });
+    expect(first.status).toBe(200);
+
+    const second = handleSlinkPost({
+      token: 'tok-rpm1',
+      body: '{"text":"x"}',
+      ip: '1.2.3.4',
+      group,
+      onMessage,
+      anonRpm: 1,
+    });
+    expect(second.status).toBe(429);
+  });
+});
+
+// --- msgId format ---
+
+describe('message id format', () => {
+  it('generates slink- prefixed message id', () => {
+    const { messages, onMessage } = collect();
+    handleSlinkPost({
+      token: 'tok-msgid',
+      body: '{"text":"hi"}',
+      ip: '1.2.3.4',
+      group: makeGroup('web:msgid', 'tok-msgid'),
+      onMessage,
+    });
+    expect(messages[0].id).toMatch(/^slink-\d+-[a-z0-9]+$/);
+  });
+});
+
 // --- DB: kanipi group add web:test inserts non-null slink_token ---
 
 describe('DB: web group registration', () => {

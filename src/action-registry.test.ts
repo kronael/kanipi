@@ -130,3 +130,71 @@ describe('platform filtering', () => {
     expect(manifest.find((m) => m.name === name)).toBeDefined();
   });
 });
+
+describe('unregisterAction', () => {
+  it('removes a previously registered action', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    expect(getAction(name)).toBeDefined();
+    unregisterAction(name);
+    expect(getAction(name)).toBeUndefined();
+  });
+
+  it('no-op for non-existent action', () => {
+    // Should not throw
+    unregisterAction('nonexistent_action_xyz_' + Date.now());
+  });
+
+  it('unregistered action no longer appears in getAllActions', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    unregisterAction(name);
+    const all = getAllActions();
+    expect(all.find((a) => a.name === name)).toBeUndefined();
+  });
+
+  it('unregistered action no longer appears in getManifest', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    unregisterAction(name);
+    const manifest = getManifest('root', { tier: 0, platforms: [] });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+});
+
+describe('maxTier filtering', () => {
+  it('action with maxTier 0 excluded at tier 1', () => {
+    const name = uid();
+    registerAction(makeAction(name, { maxTier: 0 }));
+    const manifest = getManifest('root', { tier: 1, platforms: [] });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+
+  it('action with maxTier 0 included at tier 0', () => {
+    const name = uid();
+    registerAction(makeAction(name, { maxTier: 0 }));
+    const manifest = getManifest('root', { tier: 0, platforms: [] });
+    expect(manifest.find((m) => m.name === name)).toBeDefined();
+  });
+
+  it('action with maxTier 2 included at tier 2', () => {
+    const name = uid();
+    registerAction(makeAction(name, { maxTier: 2 }));
+    const manifest = getManifest('root', { tier: 2, platforms: [] });
+    expect(manifest.find((m) => m.name === name)).toBeDefined();
+  });
+
+  it('action with maxTier 2 excluded at tier 3', () => {
+    const name = uid();
+    registerAction(makeAction(name, { maxTier: 2 }));
+    const manifest = getManifest('root', { tier: 3, platforms: [] });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+
+  it('action with no maxTier included at any tier', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', { tier: 3, platforms: [] });
+    expect(manifest.find((m) => m.name === name)).toBeDefined();
+  });
+});

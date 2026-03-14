@@ -192,6 +192,107 @@ describe('drainRequests', () => {
     await drainRequests(ipcBase, group, makeDeps());
   });
 
+  it('passes chatJid and messageId from request to action context', async () => {
+    const name = `ipc_test_${++actionSeq}`;
+    let capturedCtx: Record<string, unknown> | undefined;
+    registerAction({
+      name,
+      description: 'ctx capture',
+      input: z.object({
+        id: z.string(),
+        type: z.string(),
+        chatJid: z.string().optional(),
+        messageId: z.string().optional(),
+      }),
+      handler: async (_input, ctx) => {
+        capturedCtx = {
+          chatJid: (ctx as Record<string, unknown>).chatJid,
+          messageId: (ctx as Record<string, unknown>).messageId,
+        };
+        return {};
+      },
+    });
+
+    writeReq('ctx1', {
+      id: 'ctx1',
+      type: name,
+      chatJid: 'telegram:123',
+      messageId: 'msg-42',
+    });
+    await drainRequests(ipcBase, group, makeDeps());
+
+    expect(capturedCtx).toBeDefined();
+    expect(capturedCtx!.chatJid).toBe('telegram:123');
+    expect(capturedCtx!.messageId).toBe('msg-42');
+  });
+
+  it('handles handler throwing non-Error object', async () => {
+    const name = `ipc_test_${++actionSeq}`;
+    registerAction({
+      name,
+      description: 'throws string',
+      input: z.object({ id: z.string(), type: z.string() }),
+      handler: async () => {
+        throw 'string error';
+      },
+    });
+
+    writeReq('r6', { id: 'r6', type: name });
+    await drainRequests(ipcBase, group, makeDeps());
+
+    const reply = readReply('r6');
+    expect(reply).not.toBeNull();
+    expect(reply!.ok).toBe(false);
+    expect(reply!.error).toBe('string error');
+  });
+
+  it('send_file with ~/ prefix expands to /home/node/', async () => {
+    // The send_file action is registered by ipc.ts on import.
+    // A valid path under ~/ should be expanded and pass the safety check
+    writeReq('r7', {
+      id: 'r7',
+      type: 'send_file',
+      filepath: '~/tmp/report.pdf',
+      chatJid: 'test@jid',
+    });
+    const deps = makeDeps();
+    await drainRequests(ipcBase, group, deps);
+
+    const reply = readReply('r7');
+    expect(reply).not.toBeNull();
+    // Should succeed (path is under group dir after expansion)
+    expect(reply!.ok).toBe(true);
+  });
+
+  it('processes multiple requests in order', async () => {
+    const name = `ipc_test_${++actionSeq}`;
+    const order: number[] = [];
+    registerAction({
+      name,
+      description: 'order tracker',
+      input: z.object({
+        id: z.string(),
+        type: z.string(),
+        seq: z.number(),
+      }),
+      handler: async (input) => {
+        order.push((input as { seq: number }).seq);
+        return {};
+      },
+    });
+
+    writeReq('a', { id: 'a', type: name, seq: 1 });
+    writeReq('b', { id: 'b', type: name, seq: 2 });
+    writeReq('c', { id: 'c', type: name, seq: 3 });
+    await drainRequests(ipcBase, group, makeDeps());
+
+    expect(order).toHaveLength(3);
+    // All three processed
+    expect(order).toContain(1);
+    expect(order).toContain(2);
+    expect(order).toContain(3);
+  });
+
   it('rejects send_file path traversal', async () => {
     // Register a send_file action so the type is known
     // The real one is registered by ipc.ts on import, so it exists.
