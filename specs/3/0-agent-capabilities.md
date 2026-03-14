@@ -9,14 +9,28 @@ acquisition, compilation toolchains, and browser automation.
 
 ## Container tooling
 
-**Already in container**: node, bun, chromium, agent-browser,
-curl, git, claude-code
+**Base**: node 22, chromium, curl, git
 
-**Adding**: ffmpeg, yt-dlp, python3, jq, build-essential,
-go, rust (cargo), wget
+**Runtimes**: bun, python3, go 1.24, rust/cargo, uv
 
-This lets agents download video, transcribe audio, compile
-tools from source, and install packages from the internet.
+**Media**: ffmpeg, yt-dlp, imagemagick, optipng, jpegoptim
+
+**Research**: pandoc, pdftotext (poppler-utils), tesseract-ocr,
+httrack, agent-browser
+
+**Data/office**: pandas, numpy, scipy, matplotlib, plotly,
+weasyprint, marp-cli (slides), python-pptx, openpyxl
+
+**Linters**: biome, ruff, pyright, shellcheck, prettier,
+htmlhint, svgo
+
+**Network**: wget, whois, dnsutils (dig), traceroute, net-tools
+
+**Search**: ripgrep, fd-find, fzf, tree, bat
+
+**Build**: build-essential, pkg-config, jq
+
+Full inventory in `container/Dockerfile`.
 
 ## Gateway → agent data flow
 
@@ -26,6 +40,8 @@ tools from source, and install packages from the internet.
 | Video   | ffmpeg → whisper    | `[video audio: text]`          |
 | Image   | passed through      | attachment path (vision reads) |
 | PDF/doc | passed through      | attachment path (Read tool)    |
+
+Video transcription is off by default (`VIDEO_TRANSCRIPTION_ENABLED`).
 
 ## Agent → whisper (direct)
 
@@ -46,8 +62,5 @@ multimedia acquisition strategy:
 ## Content presentation
 
 Decision: short → chat message, rich → web page,
-raw data → send_file. Documented in howto skill.
-
-## Open
-
-- Container image size impact (go+rust+chromium+ffmpeg is heavy)
+raw data → send_file. Documented in container/CLAUDE.md
+(tools section).

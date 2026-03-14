@@ -25,6 +25,7 @@ import {
   VOICE_TRANSCRIPTION_ENABLED,
   WEB_DIR,
   WEB_HOST,
+  HOST_WEB_DIR,
   WHISPER_BASE_URL,
   WHISPER_MODEL,
   isRoot,
@@ -40,6 +41,7 @@ import {
 } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { GroupConfig } from './db.js';
+import { worldOf } from './permissions.js';
 
 export let _spawnProcess: (
   cmd: string,
@@ -320,10 +322,20 @@ function buildVolumeMounts(
     mounts.push(...validatedMounts);
   }
 
-  if (fs.existsSync(WEB_DIR) && tier <= 1) {
+  if (fs.existsSync(WEB_DIR) && tier === 0) {
     chownRecursive(WEB_DIR, 1000, 1000);
     mounts.push({
       hostPath: path.resolve(HOST_DATA_DIR, '../web'),
+      containerPath: '/workspace/web',
+      readonly: false,
+    });
+  } else if (fs.existsSync(WEB_DIR) && tier === 1) {
+    const world = worldOf(group.folder);
+    const worldDir = path.join(WEB_DIR, world);
+    fs.mkdirSync(worldDir, { recursive: true });
+    chownRecursive(worldDir, 1000, 1000);
+    mounts.push({
+      hostPath: path.join(HOST_WEB_DIR, world),
       containerPath: '/workspace/web',
       readonly: false,
     });

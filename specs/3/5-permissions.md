@@ -110,6 +110,10 @@ their base folder (`atlas`).
 - tier 1: any JID with at least one route target in the same world
 - tier 2+: only JIDs with a route target matching own folder exactly
 
+`send_reply`: replies to the bound `chatJid` from context.
+Same authorization as `send_message` (delegates to `assertAuthorized`).
+Auto-injects `replyTo` from `ctx.messageId`.
+
 `send_file`:
 
 - tier 0: any target
@@ -178,24 +182,24 @@ Tier 2 and 3 have no filesystem access to `/workspace/web` — HTTP is always av
 `~` = `/home/node` inside agent containers. `no` = mount is absent entirely.
 `—` = not applicable (inherited or overlaid separately).
 
-| Mount                     | Tier 0 | Tier 1                 | Tier 2           | Tier 3           |
-| ------------------------- | ------ | ---------------------- | ---------------- | ---------------- |
-| `/home/node`              | rw     | rw                     | rw               | ro               |
-| `/home/node/CLAUDE.md`    | —      | —                      | ro overlay       | ro (from parent) |
-| `/home/node/SOUL.md`      | —      | —                      | ro overlay       | ro (from parent) |
-| `~/.claude/CLAUDE.md`     | —      | —                      | ro overlay       | ro (from parent) |
-| `~/.claude/skills`        | —      | —                      | ro overlay       | ro (from parent) |
-| `~/.claude/settings.json` | —      | —                      | ro overlay       | ro (from parent) |
-| `~/.claude/output-styles` | —      | —                      | ro overlay       | ro (from parent) |
-| `~/.claude/projects`      | —      | —                      | rw (from parent) | rw overlay       |
-| `/home/node/media`        | —      | —                      | rw (from parent) | rw overlay       |
-| `/home/node/tmp`          | —      | —                      | rw (from parent) | rw overlay       |
-| `/workspace/share`        | rw     | rw                     | ro               | ro               |
-| `/workspace/ipc`          | rw     | rw                     | rw               | rw               |
-| `/workspace/web`          | rw     | rw (full; vhosts TODO) | no               | no               |
-| `/workspace/self`         | ro     | no                     | no               | no               |
-| `~/groups`                | rw     | no                     | no               | no               |
-| `/app/src`                | rw     | rw                     | rw               | ro               |
+| Mount                     | Tier 0 | Tier 1                | Tier 2           | Tier 3           |
+| ------------------------- | ------ | --------------------- | ---------------- | ---------------- |
+| `/home/node`              | rw     | rw                    | rw               | ro               |
+| `/home/node/CLAUDE.md`    | —      | —                     | ro overlay       | ro (from parent) |
+| `/home/node/SOUL.md`      | —      | —                     | ro overlay       | ro (from parent) |
+| `~/.claude/CLAUDE.md`     | —      | —                     | ro overlay       | ro (from parent) |
+| `~/.claude/skills`        | —      | —                     | ro overlay       | ro (from parent) |
+| `~/.claude/settings.json` | —      | —                     | ro overlay       | ro (from parent) |
+| `~/.claude/output-styles` | —      | —                     | ro overlay       | ro (from parent) |
+| `~/.claude/projects`      | —      | —                     | rw (from parent) | rw overlay       |
+| `/home/node/media`        | —      | —                     | rw (from parent) | rw overlay       |
+| `/home/node/tmp`          | —      | —                     | rw (from parent) | rw overlay       |
+| `/workspace/share`        | rw     | rw                    | ro               | ro               |
+| `/workspace/ipc`          | rw     | rw                    | rw               | rw               |
+| `/workspace/web`          | rw     | rw (own world subdir) | no               | no               |
+| `/workspace/self`         | ro     | no                    | no               | no               |
+| `~/groups`                | rw     | no                    | no               | no               |
+| `/app/src`                | rw     | rw                    | rw               | ro               |
 
 ## Agent env vars
 

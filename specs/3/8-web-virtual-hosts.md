@@ -101,7 +101,7 @@ it just writes files. The redirect serves them at `{world}.{domain}`.
 ## Implementation order
 
 1. ~~web-proxy.ts: read `vhosts.json`, redirect by `Host` header~~ **shipped**
-2. Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`
+2. ~~Change tier 1 mount: `/workspace/web/` → `DATA_DIR/web/<world>/`~~ **shipped**
 3. `infra` skill for root agent
 
 ## Implementation notes
@@ -109,8 +109,8 @@ it just writes files. The redirect serves them at `{world}.{domain}`.
 - `loadVhosts()` in `web-proxy.ts` caches `vhosts.json`, re-checks
   file mtime every 5s. Redirect runs before auth check.
 - `HOST_WEB_DIR` added to `config.ts` for host-path mount resolution.
-- `container-runner.ts` `buildVolumeMounts()`: tier 0 and tier 1
-  both mount full `WEB_DIR`. Per-world isolation (item 2) not yet shipped.
+- `container-runner.ts` `buildVolumeMounts()`: tier 0 mounts full `WEB_DIR`;
+  tier 1 mounts `WEB_DIR/<world>/` as `/workspace/web` (per-world isolation).
 - Tests in `web-proxy.test.ts`: vhost redirect, path traversal
   rejection, no-match fallthrough, missing vhosts.json.
 

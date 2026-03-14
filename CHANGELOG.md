@@ -36,6 +36,11 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
   tier 1 can manage any task (cancel/pause/resume).
 - **Local JID convention**: `local:{folder}` auto-routed to group folder,
   `messageId` wired through `start.json` and `ActionContext`.
+- **Auth overhaul**: removed Basic auth (`SLOTH_USERS`), session-based auth
+  via `AUTH_SECRET` + JWT. OAuth login for GitHub, Discord, Telegram.
+  User management CLI: `kanipi user add/remove/list/passwd`.
+- **Vhost redirects**: `web-proxy.ts` reads `vhosts.json`, redirects by
+  `Host` header with path traversal protection. Tier 1 web mount isolation.
 
 ### Changed
 
