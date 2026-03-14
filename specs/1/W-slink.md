@@ -119,6 +119,15 @@ GET  /pub/sloth.js     client script (see sloth spec)
 
 ---
 
+## MCP note
+
+The slink POST + SSE stream pattern is structurally the deprecated MCP SSE
+transport (v2024-11-05). Current MCP standard (v2025-03-26) uses Streamable
+HTTP — one endpoint, server streams back via SSE when needed. A future slink
+variant could expose a standards-compliant MCP server endpoint, allowing
+Claude Desktop and other MCP clients to connect natively. See
+`specs/3/J-sse.md` for trade-offs.
+
 ## Related
 
 - `specs/1/3-auth.md` — JWT issuance for authenticated web users

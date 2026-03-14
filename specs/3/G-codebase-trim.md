@@ -69,6 +69,12 @@ Original spec undercounted usage. These are genuine helpers.
 `isScheduledTask`, `secrets`. The fields `assistantName`,
 `delegateDepth`, `messageCount` were already removed.
 
+## 9. impulse.ts — WIRED (not dead code)
+
+`src/impulse.ts` exports `createImpulseFilter()`, `accumulate()`,
+and `checkTimeout()`. All three are used in `src/index.ts` for
+social channel event batching. Do not remove.
+
 ## Non-goals
 
 - Don't inline `permissionTier()` — used in 5 places, semantic
