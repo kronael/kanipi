@@ -4,7 +4,7 @@ import chatidCommand from './chatid.js';
 
 const MSG = {
   id: '1',
-  chat_jid: 'room@g.us',
+  jid: 'room@g.us',
   sender: 's',
   content: 'hi',
   timestamp: '2024-01-01T00:00:00.000Z',

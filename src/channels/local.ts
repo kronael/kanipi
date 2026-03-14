@@ -25,7 +25,7 @@ export class LocalChannel implements Channel {
     const id = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     storeMessage({
       id,
-      chat_jid: jid,
+      jid,
       sender: ASSISTANT_NAME,
       sender_name: ASSISTANT_NAME,
       content: text,

@@ -1,7 +1,7 @@
 import { createStreamingAPIClient, type mastodon } from 'masto';
 
 import { logger } from '../../logger.js';
-import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
+import { InboundEvent, OnInboundMessage, Platform, Verb } from '../../types.js';
 import { MastodonClient, MastodonConfig } from './client.js';
 
 const log = logger.child({ channel: 'mastodon' });
@@ -27,20 +27,20 @@ function handleEvent(
   const n = ev.payload as mastodon.v1.Notification;
   if (n.type !== 'mention' || !n.status) return;
 
-  const msg: NewMessage = {
+  const msg: InboundEvent = {
     id: n.status.id,
-    chat_jid: `mastodon:${n.account.id}`,
+    jid: `mastodon:${n.account.id}`,
     sender: `mastodon:${n.account.id}`,
     sender_name: n.account.displayName || n.account.username,
     content: stripHtml(n.status.content),
     timestamp: n.status.createdAt ?? new Date().toISOString(),
     platform: Platform.Mastodon,
     verb: Verb.Message,
-    replyTo: n.status.inReplyToId ?? undefined,
+    parent: n.status.inReplyToId ?? undefined,
   };
 
   log.debug('mention from @%s: %s', n.account.acct, msg.content);
-  onMsg(msg.chat_jid, msg);
+  onMsg(msg.jid, msg);
 }
 
 export async function startWatcher(

@@ -8,7 +8,7 @@ import {
   spawnFolderName,
   platformFromJid,
 } from './router.js';
-import type { NewMessage, Route } from './types.js';
+import type { InboundEvent, Route } from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
@@ -299,10 +299,10 @@ function msg(
   content: string,
   sender = 'user@s.whatsapp.net',
   sender_name?: string,
-): NewMessage {
+): InboundEvent {
   return {
     id: '1',
-    chat_jid: 'group@g.us',
+    jid: 'group@g.us',
     sender,
     sender_name,
     content,
@@ -310,10 +310,10 @@ function msg(
   };
 }
 
-function mkMsg(content: string): NewMessage {
+function mkMsg(content: string): InboundEvent {
   return {
     id: '1',
-    chat_jid: 'test:1',
+    jid: 'test:1',
     sender: 'user',
     content,
     timestamp: new Date().toISOString(),
@@ -476,7 +476,7 @@ describe('resolveRoute — flat routing table', () => {
         target: 'general',
       },
     ];
-    const joinMsg: NewMessage = { ...mkMsg(''), verb: 'join' };
+    const joinMsg: InboundEvent = { ...mkMsg(''), verb: 'join' };
     expect(resolveRoute(joinMsg, routes)).toEqual({
       target: 'welcome',
       command: null,

@@ -1,4 +1,4 @@
-import { NewMessage } from './types.js';
+import { InboundEvent } from './types.js';
 
 export interface ImpulseConfig {
   threshold: number;
@@ -7,15 +7,15 @@ export interface ImpulseConfig {
 }
 
 export interface ImpulseState {
-  pending: NewMessage[];
+  pending: InboundEvent[];
   impulse: number;
   last_flush: number;
 }
 
 export interface FlushResult {
-  events: NewMessage[];
-  immediate: NewMessage[];
-  batched: NewMessage[];
+  events: InboundEvent[];
+  immediate: InboundEvent[];
+  batched: InboundEvent[];
 }
 
 export function defaultConfig(): ImpulseConfig {
@@ -41,7 +41,7 @@ function weightFor(verb: string, config: ImpulseConfig): number {
 
 export function accumulate(
   state: ImpulseState,
-  event: NewMessage,
+  event: InboundEvent,
   config: ImpulseConfig,
 ): { state: ImpulseState; flush: FlushResult | null } {
   const verb = event.verb ?? 'message';
@@ -76,9 +76,12 @@ export function checkTimeout(
   return buildFlush(state.pending, config);
 }
 
-function buildFlush(events: NewMessage[], config: ImpulseConfig): FlushResult {
-  const immediate: NewMessage[] = [];
-  const batched: NewMessage[] = [];
+function buildFlush(
+  events: InboundEvent[],
+  config: ImpulseConfig,
+): FlushResult {
+  const immediate: InboundEvent[] = [];
+  const batched: InboundEvent[] = [];
   for (const e of events) {
     const w = weightFor(e.verb ?? 'message', config);
     if (w >= config.threshold) {

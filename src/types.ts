@@ -102,16 +102,15 @@ export interface SendOpts {
   replyTo?: string;
 }
 
-export interface NewMessage {
+export interface InboundEvent {
   id: string;
-  chat_jid: string;
+  jid: string;
   sender: string;
   sender_name?: string;
   content: string;
   timestamp: string;
   is_from_me?: boolean;
   is_bot_message?: boolean;
-  replyTo?: string;
   forwarded_from?: string;
   reply_to_text?: string;
   reply_to_sender?: string;
@@ -180,7 +179,7 @@ export interface Channel {
 // attachments is optional raw attachment list for the enricher pipeline.
 export type OnInboundMessage = (
   chatJid: string,
-  message: NewMessage,
+  message: InboundEvent,
   attachments?: import('./mime.js').RawAttachment[],
   download?: import('./mime.js').AttachmentDownloader,
 ) => void;

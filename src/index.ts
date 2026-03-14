@@ -21,6 +21,7 @@ import {
   REDDIT_CLIENT_SECRET,
   REDDIT_USERNAME,
   REDDIT_PASSWORD,
+  REDDIT_SUBREDDITS,
   TWITTER_USERNAME,
   TWITTER_PASSWORD,
   TWITTER_EMAIL,
@@ -111,7 +112,7 @@ import {
   userContextXml,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
-import { Channel, NewMessage } from './types.js';
+import { Channel, InboundEvent } from './types.js';
 import { logger } from './logger.js';
 
 let lastTimestamp = '';
@@ -683,12 +684,12 @@ function delegateToParent(
 }
 
 function delegatePerSender(
-  messages: NewMessage[],
+  messages: InboundEvent[],
   target: string,
   chatJid: string,
   command?: string | null,
 ): void {
-  const bySender = new Map<string, NewMessage[]>();
+  const bySender = new Map<string, InboundEvent[]>();
   for (const m of messages) {
     const existing = bySender.get(m.sender);
     if (existing) existing.push(m);
@@ -838,13 +839,13 @@ async function startMessageLoop(): Promise<void> {
         lastTimestamp = newTimestamp;
         saveState();
 
-        const messagesByGroup = new Map<string, NewMessage[]>();
+        const messagesByGroup = new Map<string, InboundEvent[]>();
         for (const msg of messages) {
-          const existing = messagesByGroup.get(msg.chat_jid);
+          const existing = messagesByGroup.get(msg.jid);
           if (existing) {
             existing.push(msg);
           } else {
-            messagesByGroup.set(msg.chat_jid, [msg]);
+            messagesByGroup.set(msg.jid, [msg]);
           }
         }
 
@@ -861,9 +862,9 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          type DeferredCmd = { msg: NewMessage; word: string; args: string };
+          type DeferredCmd = { msg: InboundEvent; word: string; args: string };
           const deferredCmds: DeferredCmd[] = [];
-          const nonCommandMessages: NewMessage[] = [];
+          const nonCommandMessages: InboundEvent[] = [];
           for (const msg of groupMessages) {
             const m = msg.content.trim();
             // Strip leading media placeholder (e.g. "[Document: file.txt] /put")
@@ -1038,18 +1039,18 @@ async function main(): Promise<void> {
   const channelOpts = {
     onMessage: (
       _chatJid: string,
-      msg: NewMessage,
+      msg: InboundEvent,
       attachments?: RawAttachment[],
       download?: AttachmentDownloader,
     ) => {
       storeMessage(msg);
       if (!msg.is_from_me && !msg.is_bot_message) {
-        clearChatErrored(msg.chat_jid);
+        clearChatErrored(msg.jid);
       }
-      const folder = getHubForJid(msg.chat_jid);
+      const folder = getHubForJid(msg.jid);
       const group = folder ? groups[folder] : undefined;
       if (attachments && download && group) {
-        const routes = getRoutesForJid(msg.chat_jid);
+        const routes = getRoutesForJid(msg.jid);
         const targetFolder = resolveRoute(msg, routes)?.target || group.folder;
         enqueueEnrichment(msg.id, targetFolder, attachments, download);
         attachmentCache.set(msg.id, {
@@ -1130,6 +1131,7 @@ async function main(): Promise<void> {
         userAgent: `kanipi:1.0 (by /u/${REDDIT_USERNAME})`,
       },
       channelOpts,
+      REDDIT_SUBREDDITS,
     );
     channels.push(reddit);
     await reddit.connect();

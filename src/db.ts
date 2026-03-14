@@ -8,7 +8,7 @@ import { logger } from './logger.js';
 import { createTestDatabase, ensureDatabase } from './migrations.js';
 import {
   ContainerConfigSchema,
-  NewMessage,
+  InboundEvent,
   Route,
   ScheduledTask,
   TaskRunLog,
@@ -161,7 +161,7 @@ export function appendMessageContent(id: string, suffix: string): void {
   );
 }
 
-export function storeMessage(msg: NewMessage): void {
+export function storeMessage(msg: InboundEvent): void {
   db.prepare(
     `INSERT OR REPLACE INTO messages
        (id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message,
@@ -170,7 +170,7 @@ export function storeMessage(msg: NewMessage): void {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     msg.id,
-    msg.chat_jid,
+    msg.jid,
     msg.sender,
     msg.sender_name,
     msg.content,
@@ -186,24 +186,24 @@ export function storeMessage(msg: NewMessage): void {
   );
 }
 
-export function getMessageById(id: string): NewMessage | undefined {
-  return db.prepare('SELECT * FROM messages WHERE id = ? LIMIT 1').get(id) as
-    | NewMessage
-    | undefined;
+export function getMessageById(id: string): InboundEvent | undefined {
+  return db
+    .prepare('SELECT *, chat_jid AS jid FROM messages WHERE id = ? LIMIT 1')
+    .get(id) as InboundEvent | undefined;
 }
 
 export function getNewMessages(
   jids: string[],
   lastTimestamp: string,
   botPrefix: string,
-): { messages: NewMessage[]; newTimestamp: string } {
+): { messages: InboundEvent[]; newTimestamp: string } {
   if (jids.length === 0) return { messages: [], newTimestamp: lastTimestamp };
 
   const placeholders = jids.map(() => '?').join(',');
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
   const sql = `
-    SELECT id, chat_jid, sender, sender_name, content, timestamp,
+    SELECT id, chat_jid AS jid, sender, sender_name, content, timestamp,
            forwarded_from, reply_to_text, reply_to_sender,
            reply_to_id, forwarded_from_id, forwarded_msgid
     FROM messages
@@ -215,7 +215,7 @@ export function getNewMessages(
 
   const rows = db
     .prepare(sql)
-    .all(lastTimestamp, ...jids, `${botPrefix}:%`) as NewMessage[];
+    .all(lastTimestamp, ...jids, `${botPrefix}:%`) as InboundEvent[];
 
   let newTimestamp = lastTimestamp;
   for (const row of rows) {
@@ -231,12 +231,12 @@ export function getMessagesSince(
   chatJid: string,
   sinceTimestamp: string,
   botPrefix: string,
-): NewMessage[] {
+): InboundEvent[] {
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
   const since = sinceTimestamp || '';
   const sql = `
-    SELECT m.id, m.chat_jid, m.sender, m.sender_name, m.content, m.timestamp,
+    SELECT m.id, m.chat_jid AS jid, m.sender, m.sender_name, m.content, m.timestamp,
            m.forwarded_from, m.reply_to_text, m.reply_to_sender,
            m.reply_to_id, m.forwarded_from_id, m.forwarded_msgid,
            CASE WHEN c.is_group = 1 THEN c.name ELSE NULL END AS group_name
@@ -250,7 +250,7 @@ export function getMessagesSince(
   `;
   const rows = db
     .prepare(sql)
-    .all(chatJid, since, `${botPrefix}:%`, MSG_LIMIT) as NewMessage[];
+    .all(chatJid, since, `${botPrefix}:%`, MSG_LIMIT) as InboundEvent[];
   return rows.reverse();
 }
 

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { Channel, NewMessage, Platform, Route } from './types.js';
+import { Channel, InboundEvent, Platform, Route } from './types.js';
 
 // Platform short codes for user file naming
 const PLATFORM_SHORT: Record<string, string> = {
@@ -60,7 +60,7 @@ export function clockXml(tz: string): string {
   return `<clock time="${new Date().toISOString()}" tz="${escapeXml(tz)}" />`;
 }
 
-export function formatMessages(messages: NewMessage[], now?: number): string {
+export function formatMessages(messages: InboundEvent[], now?: number): string {
   const t = now ?? Date.now();
   const lines = messages.map((m) => {
     const parts: string[] = [];
@@ -83,7 +83,7 @@ export function formatMessages(messages: NewMessage[], now?: number): string {
     const a = [
       `sender="${escapeXml(m.sender_name ?? m.sender)}"`,
       `sender_id="${escapeXml(m.sender)}"`,
-      `chat_id="${escapeXml(m.chat_jid)}"`,
+      `chat_id="${escapeXml(m.jid)}"`,
       m.group_name && `chat="${escapeXml(m.group_name)}"`,
       m.platform && `platform="${escapeXml(m.platform)}"`,
       `time="${m.timestamp}" ago="${timeAgo(m.timestamp, t)}"`,
@@ -109,14 +109,14 @@ export function findChannel(
 // First match wins. Routes ordered by seq from DB.
 // RFC 6570 Level 1 template expansion for route targets.
 // Only {sender} is supported — expands to senderToUserFileId(msg.sender).
-function expandTarget(target: string, msg: NewMessage): string | null {
+function expandTarget(target: string, msg: InboundEvent): string | null {
   if (!target.includes('{')) return target;
   const id = senderToUserFileId(msg.sender);
   if (!id || id === '-' || id === '-unknown') return null;
   return target.replace('{sender}', id);
 }
 
-function routeMatches(r: Route, msg: NewMessage): boolean {
+function routeMatches(r: Route, msg: InboundEvent): boolean {
   switch (r.type) {
     case 'command': {
       const t = msg.content.trim();
@@ -156,7 +156,7 @@ export interface ResolvedRoute {
 }
 
 export function resolveRoute(
-  msg: NewMessage,
+  msg: InboundEvent,
   routes: Route[],
 ): ResolvedRoute | null {
   for (const r of routes) {

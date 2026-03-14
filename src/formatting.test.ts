@@ -12,12 +12,12 @@ import {
   timeAgo,
   userContextXml,
 } from './router.js';
-import { NewMessage } from './types.js';
+import { InboundEvent } from './types.js';
 
-function makeMsg(overrides: Partial<NewMessage> = {}): NewMessage {
+function makeMsg(overrides: Partial<InboundEvent> = {}): InboundEvent {
   return {
     id: '1',
-    chat_jid: 'whatsapp:group@g.us',
+    jid: 'whatsapp:group@g.us',
     sender: 'whatsapp:123@s.whatsapp.net',
     sender_name: 'Alice',
     content: 'hello',
@@ -165,7 +165,7 @@ describe('formatMessages', () => {
 
   it('sender_id contains platform prefix', () => {
     const tg = formatMessages(
-      [makeMsg({ sender: 'telegram:99', chat_jid: 'telegram:-100123' })],
+      [makeMsg({ sender: 'telegram:99', jid: 'telegram:-100123' })],
       NOW,
     );
     expect(tg).toContain('sender_id="telegram:99"');

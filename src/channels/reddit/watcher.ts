@@ -1,5 +1,5 @@
 import { logger } from '../../logger.js';
-import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
+import { InboundEvent, OnInboundMessage, Platform, Verb } from '../../types.js';
 import { RedditClient } from './client.js';
 
 const log = logger.child({ channel: 'reddit' });
@@ -25,7 +25,7 @@ interface Listing {
   data: { children: RedditThing[] };
 }
 
-function toMessage(thing: RedditThing, source: string): NewMessage {
+function toMessage(thing: RedditThing, source: string): InboundEvent {
   const d = thing.data;
   const jid =
     source === 'inbox'
@@ -33,7 +33,7 @@ function toMessage(thing: RedditThing, source: string): NewMessage {
       : `reddit:${d.subreddit ?? source}`;
   return {
     id: d.name,
-    chat_jid: jid,
+    jid,
     sender: `reddit:${d.author}`,
     sender_name: d.author,
     content: d.body ?? d.selftext ?? d.title ?? '',
@@ -62,7 +62,7 @@ async function pollListing(
   if (!before) return;
   for (const item of items.reverse()) {
     const msg = toMessage(item, source);
-    onMsg(msg.chat_jid, msg);
+    onMsg(msg.jid, msg);
   }
 }
 

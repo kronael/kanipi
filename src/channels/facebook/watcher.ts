@@ -1,5 +1,5 @@
 import { logger } from '../../logger.js';
-import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
+import { InboundEvent, OnInboundMessage, Platform, Verb } from '../../types.js';
 import { FacebookConfig } from './client.js';
 
 const log = logger.child({ channel: 'facebook' });
@@ -37,9 +37,9 @@ export function startWatcher(
           if (!p.message || !p.from) continue;
           if (p.from.id === cfg.pageId) continue;
           if (lastTs && p.created_time <= lastTs) continue;
-          const msg: NewMessage = {
+          const msg: InboundEvent = {
             id: p.id,
-            chat_jid: `facebook:${cfg.pageId}`,
+            jid: `facebook:${cfg.pageId}`,
             sender: `facebook:${p.from.id}`,
             sender_name: p.from.name,
             content: p.message,
@@ -47,7 +47,7 @@ export function startWatcher(
             verb: Verb.Message,
             platform: Platform.Facebook,
           };
-          onMsg(msg.chat_jid, msg);
+          onMsg(msg.jid, msg);
         }
         if (data.data.length > 0) lastTs = data.data[0].created_time;
       }

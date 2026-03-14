@@ -145,7 +145,7 @@ export class DiscordChannel implements Channel {
       chatJid,
       {
         id: msg.id,
-        chat_jid: chatJid,
+        jid: chatJid,
         sender,
         sender_name: senderName,
         content,

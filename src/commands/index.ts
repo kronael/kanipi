@@ -4,12 +4,12 @@ import path from 'path';
 import { DATA_DIR } from '../config.js';
 import { AttachmentDownloader, RawAttachment } from '../mime.js';
 import { GroupConfig } from '../db.js';
-import { Channel, NewMessage } from '../types.js';
+import { Channel, InboundEvent } from '../types.js';
 
 export interface CommandContext {
   group: GroupConfig;
   groupJid: string;
-  message: NewMessage;
+  message: InboundEvent;
   channel: Channel;
   args: string;
   clearSession: (groupFolder: string) => void;

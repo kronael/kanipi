@@ -24,7 +24,7 @@ export const injectMessage: Action = {
     const id = `inject-${crypto.randomUUID()}`;
     storeMessage({
       id,
-      chat_jid: input.chatJid,
+      jid: input.chatJid,
       sender: input.sender,
       sender_name: input.senderName,
       content: input.content,

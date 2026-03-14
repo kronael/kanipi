@@ -11,7 +11,7 @@ import {
   generateSlinkToken,
   handleSlinkPost,
 } from './slink.js';
-import type { NewMessage, OnInboundMessage } from './types.js';
+import type { InboundEvent, OnInboundMessage } from './types.js';
 
 import crypto from 'crypto';
 
@@ -48,8 +48,8 @@ function makeGroup(jid: string, token: string): GroupConfig & { jid: string } {
   };
 }
 
-function collect(): { messages: NewMessage[]; onMessage: OnInboundMessage } {
-  const messages: NewMessage[] = [];
+function collect(): { messages: InboundEvent[]; onMessage: OnInboundMessage } {
+  const messages: InboundEvent[] = [];
   return { messages, onMessage: (_jid, msg) => messages.push(msg) };
 }
 
@@ -92,7 +92,7 @@ describe('valid token', () => {
     expect(JSON.parse(r.body)).toMatchObject({ ok: true });
     expect(messages).toHaveLength(1);
     expect(messages[0].content).toBe('hello world');
-    expect(messages[0].chat_jid).toBe('web:main');
+    expect(messages[0].jid).toBe('web:main');
   });
 });
 

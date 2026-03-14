@@ -1,17 +1,17 @@
 import type { Tweet } from 'agent-twitter-client';
 
 import { logger } from '../../logger.js';
-import { NewMessage, OnInboundMessage, Platform, Verb } from '../../types.js';
+import { InboundEvent, OnInboundMessage, Platform, Verb } from '../../types.js';
 import { TwitterClient } from './client.js';
 
 const log = logger.child({ channel: 'twitter' });
 const POLL_MS = 30_000;
 
-function toMessage(tweet: Tweet): NewMessage {
+function toMessage(tweet: Tweet): InboundEvent {
   const handle = tweet.username ?? tweet.userId ?? 'unknown';
   return {
     id: tweet.id ?? `${Date.now()}`,
-    chat_jid: `twitter:${tweet.userId ?? 'unknown'}`,
+    jid: `twitter:${tweet.userId ?? 'unknown'}`,
     sender: `twitter:${tweet.userId ?? 'unknown'}`,
     sender_name: tweet.name ?? handle,
     content: tweet.text ?? '',
@@ -50,7 +50,7 @@ export async function startWatcher(
 
     for (const tweet of tweets) {
       const msg = toMessage(tweet);
-      onMsg(msg.chat_jid, msg);
+      onMsg(msg.jid, msg);
     }
 
     // Update cursor to newest tweet

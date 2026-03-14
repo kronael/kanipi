@@ -36,6 +36,7 @@ const envConfig = readEnvFile([
   'REDDIT_CLIENT_SECRET',
   'REDDIT_USERNAME',
   'REDDIT_PASSWORD',
+  'REDDIT_SUBREDDITS',
   'TWITTER_USERNAME',
   'TWITTER_PASSWORD',
   'TWITTER_EMAIL',
@@ -137,6 +138,13 @@ export const REDDIT_USERNAME =
   process.env.REDDIT_USERNAME || envConfig.REDDIT_USERNAME || '';
 export const REDDIT_PASSWORD =
   process.env.REDDIT_PASSWORD || envConfig.REDDIT_PASSWORD || '';
+export const REDDIT_SUBREDDITS = (
+  process.env.REDDIT_SUBREDDITS ||
+  envConfig.REDDIT_SUBREDDITS ||
+  ''
+)
+  .split(',')
+  .filter(Boolean);
 export const TWITTER_USERNAME =
   process.env.TWITTER_USERNAME || envConfig.TWITTER_USERNAME || '';
 export const TWITTER_PASSWORD =

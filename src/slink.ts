@@ -156,7 +156,7 @@ export function handleSlinkPost(req: SlinkRequest): SlinkResponse {
     jid,
     {
       id: msgId,
-      chat_jid: jid,
+      jid,
       sender,
       ...(senderName !== undefined && { sender_name: senderName }),
       content: text,

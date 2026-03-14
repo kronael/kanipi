@@ -149,7 +149,7 @@ export class TelegramChannel implements Channel {
       // Deliver message — startMessageLoop() will pick it up
       this.opts.onMessage(chatJid, {
         id: msgId,
-        chat_jid: chatJid,
+        jid: chatJid,
         sender,
         sender_name: senderName,
         content,
@@ -253,7 +253,7 @@ export class TelegramChannel implements Channel {
         chatJid,
         {
           id: ctx.message.message_id.toString(),
-          chat_jid: chatJid,
+          jid: chatJid,
           sender: `telegram:${ctx.from?.id?.toString() || ''}`,
           sender_name: senderName,
           content: `${placeholder}${caption}`,

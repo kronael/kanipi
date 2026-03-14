@@ -335,7 +335,7 @@ describe('DB state for gateway routing', () => {
     );
     storeMessage({
       id: 'm1',
-      chat_jid: 'g@g.us',
+      jid: 'g@g.us',
       sender: 'u@s.whatsapp.net',
       sender_name: 'Alice',
       content: '@Andy help me',
@@ -386,7 +386,7 @@ function setupGroup(): Channel & { sendMessage: ReturnType<typeof vi.fn> } {
   storeChatMetadata(TEST_JID, '2024-01-01T00:00:00.000Z', 'Test', 'test', true);
   storeMessage({
     id: 'msg1',
-    chat_jid: TEST_JID,
+    jid: TEST_JID,
     sender: 'user@s.us',
     sender_name: 'Alice',
     content: 'hello',
@@ -528,7 +528,7 @@ function setupRoutedGroup(registerChild: boolean): Channel & {
   );
   storeMessage({
     id: 'route-msg-1',
-    chat_jid: ROUTED_JID,
+    jid: ROUTED_JID,
     sender: 'user@s.us',
     sender_name: 'Alice',
     content: '/code fix the bug',
@@ -716,7 +716,7 @@ function setupUnauthorizedRouting(
   );
   storeMessage({
     id: `unauth-${sourceFolder.replace(/\//g, '-')}-msg`,
-    chat_jid: sourceJid,
+    jid: sourceJid,
     sender: 'user@s.us',
     content: '/route me somewhere',
     timestamp: UNAUTH_TS,

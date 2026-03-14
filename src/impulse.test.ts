@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NewMessage } from './types.js';
+import { InboundEvent } from './types.js';
 import {
   accumulate,
   checkTimeout,
@@ -9,10 +9,10 @@ import {
   ImpulseState,
 } from './impulse.js';
 
-function msg(overrides: Partial<NewMessage> = {}): NewMessage {
+function msg(overrides: Partial<InboundEvent> = {}): InboundEvent {
   return {
     id: '1',
-    chat_jid: 'chat@test',
+    jid: 'chat@test',
     sender: 'user@test',
     content: 'hello',
     timestamp: new Date().toISOString(),
