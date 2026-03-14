@@ -1,5 +1,5 @@
 ---
-status: draft
+status: shipped (A-E), draft (F-G)
 ---
 
 # R: Per-sender reply routing

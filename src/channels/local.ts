@@ -21,7 +21,7 @@ export class LocalChannel implements Channel {
     jid: string,
     text: string,
     _opts?: SendOpts,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     const id = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     storeMessage({
       id,
@@ -33,6 +33,7 @@ export class LocalChannel implements Channel {
       is_from_me: true,
       is_bot_message: false,
     });
+    return id;
   }
 
   async sendDocument(): Promise<void> {

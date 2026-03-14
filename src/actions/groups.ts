@@ -206,6 +206,7 @@ export const delegateGroup: Action = {
       input.prompt,
       input.chatJid,
       depth + 1,
+      ctx.messageId,
     );
     return { queued: true };
   },

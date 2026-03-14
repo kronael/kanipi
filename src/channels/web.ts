@@ -32,11 +32,11 @@ export class WebChannel implements Channel {
     jid: string,
     text: string,
     _opts?: SendOpts,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     // jid format: "web:<group>"
     const group = jid.slice(4);
     const set = listeners.get(group);
-    if (!set || set.size === 0) return;
+    if (!set || set.size === 0) return undefined;
     const payload = `data: ${JSON.stringify({ text })}\n\n`;
     for (const res of set) {
       try {
@@ -46,5 +46,6 @@ export class WebChannel implements Channel {
         set.delete(res);
       }
     }
+    return undefined;
   }
 }

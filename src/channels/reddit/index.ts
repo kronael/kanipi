@@ -57,12 +57,13 @@ export class RedditChannel implements Channel {
     _jid: string,
     text: string,
     opts?: SendOpts,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     if (opts?.replyTo) {
       await this.client.reply(opts.replyTo, text);
     } else {
       await this.client.post(text);
     }
+    return undefined;
   }
 }
 

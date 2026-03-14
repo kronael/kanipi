@@ -335,17 +335,24 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   const routes = getRoutesForJid(chatJid);
   const target = resolveRoute(lastMsg, routes);
   if (target && target !== group.folder) {
-    const formatted = formatMessages(missedMessages);
     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
     saveState();
-    delegateToChild(target, formatted, chatJid, 0).catch((err) => {
-      // Don't roll back cursor - message is marked as processed but failed.
-      // Parent can still fetch it via MCP message history tools.
-      logger.error(
-        { chatJid, target, err: String(err) },
-        'routing failed, message dropped',
-      );
-    });
+    const bySender = new Map<string, NewMessage[]>();
+    for (const m of missedMessages) {
+      const existing = bySender.get(m.sender);
+      if (existing) existing.push(m);
+      else bySender.set(m.sender, [m]);
+    }
+    for (const senderMsgs of bySender.values()) {
+      const formatted = formatMessages(senderMsgs);
+      const last = senderMsgs[senderMsgs.length - 1];
+      delegateToChild(target, formatted, chatJid, 0, last.id).catch((err) => {
+        logger.error(
+          { chatJid, target, err: String(err) },
+          'routing failed, message dropped',
+        );
+      });
+    }
     return true;
   }
 
@@ -431,6 +438,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   let hadError = false;
   let outputSentToUser = false;
   let output: 'success' | 'error';
+  let lastSentId: string | undefined = lastMsg.id;
 
   try {
     output = await runAgent(
@@ -441,7 +449,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       channel.name,
       userMessages[userMessages.length - 1]?.id,
       async (result) => {
-        // Streaming output callback — called for each agent result
         if (result.result) {
           const raw =
             typeof result.result === 'string'
@@ -453,14 +460,17 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
             `Agent output: ${raw.slice(0, 200)}`,
           );
           if (text) {
-            await channel.sendMessage(chatJid, text, { replyTo: lastMsg.id });
+            const sentId = await channel.sendMessage(
+              chatJid,
+              text,
+              lastSentId ? { replyTo: lastSentId } : undefined,
+            );
+            if (sentId) lastSentId = sentId;
             outputSentToUser = true;
           }
         }
 
         if (result.status === 'success') {
-          // Agent finished responding — stop typing indicator.
-          // Container stays alive (idle) but should not show as "working".
           stopTypingFor(chatJid);
           queue.notifyIdle(chatJid);
         }
@@ -563,6 +573,7 @@ async function delegateToGroup(
   originJid: string,
   depth: number,
   label: string,
+  messageId?: string,
 ): Promise<void> {
   let target: GroupConfig | undefined = groups[targetFolder];
   if (!target) {
@@ -579,6 +590,7 @@ async function delegateToGroup(
   const taskId = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   queue.enqueueTask(targetFolder, taskId, async () => {
+    let lastSentId = messageId;
     try {
       const output = await runContainerCommand(
         target,
@@ -590,6 +602,7 @@ async function delegateToGroup(
           channelName: channel.name,
           messageCount: 1,
           delegateDepth: depth,
+          messageId,
         },
         (proc, containerName) =>
           queue.registerProcess(
@@ -609,7 +622,14 @@ async function delegateToGroup(
                 ? result.result
                 : JSON.stringify(result.result);
             const text = raw.trim();
-            if (text) await channel.sendMessage(originJid, text);
+            if (text) {
+              const sentId = await channel.sendMessage(
+                originJid,
+                text,
+                lastSentId ? { replyTo: lastSentId } : undefined,
+              );
+              if (sentId) lastSentId = sentId;
+            }
           }
         },
       );
@@ -635,8 +655,16 @@ function delegateToChild(
   prompt: string,
   originJid: string,
   depth: number,
+  messageId?: string,
 ): Promise<void> {
-  return delegateToGroup(childFolder, prompt, originJid, depth, 'delegate');
+  return delegateToGroup(
+    childFolder,
+    prompt,
+    originJid,
+    depth,
+    'delegate',
+    messageId,
+  );
 }
 
 function delegateToParent(
@@ -644,8 +672,16 @@ function delegateToParent(
   prompt: string,
   originJid: string,
   depth: number,
+  messageId?: string,
 ): Promise<void> {
-  return delegateToGroup(parentFolder, prompt, originJid, depth, 'escalate');
+  return delegateToGroup(
+    parentFolder,
+    prompt,
+    originJid,
+    depth,
+    'escalate',
+    messageId,
+  );
 }
 
 async function runAgent(
@@ -881,18 +917,28 @@ async function startMessageLoop(): Promise<void> {
               );
               const toDelegate =
                 allForRoute.length > 0 ? allForRoute : nonCommandMessages;
-              const routedPrompt = formatMessages(toDelegate);
               lastAgentTimestamp[chatJid] =
                 toDelegate[toDelegate.length - 1].timestamp;
               saveState();
-              delegateToChild(target, routedPrompt, chatJid, 0).catch((err) => {
-                // Don't roll back cursor - message is marked as processed but failed.
-                // Parent can still fetch it via MCP message history tools.
-                logger.error(
-                  { chatJid, target, err: String(err) },
-                  'routing failed, message dropped',
+              // Split by sender so each user's reply threads correctly
+              const bySender = new Map<string, NewMessage[]>();
+              for (const m of toDelegate) {
+                const existing = bySender.get(m.sender);
+                if (existing) existing.push(m);
+                else bySender.set(m.sender, [m]);
+              }
+              for (const senderMsgs of bySender.values()) {
+                const prompt = formatMessages(senderMsgs);
+                const last = senderMsgs[senderMsgs.length - 1];
+                delegateToChild(target, prompt, chatJid, 0, last.id).catch(
+                  (err) => {
+                    logger.error(
+                      { chatJid, target, err: String(err) },
+                      'routing failed, message dropped',
+                    );
+                  },
                 );
-              });
+              }
               continue;
             }
           }
@@ -1149,10 +1195,11 @@ async function main(): Promise<void> {
       const channel = findChannel(channels, jid);
       if (!channel) {
         logger.warn({ jid }, 'no channel owns JID, cannot send message');
-        return;
+        return undefined;
       }
       const text = rawText.trim();
-      if (text) await channel.sendMessage(jid, text);
+      if (text) return channel.sendMessage(jid, text);
+      return undefined;
     },
   });
   startIpcWatcher({

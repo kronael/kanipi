@@ -380,13 +380,9 @@ export class WhatsAppChannel implements Channel {
     jid: string,
     text: string,
     _opts?: SendOpts,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     // Convert markdown to WhatsApp formatting
     const formatted = markdownToWhatsApp(text);
-    // Prefix bot messages with assistant name so users know who's speaking.
-    // On a shared number, prefix is also needed in DMs (including self-chat)
-    // to distinguish bot output from user messages.
-    // Skip only when the assistant has its own dedicated phone number.
     const prefixed = ASSISTANT_HAS_OWN_NUMBER
       ? formatted
       : `${ASSISTANT_NAME}: ${formatted}`;
@@ -397,18 +393,21 @@ export class WhatsAppChannel implements Channel {
         { jid, length: prefixed.length, queueSize: this.outgoingQueue.length },
         'WA disconnected, message queued',
       );
-      return;
+      return undefined;
     }
     try {
-      await this.sock.sendMessage(this.toWaJid(jid), { text: prefixed });
+      const sent = await this.sock.sendMessage(this.toWaJid(jid), {
+        text: prefixed,
+      });
       logger.info({ jid, length: prefixed.length }, 'Message sent');
+      return sent?.key?.id ?? undefined;
     } catch (err) {
-      // If send fails, queue it for retry on reconnect
       this.outgoingQueue.push({ jid, text: prefixed });
       logger.warn(
         { jid, err, queueSize: this.outgoingQueue.length },
         'Failed to send, message queued',
       );
+      return undefined;
     }
   }
 

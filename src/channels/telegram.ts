@@ -411,10 +411,14 @@ export class TelegramChannel implements Channel {
     });
   }
 
-  async sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void> {
+  async sendMessage(
+    jid: string,
+    text: string,
+    opts?: SendOpts,
+  ): Promise<string | undefined> {
     if (!this.bot) {
       logger.warn('Telegram bot not initialized');
-      return;
+      return undefined;
     }
 
     try {
@@ -426,36 +430,39 @@ export class TelegramChannel implements Channel {
       // Telegram has a 4096 character limit per message — split if needed
       const html = mdToHtml(text);
       const MAX_LENGTH = 4096;
+      let lastId: string | undefined;
       for (let i = 0; i < html.length; i += MAX_LENGTH) {
         const chunk = html.slice(i, i + MAX_LENGTH);
         try {
-          await this.bot.api.sendMessage(numericId, chunk, {
+          const sent = await this.bot.api.sendMessage(numericId, chunk, {
             parse_mode: 'HTML',
             ...replyParams,
           });
+          lastId = String(sent.message_id);
         } catch (htmlErr: any) {
-          // Telegram rejects malformed HTML (e.g. underscore inside <code> treated
-          // as italic, causing unmatched tags). Retry as plain text.
           if (htmlErr?.error_code === 400) {
             logger.warn(
               { jid, error: htmlErr.description },
               'HTML parse failed, retrying as plain text',
             );
-            await this.bot.api.sendMessage(
+            const sent = await this.bot.api.sendMessage(
               numericId,
               text.slice(i, i + MAX_LENGTH),
               {
                 ...replyParams,
               },
             );
+            lastId = String(sent.message_id);
           } else {
             throw htmlErr;
           }
         }
       }
       logger.info({ jid, length: text.length }, 'Telegram message sent');
+      return lastId;
     } catch (err) {
       logger.error({ jid, err }, 'Failed to send Telegram message');
+      return undefined;
     }
   }
 

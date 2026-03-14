@@ -169,33 +169,42 @@ export class DiscordChannel implements Channel {
     );
   }
 
-  async sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void> {
+  async sendMessage(
+    jid: string,
+    text: string,
+    opts?: SendOpts,
+  ): Promise<string | undefined> {
     if (!this.client) {
       logger.warn('Discord client not initialized');
-      return;
+      return undefined;
     }
 
     try {
       const ch = await this.client.channels.fetch(jid.replace(/^discord:/, ''));
       if (!ch?.isTextBased()) {
         logger.warn({ jid }, 'Discord channel not text-based');
-        return;
+        return undefined;
       }
       const MAX = 2000;
+      let lastId: string | undefined;
       for (let i = 0; i < text.length; i += MAX) {
         const chunk = text.slice(i, i + MAX);
         if (opts?.replyTo && i === 0) {
-          await (ch as TextChannel).send({
+          const sent = await (ch as TextChannel).send({
             content: chunk,
             reply: { messageReference: opts.replyTo },
           });
+          lastId = sent.id;
         } else {
-          await (ch as TextChannel).send(chunk);
+          const sent = await (ch as TextChannel).send(chunk);
+          lastId = sent.id;
         }
       }
       logger.info({ jid, length: text.length }, 'Discord message sent');
+      return lastId;
     } catch (err) {
       logger.error({ jid, err }, 'Failed to send Discord message');
+      return undefined;
     }
   }
 

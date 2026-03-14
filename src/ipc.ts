@@ -49,7 +49,11 @@ import { GroupConfig } from './db.js';
 import { logger } from './logger.js';
 
 export interface IpcDeps {
-  sendMessage: (jid: string, text: string, opts?: SendOpts) => Promise<void>;
+  sendMessage: (
+    jid: string,
+    text: string,
+    opts?: SendOpts,
+  ) => Promise<string | undefined>;
   sendDocument: (
     jid: string,
     filePath: string,
@@ -74,12 +78,14 @@ export interface IpcDeps {
     prompt: string,
     originJid: string,
     depth: number,
+    messageId?: string,
   ) => Promise<void>;
   delegateToParent: (
     parentFolder: string,
     prompt: string,
     originJid: string,
     depth: number,
+    messageId?: string,
   ) => Promise<void>;
 }
 

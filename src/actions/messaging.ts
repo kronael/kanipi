@@ -68,7 +68,11 @@ export const sendReply: Action = {
   async handler(raw, ctx) {
     const input = SendReplyInput.parse(raw);
     if (!ctx.chatJid) throw new Error('no bound chat JID');
-    await ctx.sendMessage(ctx.chatJid, input.text);
+    await ctx.sendMessage(
+      ctx.chatJid,
+      input.text,
+      ctx.messageId ? { replyTo: ctx.messageId } : undefined,
+    );
     logger.info(
       { chatJid: ctx.chatJid, sourceGroup: ctx.sourceGroup },
       'IPC reply sent',

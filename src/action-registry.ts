@@ -10,7 +10,11 @@ export interface ActionContext {
   messageId?: string;
   isRoot: boolean;
   tier: 0 | 1 | 2 | 3;
-  sendMessage(jid: string, text: string, opts?: SendOpts): Promise<void>;
+  sendMessage(
+    jid: string,
+    text: string,
+    opts?: SendOpts,
+  ): Promise<string | undefined>;
   sendDocument(jid: string, path: string, name?: string): Promise<void>;
   getHubForJid(jid: string): string | null;
   getRoutedJids(): string[];
@@ -30,12 +34,14 @@ export interface ActionContext {
     prompt: string,
     originJid: string,
     depth: number,
+    messageId?: string,
   ): Promise<void>;
   delegateToParent(
     parentFolder: string,
     prompt: string,
     originJid: string,
     depth: number,
+    messageId?: string,
   ): Promise<void>;
 }
 

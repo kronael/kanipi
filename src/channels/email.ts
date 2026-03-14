@@ -185,17 +185,17 @@ export class EmailChannel implements Channel {
     jid: string,
     text: string,
     _opts?: SendOpts,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     if (!this.transport) {
       logger.warn('email transport not initialized');
-      return;
+      return undefined;
     }
 
     const tid = jid.replace(/^email:/, '');
     const thread = getEmailThread(tid);
     if (!thread) {
       logger.warn({ jid }, 'email: no thread found for jid, cannot reply');
-      return;
+      return undefined;
     }
 
     try {
@@ -211,6 +211,7 @@ export class EmailChannel implements Channel {
     } catch (err) {
       logger.error({ jid, err }, 'failed to send email');
     }
+    return undefined;
   }
 
   isConnected(): boolean {
