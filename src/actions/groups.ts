@@ -163,6 +163,8 @@ export const escalateGroup: Action = {
       wrappedPrompt,
       workerLocalJid,
       depth + 1,
+      undefined,
+      { jid: input.chatJid, messageId: ctx.messageId },
     );
     return { queued: true, parent };
   },

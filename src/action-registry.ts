@@ -42,6 +42,7 @@ export interface ActionContext {
     originJid: string,
     depth: number,
     messageId?: string,
+    escalationOrigin?: { jid: string; messageId?: string },
   ): Promise<void>;
 }
 

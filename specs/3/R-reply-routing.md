@@ -1,5 +1,5 @@
 ---
-status: shipped (A-E), draft (F)
+status: shipped
 ---
 
 # R: Per-sender reply routing
@@ -256,4 +256,4 @@ to wrap stored messages.
 ## Implementation order
 
 1. **A-E**: shipped (5500182)
-2. **F**: escalation origin annotation — small, self-contained
+2. **F**: shipped

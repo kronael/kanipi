@@ -567,6 +567,11 @@ function spawnGroupFromPrototype(
   return { ...group, jid };
 }
 
+interface EscalationOrigin {
+  jid: string;
+  messageId?: string;
+}
+
 async function delegateToGroup(
   targetFolder: string,
   prompt: string,
@@ -574,6 +579,7 @@ async function delegateToGroup(
   depth: number,
   label: string,
   messageId?: string,
+  escalationOrigin?: EscalationOrigin,
 ): Promise<void> {
   let target: GroupConfig | undefined = groups[targetFolder];
   if (!target) {
@@ -621,8 +627,16 @@ async function delegateToGroup(
               typeof result.result === 'string'
                 ? result.result
                 : JSON.stringify(result.result);
-            const text = raw.trim();
+            let text = raw.trim();
             if (text) {
+              if (escalationOrigin) {
+                const msgAttr = escalationOrigin.messageId
+                  ? ` origin_msg_id="${escalationOrigin.messageId}"`
+                  : '';
+                text =
+                  `<escalation_response origin_jid="${escalationOrigin.jid}"${msgAttr}>\n` +
+                  `${text}\n</escalation_response>`;
+              }
               const sentId = await channel.sendMessage(
                 originJid,
                 text,
@@ -673,6 +687,7 @@ function delegateToParent(
   originJid: string,
   depth: number,
   messageId?: string,
+  escalationOrigin?: EscalationOrigin,
 ): Promise<void> {
   return delegateToGroup(
     parentFolder,
@@ -681,6 +696,7 @@ function delegateToParent(
     depth,
     'escalate',
     messageId,
+    escalationOrigin,
   );
 }
 
