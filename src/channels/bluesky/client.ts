@@ -81,7 +81,7 @@ export class BlueskyClient implements PlatformClient {
     if (media && media.length > 0) {
       try {
         const images = await Promise.all(
-          media.map(async (url) => {
+          media.slice(0, 4).map(async (url) => {
             const res = await fetch(url);
             const encoding = res.headers.get('content-type') ?? 'image/jpeg';
             const buf = await res.arrayBuffer();
