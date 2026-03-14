@@ -1073,6 +1073,7 @@ export function writeTasksSnapshot(
     id: string;
     groupFolder: string;
     prompt: string;
+    command?: string | null;
     schedule_type: string;
     schedule_value: string;
     status: string;

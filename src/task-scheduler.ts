@@ -94,6 +94,7 @@ async function runTask(
       id: t.id,
       groupFolder: t.group_folder,
       prompt: t.prompt,
+      command: t.command,
       schedule_type: t.schedule_type,
       schedule_value: t.schedule_value,
       status: t.status,

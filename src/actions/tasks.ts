@@ -123,9 +123,6 @@ function taskAction(
       if (ctx.tier === 2 && task.group_folder !== ctx.sourceGroup) {
         throw new Error('unauthorized');
       }
-      if (ctx.tier === 1 && !isInWorld(ctx.sourceGroup, task.group_folder)) {
-        throw new Error('unauthorized');
-      }
       fn(taskId, ctx);
       logger.info(
         { taskId, sourceGroup: ctx.sourceGroup },
