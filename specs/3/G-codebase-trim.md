@@ -8,12 +8,6 @@ Identify and remove dead code, duplicates, and over-abstraction.
 
 ## 1. Dead modules — DONE
 
-### ~~impulse.ts~~ — KEEP
-
-Impulse is the event batching/weighting system for social
-channels (verb-based accumulation, threshold flush). Not
-yet wired but planned for social integrations (specs/3/).
-
 ### Legacy IPC drain — DONE (2026-03-12)
 
 `drainLegacyMessages()` and `drainLegacyTasks()` deleted.

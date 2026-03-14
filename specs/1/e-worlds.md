@@ -11,11 +11,6 @@ What ships today:
 - world boundary checks based on first folder segment
 - share-dir mounting by world
 
-What does not ship today:
-
-- glob-based JID routing
-- wildcard registered-group lookup
-
 ## JID format
 
 ```text
@@ -68,9 +63,3 @@ The container runner mounts:
 ```
 
 Tier 0 and world groups can write there. deeper groups are readonly.
-
-## Open
-
-- wildcard JID registration
-- hierarchical platform JIDs like `telegram:chat:thread`
-- tree-wide IPC auth beyond current action checks

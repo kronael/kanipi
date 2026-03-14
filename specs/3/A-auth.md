@@ -12,12 +12,6 @@ What ships today:
 - login/refresh/logout routes in `src/web-proxy.ts` + `src/auth.ts`
 - slink JWT verification when `AUTH_SECRET` is set
 
-What does not ship today:
-
-- OAuth providers
-- Telegram Login Widget auth
-- provider callback routes
-
 ## Current routes
 
 ```text
@@ -69,11 +63,3 @@ Local auth is enabled when `AUTH_SECRET` is set.
 
 Protected web routes use the session cookie check in the proxy. Public
 widget routes under `/pub/` and `/_sloth/` bypass that check.
-
-## Deferred to phase 4
-
-- Discord OAuth
-- GitHub OAuth
-- Google OAuth / OIDC
-- Telegram widget login
-- Provider identity linking across channels

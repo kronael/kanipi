@@ -45,13 +45,6 @@ Moderation = ban, mute, block, pin, lock, hide, approve, kick.
 - **Manifest filtering**: agents see all 27 actions regardless of
   which platforms are configured (phase 3 k-channel-actions)
 
-### Spec Drift
-
-- Code uses `NewMessage` / `chat_jid`; specs reference
-  `InboundEvent` / `jid` — rename deferred to JID format work
-- Bluesky and Mastodon have no dedicated spec files (implemented
-  beyond spec, documented here instead)
-
 ### Moderation Action Coverage
 
 | Action      | Mastodon | Bluesky | Reddit | Twitter | Facebook |

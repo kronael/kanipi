@@ -48,18 +48,6 @@ status: reference
 | introspection | v0.7.0  | .gateway-caps TOML manifest, .whisper-language config         |
 | forward-meta  | v0.7.0  | Forward origin + reply-to context per channel                 |
 
-## Open (not shipped)
-
-- **OAuth providers** — docs exist, local auth ships, provider login does not.
-
-## Moved to v1m2
-
-- **plugins** — agent-proposed, operator-approved plugin flow → `3/E-plugins.md`
-
-## Not in scope for v1
-
-- **isolated MCP servers** — container-based MCP isolation deferred to phase 3
-
 ## Shipped (late additions)
 
 | Spec         | Version | Summary                                              |
@@ -67,10 +55,3 @@ status: reference
 | cli-ts       | v1.0.6  | TypeScript CLI rewrite (src/cli.ts)                  |
 | db-bootstrap | v1.0.6  | Versioned migrations (src/migrations.ts, .sql files) |
 | testcontain  | v1.0.6  | Integration tests with testcontainers, scenario mode |
-
-## Deferred to v1m2
-
-- `get_history` -> `3/C-message-mcp.md`
-- Agent-side media -> `3/N-workflows.md`
-- IPC -> MCP proxy -> `3/A-ipc-mcp-proxy.md`
-- Systems -> `1/Z-systems.md` (#topics, @agents, workflows)
