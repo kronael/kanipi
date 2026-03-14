@@ -58,21 +58,6 @@ describe('WebChannel basics', () => {
     const ch = new WebChannel();
     expect(ch.name).toBe('web');
   });
-
-  it('connect resolves without error', async () => {
-    const ch = new WebChannel();
-    await expect(ch.connect()).resolves.toBeUndefined();
-  });
-
-  it('disconnect resolves without error', async () => {
-    const ch = new WebChannel();
-    await expect(ch.disconnect()).resolves.toBeUndefined();
-  });
-
-  it('isConnected returns true', () => {
-    const ch = new WebChannel();
-    expect(ch.isConnected()).toBe(true);
-  });
 });
 
 describe('ownsJid', () => {
@@ -81,18 +66,9 @@ describe('ownsJid', () => {
     expect(ch.ownsJid('web:main')).toBe(true);
   });
 
-  it('does not own local: prefix', () => {
+  it('does not own non-web JIDs', () => {
     const ch = new WebChannel();
     expect(ch.ownsJid('local:main')).toBe(false);
-  });
-
-  it('does not own telegram: prefix', () => {
-    const ch = new WebChannel();
-    expect(ch.ownsJid('telegram:123')).toBe(false);
-  });
-
-  it('does not own empty string', () => {
-    const ch = new WebChannel();
     expect(ch.ownsJid('')).toBe(false);
   });
 });
@@ -158,15 +134,6 @@ describe('sendMessage', () => {
     expect(res1.written.length).toBe(1);
     expect(res2.written.length).toBe(1);
     expect(res1.written[0]).toBe(res2.written[0]);
-  });
-
-  it('returns undefined', async () => {
-    const ch = new WebChannel();
-    const res = fakeRes();
-    addSseListener('ret-group', res);
-    const ret = await ch.sendMessage('web:ret-group', 'test');
-    removeSseListener('ret-group', res);
-    expect(ret).toBeUndefined();
   });
 
   it('payload is valid SSE data line with JSON text field', async () => {

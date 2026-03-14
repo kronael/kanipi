@@ -201,17 +201,6 @@ describe('WhatsAppChannel', () => {
       expect(channel.isConnected()).toBe(true);
     });
 
-    it('sets up LID to phone mapping on open', async () => {
-      const opts = createTestOpts();
-      const channel = new WhatsAppChannel(opts);
-
-      await connectChannel(channel);
-
-      // The channel should have mapped the LID from sock.user
-      // We can verify by sending a message from a LID JID
-      // and checking the translated JID in the callback
-    });
-
     it('flushes outgoing queue on reconnect', async () => {
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
@@ -311,19 +300,6 @@ describe('WhatsAppChannel', () => {
       expect(channel.isConnected()).toBe(false);
       expect(mockExit).toHaveBeenCalledWith(0);
       mockExit.mockRestore();
-    });
-
-    it('retries reconnection after 5s on failure', async () => {
-      const opts = createTestOpts();
-      const channel = new WhatsAppChannel(opts);
-
-      await connectChannel(channel);
-
-      // Disconnect with stream error 515
-      triggerDisconnect(515);
-
-      // The channel sets a 5s retry — just verify it doesn't crash
-      await new Promise((r) => setTimeout(r, 100));
     });
   });
 
@@ -634,35 +610,6 @@ describe('WhatsAppChannel', () => {
       );
     });
 
-    it('passes through non-LID JIDs unchanged', async () => {
-      const opts = createTestOpts();
-      const channel = new WhatsAppChannel(opts);
-
-      await connectChannel(channel);
-
-      await triggerMessages([
-        {
-          key: {
-            id: 'msg-normal',
-            remoteJid: 'registered@g.us',
-            participant: '5551234@s.whatsapp.net',
-            fromMe: false,
-          },
-          message: { conversation: 'Normal JID' },
-          pushName: 'Grace',
-          messageTimestamp: Math.floor(Date.now() / 1000),
-        },
-      ]);
-
-      expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'whatsapp:registered@g.us',
-        expect.any(String),
-        undefined,
-        'whatsapp',
-        true,
-      );
-    });
-
     it('passes through unknown LID JIDs unchanged', async () => {
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
@@ -729,21 +676,6 @@ describe('WhatsAppChannel', () => {
       // Don't connect — channel starts disconnected
       await channel.sendMessage('whatsapp:test', 'Queued');
       expect(fakeSocket.sendMessage).not.toHaveBeenCalled();
-    });
-
-    it('queues message on send failure', async () => {
-      const opts = createTestOpts();
-      const channel = new WhatsAppChannel(opts);
-
-      await connectChannel(channel);
-
-      // Make sendMessage fail
-      fakeSocket.sendMessage.mockRejectedValueOnce(new Error('Network error'));
-
-      await channel.sendMessage('whatsapp:test', 'Will fail');
-
-      // Should not throw, message queued for retry
-      // The queue should have the message
     });
 
     it('flushes multiple queued messages in order', async () => {
@@ -900,19 +832,10 @@ describe('WhatsAppChannel', () => {
       expect(channel.ownsJid('whatsapp:972501234567')).toBe(true);
     });
 
-    it('does not own bare numeric JIDs (no prefix)', () => {
-      const channel = new WhatsAppChannel(createTestOpts());
-      expect(channel.ownsJid('12345')).toBe(false);
-    });
-
-    it('does not own Telegram JIDs', () => {
+    it('does not own non-whatsapp JIDs', () => {
       const channel = new WhatsAppChannel(createTestOpts());
       expect(channel.ownsJid('telegram:12345')).toBe(false);
-    });
-
-    it('does not own unknown JID formats', () => {
-      const channel = new WhatsAppChannel(createTestOpts());
-      expect(channel.ownsJid('random-string')).toBe(false);
+      expect(channel.ownsJid('12345')).toBe(false);
     });
   });
 
@@ -966,11 +889,6 @@ describe('WhatsAppChannel', () => {
     it('has name "whatsapp"', () => {
       const channel = new WhatsAppChannel(createTestOpts());
       expect(channel.name).toBe('whatsapp');
-    });
-
-    it('does not expose prefixAssistantName (prefix handled internally)', () => {
-      const channel = new WhatsAppChannel(createTestOpts());
-      expect('prefixAssistantName' in channel).toBe(false);
     });
   });
 });

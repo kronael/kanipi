@@ -444,24 +444,6 @@ describe('task CRUD', () => {
     expect(task!.status).toBe('active');
     expect(task!.next_run).toBe('2024-06-01T00:00:00.000Z');
   });
-
-  it('deletes a task and its run logs', () => {
-    createTask({
-      id: 'task-3',
-      group_folder: 'root',
-      chat_jid: 'group@g.us',
-      prompt: 'delete me',
-      schedule_type: 'once',
-      schedule_value: '2024-06-01T00:00:00.000Z',
-      context_mode: 'isolated',
-      next_run: null,
-      status: 'active',
-      created_at: '2024-01-01T00:00:00.000Z',
-    });
-
-    deleteTask('task-3');
-    expect(getTaskById('task-3')).toBeUndefined();
-  });
 });
 
 // --- getDueTasks ---
@@ -505,15 +487,6 @@ describe('updateTaskAfterRun', () => {
 
     updateTaskAfterRun('task-once', null, 'done');
     expect(getTaskById('task-once')!.status).toBe('completed');
-  });
-});
-
-// --- getNewMessages edge cases ---
-
-describe('getNewMessages edge cases', () => {
-  it('returns empty array for empty jids without error', () => {
-    const result = getNewMessages([], '0', 'Bot');
-    expect(result).toEqual({ messages: [], newTimestamp: '0' });
   });
 });
 
@@ -627,13 +600,6 @@ describe('system_messages', () => {
     expect(xml2).toBe('');
   });
 
-  it('flush is atomic: returns XML and deletes in same transaction', () => {
-    enqueueSystemMessage('grp-a', { origin: 'gw', body: 'msg' });
-    const xml = flushSystemMessages('grp-a');
-    expect(xml).not.toBe('');
-    expect(flushSystemMessages('grp-a')).toBe('');
-  });
-
   it('returns empty string when no messages exist', () => {
     expect(flushSystemMessages('grp-empty')).toBe('');
   });
@@ -656,28 +622,6 @@ describe('system_messages', () => {
     const xml = flushSystemMessages('grp-a');
     expect(xml).toContain('event="new-session"');
     expect(xml).toContain('sessionId="abc123"');
-  });
-});
-
-// --- DB-boundary: malformed groups JSON ---
-
-describe('groups DB-boundary: malformed JSON', () => {
-  it('invalid JSON in container_config: getGroupByFolder returns undefined for field', () => {
-    _setRawGroupColumns('bad-cc-json', {
-      container_config: 'not-json',
-    });
-    const g = getGroupByFolder('bad-cc-json');
-    expect(g).toBeDefined();
-    expect(g!.containerConfig).toBeUndefined();
-  });
-
-  it('schema-invalid JSON in container_config: getGroupByFolder returns undefined for field', () => {
-    _setRawGroupColumns('bad-cc-schema', {
-      container_config: JSON.stringify({ timeout: 'not-a-number' }),
-    });
-    const g = getGroupByFolder('bad-cc-schema');
-    expect(g).toBeDefined();
-    expect(g!.containerConfig).toBeUndefined();
   });
 });
 

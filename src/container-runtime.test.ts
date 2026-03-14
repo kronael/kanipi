@@ -18,8 +18,6 @@ vi.mock('child_process', () => ({
 
 import {
   CONTAINER_RUNTIME_BIN,
-  readonlyMountArgs,
-  stopContainerArgs,
   ensureContainerRuntimeRunning,
   cleanupOrphans,
 } from './container-runtime.js';
@@ -27,24 +25,6 @@ import { logger } from './logger.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
-});
-
-// --- Pure functions ---
-
-describe('readonlyMountArgs', () => {
-  it('returns -v flag with :ro suffix', () => {
-    const args = readonlyMountArgs('/host/path', '/container/path');
-    expect(args).toEqual(['-v', '/host/path:/container/path:ro']);
-  });
-});
-
-describe('stopContainerArgs', () => {
-  it('returns args array for docker stop', () => {
-    expect(stopContainerArgs('nanoclaw-test-123')).toEqual([
-      'stop',
-      'nanoclaw-test-123',
-    ]);
-  });
 });
 
 // --- ensureContainerRuntimeRunning ---

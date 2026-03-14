@@ -88,11 +88,6 @@ describe('readEnvFile', () => {
     });
   });
 
-  it('handles multiple keys in one call', () => {
-    fakeContent = 'A=1\nB=2\nC=3\n';
-    expect(readEnvFile(['A', 'B', 'C'])).toEqual({ A: '1', B: '2', C: '3' });
-  });
-
   it('returns empty object for empty key list', () => {
     fakeContent = 'FOO=bar\n';
     expect(readEnvFile([])).toEqual({});

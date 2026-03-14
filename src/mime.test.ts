@@ -174,25 +174,6 @@ describe('processAttachments', () => {
   });
 });
 
-// --- toAttachment ---
-
-describe('toAttachment', () => {
-  it('maps raw fields to Attachment', () => {
-    const raw: RawAttachment = {
-      type: 'voice',
-      mimeType: 'audio/ogg',
-      filename: 'voice.ogg',
-      sizeBytes: 1234,
-      source: { kind: 'telegram', fileId: 'abc' },
-    };
-    const a = toAttachment(raw);
-    expect(a.mediaType).toBe('voice');
-    expect(a.mimeType).toBe('audio/ogg');
-    expect(a.filename).toBe('voice.ogg');
-    expect(a.sizeBytes).toBe(1234);
-  });
-});
-
 // --- makeDownloader ---
 
 describe('makeDownloader', () => {

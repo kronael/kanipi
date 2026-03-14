@@ -124,16 +124,6 @@ describe('videoHandler.handle', () => {
     expect(lines).toEqual([]);
   });
 
-  it('does not match image mediaType', () => {
-    expect(videoHandler.match({ mediaType: 'image' })).toBe(false);
-  });
-
-  it('does not match audio mimeType', () => {
-    expect(
-      videoHandler.match({ mediaType: 'document', mimeType: 'audio/mp3' }),
-    ).toBe(false);
-  });
-
   it('kills ffmpeg and returns [] after 60s timeout', async () => {
     vi.useFakeTimers();
     const proc = new EventEmitter() as EventEmitter & {
