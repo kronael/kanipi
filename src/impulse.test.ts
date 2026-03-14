@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { InboundEvent } from './types.js';
+import { describe, it, expect, vi } from 'vitest';
+import { InboundEvent, OnInboundMessage } from './types.js';
 import {
   accumulate,
   checkTimeout,
+  createImpulseFilter,
   defaultConfig,
   emptyState,
   ImpulseConfig,
@@ -112,6 +113,95 @@ describe('checkTimeout', () => {
       last_flush: Date.now(),
     };
     expect(checkTimeout(state, config)).toBeNull();
+  });
+});
+
+describe('createImpulseFilter', () => {
+  it('buffers events below threshold — onMsg not called', () => {
+    const received: InboundEvent[] = [];
+    const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
+    const config: ImpulseConfig = {
+      ...defaultConfig(),
+      weights: { react: 25 },
+    };
+    const filter = createImpulseFilter(onMsg, config);
+
+    filter.onMsg('chat@test', msg({ id: '1', verb: 'react' }));
+    filter.onMsg('chat@test', msg({ id: '2', verb: 'react' }));
+    filter.onMsg('chat@test', msg({ id: '3', verb: 'react' }));
+    expect(received).toHaveLength(0);
+  });
+
+  it('threshold triggers flush — onMsg called with all buffered events', () => {
+    const received: InboundEvent[] = [];
+    const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
+    const config: ImpulseConfig = {
+      ...defaultConfig(),
+      weights: { react: 25 },
+    };
+    const filter = createImpulseFilter(onMsg, config);
+
+    filter.onMsg('chat@test', msg({ id: '1', verb: 'react' }));
+    filter.onMsg('chat@test', msg({ id: '2', verb: 'react' }));
+    filter.onMsg('chat@test', msg({ id: '3', verb: 'react' }));
+    expect(received).toHaveLength(0);
+
+    filter.onMsg('chat@test', msg({ id: '4', verb: 'react' }));
+    expect(received).toHaveLength(4);
+    expect(received.map((e) => e.id)).toEqual(['1', '2', '3', '4']);
+  });
+
+  it('default config: single message triggers immediate flush', () => {
+    const received: InboundEvent[] = [];
+    const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
+    const filter = createImpulseFilter(onMsg);
+
+    filter.onMsg('chat@test', msg({ id: 'x' }));
+    expect(received).toHaveLength(1);
+    expect(received[0].id).toBe('x');
+  });
+
+  it('flush() drains timed-out state — onMsg called after max_hold_ms', () => {
+    const received: InboundEvent[] = [];
+    const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
+    const config: ImpulseConfig = {
+      ...defaultConfig(),
+      weights: { react: 25 },
+      max_hold_ms: 0,
+    };
+    const filter = createImpulseFilter(onMsg, config);
+
+    filter.onMsg('chat@test', msg({ id: '1', verb: 'react' }));
+    expect(received).toHaveLength(0);
+
+    filter.flush();
+    expect(received).toHaveLength(1);
+    expect(received[0].id).toBe('1');
+  });
+
+  it('flush() does not fire onMsg when within max_hold_ms', () => {
+    const received: InboundEvent[] = [];
+    const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
+    const config: ImpulseConfig = {
+      ...defaultConfig(),
+      weights: { react: 25 },
+    };
+    const filter = createImpulseFilter(onMsg, config);
+
+    filter.onMsg('chat@test', msg({ id: '1', verb: 'react' }));
+    filter.flush();
+    expect(received).toHaveLength(0);
+  });
+
+  it('tracks separate jids independently', () => {
+    const received: InboundEvent[] = [];
+    const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
+    const filter = createImpulseFilter(onMsg);
+
+    filter.onMsg('a@test', msg({ id: 'a1', jid: 'a@test' }));
+    filter.onMsg('b@test', msg({ id: 'b1', jid: 'b@test' }));
+    expect(received).toHaveLength(2);
+    expect(received.map((e) => e.id)).toEqual(['a1', 'b1']);
   });
 });
 

@@ -1,4 +1,4 @@
-import { InboundEvent } from './types.js';
+import { InboundEvent, OnInboundMessage } from './types.js';
 
 export interface ImpulseConfig {
   threshold: number;
@@ -74,6 +74,39 @@ export function checkTimeout(
   if (state.pending.length === 0) return null;
   if (Date.now() - state.last_flush < config.max_hold_ms) return null;
   return buildFlush(state.pending, config);
+}
+
+export function createImpulseFilter(
+  onMsg: OnInboundMessage,
+  config?: ImpulseConfig,
+): { onMsg: OnInboundMessage; flush: () => void } {
+  const cfg = config ?? defaultConfig();
+  const states = new Map<string, ImpulseState>();
+
+  function fireFlush(result: FlushResult): void {
+    for (const event of result.events) {
+      onMsg(event.jid, event);
+    }
+  }
+
+  const wrappedOnMsg: OnInboundMessage = (chatJid, message) => {
+    const state = states.get(chatJid) ?? emptyState();
+    const { state: next, flush } = accumulate(state, message, cfg);
+    states.set(chatJid, next);
+    if (flush) fireFlush(flush);
+  };
+
+  const flushAll = (): void => {
+    for (const [jid, state] of states) {
+      const result = checkTimeout(state, cfg);
+      if (result) {
+        states.set(jid, { pending: [], impulse: 0, last_flush: Date.now() });
+        fireFlush(result);
+      }
+    }
+  };
+
+  return { onMsg: wrappedOnMsg, flush: flushAll };
 }
 
 function buildFlush(

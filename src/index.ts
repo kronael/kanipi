@@ -100,6 +100,7 @@ import {
   registerCommand,
   writeCommandsXml,
 } from './commands/index.js';
+import { createImpulseFilter } from './impulse.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
@@ -123,6 +124,7 @@ let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
 
 const channels: Channel[] = [];
+const socialFlushers: Array<() => void> = [];
 const queue = new GroupQueue();
 
 const typingState: Record<
@@ -277,6 +279,7 @@ export function _clearTestState(): void {
   for (const k of Object.keys(lastMessageDate)) delete lastMessageDate[k];
   for (const k of Object.keys(lastAgentTimestamp)) delete lastAgentTimestamp[k];
   channels.splice(0);
+  socialFlushers.splice(0);
 }
 
 async function processGroupMessages(chatJid: string): Promise<boolean> {
@@ -983,6 +986,7 @@ async function startMessageLoop(): Promise<void> {
     } catch (err) {
       logger.error({ err, chatJid: 'loop' }, 'Error in message loop');
     }
+    for (const f of socialFlushers) f();
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
   }
 }
@@ -1097,31 +1101,37 @@ async function main(): Promise<void> {
   }
 
   if (MASTODON_ACCESS_TOKEN) {
+    const mastoFilter = createImpulseFilter(channelOpts.onMessage);
+    socialFlushers.push(mastoFilter.flush);
     const masto = new MastodonChannel(
       {
         instanceUrl: MASTODON_INSTANCE_URL,
         accessToken: MASTODON_ACCESS_TOKEN,
       },
-      channelOpts,
+      { ...channelOpts, onMessage: mastoFilter.onMsg },
     );
     channels.push(masto);
     await masto.connect();
   }
 
   if (BLUESKY_IDENTIFIER && BLUESKY_PASSWORD) {
+    const bskyFilter = createImpulseFilter(channelOpts.onMessage);
+    socialFlushers.push(bskyFilter.flush);
     const bsky = new BlueskyChannel(
       {
         identifier: BLUESKY_IDENTIFIER,
         password: BLUESKY_PASSWORD,
         serviceUrl: BLUESKY_SERVICE_URL || undefined,
       },
-      channelOpts,
+      { ...channelOpts, onMessage: bskyFilter.onMsg },
     );
     channels.push(bsky);
     await bsky.connect();
   }
 
   if (REDDIT_CLIENT_ID) {
+    const redditFilter = createImpulseFilter(channelOpts.onMessage);
+    socialFlushers.push(redditFilter.flush);
     const reddit = new RedditChannel(
       {
         clientId: REDDIT_CLIENT_ID,
@@ -1130,7 +1140,7 @@ async function main(): Promise<void> {
         password: REDDIT_PASSWORD,
         userAgent: `kanipi:1.0 (by /u/${REDDIT_USERNAME})`,
       },
-      channelOpts,
+      { ...channelOpts, onMessage: redditFilter.onMsg },
       REDDIT_SUBREDDITS,
     );
     channels.push(reddit);
@@ -1138,22 +1148,26 @@ async function main(): Promise<void> {
   }
 
   if (TWITTER_USERNAME) {
+    const twitterFilter = createImpulseFilter(channelOpts.onMessage);
+    socialFlushers.push(twitterFilter.flush);
     const twitter = new TwitterChannel(
       {
         username: TWITTER_USERNAME,
         password: TWITTER_PASSWORD,
         email: TWITTER_EMAIL,
       },
-      channelOpts,
+      { ...channelOpts, onMessage: twitterFilter.onMsg },
     );
     channels.push(twitter);
     await twitter.connect();
   }
 
   if (FACEBOOK_PAGE_ID) {
+    const fbFilter = createImpulseFilter(channelOpts.onMessage);
+    socialFlushers.push(fbFilter.flush);
     const fb = new FacebookChannel(
       { pageId: FACEBOOK_PAGE_ID, pageAccessToken: FACEBOOK_PAGE_ACCESS_TOKEN },
-      channelOpts,
+      { ...channelOpts, onMessage: fbFilter.onMsg },
     );
     channels.push(fb);
     await fb.connect();
