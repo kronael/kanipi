@@ -78,8 +78,6 @@ export interface ContainerInput {
   channelName?: string;
   delegateDepth?: number;
   messageId?: string;
-  // Enricher annotations prepended to prompt before container sees it.
-  // Populated by runEnrichers() in index.ts — not sent as a separate field.
   _annotations?: string[];
 }
 
@@ -157,17 +155,14 @@ function buildVolumeMounts(
   const groupDir = resolveGroupFolderPath(group.folder);
   const hostGroupDir = path.join(HOST_GROUPS_DIR, group.folder);
 
-  // Group folder IS the agent's home directory
   mounts.push({
     hostPath: hostGroupDir,
     containerPath: '/home/node',
     readonly: tier === 3,
   });
 
-  // Tier 2+3: setup files ro via more-specific mount overrides.
-  // Agent can write data (diary, media, facts) but not modify instructions.
+  // Tier 2+3: setup files ro via more-specific mount overrides
   if (tier >= 2) {
-    // Group-level setup files
     for (const f of ['CLAUDE.md', 'SOUL.md']) {
       const p = path.join(groupDir, f);
       if (fs.existsSync(p)) {
@@ -178,7 +173,6 @@ function buildVolumeMounts(
         });
       }
     }
-    // .claude/ setup files (instructions, skills, settings, output-styles)
     for (const f of ['CLAUDE.md', 'skills', 'settings.json', 'output-styles']) {
       const p = path.join(groupDir, '.claude', f);
       if (fs.existsSync(p)) {
@@ -191,7 +185,7 @@ function buildVolumeMounts(
     }
   }
 
-  // Tier 3: RO home with RW overlays for data the agent must write.
+  // Tier 3: RO home with RW overlays for writable data
   if (tier === 3) {
     for (const d of ['.claude/projects', 'media', 'tmp']) {
       const dir = path.join(groupDir, d);
@@ -204,7 +198,7 @@ function buildVolumeMounts(
     }
   }
 
-  // Spawned groups: mount prototype's skills/ read-only (not copied to child)
+  // Spawned groups: mount parent's skills/ read-only
   if (group.parent) {
     try {
       const protoSkillsDir = path.join(
@@ -230,7 +224,6 @@ function buildVolumeMounts(
     fs.mkdirSync(path.join(groupDir, d), { recursive: true });
   }
 
-  // Only root (tier 0) sees gateway source
   if (tier === 0) {
     mounts.push({
       hostPath: HOST_APP_DIR,
@@ -239,11 +232,10 @@ function buildVolumeMounts(
     });
   }
 
-  const world = group.folder.split('/')[0];
-  const shareDir = path.join(GROUPS_DIR, world, 'share');
+  const shareDir = path.join(GROUPS_DIR, worldOf(group.folder), 'share');
   fs.mkdirSync(shareDir, { recursive: true });
   mounts.push({
-    hostPath: path.join(HOST_GROUPS_DIR, world, 'share'),
+    hostPath: path.join(HOST_GROUPS_DIR, worldOf(group.folder), 'share'),
     containerPath: '/workspace/share',
     readonly: tier >= 2,
   });
@@ -264,7 +256,6 @@ function buildVolumeMounts(
     ...(WHISPER_BASE_URL ? { WHISPER_BASE_URL } : {}),
   });
 
-  // Seed skills once per group — agent can modify, persists across spawns
   const appDir = process.cwd();
   const skillsSrc = path.join(appDir, 'container', 'skills');
   const skillsDst = path.join(claudeStateDir, 'skills');
@@ -289,7 +280,6 @@ function buildVolumeMounts(
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
 
-  // Seed output-styles every spawn so image updates take effect.
   const stylesSrc = path.join(appDir, 'container', 'output-styles');
   const stylesDst = path.join(claudeStateDir, 'output-styles');
   if (fs.existsSync(stylesSrc)) {
@@ -341,7 +331,6 @@ function buildVolumeMounts(
     });
   }
 
-  // Root (tier 0) gets GROUPS_DIR rw so migrate skill can sync across groups
   if (tier === 0) {
     mounts.push({
       hostPath: HOST_GROUPS_DIR,
@@ -371,12 +360,8 @@ function buildContainerArgs(
     '--shm-size=1g',
   ];
 
-  // Pass host timezone so container's local time matches the user's
   args.push('-e', `TZ=${TIMEZONE}`);
 
-  // Run as host user so bind-mounted files are accessible.
-  // Skip when running as root (uid 0), as the container's node user (uid 1000),
-  // or when getuid is unavailable (native Windows without WSL).
   const hostUid = process.getuid?.();
   const hostGid = process.getgid?.();
   if (hostUid != null && hostUid !== 0 && hostUid !== 1000) {
@@ -397,21 +382,11 @@ function buildContainerArgs(
   return args;
 }
 
-// --- Gateway capabilities manifest ---
-
 function writeGatewayCaps(groupDir: string): void {
-  const voiceEnabled = VOICE_TRANSCRIPTION_ENABLED;
-  const videoEnabled = VIDEO_TRANSCRIPTION_ENABLED;
-  const mediaEnabled = MEDIA_ENABLED;
-  const mediaMb = Math.round(MEDIA_MAX_FILE_BYTES / (1024 * 1024));
-  const webEnabled = !!WEB_HOST;
-
-  // Read configured whisper languages for this group
-  const langFile = path.join(groupDir, '.whisper-language');
   let languages: string[] = [];
   try {
     languages = fs
-      .readFileSync(langFile, 'utf-8')
+      .readFileSync(path.join(groupDir, '.whisper-language'), 'utf-8')
       .split('\n')
       .map((l) => l.trim().replace(/[^a-zA-Z-]/g, ''))
       .filter(Boolean);
@@ -423,27 +398,25 @@ function writeGatewayCaps(groupDir: string): void {
 
   const toml = [
     '[voice]',
-    `enabled = ${voiceEnabled}`,
+    `enabled = ${VOICE_TRANSCRIPTION_ENABLED}`,
     `model = "${WHISPER_MODEL}"`,
     `languages = ${langArray}`,
     '',
     '[video]',
-    `enabled = ${videoEnabled}`,
+    `enabled = ${VIDEO_TRANSCRIPTION_ENABLED}`,
     '',
     '[media]',
-    `enabled = ${mediaEnabled}`,
-    `max_size_mb = ${mediaMb}`,
+    `enabled = ${MEDIA_ENABLED}`,
+    `max_size_mb = ${Math.round(MEDIA_MAX_FILE_BYTES / (1024 * 1024))}`,
     '',
     '[web]',
-    `enabled = ${webEnabled}`,
+    `enabled = ${!!WEB_HOST}`,
     `host = "${WEB_HOST}"`,
     '',
   ].join('\n');
 
   fs.writeFileSync(path.join(groupDir, '.gateway-caps'), toml);
 }
-
-// --- Agent runner ---
 
 export async function runContainerCommand(
   group: GroupConfig,
@@ -493,7 +466,6 @@ async function runRawCommand(
     let stdoutTruncated = false;
     let stderrTruncated = false;
 
-    // Optionally pipe plain text to stdin
     if (typeof input === 'string' && input) {
       container.stdin.write(input);
     }
@@ -605,7 +577,6 @@ async function runAgentMode(
 
   const mounts = buildVolumeMounts(group, input.delegateDepth);
 
-  // Activate per-channel output style if the channel has a matching style file.
   updateSettings(path.join(groupDir, '.claude'), (settings) => {
     if (input.channelName) {
       settings.outputStyle = input.channelName;
@@ -632,7 +603,6 @@ async function runAgentMode(
     );
   }
 
-  // Write capability manifest so the agent knows what's enabled
   writeGatewayCaps(groupDir);
 
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
@@ -680,16 +650,13 @@ async function runAgentMode(
     let stdoutTruncated = false;
     let stderrTruncated = false;
 
-    // Prepend enricher annotations to prompt
     if (input._annotations && input._annotations.length > 0) {
       input.prompt = `${input._annotations.join('\n')}\n\n${input.prompt}`;
     }
     delete input._annotations;
 
-    // Write start.json to IPC dir (container reads on startup)
     const groupIpcDir = resolveGroupIpcPath(group.folder);
     const inputDir = path.join(groupIpcDir, 'input');
-    // Clear stale input files from previous runs
     try {
       for (const f of fs.readdirSync(inputDir)) {
         fs.unlinkSync(path.join(inputDir, f));
@@ -717,18 +684,14 @@ async function runAgentMode(
     fs.writeFileSync(startTmp, JSON.stringify(startJson));
     fs.renameSync(startTmp, startPath);
 
-    // Close stdin immediately — all I/O is via IPC files
     container.stdin.end();
 
-    // Streaming output: parse OUTPUT_START/END marker pairs as they arrive
     let parseBuffer = '';
     let newSessionId: string | undefined;
     let outputChain = Promise.resolve();
 
     container.stdout.on('data', (data) => {
       const chunk = data.toString();
-
-      // Always accumulate for logging
       const result = appendWithLimit(
         stdout,
         chunk,
@@ -744,13 +707,12 @@ async function runAgentMode(
       stdout = result.buffer;
       stdoutTruncated = result.truncated;
 
-      // Stream-parse for output markers
       if (onOutput) {
         parseBuffer += chunk;
         let startIdx: number;
         while ((startIdx = parseBuffer.indexOf(OUTPUT_START_MARKER)) !== -1) {
           const endIdx = parseBuffer.indexOf(OUTPUT_END_MARKER, startIdx);
-          if (endIdx === -1) break; // Incomplete pair, wait for more data
+          if (endIdx === -1) break;
 
           const jsonStr = parseBuffer
             .slice(startIdx + OUTPUT_START_MARKER.length, endIdx)
@@ -763,10 +725,7 @@ async function runAgentMode(
               newSessionId = parsed.newSessionId;
             }
             hadStreamingOutput = true;
-            // Activity detected — reset the hard timeout
             resetTimeout();
-            // Call onOutput for all markers (including null results)
-            // so idle timers start even for "silent" query completions.
             outputChain = outputChain.then(() => onOutput(parsed));
           } catch (err) {
             logger.warn(
@@ -784,7 +743,6 @@ async function runAgentMode(
       for (const line of lines) {
         if (line) logger.debug({ container: group.folder }, line);
       }
-      // Don't reset timeout on stderr — SDK writes debug logs continuously.
       const result = appendWithLimit(
         stderr,
         chunk,
@@ -830,7 +788,6 @@ async function runAgentMode(
 
     let timeout = setTimeout(killOnTimeout, configTimeout);
 
-    // Reset the timeout whenever there's activity (streaming output)
     const resetTimeout = () => {
       clearTimeout(timeout);
       timeout = setTimeout(killOnTimeout, configTimeout);
@@ -986,7 +943,6 @@ async function runAgentMode(
         return;
       }
 
-      // Streaming mode: wait for output chain to settle, return completion marker
       if (onOutput) {
         outputChain.then(() => {
           logger.info(
@@ -1003,9 +959,7 @@ async function runAgentMode(
         return;
       }
 
-      // Non-streaming mode (raw commands): parse output markers from stdout
       try {
-        // Extract JSON between sentinel markers for robust parsing
         const startIdx = stdout.indexOf(OUTPUT_START_MARKER);
         const endIdx = stdout.indexOf(OUTPUT_END_MARKER);
 

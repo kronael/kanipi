@@ -23,8 +23,6 @@ export function initDatabase(): void {
   const dbPath = path.join(STORE_DIR, 'messages.db');
   db = ensureDatabase(dbPath);
   logger.info('Database initialized');
-
-  // Migrate from JSON files if they exist
   migrateJsonState();
 }
 
@@ -48,10 +46,6 @@ export function _setRawGroupColumns(
   );
 }
 
-/**
- * Store chat metadata only (no message content).
- * Used for all chats to enable group discovery without storing sensitive content.
- */
 export function storeChatMetadata(
   chatJid: string,
   timestamp: string,
@@ -75,11 +69,6 @@ export function storeChatMetadata(
   ).run(chatJid, n, timestamp, ch, group, name ? 1 : 0);
 }
 
-/**
- * Update chat name without changing timestamp for existing chats.
- * New chats get the current time as their initial timestamp.
- * Used during group metadata sync.
- */
 export function updateChatName(chatJid: string, name: string): void {
   db.prepare(
     `
@@ -97,9 +86,6 @@ export interface ChatInfo {
   is_group: number;
 }
 
-/**
- * Get all known chats, ordered by most recent activity.
- */
 export function getAllChats(): ChatInfo[] {
   return db
     .prepare(
@@ -112,28 +98,19 @@ export function getAllChats(): ChatInfo[] {
     .all() as ChatInfo[];
 }
 
-/**
- * Get timestamp of last group metadata sync.
- */
 export function getLastGroupSync(): string | null {
-  // Store sync time in a special chat entry
   const row = db
     .prepare(`SELECT last_message_time FROM chats WHERE jid = '__group_sync__'`)
     .get() as { last_message_time: string } | undefined;
   return row?.last_message_time || null;
 }
 
-/**
- * Record that group metadata was synced.
- */
 export function setLastGroupSync(): void {
   const now = new Date().toISOString();
   db.prepare(
     `INSERT OR REPLACE INTO chats (jid, name, last_message_time) VALUES ('__group_sync__', '__group_sync__', ?)`,
   ).run(now);
 }
-
-// --- Chat error flag accessors ---
 
 export function markChatErrored(jid: string): void {
   db.prepare('UPDATE chats SET errored = 1 WHERE jid = ?').run(jid);
@@ -150,10 +127,6 @@ export function isChatErrored(jid: string): boolean {
   return row?.errored === 1;
 }
 
-/**
- * Store a message with full content.
- * Only call this for registered groups where message history is needed.
- */
 export function appendMessageContent(id: string, suffix: string): void {
   db.prepare(`UPDATE messages SET content = content || ? WHERE id = ?`).run(
     suffix,
@@ -200,8 +173,6 @@ export function getNewMessages(
   if (jids.length === 0) return { messages: [], newTimestamp: lastTimestamp };
 
   const placeholders = jids.map(() => '?').join(',');
-  // Filter bot messages using both the is_bot_message flag AND the content
-  // prefix as a backstop for messages written before the migration ran.
   const sql = `
     SELECT id, chat_jid, sender, sender_name, content, timestamp,
            forwarded_from, reply_to_text, reply_to_sender,
@@ -232,8 +203,6 @@ export function getMessagesSince(
   sinceTimestamp: string,
   botPrefix: string,
 ): InboundEvent[] {
-  // Filter bot messages using both the is_bot_message flag AND the content
-  // prefix as a backstop for messages written before the migration ran.
   const since = sinceTimestamp || '';
   const sql = `
     SELECT m.id, m.chat_jid, m.sender, m.sender_name, m.content, m.timestamp,
@@ -339,7 +308,6 @@ export function updateTask(
 }
 
 export function deleteTask(id: string): void {
-  // Delete child records first (FK constraint)
   db.prepare('DELETE FROM task_run_logs WHERE task_id = ?').run(id);
   db.prepare('DELETE FROM scheduled_tasks WHERE id = ?').run(id);
 }
@@ -388,8 +356,6 @@ export function logTaskRun(log: TaskRunLog): void {
   );
 }
 
-// --- Router state accessors ---
-
 export function getRouterState(key: string): string | undefined {
   const row = db
     .prepare('SELECT value FROM router_state WHERE key = ?')
@@ -402,8 +368,6 @@ export function setRouterState(key: string, value: string): void {
     'INSERT OR REPLACE INTO router_state (key, value) VALUES (?, ?)',
   ).run(key, value);
 }
-
-// --- Session accessors ---
 
 export function getSession(groupFolder: string): string | undefined {
   const row = db
@@ -432,8 +396,6 @@ export function getAllSessions(): Record<string, string> {
   }
   return result;
 }
-
-// --- System message accessors ---
 
 export interface SystemMessage {
   origin: string;
@@ -494,8 +456,6 @@ export function flushSystemMessages(groupId: string): string {
   return xml;
 }
 
-// --- Session history accessors ---
-
 export interface SessionRecord {
   id: string;
   group_id: string;
@@ -547,8 +507,6 @@ export function getRecentSessions(
     .all(groupId, limit) as SessionRecord[];
 }
 
-// --- Group lookup by slink token ---
-
 export function getGroupBySlink(
   token: string,
 ): (GroupConfig & { jid: string }) | undefined {
@@ -569,10 +527,6 @@ export function getGroupBySlink(
   return { ...rowToGroupConfig(row), jid };
 }
 
-/**
- * Test helper: set up a group config + default route in one call.
- * Used by tests that need to register a JID → folder mapping.
- */
 export function _setTestGroupRoute(
   jid: string,
   group: { name: string; folder: string } & Partial<
@@ -589,7 +543,6 @@ export function _setTestGroupRoute(
     maxChildren: group.maxChildren,
   };
   setGroupConfig(fullConfig);
-  // Avoid duplicate routes
   const existing = db
     .prepare("SELECT id FROM routes WHERE jid = ? AND type = 'default'")
     .get(jid);
@@ -602,8 +555,6 @@ export function _setTestGroupRoute(
     });
   }
 }
-
-// --- JSON migration ---
 
 function migrateJsonState(): void {
   const migrateFile = (filename: string) => {
@@ -646,8 +597,6 @@ function migrateJsonState(): void {
     }
   }
 }
-
-// --- Auth ---
 
 export interface AuthUser {
   id: number;
@@ -737,8 +686,6 @@ export function pruneExpiredSessions(): void {
   );
 }
 
-// --- Email thread accessors ---
-
 export interface EmailThread {
   message_id: string;
   thread_id: string;
@@ -773,8 +720,6 @@ export function storeEmailThread(
      VALUES (?, ?, ?, ?, ?)`,
   ).run(messageId, threadId, fromAddress, rootMsgId, new Date().toISOString());
 }
-
-// --- Routes (flat routing table) ---
 
 type RouteRow = {
   id: number;
@@ -913,8 +858,6 @@ export function hasAlwaysOnRoute(): boolean {
     null
   );
 }
-
-// --- Groups table (flat routing) ---
 
 type GroupsRow = {
   folder: string;

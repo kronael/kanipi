@@ -5,9 +5,6 @@ import { fileURLToPath } from 'url';
 
 import { readEnvFile } from './env.js';
 
-// Read config values from .env (falls back to process.env).
-// Secrets are NOT read here — they stay on disk and are loaded only
-// where needed (container-runner.ts) to avoid leaking to child processes.
 const envConfig = readEnvFile([
   'ASSISTANT_NAME',
   'ASSISTANT_HAS_OWN_NUMBER',
@@ -55,13 +52,11 @@ export const ASSISTANT_HAS_OWN_NUMBER =
 export const POLL_INTERVAL = 2000;
 export const SCHEDULER_POLL_INTERVAL = 60000;
 
-// Absolute paths needed for container mounts
 const PROJECT_ROOT = process.env.DATA_DIR || process.cwd();
 const HOST_PROJECT_ROOT = process.env.HOST_DATA_DIR || PROJECT_ROOT;
 const HOME_DIR = process.env.HOME || os.homedir();
 const APP_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
-// Mount security: allowlist stored OUTSIDE project root, never mounted into containers
 export const MOUNT_ALLOWLIST_PATH = path.join(
   HOME_DIR,
   '.config',
@@ -96,7 +91,7 @@ export const CONTAINER_TIMEOUT = parseInt(
 export const CONTAINER_MAX_OUTPUT_SIZE = parseInt(
   process.env.CONTAINER_MAX_OUTPUT_SIZE || '10485760',
   10,
-); // 10MB default
+);
 export const IPC_POLL_INTERVAL = 1000;
 export const MAX_CONCURRENT_CONTAINERS = Math.max(
   1,
@@ -116,13 +111,11 @@ function resolveTimezone(): string {
 }
 export const TIMEZONE = resolveTimezone();
 
-// Channel configuration
 export const TELEGRAM_BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
 export const DISCORD_BOT_TOKEN =
   process.env.DISCORD_BOT_TOKEN || envConfig.DISCORD_BOT_TOKEN || '';
 
-// Social channels — enabled by token/credential presence
 export const MASTODON_INSTANCE_URL =
   process.env.MASTODON_INSTANCE_URL || envConfig.MASTODON_INSTANCE_URL || '';
 export const MASTODON_ACCESS_TOKEN =
@@ -179,21 +172,16 @@ export const VITE_PORT_INTERNAL = _viteInternal
   : WEB_PORT
     ? WEB_PORT + 1
     : 5174;
-// Slink rate limits (requests per minute)
 export let SLINK_ANON_RPM = parseInt(process.env.SLINK_ANON_RPM || '10', 10);
 export let SLINK_AUTH_RPM = parseInt(process.env.SLINK_AUTH_RPM || '60', 10);
 
-// Public host for constructing slink URLs injected into agent containers
 export const WEB_HOST = process.env.WEB_HOST || '';
 
-// WEB_PUBLIC=1: no auth, no /pub/ redirect — serve everything from web root
 export const WEB_PUBLIC = !!(process.env.WEB_PUBLIC || envConfig.WEB_PUBLIC);
 
-// Auth — JWT signing secret for slink and future auth routes
 export const AUTH_SECRET =
   process.env.AUTH_SECRET || envConfig.AUTH_SECRET || '';
 
-// OAuth providers
 export const GITHUB_CLIENT_ID =
   process.env.GITHUB_CLIENT_ID || envConfig.GITHUB_CLIENT_ID || '';
 export const GITHUB_CLIENT_SECRET =
@@ -231,7 +219,6 @@ export function whatsappEnabled(): boolean {
   return fs.existsSync(path.join(WHATSAPP_AUTH_DIR, 'creds.json'));
 }
 
-// Media / enricher pipeline config
 export let MEDIA_ENABLED =
   (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true';
 export let MEDIA_MAX_FILE_BYTES = parseInt(
@@ -252,7 +239,6 @@ export const WHISPER_MODEL = process.env.WHISPER_MODEL || 'turbo';
 export let VIDEO_TRANSCRIPTION_ENABLED =
   (process.env.VIDEO_TRANSCRIPTION_ENABLED || 'false') === 'true';
 
-// Snapshot of initial mutable config values for _resetConfig
 const _configDefaults = {
   SLINK_ANON_RPM,
   SLINK_AUTH_RPM,
@@ -287,7 +273,6 @@ export const EMAIL_ACCOUNT =
 export const EMAIL_PASSWORD =
   process.env.EMAIL_PASSWORD || envConfig.EMAIL_PASSWORD || '';
 
-// File transfer commands (/file put, /file get, /file list)
 export const FILE_TRANSFER_ENABLED =
   (process.env.FILE_TRANSFER_ENABLED || 'false') === 'true';
 export const FILE_DENY_GLOBS = (

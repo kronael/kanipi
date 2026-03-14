@@ -21,8 +21,6 @@ import { handleSlinkPost } from './slink.js';
 import { addSseListener, removeSseListener } from './channels/web.js';
 import type { OnInboundMessage } from './types.js';
 
-// Public sloth client — same as internal; served unauthenticated at /pub/sloth.js
-// Token is read from data-token on the script tag; posts to /pub/s/<token> with JWT from localStorage
 const PUB_SLOTH_JS = `(function(){
   var token = document.currentScript && document.currentScript.dataset.token || '';
   var group = document.currentScript && document.currentScript.dataset.group || 'root';
@@ -63,7 +61,6 @@ const PUB_SLOTH_JS = `(function(){
   document.querySelectorAll('[data-sloth]').forEach(attach);
 })()`;
 
-// Minimal sloth client — injected into every HTML page served by the proxy
 const SLOTH_JS = `(function(){
   var group = document.currentScript && document.currentScript.dataset.group || 'root';
 
@@ -119,11 +116,10 @@ const SLOTH_JS = `(function(){
   };
 })();`;
 
-// --- vhosts.json cache ---
 let vhostsCache: Record<string, string> = {};
 let vhostsMtime = 0;
 let vhostsLastCheck = 0;
-const VHOSTS_CHECK_INTERVAL = 5000; // check file mtime every 5s
+const VHOSTS_CHECK_INTERVAL = 5000;
 
 export function loadVhosts(webDir?: string): Record<string, string> {
   const dir = webDir ?? WEB_DIR;
@@ -146,9 +142,7 @@ export function loadVhosts(webDir?: string): Record<string, string> {
       vhostsCache = parsed as Record<string, string>;
       logger.info({ count: Object.keys(vhostsCache).length }, 'vhosts loaded');
     }
-  } catch {
-    // file missing or invalid — keep previous cache
-  }
+  } catch {}
   return vhostsCache;
 }
 
@@ -164,10 +158,7 @@ function checkAuth(req: http.IncomingMessage, authSecret?: string): boolean {
   const url = req.url || '/';
   if (PUBLIC_PREFIXES.some((p) => url.startsWith(p))) return true;
   if (url.startsWith('/auth/')) return true;
-
   if (authSecret) return checkSessionCookie(req.headers.cookie || '');
-
-  // No auth secret = no auth required
   return true;
 }
 
@@ -183,7 +174,6 @@ export function startWebProxy(opts: {
   const server = http.createServer((req, res) => {
     const url = req.url || '/';
 
-    // Vhost redirect — before auth, public
     const host = req.headers.host?.replace(/:\d+$/, '');
     if (host) {
       const vhosts = loadVhosts();
@@ -200,21 +190,18 @@ export function startWebProxy(opts: {
       }
     }
 
-    // Landing page redirects to /pub/ (public, no auth)
     if (!webPublic && (url === '/' || url === '/index.html')) {
       res.writeHead(302, { Location: '/pub/' });
       res.end();
       return;
     }
 
-    // Auth check (skipped in public mode)
     if (!webPublic && !checkAuth(req, authSecret)) {
       res.writeHead(302, { Location: '/auth/login' });
       res.end();
       return;
     }
 
-    // Session auth routes
     if (url === '/auth/login' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(loginPageHtml());
@@ -265,7 +252,6 @@ export function startWebProxy(opts: {
       return;
     }
 
-    // OAuth routes
     if (url === '/auth/github' && req.method === 'GET') {
       handleGitHubAuth(req, res);
       return;
@@ -291,7 +277,6 @@ export function startWebProxy(opts: {
       return;
     }
 
-    // Public slink endpoints
     if (url === '/pub/sloth.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript' });
       res.end(PUB_SLOTH_JS);
@@ -326,7 +311,6 @@ export function startWebProxy(opts: {
       return;
     }
 
-    // Sloth endpoints
     if (url === '/_sloth/sloth.js') {
       res.writeHead(200, { 'Content-Type': 'application/javascript' });
       res.end(SLOTH_JS);
@@ -341,7 +325,7 @@ export function startWebProxy(opts: {
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
       });
-      res.write(':\n\n'); // comment keeps connection alive
+      res.write(':\n\n');
       addSseListener(group, res);
       req.on('close', () => removeSseListener(group, res));
       return;
@@ -376,7 +360,6 @@ export function startWebProxy(opts: {
       return;
     }
 
-    // Proxy to Vite, inject sloth.js into HTML responses
     const proxyReq = http.request(
       {
         host: 'localhost',

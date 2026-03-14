@@ -161,7 +161,7 @@ export async function handleLoginPost(
 }
 
 export function handleLogout(cookie: string): void {
-  const token = parseCookies(cookie || '')['refresh'];
+  const token = parseCookies(cookie)['refresh'];
   if (token) deleteAuthSession(sha256(token));
 }
 
@@ -169,7 +169,7 @@ export function handleRefresh(
   cookie: string,
   secret: string,
 ): { status: number; headers?: Record<string, string>; body: string } {
-  const oldToken = parseCookies(cookie || '')['refresh'];
+  const oldToken = parseCookies(cookie)['refresh'];
   if (!oldToken) return { status: 401, body: '{"error":"unauthorized"}' };
   const session = getAuthSession(sha256(oldToken));
   if (!session || new Date(session.expires_at) <= new Date()) {
@@ -192,18 +192,13 @@ export function handleRefresh(
 }
 
 export function checkSessionCookie(cookie: string): boolean {
-  const token = parseCookies(cookie || '')['refresh'];
+  const token = parseCookies(cookie)['refresh'];
   if (!token) return false;
   const session = getAuthSession(sha256(token));
-  if (!session) return false;
-  return new Date(session.expires_at) > new Date();
+  return !!session && new Date(session.expires_at) > new Date();
 }
 
-// --- OAuth helpers ---
-
-function generateState(): string {
-  return crypto.randomBytes(16).toString('hex');
-}
+// --- OAuth ---
 
 function getBaseUrl(req: http.IncomingMessage): string {
   if (WEB_HOST) return WEB_HOST.replace(/\/$/, '');
@@ -242,8 +237,6 @@ function createOAuthSession(
   };
 }
 
-// --- GitHub OAuth ---
-
 export function handleGitHubAuth(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -254,7 +247,7 @@ export function handleGitHubAuth(
     return;
   }
 
-  const state = generateState();
+  const state = crypto.randomBytes(16).toString('hex');
   const baseUrl = getBaseUrl(req);
   const redirectUri = encodeURIComponent(`${baseUrl}/auth/github/callback`);
   const scope = encodeURIComponent('read:user user:email');
@@ -346,8 +339,6 @@ export async function handleGitHubCallback(
   res.end(result.body);
 }
 
-// --- Discord OAuth ---
-
 export function handleDiscordAuth(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -358,7 +349,7 @@ export function handleDiscordAuth(
     return;
   }
 
-  const state = generateState();
+  const state = crypto.randomBytes(16).toString('hex');
   const baseUrl = getBaseUrl(req);
   const redirectUri = encodeURIComponent(`${baseUrl}/auth/discord/callback`);
   const scope = encodeURIComponent('identify');
@@ -448,8 +439,6 @@ export async function handleDiscordCallback(
   res.end(result.body);
 }
 
-// --- Telegram Login Widget ---
-
 export async function handleTelegramAuth(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -481,7 +470,6 @@ export async function handleTelegramAuth(
     return;
   }
 
-  // Verify auth_date is recent (within 1 day)
   const authDate = parseInt(rest.auth_date || '0', 10);
   const now = Math.floor(Date.now() / 1000);
   if (now - authDate > 86400) {
@@ -490,7 +478,6 @@ export async function handleTelegramAuth(
     return;
   }
 
-  // Verify hash using HMAC-SHA256
   const secretKey = crypto
     .createHash('sha256')
     .update(TELEGRAM_BOT_TOKEN)
