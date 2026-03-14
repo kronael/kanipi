@@ -38,7 +38,7 @@ export const sendMessage: Action = {
   async handler(raw, ctx) {
     const input = SendMessageInput.parse(raw);
     assertAuthorized(input.chatJid, ctx, 'send_message');
-    await ctx.sendMessage(
+    const messageId = await ctx.sendMessage(
       input.chatJid,
       input.text,
       input.replyTo ? { replyTo: input.replyTo } : undefined,
@@ -47,7 +47,7 @@ export const sendMessage: Action = {
       { chatJid: input.chatJid, sourceGroup: ctx.sourceGroup },
       'IPC message sent',
     );
-    return { sent: true };
+    return { sent: true, messageId };
   },
 };
 
@@ -68,7 +68,7 @@ export const sendReply: Action = {
   async handler(raw, ctx) {
     const input = SendReplyInput.parse(raw);
     if (!ctx.chatJid) throw new Error('no bound chat JID');
-    await ctx.sendMessage(
+    const messageId = await ctx.sendMessage(
       ctx.chatJid,
       input.text,
       ctx.messageId ? { replyTo: ctx.messageId } : undefined,
@@ -77,7 +77,7 @@ export const sendReply: Action = {
       { chatJid: ctx.chatJid, sourceGroup: ctx.sourceGroup },
       'IPC reply sent',
     );
-    return { sent: true };
+    return { sent: true, messageId };
   },
 };
 

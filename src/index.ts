@@ -104,6 +104,7 @@ import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
 import {
   clockXml,
+  escapeXml,
   findChannel,
   formatMessages,
   resolveRoute,
@@ -337,22 +338,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   if (target && target !== group.folder) {
     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
     saveState();
-    const bySender = new Map<string, NewMessage[]>();
-    for (const m of missedMessages) {
-      const existing = bySender.get(m.sender);
-      if (existing) existing.push(m);
-      else bySender.set(m.sender, [m]);
-    }
-    for (const senderMsgs of bySender.values()) {
-      const formatted = formatMessages(senderMsgs);
-      const last = senderMsgs[senderMsgs.length - 1];
-      delegateToChild(target, formatted, chatJid, 0, last.id).catch((err) => {
-        logger.error(
-          { chatJid, target, err: String(err) },
-          'routing failed, message dropped',
-        );
-      });
-    }
+    delegatePerSender(missedMessages, target, chatJid);
     return true;
   }
 
@@ -631,10 +617,10 @@ async function delegateToGroup(
             if (text) {
               if (escalationOrigin) {
                 const msgAttr = escalationOrigin.messageId
-                  ? ` origin_msg_id="${escalationOrigin.messageId}"`
+                  ? ` origin_msg_id="${escapeXml(escalationOrigin.messageId)}"`
                   : '';
                 text =
-                  `<escalation_response origin_jid="${escalationOrigin.jid}"${msgAttr}>\n` +
+                  `<escalation_response origin_jid="${escapeXml(escalationOrigin.jid)}"${msgAttr}>\n` +
                   `${text}\n</escalation_response>`;
               }
               const sentId = await channel.sendMessage(
@@ -698,6 +684,29 @@ function delegateToParent(
     messageId,
     escalationOrigin,
   );
+}
+
+function delegatePerSender(
+  messages: NewMessage[],
+  target: string,
+  chatJid: string,
+): void {
+  const bySender = new Map<string, NewMessage[]>();
+  for (const m of messages) {
+    const existing = bySender.get(m.sender);
+    if (existing) existing.push(m);
+    else bySender.set(m.sender, [m]);
+  }
+  for (const senderMsgs of bySender.values()) {
+    const formatted = formatMessages(senderMsgs);
+    const last = senderMsgs[senderMsgs.length - 1];
+    delegateToChild(target, formatted, chatJid, 0, last.id).catch((err) => {
+      logger.error(
+        { chatJid, target, err: String(err) },
+        'routing failed, message dropped',
+      );
+    });
+  }
 }
 
 async function runAgent(
@@ -936,25 +945,7 @@ async function startMessageLoop(): Promise<void> {
               lastAgentTimestamp[chatJid] =
                 toDelegate[toDelegate.length - 1].timestamp;
               saveState();
-              // Split by sender so each user's reply threads correctly
-              const bySender = new Map<string, NewMessage[]>();
-              for (const m of toDelegate) {
-                const existing = bySender.get(m.sender);
-                if (existing) existing.push(m);
-                else bySender.set(m.sender, [m]);
-              }
-              for (const senderMsgs of bySender.values()) {
-                const prompt = formatMessages(senderMsgs);
-                const last = senderMsgs[senderMsgs.length - 1];
-                delegateToChild(target, prompt, chatJid, 0, last.id).catch(
-                  (err) => {
-                    logger.error(
-                      { chatJid, target, err: String(err) },
-                      'routing failed, message dropped',
-                    );
-                  },
-                );
-              }
+              delegatePerSender(toDelegate, target, chatJid);
               continue;
             }
           }
