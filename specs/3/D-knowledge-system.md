@@ -1,5 +1,5 @@
 ---
-status: shipped
+status: partial
 ---
 
 # Knowledge System
@@ -107,7 +107,7 @@ Facts are too numerous to inject. The agent needs:
 3. A quality gate — verifier reviews researcher output before
    facts are committed
 
-See `specs/atlas/researcher.md` for the write process.
+See `specs/4/H-researcher.md` for the write process.
 
 ## Open questions
 
@@ -128,13 +128,12 @@ These specs describe specific layers built on this pattern:
 
 - `specs/1/L-memory-diary.md` — diary layer (agent skills + gateway
   injection shipped)
-- `specs/v3/memory-facts.md` — facts layer (designed, not built)
-- `specs/v3/memory-episodic.md` — episodes layer (designed, not built)
-- `specs/atlas/user-context.md` — user layer (designed, not built)
-- `specs/atlas/researcher.md` — writes to facts layer (designed, not built)
+- `specs/4/B-memory-episodic.md` — episodes layer (designed, not built)
+- `specs/3/7-user-context.md` — user layer (designed, not built)
+- `specs/4/H-researcher.md` — writes to facts layer (designed, not built)
 
 These specs describe different systems, NOT instances of this pattern:
 
-- `specs/1/P-memory-session.md` — SDK state (container-runner.ts)
+- `specs/3/E-memory-session.md` — SDK state (container-runner.ts)
 - `specs/1/N-memory-messages.md` — DB rows (router.ts SQL)
-- `specs/v3/memory-managed.md` — MEMORY.md (Claude Code native)
+- `specs/1/M-memory-managed.md` — MEMORY.md (Claude Code native)

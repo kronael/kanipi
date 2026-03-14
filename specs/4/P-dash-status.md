@@ -60,7 +60,7 @@ returned. Cached 5s to avoid hammering docker.
 
 ### SSE stream
 
-Reuse existing SSE infrastructure from `specs/3/J-sse.md` once
+Reuse existing SSE infrastructure from `specs/5/J-sse.md` once
 auth is added. Status dashboard subscribes to a `status` channel
 that emits container start/stop, queue depth changes, errors.
 

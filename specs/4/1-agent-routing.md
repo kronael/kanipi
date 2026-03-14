@@ -1,5 +1,5 @@
 ---
-status: planned
+status: dropped
 ---
 
 # Agent Routing & Specialized Workers — open (v2)

@@ -149,9 +149,9 @@ view own group's dashboards only.
 
 | Dashboard      | Spec                 | Status |
 | -------------- | -------------------- | ------ |
-| Status/health  | `3/P-dash-status.md` | open   |
-| Memory browser | `3/Q-dash-memory.md` | open   |
-| WebDAV files   | `3/M-webdav.md`      | open   |
+| Status/health  | `4/P-dash-status.md` | open   |
+| Memory browser | `4/Q-dash-memory.md` | open   |
+| WebDAV files   | `5/M-webdav.md`      | open   |
 
 Atlas facts inspector and evangelist curation deferred to
 phase 5-6 (depend on those features shipping first).

@@ -60,7 +60,7 @@ One agent invocation per aggregation step. Sequential (one agent per group).
 ## Relationship to other layers
 
 - **Input**: diary entries (`specs/1/L-memory-diary.md`)
-- **Output**: feeds long-term/facts (`specs/2/3-memory-facts.md`)
+- **Output**: feeds long-term/facts (`specs/3/1-atlas.md`)
 - **Managed memory**: MEMORY.md and CLAUDE.md are separate
   (`specs/1/M-memory-managed.md`) — agent may choose to promote episode
   content to MEMORY.md manually

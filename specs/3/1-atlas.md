@@ -58,7 +58,7 @@ atlas/               → tier 1: world admin
 ```
 
 Worker escalates to parent when facts insufficient. This is product
-configuration, not new gateway code — depends on `specs/2/5-permissions.md`.
+configuration, not new gateway code — depends on `specs/3/5-permissions.md`.
 
 ## Deferred (v2)
 

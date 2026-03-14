@@ -59,7 +59,7 @@ interface; specs describe channel-specific behavior.
 - [W-slink.md](W-slink.md) — web channel via POST token endpoint (shipped)
 - [E-forward-metadata.md](E-forward-metadata.md) — forward origin + reply-to context (shipped)
 - [Q-mime.md](Q-mime.md) — media pipeline: download, transcribe, annotate (partial)
-- [D-files-in.md](D-files-in.md) — inbound /put, /get, /ls user file transfer (shipped)
+- [D-files-in.md](../3/C-files-in.md) — inbound /put, /get, /ls user file transfer (shipped)
 - [C-file-output.md](C-file-output.md) — outbound agent sends files via IPC (shipped)
 
 ## Routing & Groups
@@ -70,7 +70,7 @@ control delegation between groups.
 - [T-router.md](T-router.md) — JID resolution, group dispatch, prompt assembly (shipped)
 - [e-worlds.md](e-worlds.md) — nested JIDs, glob routing, chat metadata (shipped)
 - [F-group-routing.md](F-group-routing.md) — hierarchical routing, delegation, rules (shipped)
-- [1-agent-routing.md](1-agent-routing.md) — worker agents within a group (open, v2)
+- [1-agent-routing.md](../4/1-agent-routing.md) — worker agents within a group (open, v2)
 
 ## Prompt & Format
 
@@ -101,7 +101,7 @@ Actions: agent → gateway via IPC.
 Four memory layers, each with different persistence and scope.
 
 - [N-memory-messages.md](N-memory-messages.md) — recent history via stdin XML (shipped)
-- [P-memory-session.md](P-memory-session.md) — SDK session continuity across runs (shipped)
+- [P-memory-session.md](../3/E-memory-session.md) — SDK session continuity across runs (shipped)
 - [M-memory-managed.md](M-memory-managed.md) — CLAUDE.md + MEMORY.md persistence (shipped)
 - [L-memory-diary.md](L-memory-diary.md) — agent daily notes in diary/ (shipped)
 
@@ -120,7 +120,7 @@ gateway capability discovery.
 
 Authentication for web channel. Not needed for telegram/discord/whatsapp.
 
-- [3-auth.md](3-auth.md) — local accounts (shipped) + OAuth providers (open)
+- [3-auth.md](../3/A-auth.md) — local accounts (shipped) + OAuth providers (open)
 
 ## Infrastructure
 
