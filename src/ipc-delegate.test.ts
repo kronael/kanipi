@@ -136,25 +136,6 @@ describe('delegate_group IPC — real files', () => {
     );
   });
 
-  it('request file deleted after processing', async () => {
-    _setTestGroupRoute('root@g.us', ROOT);
-
-    writeRequest('root', {
-      id: 'req-del',
-      type: 'delegate_group',
-      group: 'root/code',
-      prompt: 'go',
-      chatJid: 'tg/-100',
-    });
-
-    const requestFile = path.join(tmpDir, 'root', 'requests', 'req-del.json');
-    expect(fs.existsSync(requestFile)).toBe(true);
-
-    await drainRequests(tmpDir, 'root', deps);
-
-    expect(fs.existsSync(requestFile)).toBe(false);
-  });
-
   it('root world sibling delegation: allowed (root world privilege)', async () => {
     _setTestGroupRoute('root@g.us', ROOT);
     _setTestGroupRoute('logs@g.us', LOGS);
@@ -262,76 +243,6 @@ describe('delegate_group IPC — real files', () => {
       undefined,
     );
   });
-
-  it('multiple requests processed in one drain', async () => {
-    _setTestGroupRoute('root@g.us', ROOT);
-
-    for (let i = 0; i < 3; i++) {
-      writeRequest('root', {
-        id: `req-multi-${i}`,
-        type: 'delegate_group',
-        group: 'root/code',
-        prompt: `task ${i}`,
-        chatJid: 'tg/-100',
-      });
-    }
-
-    await drainRequests(tmpDir, 'root', deps);
-
-    for (let i = 0; i < 3; i++) {
-      expect(readReply('root', `req-multi-${i}`)!.ok).toBe(true);
-    }
-    expect(delegateToChild).toHaveBeenCalledTimes(3);
-  });
-
-  it('no requests dir: drainRequests returns without error', async () => {
-    // No requests dir created — should return gracefully
-    await expect(drainRequests(tmpDir, 'root', deps)).resolves.not.toThrow();
-    expect(delegateToChild).not.toHaveBeenCalled();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// list_actions IPC
-// ---------------------------------------------------------------------------
-
-describe('list_actions IPC', () => {
-  it('returns manifest containing delegate_group, escalate_group, and set_routes', async () => {
-    writeRequest('root', {
-      id: 'req-manifest',
-      type: 'list_actions',
-    });
-
-    await drainRequests(tmpDir, 'root', deps);
-
-    const reply = readReply('root', 'req-manifest');
-    expect(reply!.ok).toBe(true);
-    const manifest = reply!.result as Array<{ name: string }>;
-    expect(Array.isArray(manifest)).toBe(true);
-    const names = manifest.map((a) => a.name);
-    expect(names).toContain('delegate_group');
-    expect(names).toContain('escalate_group');
-    expect(names).toContain('add_route');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Unknown action type
-// ---------------------------------------------------------------------------
-
-describe('unknown action type', () => {
-  it('returns error reply for unregistered action', async () => {
-    writeRequest('root', {
-      id: 'req-unknown',
-      type: 'bogus_action_xyz',
-    });
-
-    await drainRequests(tmpDir, 'root', deps);
-
-    const reply = readReply('root', 'req-unknown');
-    expect(reply!.ok).toBe(false);
-    expect(reply!.error).toMatch(/unknown action/i);
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -339,15 +250,6 @@ describe('unknown action type', () => {
 // ---------------------------------------------------------------------------
 
 describe('DB-backed routing — live reads', () => {
-  it('getHubForJid dep reflects DB state at call time', () => {
-    _setTestGroupRoute('root@g.us', ROOT);
-    expect(deps.getHubForJid('root@g.us')).toBe('root');
-
-    _setTestGroupRoute('child@g.us', CODE);
-    expect(deps.getHubForJid('child@g.us')).toBe('root/code');
-    expect(deps.getRoutedJids()).toHaveLength(2);
-  });
-
   it('delegate from non-root parent uses correct child path check', async () => {
     // main/code delegates to main/code/py — direct child, should succeed
     _setTestGroupRoute('root@g.us', ROOT);

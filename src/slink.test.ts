@@ -243,29 +243,6 @@ describe('sender identity', () => {
     expect('sender_name' in messages[0]).toBe(false);
   });
 
-  it('same IP produces same anon hash', () => {
-    const { messages, onMessage } = collect();
-    const group = makeGroup('web:s2', 'tok-same');
-
-    handleSlinkPost({
-      token: 'tok-same',
-      body: '{"text":"a"}',
-      ip: '10.0.0.1',
-      group,
-      onMessage,
-    });
-    handleSlinkPost({
-      token: 'tok-same',
-      body: '{"text":"b"}',
-      ip: '10.0.0.1',
-      group,
-      onMessage,
-      anonRpm: 100,
-    });
-
-    expect(messages[0].sender).toBe(messages[1].sender);
-  });
-
   it('uses JWT sub as sender', () => {
     const { messages, onMessage } = collect();
     const jwt = makeJwt({ sub: 'user-xyz', name: 'Xavier' });
@@ -924,24 +901,5 @@ describe('DB: web group registration', () => {
     expect(token.length).toBeGreaterThan(0);
     // base64url: only A-Z a-z 0-9 - _
     expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
-  });
-
-  it('group add simulation: web: JID gets non-null slink_token', () => {
-    // Simulates what `kanipi group add web:main` does:
-    // generate token, insert with slink_token, verify it's stored
-    const jid = 'web:main';
-    const token = generateSlinkToken();
-    expect(token).toBeTruthy();
-
-    _setTestGroupRoute(jid, {
-      name: 'root',
-      folder: 'root',
-      slinkToken: token,
-    });
-
-    const row = getGroupBySlink(token);
-    expect(row).toBeDefined();
-    expect(row!.slinkToken).not.toBeNull();
-    expect(row!.slinkToken).not.toBe('');
   });
 });

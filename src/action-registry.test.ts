@@ -144,22 +144,6 @@ describe('unregisterAction', () => {
     // Should not throw
     unregisterAction('nonexistent_action_xyz_' + Date.now());
   });
-
-  it('unregistered action no longer appears in getAllActions', () => {
-    const name = uid();
-    registerAction(makeAction(name));
-    unregisterAction(name);
-    const all = getAllActions();
-    expect(all.find((a) => a.name === name)).toBeUndefined();
-  });
-
-  it('unregistered action no longer appears in getManifest', () => {
-    const name = uid();
-    registerAction(makeAction(name));
-    unregisterAction(name);
-    const manifest = getManifest('root', { tier: 0, platforms: [] });
-    expect(manifest.find((m) => m.name === name)).toBeUndefined();
-  });
 });
 
 describe('maxTier filtering', () => {

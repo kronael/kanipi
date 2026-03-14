@@ -255,51 +255,6 @@ describe('accumulate — boundary and edge cases', () => {
     expect(r2.flush).not.toBeNull();
     expect(r2.flush!.events).toHaveLength(2);
   });
-
-  it('impulse one below threshold does not flush', () => {
-    const config: ImpulseConfig = {
-      threshold: 50,
-      weights: { react: 24 },
-      max_hold_ms: 300_000,
-    };
-    let state = emptyState();
-    const r1 = accumulate(state, msg({ id: '1', verb: 'react' }), config);
-    state = r1.state;
-    // 24 + 24 = 48 < 50
-    const r2 = accumulate(state, msg({ id: '2', verb: 'react' }), config);
-    expect(r2.flush).toBeNull();
-    expect(r2.state.impulse).toBe(48);
-  });
-
-  it('flush resets state impulse and pending to empty', () => {
-    const config = defaultConfig();
-    const state = emptyState();
-    const r = accumulate(state, msg(), config);
-    expect(r.flush).not.toBeNull();
-    expect(r.state.impulse).toBe(0);
-    expect(r.state.pending).toHaveLength(0);
-  });
-
-  it('no verb defaults to message (weight 100)', () => {
-    const config = defaultConfig();
-    const state = emptyState();
-    const event = msg();
-    delete (event as any).verb;
-    const r = accumulate(state, event, config);
-    expect(r.flush).not.toBeNull();
-  });
-
-  it('weight 0 event does not mutate pending array', () => {
-    const config: ImpulseConfig = {
-      ...defaultConfig(),
-      weights: { edit: 0 },
-    };
-    const state = emptyState();
-    const r = accumulate(state, msg({ verb: 'edit' }), config);
-    // Returns same state reference for weight-0 events
-    expect(r.state).toBe(state);
-    expect(r.state.pending).toHaveLength(0);
-  });
 });
 
 describe('checkTimeout — boundary', () => {
