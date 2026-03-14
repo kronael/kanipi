@@ -335,10 +335,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     return true;
   }
 
-  // IMPORTANT: This message tells the agent which session transcript to read.
-  // The agent is instructed (CLAUDE.md, SKILL.md) to ALWAYS read the .jl file
-  // matching the session_id before responding. This prevents "no access to
-  // history" claims — the .jl files ARE accessible via Read tool.
   if (!sessions[group.folder]) {
     const prev = getRecentSessions(group.folder, 3);
     const body = prev
@@ -398,8 +394,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     (pendingArgs ? pendingArgs + '\n' : '') +
     formatted;
 
-  // Advance cursor so the piping path in startMessageLoop won't re-fetch
-  // these messages. Save the old cursor so we can roll back on error.
   const previousCursor = lastAgentTimestamp[chatJid] || '';
   lastAgentTimestamp[chatJid] =
     missedMessages[missedMessages.length - 1].timestamp;
@@ -462,8 +456,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   const dur = Date.now() - t0;
   if (output === 'error' || hadError) {
-    // If we already sent output to the user, don't roll back the cursor —
-    // the user got their response and re-processing would send duplicates.
     if (outputSentToUser) {
       logger.warn(
         { group: group.name, traceId, dur },
@@ -471,8 +463,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       );
       return true;
     }
-    // Roll back cursor so messages are re-delivered on next retry.
-    // Data is in DB — we just need the cursor to point before them.
     lastAgentTimestamp[chatJid] = previousCursor;
     saveState();
     markChatErrored(chatJid);
@@ -1047,7 +1037,6 @@ async function main(): Promise<void> {
   ensureContainerRuntimeRunning();
   cleanupOrphans(CONTAINER_IMAGE);
   initDatabase();
-  logger.info('Database initialized');
   loadState();
   initCommands();
   for (const group of Object.values(groups)) {

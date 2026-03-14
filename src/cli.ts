@@ -11,8 +11,6 @@ import Database from 'better-sqlite3';
 import { getChannelAuth, listChannelAuths } from './channel-auth.js';
 import { ensureDatabase } from './migrations.js';
 
-// --- Utility functions ---
-
 const PREFIX = process.env.PREFIX || '/srv';
 
 function getDataDir(instance: string): string {
@@ -48,8 +46,6 @@ function readEnvValue(envPath: string, key: string): string | undefined {
   return undefined;
 }
 
-// --- container commands ---
-
 const DOCKER = process.env.CONTAINER_RUNTIME_BIN || 'docker';
 
 function containersWipe(instance: string): void {
@@ -75,7 +71,6 @@ function containersWipe(instance: string): void {
       console.log(`stopped: ${name}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // container already exited or doesn't exist — not an error
       if (
         msg.includes('No such container') ||
         msg.includes('already stopped')
@@ -87,8 +82,6 @@ function containersWipe(instance: string): void {
     }
   }
 }
-
-// --- group commands ---
 
 interface GroupRow {
   folder: string;
@@ -127,7 +120,6 @@ function groupList(instance: string): void {
     .all() as ChatRow[];
   db.close();
 
-  // Build folder -> JIDs map
   const folderJids = new Map<string, string[]>();
   for (const r of routeRows) {
     const arr = folderJids.get(r.target) || [];
@@ -158,7 +150,6 @@ function groupAdd(instance: string, folder?: string): void {
   const dataDir = getDataDir(instance);
   const dbPath = getDbPath(instance);
 
-  // Ensure DB exists with schema
   const db = ensureDatabase(dbPath);
 
   const groupCount = (
@@ -230,8 +221,6 @@ function groupRm(instance: string, folder: string): void {
 
   console.log(`removed: ${folder} (folder kept: groups/${folder})`);
 }
-
-// --- mount commands ---
 
 interface MountEntry {
   hostPath: string;
@@ -400,8 +389,6 @@ function mountRm(
   console.log(`removed: ${containerName}`);
 }
 
-// --- user commands ---
-
 interface AuthUserRow {
   sub: string;
   username: string;
@@ -525,8 +512,6 @@ function userPasswd(
   }
 }
 
-// --- channel commands ---
-
 function handleChannel(instance: string, action: string, rest: string[]): void {
   if (action !== 'auth') {
     console.error(
@@ -569,8 +554,6 @@ function handleChannel(instance: string, action: string, rest: string[]): void {
   });
 }
 
-// --- create command ---
-
 function create(name: string): void {
   if (!name) {
     console.error('usage: kanipi create <name>');
@@ -583,7 +566,6 @@ function create(name: string): void {
     process.exit(1);
   }
 
-  // Create directories
   fs.mkdirSync(path.join(dataDir, 'groups', 'root', 'logs'), {
     recursive: true,
   });
@@ -592,13 +574,11 @@ function create(name: string): void {
   fs.mkdirSync(path.join(dataDir, 'web'), { recursive: true });
   fs.mkdirSync(`${PREFIX}/run/kanipi_${name}`, { recursive: true });
 
-  // chown to uid/gid 1000 (node)
   fs.chownSync(path.join(dataDir, 'groups'), 1000, 1000);
   fs.chownSync(path.join(dataDir, 'groups', 'root'), 1000, 1000);
   fs.chownSync(path.join(dataDir, 'groups', 'root', 'logs'), 1000, 1000);
   fs.chownSync(path.join(dataDir, 'data'), 1000, 1000);
 
-  // Find prototype dir (was template/; check prototype/ first for compat)
   const appDir = process.env.APP_DIR || '';
   const srcDir = path.dirname(new URL(import.meta.url).pathname);
   let templateDir =
@@ -611,7 +591,6 @@ function create(name: string): void {
       ? path.resolve(srcDir, '..', 'prototype')
       : path.resolve(srcDir, '..', 'template'));
 
-  // Copy and configure .env
   const envSrc = path.join(templateDir, 'env.example');
   const envDst = path.join(dataDir, '.env');
   if (fs.existsSync(envSrc)) {
@@ -629,7 +608,6 @@ function create(name: string): void {
     console.log(`created: ${envDst}`);
   }
 
-  // Seed web template from container/skills/web/template/
   const webTemplateSrc = path.resolve(
     templateDir,
     '..',
@@ -643,7 +621,6 @@ function create(name: string): void {
     copyDirRecursive(webTemplateSrc, webDst);
   }
 
-  // Generate systemd unit
   const servicePath = path.join(dataDir, `kanipi_${name}.service`);
   const serviceContent = `[Unit]
 Description=kanipi ${name}
@@ -701,8 +678,6 @@ function copyDirRecursive(src: string, dst: string): void {
   }
 }
 
-// --- run command (instance runner) ---
-
 function runInstance(instance: string): void {
   const dataDir = '/srv/app/home';
   const hostDataDir = process.env.HOST_DATA_DIR || getDataDir(instance);
@@ -713,7 +688,6 @@ function runInstance(instance: string): void {
     process.exit(1);
   }
 
-  // Copy container and template assets
   fs.mkdirSync(path.join(dataDir, 'self'), { recursive: true });
   copyDirRecursive(
     '/srv/app/container',
@@ -724,12 +698,10 @@ function runInstance(instance: string): void {
     : '/srv/app/template';
   copyDirRecursive(protoSrc, path.join(dataDir, 'self', 'prototype'));
 
-  // Set environment variables
   process.env.DATA_DIR = dataDir;
   process.env.HOST_DATA_DIR = hostDataDir;
   process.env.HOST_APP_DIR = path.join(hostDataDir, 'self');
 
-  // Read web config
   let webPort = readEnvValue(envPath, 'WEB_PORT');
   if (!webPort) {
     webPort = readEnvValue(envPath, 'VITE_PORT');
@@ -746,7 +718,6 @@ function runInstance(instance: string): void {
     process.env.VITE_PORT_INTERNAL = vitePortInternal.toString();
   }
 
-  // Install web deps if missing
   const webDir = path.join(dataDir, 'web');
   if (
     webPort &&
@@ -768,7 +739,6 @@ function startServices(
   vitePortInternal: number | undefined,
   webDir: string,
 ): void {
-  // Start gateway
   const gateway = spawn('node', ['/srv/app/dist/index.js'], {
     stdio: 'inherit',
     env: process.env,
@@ -776,7 +746,6 @@ function startServices(
 
   let vite: ChildProcess | undefined;
 
-  // Start vite if configured
   if (webPort && fs.existsSync(webDir) && vitePortInternal) {
     fs.mkdirSync('/srv/app/tmp', { recursive: true });
 
@@ -799,7 +768,6 @@ function startServices(
     vite = startVite();
   }
 
-  // Handle signals
   const cleanup = () => {
     gateway.kill();
     if (vite) vite.kill();
@@ -813,8 +781,6 @@ function startServices(
     process.exit(code || 0);
   });
 }
-
-// --- CLI dispatch ---
 
 function printUsage(): void {
   console.log('usage: kanipi <instance>');
@@ -940,7 +906,6 @@ function main(): void {
       create(args[1]);
       break;
     default:
-      // Legacy: kanipi <instance> group ... (shorthand for config <instance> group)
       if (args[1] === 'group') {
         const instance = args[0];
         const action = args[2];
