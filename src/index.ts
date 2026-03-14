@@ -107,7 +107,6 @@ import {
   findChannel,
   formatMessages,
   resolveRoute,
-  stripInternalTags,
   userContextXml,
 } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
@@ -448,10 +447,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
             typeof result.result === 'string'
               ? result.result
               : JSON.stringify(result.result);
-          // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-          const text = raw
-            .replace(/<internal>[\s\S]*?<\/internal>/g, '')
-            .trim();
+          const text = raw.trim();
           logger.info(
             { group: group.name },
             `Agent output: ${raw.slice(0, 200)}`,
@@ -612,7 +608,7 @@ async function delegateToGroup(
               typeof result.result === 'string'
                 ? result.result
                 : JSON.stringify(result.result);
-            const text = stripInternalTags(raw);
+            const text = raw.trim();
             if (text) await channel.sendMessage(originJid, text);
           }
         },
@@ -1155,7 +1151,7 @@ async function main(): Promise<void> {
         logger.warn({ jid }, 'no channel owns JID, cannot send message');
         return;
       }
-      const text = stripInternalTags(rawText);
+      const text = rawText.trim();
       if (text) await channel.sendMessage(jid, text);
     },
   });

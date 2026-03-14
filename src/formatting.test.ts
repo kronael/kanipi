@@ -9,7 +9,6 @@ import {
   escapeXml,
   formatMessages,
   senderToUserFileId,
-  stripInternalTags,
   timeAgo,
   userContextXml,
 } from './router.js';
@@ -227,41 +226,6 @@ describe('clockXml', () => {
   it('escapes tz value', () => {
     const result = clockXml('A & B');
     expect(result).toContain('tz="A &amp; B"');
-  });
-});
-
-// --- Outbound formatting (internal tag stripping + prefix) ---
-
-describe('stripInternalTags', () => {
-  it('strips single-line internal tags', () => {
-    expect(stripInternalTags('hello <internal>secret</internal> world')).toBe(
-      'hello  world',
-    );
-  });
-
-  it('strips multi-line internal tags', () => {
-    expect(
-      stripInternalTags('hello <internal>\nsecret\nstuff\n</internal> world'),
-    ).toBe('hello  world');
-  });
-
-  it('strips multiple internal tag blocks', () => {
-    expect(
-      stripInternalTags('<internal>a</internal>hello<internal>b</internal>'),
-    ).toBe('hello');
-  });
-
-  it('returns empty string when text is only internal tags', () => {
-    expect(stripInternalTags('<internal>only this</internal>')).toBe('');
-  });
-});
-
-describe('stripInternalTags', () => {
-  it('strips internal tags and trims', () => {
-    expect(
-      stripInternalTags('<internal>thinking</internal>The answer is 42'),
-    ).toBe('The answer is 42');
-    expect(stripInternalTags('<internal>x</internal>   ')).toBe('');
   });
 });
 

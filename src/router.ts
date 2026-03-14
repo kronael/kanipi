@@ -99,10 +99,6 @@ export function formatMessages(messages: NewMessage[], now?: number): string {
   return `<messages>\n${lines.join('\n')}\n</messages>`;
 }
 
-export function stripInternalTags(text: string): string {
-  return text.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
-}
-
 export function findChannel(
   channels: Channel[],
   jid: string,

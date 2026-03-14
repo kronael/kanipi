@@ -412,8 +412,9 @@ async function runQuery(
         if (message.subtype === 'error_max_turns') {
           maxTurnsHit = true;
         } else {
-          const stripped = stripThinkBlocks(rawResult ?? '');
-          const { cleaned, statuses } = extractStatusBlocks(stripped);
+          const noThink = stripThinkBlocks(rawResult ?? '');
+          const noInternal = noThink.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
+          const { cleaned, statuses } = extractStatusBlocks(noInternal);
           for (const s of statuses) {
             writeOutput({ status: 'success', result: `⏳ ${s}`, newSessionId });
           }
