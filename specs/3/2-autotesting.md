@@ -16,7 +16,8 @@ docker/channels/external I/O. Real DB, GroupQueue, enricher, formatting.
 **Smoke** (`tests/smoke/`, `tests/integration/`) — requires docker.
 Real containers, actual IPC round-trip. Run before releases only.
 
-`make test` runs unit + integration (<12s). `make smoke` for docker tests.
+`make test` runs unit + e2e (<15s). `make smoke` runs full suite.
+`make integration` for docker-only tests.
 
 ## Conventions
 
