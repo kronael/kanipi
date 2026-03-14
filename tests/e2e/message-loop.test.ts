@@ -31,7 +31,6 @@ vi.mock('../../src/config.js', () => ({
   SCHEDULER_POLL_INTERVAL: 60000,
   STORE_DIR: '/tmp/kanipi-e2e-store',
   TIMEZONE: 'UTC',
-  TRIGGER_PATTERN: /^@Andy\b/i,
   IPC_POLL_INTERVAL: 1000,
   WEB_DIR: '/tmp/kanipi-e2e-web',
 }));

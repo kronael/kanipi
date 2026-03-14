@@ -65,8 +65,8 @@ reconstructs context from `logicalParentUuid` forward.
 
 ## Session reset
 
-Idle timeout (`IDLE_TIMEOUT`, default 30min) kills
-container. Next message starts new session. CLAUDE.md
+Container timeout (`CONTAINER_TIMEOUT`, default 30min) kills
+idle container. Next message starts new session. CLAUDE.md
 and MEMORY.md persist.
 
 ## Context injection on reset
