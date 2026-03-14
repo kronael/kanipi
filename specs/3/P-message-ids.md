@@ -117,3 +117,11 @@ Channel implementations of `sendMessage(jid, text, opts)`:
 - `src/actions/messaging.ts` `send_message`: add `replyTo?: string` field
 - `src/action-registry.ts` `ActionContext.sendMessage`: add `opts?: SendOpts`
 - `src/ipc.ts`: wire `SendOpts` through to channel `sendMessage` calls
+
+## Open
+
+- **WhatsApp reply**: Baileys requires `{ quoted: WAMessage }` (full message
+  object, not just ID). Needs message fetch or cache. Deferred.
+- **Discord forward metadata**: `MessageReferenceType.Forward` doesn't expose
+  the original sender. `'(forwarded)'` string is best available.
+- **Mastodon/Reddit reply**: `client.reply()` stubs need integration test.
