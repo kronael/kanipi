@@ -1,5 +1,5 @@
 ---
-status: shipped (A-E), draft (F-G)
+status: shipped (A-E), draft (F)
 ---
 
 # R: Per-sender reply routing
@@ -239,66 +239,6 @@ to wrap stored messages.
 | `src/action-registry.ts` | `delegateToParent` gains origin param      |
 | `src/ipc.ts`             | `IpcDeps.delegateToParent` signature       |
 
-### G. Platform threads
-
-Discord, Slack, and Telegram (topics) support native threads.
-These provide true visual isolation per user — no interleaving.
-
-Reply-threading (A-E) plus `{sender}` routing already creates
-virtual per-user threads via reply chains. Platform threads
-replace reply-chain noise with clean thread isolation.
-
-**How it maps:**
-
-```
-Current:    {sender} route → per-user group → reply-chain in channel
-Platform:   {sender} route → per-user group → dedicated thread per user
-```
-
-Routing, batching, and cursor mechanisms are identical. The
-difference is at the channel send layer: `sendMessage(threadJid,
-text)` to a dedicated thread instead of reply-chaining in the
-main channel.
-
-**Design:**
-
-Thread lifecycle:
-
-- On first message from a sender in a `{sender}`-routed channel,
-  create a platform thread (Discord: `channel.threads.create()`,
-  Telegram: `forumTopicCreate`)
-- Store thread ID in routes table: `jid → thread_jid` mapping
-- Subsequent messages from same sender go to existing thread
-- Thread JID encoded as `discord:thread_id` / `telegram:thread_id`
-
-Mapping to existing primitives:
-
-- `NewMessage.thread` field already exists (used by email)
-- Discord/Telegram channels populate it with thread ID on ingest
-- Route resolution includes thread lookup: sender → thread JID
-- `chatJid` for the group becomes the thread JID, not the main
-  channel — all existing reply-threading works unchanged
-
-Thread creation:
-
-- Discord: `TextChannel.threads.create({ name: senderName })`
-- Telegram: requires forum-enabled group (`forumTopicCreated`)
-- WhatsApp: no thread support — reply-chain only
-- Threads are per-sender per-channel, stored in routes table
-
-**Code changes:**
-
-| File                       | Change                                     |
-| -------------------------- | ------------------------------------------ |
-| `src/db.ts`                | thread_jid column in routes or new table   |
-| `src/channels/discord.ts`  | thread create/lookup on `{sender}` resolve |
-| `src/channels/telegram.ts` | forum topic create/lookup                  |
-| `src/router.ts`            | thread JID resolution in route matching    |
-| `src/index.ts`             | use thread JID as chatJid when available   |
-
-No changes to routing model — threads are a channel-layer
-optimization that plugs into existing `{sender}` routing.
-
 ## Shipped code changes (A-E)
 
 | File                       | Change                                                |
@@ -317,4 +257,3 @@ optimization that plugs into existing `{sender}` routing.
 
 1. **A-E**: shipped (5500182)
 2. **F**: escalation origin annotation — small, self-contained
-3. **G**: platform threads — larger, separate spec recommended
