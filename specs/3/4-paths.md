@@ -20,5 +20,5 @@ replacement. `hostPath()` and `GATEWAY_ROOT` deleted.
 
 ## Where
 
-- `src/config.ts` — `detectHostPath()`, `HOST_*` exports
+- `src/config.ts` — `HOST_*` exports (computed from `HOST_DATA_DIR` env var)
 - `src/container-runner.ts` — mount path construction using `HOST_*`
