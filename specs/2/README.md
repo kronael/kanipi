@@ -6,8 +6,8 @@ Five platforms, 27 actions, unified watcher/client/action pattern.
 
 | Platform | Watcher   | Core Actions | Moderation | Media Upload |
 | -------- | --------- | ------------ | ---------- | ------------ |
-| Mastodon | streaming | 15/23        | partial    | not wired    |
-| Bluesky  | poll 10s  | 10/23        | stubs      | not wired    |
+| Mastodon | streaming | 15/23        | partial    | ✓            |
+| Bluesky  | poll 10s  | 10/23        | stubs      | ✓            |
 | Reddit   | poll 30s  | 8/23         | stubs      | not wired    |
 | Twitter  | poll 30s  | 5/23         | stubs      | not wired    |
 | Facebook | poll 30s  | 8/23         | partial    | not wired    |
