@@ -247,6 +247,10 @@ keyed by group JID, alongside the existing message loop
 state. Existing chat channels have weight 100 for Message,
 so every message flushes immediately — zero behavior change.
 
+**Wired**: `createImpulseFilter()` is exported from `src/impulse.ts`
+and used in `src/index.ts` for all social channels (mastodon,
+bluesky, reddit, twitter, facebook). Core chat channels unchanged.
+
 ### Flush delivery
 
 Immediate events (weight ≥ threshold) are delivered as
@@ -311,22 +315,6 @@ Thread fields (`thread`, `parent`, `root`) are data on the
 event. The agent sees them. The router can match on them
 via pattern rules. If routing resolves to a non-existent
 group, prototypes spawn it (`F-prototypes.md`).
-
-## Migration from NewMessage
-
-Additive. No breaking change.
-
-1. Add `verb: Verb` and `platform: Platform` to `NewMessage`
-2. Add optional `thread`, `parent`, `root`, `target`,
-   `target_author`
-3. Existing channels set `verb: Verb.Message`
-4. Rename `NewMessage` → `InboundEvent` when stable
-
-Field mapping:
-
-- `chat_jid` → `jid`
-- `replyTo` → `parent`
-- `reply_to_text`, `reply_to_sender` → dropped (DB lookup)
 
 ## Outbound actions
 

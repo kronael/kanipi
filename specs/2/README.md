@@ -17,7 +17,7 @@ Moderation = ban, mute, block, pin, lock, hide, approve, kick.
 
 ## What Works
 
-- All 5 platforms connect, poll/stream, produce NewMessage objects
+- All 5 platforms connect, poll/stream, produce InboundEvent objects
 - Unified client registry dispatches actions by platform
 - Impulse filter batches low-weight events, flushes at threshold
 - Actions exposed as MCP tools to container agents
@@ -38,12 +38,10 @@ Moderation = ban, mute, block, pin, lock, hide, approve, kick.
 
 ### Missing Features
 
-- **Media upload**: action schemas accept `media?: string[]` but
-  all clients ignore it — media is always dropped
-- **Subreddit monitoring**: `RedditWatcher` accepts subreddits
-  array but `index.ts` doesn't pass it
-- **Manifest filtering**: agents see all 27 actions regardless of
-  which platforms are configured (phase 3 k-channel-actions)
+- **Media upload**: Mastodon and Bluesky upload media via platform
+  APIs; Reddit, Twitter, Facebook still drop media
+- **Subreddit monitoring**: `RedditWatcher` wired — `index.ts`
+  passes `REDDIT_SUBREDDITS` env var
 
 ### Moderation Action Coverage
 
