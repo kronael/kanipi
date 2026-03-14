@@ -80,7 +80,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | N-status-messages              | Agent-initiated status updates                       | shipped    |
 | P-message-ids                  | Reply/forward metadata per channel                   | shipped    |
 | Q-auto-threading               | Template routing (per-user groups)                   | shipped    |
-| R-reply-routing                | Per-sender batching, chunk chaining, reply threading | draft      |
+| R-reply-routing                | Per-sender batching, chunk chaining, reply threading | shipped    |
 | _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes                      | open       |
 | _(4/H)_ H-researcher           | Background research subagent                         | open       |
 | _(4/P)_ P-dash-status          | Health dashboard (read-only)                         | open       |

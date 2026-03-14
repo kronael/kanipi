@@ -1,5 +1,5 @@
 ---
-status: spec
+status: shipped
 ---
 
 # Message IDs: Reply and Forward Metadata
