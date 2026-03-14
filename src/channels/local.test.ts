@@ -23,26 +23,6 @@ describe('LocalChannel basics', () => {
     const ch = new LocalChannel();
     expect(ch.name).toBe('local');
   });
-
-  it('connect resolves without error', async () => {
-    const ch = new LocalChannel();
-    await expect(ch.connect()).resolves.toBeUndefined();
-  });
-
-  it('disconnect resolves without error', async () => {
-    const ch = new LocalChannel();
-    await expect(ch.disconnect()).resolves.toBeUndefined();
-  });
-
-  it('isConnected returns true', () => {
-    const ch = new LocalChannel();
-    expect(ch.isConnected()).toBe(true);
-  });
-
-  it('setTyping resolves without error', async () => {
-    const ch = new LocalChannel();
-    await expect(ch.setTyping()).resolves.toBeUndefined();
-  });
 });
 
 describe('ownsJid', () => {
@@ -51,18 +31,10 @@ describe('ownsJid', () => {
     expect(ch.ownsJid('local:main')).toBe(true);
   });
 
-  it('does not own web: prefix', () => {
+  it('does not own non-local JIDs', () => {
     const ch = new LocalChannel();
     expect(ch.ownsJid('web:main')).toBe(false);
-  });
-
-  it('does not own empty string', () => {
-    const ch = new LocalChannel();
     expect(ch.ownsJid('')).toBe(false);
-  });
-
-  it('does not own partial match "localhost:"', () => {
-    const ch = new LocalChannel();
     expect(ch.ownsJid('localhost:foo')).toBe(false);
   });
 });

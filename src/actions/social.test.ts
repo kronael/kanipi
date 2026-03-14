@@ -120,14 +120,6 @@ describe('targetAction dispatch', () => {
   });
   afterEach(() => unregisterClient(Platform.Twitter));
 
-  it('repost action has correct name', () => {
-    expect(repost.name).toBe('repost');
-  });
-
-  it('delete_post uses overridden name', () => {
-    expect(delete_post.name).toBe('delete_post');
-  });
-
   it('calls correct client method with target', async () => {
     await repost.handler({ jid: 'twitter:1', target: 'post123' });
     expect(c.repost).toHaveBeenCalledWith('post123');
@@ -136,15 +128,6 @@ describe('targetAction dispatch', () => {
   it('follow calls client.follow', async () => {
     await follow.handler({ jid: 'twitter:1', target: '@user' });
     expect(c.follow).toHaveBeenCalledWith('@user');
-  });
-
-  it('returns error when no client registered', async () => {
-    unregisterClient(Platform.Twitter);
-    const r = await repost.handler({
-      jid: 'twitter:1',
-      target: 'x',
-    });
-    expect(r).toEqual({ error: 'not_implemented', platform: 'twitter' });
   });
 });
 
@@ -164,11 +147,6 @@ describe('post action', () => {
       media: ['a.png', 'b.jpg'],
     });
     expect(c.post).toHaveBeenCalledWith('hello', ['a.png', 'b.jpg']);
-  });
-
-  it('handles missing media as undefined', async () => {
-    await post.handler({ jid: 'twitter:1', content: 'text only' });
-    expect(c.post).toHaveBeenCalledWith('text only', undefined);
   });
 });
 

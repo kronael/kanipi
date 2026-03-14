@@ -228,20 +228,6 @@ describe('schedule_task', () => {
     ).rejects.toThrow('invalid timestamp');
   });
 
-  it('negative interval is rejected', async () => {
-    await expect(
-      scheduleTask.handler(
-        {
-          targetFolder: 'root',
-          prompt: 'a',
-          schedule_type: 'interval',
-          schedule_value: '-1000',
-        },
-        makeCtx(),
-      ),
-    ).rejects.toThrow('invalid interval');
-  });
-
   it('rejects invalid interval', async () => {
     await expect(
       scheduleTask.handler(

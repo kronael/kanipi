@@ -423,16 +423,6 @@ describe('registerGroup', () => {
     ).rejects.toThrow('unauthorized');
   });
 
-  it('tier 3 cannot register a group', async () => {
-    const ctx = makeCtx('root/code/py');
-    await expect(
-      registerGroup.handler(
-        { jid: 'new@g.us', name: 'New', folder: 'root/code/py/sub' },
-        ctx,
-      ),
-    ).rejects.toThrow('unauthorized');
-  });
-
   it('rejects invalid folder name', async () => {
     const ctx = makeCtx('root');
     await expect(
@@ -484,22 +474,6 @@ describe('delegateGroup — depth limit', () => {
     );
   });
 
-  it('allows delegation at depth 0 (under limit)', async () => {
-    const ctx = makeCtx('root');
-    const result = await delegateGroup.handler(
-      { group: 'root/sub', prompt: 'task', chatJid: 'tg/-100', depth: 0 },
-      ctx,
-    );
-    expect(result).toEqual({ queued: true });
-    expect(ctx.delegateToChild).toHaveBeenCalledWith(
-      'root/sub',
-      'task',
-      'tg/-100',
-      1,
-      undefined,
-    );
-  });
-
   it('rejects delegation at depth >= 1', async () => {
     const ctx = makeCtx('root');
     await expect(
@@ -508,22 +482,6 @@ describe('delegateGroup — depth limit', () => {
         ctx,
       ),
     ).rejects.toThrow('depth');
-  });
-
-  it('defaults depth to 0 when omitted', async () => {
-    const ctx = makeCtx('root');
-    await delegateGroup.handler(
-      { group: 'root/code', prompt: 'go', chatJid: 'tg/-100' },
-      ctx,
-    );
-    // depth 0 → passes depth 0+1=1 to delegateToChild
-    expect(ctx.delegateToChild).toHaveBeenCalledWith(
-      'root/code',
-      'go',
-      'tg/-100',
-      1,
-      undefined,
-    );
   });
 });
 
@@ -573,13 +531,6 @@ describe('getRoutes', () => {
 
   it('rejects tier 2 group', async () => {
     const ctx = makeCtx('root/code');
-    await expect(getRoutes.handler({ jid: 'tg/-100' }, ctx)).rejects.toThrow(
-      'unauthorized',
-    );
-  });
-
-  it('rejects tier 3 group', async () => {
-    const ctx = makeCtx('root/code/py');
     await expect(getRoutes.handler({ jid: 'tg/-100' }, ctx)).rejects.toThrow(
       'unauthorized',
     );

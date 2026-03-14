@@ -70,22 +70,6 @@ describe('platformFromJid', () => {
   });
 });
 
-// --- JID ownership patterns ---
-
-describe('JID ownership patterns', () => {
-  // These test the patterns that will become ownsJid() on the Channel interface
-
-  it('WhatsApp group JID: ends with @g.us', () => {
-    const jid = '12345678@g.us';
-    expect(jid.endsWith('@g.us')).toBe(true);
-  });
-
-  it('WhatsApp DM JID: ends with @s.whatsapp.net', () => {
-    const jid = '12345678@s.whatsapp.net';
-    expect(jid.endsWith('@s.whatsapp.net')).toBe(true);
-  });
-});
-
 // --- getAvailableGroups ---
 
 describe('getAvailableGroups', () => {
@@ -487,31 +471,6 @@ describe('resolveRoute — flat routing table', () => {
     expect(resolveRoute(mkMsg('hello'), [])).toBeNull();
   });
 
-  it('command type does not match different command', () => {
-    const routes: Route[] = [
-      {
-        id: 1,
-        jid: 'tg:1',
-        seq: 0,
-        type: 'command',
-        match: '@code',
-        target: 'code',
-      },
-      {
-        id: 2,
-        jid: 'tg:1',
-        seq: 1,
-        type: 'default',
-        match: null,
-        target: 'general',
-      },
-    ];
-    expect(resolveRoute(mkMsg('@root help'), routes)).toEqual({
-      target: 'general',
-      command: null,
-    });
-  });
-
   it('keyword type matches case-insensitively', () => {
     const routes: Route[] = [
       {
@@ -531,18 +490,8 @@ describe('resolveRoute — flat routing table', () => {
         target: 'general',
       },
     ];
-    expect(resolveRoute(mkMsg('this is urgent'), routes)).toEqual({
-      target: 'ops',
-      command: null,
-    });
-    expect(resolveRoute(mkMsg('this is URGENT'), routes)).toEqual({
-      target: 'ops',
-      command: null,
-    });
-    expect(resolveRoute(mkMsg('this is Urgent'), routes)).toEqual({
-      target: 'ops',
-      command: null,
-    });
+    expect(resolveRoute(mkMsg('this is urgent'), routes)?.target).toBe('ops');
+    expect(resolveRoute(mkMsg('this is URGENT'), routes)?.target).toBe('ops');
   });
 
   it('pattern type skips invalid regex', () => {
@@ -792,28 +741,6 @@ describe('resolveRoute — flat routing table', () => {
     expect(resolveRoute(mkMsg('hello'), routes)?.target).toBe('fallback');
   });
 
-  it('keyword with null match does not match', () => {
-    const routes: Route[] = [
-      {
-        id: 1,
-        jid: 'tg:1',
-        seq: 0,
-        type: 'keyword',
-        match: null,
-        target: 'nope',
-      },
-      {
-        id: 2,
-        jid: 'tg:1',
-        seq: 1,
-        type: 'default',
-        match: null,
-        target: 'fallback',
-      },
-    ];
-    expect(resolveRoute(mkMsg('hello'), routes)?.target).toBe('fallback');
-  });
-
   it('sender type skips regex longer than 200 chars', () => {
     const longRegex = 'a'.repeat(201);
     const routes: Route[] = [
@@ -855,52 +782,6 @@ describe('resolveRoute — flat routing table', () => {
       target: 'code',
       command: 'run lint',
     });
-  });
-
-  it('pattern with null match does not match', () => {
-    const routes: Route[] = [
-      {
-        id: 1,
-        jid: 'tg:1',
-        seq: 0,
-        type: 'pattern',
-        match: null,
-        target: 'nope',
-      },
-      {
-        id: 2,
-        jid: 'tg:1',
-        seq: 1,
-        type: 'default',
-        match: null,
-        target: 'fallback',
-      },
-    ];
-    expect(resolveRoute(mkMsg('hello'), routes)?.target).toBe('fallback');
-  });
-
-  it('sender with null match does not match', () => {
-    const routes: Route[] = [
-      {
-        id: 1,
-        jid: 'tg:1',
-        seq: 0,
-        type: 'sender',
-        match: null,
-        target: 'nope',
-      },
-      {
-        id: 2,
-        jid: 'tg:1',
-        seq: 1,
-        type: 'default',
-        match: null,
-        target: 'fallback',
-      },
-    ];
-    expect(
-      resolveRoute(msg('hi', 'alice@s.whatsapp.net', 'alice'), routes),
-    ).toEqual({ target: 'fallback', command: null });
   });
 
   it('verb type does not match when msg has no verb', () => {

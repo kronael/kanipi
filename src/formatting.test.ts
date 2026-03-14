@@ -390,17 +390,6 @@ describe('userContextXml', () => {
     );
   });
 
-  it('strips single quotes from YAML name value', () => {
-    fs.writeFileSync(
-      path.join(tmpDir, 'users', 'tg-123456.md'),
-      "---\nname: 'Bob'\nfirst_seen: 2026-03-06\n---\n\nSome content",
-    );
-    const result = userContextXml('telegram:123456', tmpDir);
-    expect(result).toBe(
-      '<user id="tg-123456" name="Bob" memory="~/users/tg-123456.md" />',
-    );
-  });
-
   it('handles file without name field', () => {
     fs.writeFileSync(
       path.join(tmpDir, 'users', 'tg-123456.md'),

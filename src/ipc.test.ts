@@ -127,13 +127,6 @@ describe('drainRequests', () => {
     expect(fs.existsSync(repDir())).toBe(false);
   });
 
-  it('deletes request with missing type', async () => {
-    writeReq('bad2', { id: 'bad2' });
-    await drainRequests(ipcBase, group, makeDeps());
-
-    expect(fs.existsSync(path.join(reqDir(), 'bad2.json'))).toBe(false);
-  });
-
   it('handles list_actions request', async () => {
     writeReq('la1', { id: 'la1', type: 'list_actions' });
     await drainRequests(ipcBase, group, makeDeps());

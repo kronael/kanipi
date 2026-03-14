@@ -194,8 +194,4 @@ describe('drainRequests flow', () => {
       undefined,
     );
   });
-
-  it('unknown action name returns undefined from getAction', () => {
-    expect(getAction('bogus_action')).toBeUndefined();
-  });
 });

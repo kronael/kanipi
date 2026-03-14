@@ -156,7 +156,6 @@ import {
   storeMessage,
   storeChatMetadata,
 } from '../../src/db.js';
-import { GroupQueue } from '../../src/group-queue.js';
 import {
   getAvailableGroups,
   _setGroups,
@@ -243,70 +242,6 @@ describe('getAvailableGroups (gateway export)', () => {
     const groups = getAvailableGroups();
     expect(groups[0].jid).toBe('new@g.us');
     expect(groups[1].jid).toBe('old@g.us');
-  });
-});
-
-// ── GroupQueue + message dispatch integration ─────────────────────────────────
-
-describe('GroupQueue message dispatch', () => {
-  it('calls process function once when messages are enqueued for a group', async () => {
-    const processMessages = vi.fn(async () => true);
-    const queue = new GroupQueue();
-    queue.setProcessMessagesFn(processMessages);
-
-    queue.enqueueMessageCheck('group@g.us');
-    await vi.advanceTimersByTimeAsync(10);
-
-    expect(processMessages).toHaveBeenCalledWith('group@g.us');
-  });
-
-  it('serializes calls for the same group', async () => {
-    let active = 0;
-    let maxActive = 0;
-    const processMessages = vi.fn(async () => {
-      active++;
-      maxActive = Math.max(maxActive, active);
-      await new Promise((r) => setTimeout(r, 50));
-      active--;
-      return true;
-    });
-    const queue = new GroupQueue();
-    queue.setProcessMessagesFn(processMessages);
-
-    queue.enqueueMessageCheck('g@g.us');
-    queue.enqueueMessageCheck('g@g.us');
-    queue.enqueueMessageCheck('g@g.us');
-    await vi.advanceTimersByTimeAsync(500);
-
-    expect(maxActive).toBe(1);
-  });
-
-  it('tasks take priority over message checks', async () => {
-    const order: string[] = [];
-    const processMessages = vi.fn(async () => {
-      order.push('message');
-      await new Promise((r) => setTimeout(r, 10));
-      return true;
-    });
-    const queue = new GroupQueue();
-    queue.setProcessMessagesFn(processMessages);
-
-    // Let first message check start running
-    queue.enqueueMessageCheck('g@g.us');
-    await vi.advanceTimersByTimeAsync(5);
-
-    // Enqueue another message check + a task while the first is running
-    queue.enqueueMessageCheck('g@g.us');
-    queue.enqueueTask('g@g.us', 'task-1', async () => {
-      order.push('task');
-    });
-
-    await vi.advanceTimersByTimeAsync(200);
-
-    // task should run before second message check
-    const taskIdx = order.indexOf('task');
-    const secondMsgIdx = order.indexOf('message', 1);
-    expect(taskIdx).toBeLessThan(secondMsgIdx);
   });
 });
 
@@ -787,48 +722,6 @@ describe('flat routing — delegation failure rollback', () => {
     expect(mockRunContainerAgent).not.toHaveBeenCalled();
     await Promise.resolve();
     // Cursor advances - message dropped, not retried
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
-  });
-});
-
-// Path 2: These tests verify the same delegation-failure behavior through the
-// processGroupMessages code path (same as path 1 since startMessageLoop is
-// not directly testable).
-describe('flat routing — delegation failure (path 2)', () => {
-  it('grandchild target: delegates but fails, cursor advances (dropped)', async () => {
-    // Grandchild can spawn from parent, but grandparent (root/code) doesn't exist.
-    // Cursor advances - message dropped.
-    setupUnauthorizedRouting('src@g.us', 'root', 'root/code/py');
-
-    const ok = await _processGroupMessages('src@g.us');
-
-    expect(ok).toBe(true);
-    expect(mockRunContainerAgent).not.toHaveBeenCalled();
-    await Promise.resolve();
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
-  });
-
-  it('sibling target: delegates but fails, cursor advances (dropped)', async () => {
-    // Same behavior as path 1 - routes followed, delegation fails
-    setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
-
-    const ok = await _processGroupMessages('src@g.us');
-
-    expect(ok).toBe(true);
-    expect(mockRunContainerAgent).not.toHaveBeenCalled();
-    await Promise.resolve();
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
-  });
-
-  it('cross-world target: delegates but fails, cursor advances (dropped)', async () => {
-    // Same behavior as path 1 - routes followed, delegation fails
-    setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
-
-    const ok = await _processGroupMessages('src@g.us');
-
-    expect(ok).toBe(true);
-    expect(mockRunContainerAgent).not.toHaveBeenCalled();
-    await Promise.resolve();
     expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
   });
 });

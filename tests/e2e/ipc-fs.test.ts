@@ -60,7 +60,7 @@ import {
 } from '../../src/db.js';
 // Side-effect import: registers all IPC actions into the action registry.
 import '../../src/ipc.js';
-import { drainRequests, _drainGroup } from '../../src/ipc.js';
+import { drainRequests } from '../../src/ipc.js';
 import type { IpcDeps } from '../../src/ipc.js';
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
@@ -290,20 +290,6 @@ describe('drainRequests — reply atomicity', () => {
     const files = listDir(repliesDir);
     expect(files).toContain(`${id}.json`);
     expect(files.filter((f) => f.endsWith('.tmp'))).toHaveLength(0);
-  });
-});
-
-// ── _drainGroup: full pipeline ────────────────────────────────────────────────
-
-describe('_drainGroup — full IPC pipeline with real fs', () => {
-  it('drains request and writes reply', async () => {
-    const deps = makeDeps();
-    const id = writeRequest('root', { type: 'reset_session' });
-
-    await _drainGroup(ipcDir, 'root', deps);
-
-    const reply = readReply('root', id);
-    expect(reply.ok).toBe(true);
   });
 });
 

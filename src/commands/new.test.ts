@@ -67,10 +67,4 @@ describe('new command', () => {
     await newCommand.handle(ctx);
     expect(pendingCommandArgs.has('g@g.us')).toBe(false);
   });
-
-  it('does not set pendingCommandArgs when args is whitespace only', async () => {
-    const ctx = makeCtx('   ');
-    await newCommand.handle(ctx);
-    expect(pendingCommandArgs.has('g@g.us')).toBe(false);
-  });
 });

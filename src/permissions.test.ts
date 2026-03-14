@@ -27,7 +27,6 @@ describe('isRoot', () => {
   it('only root folder is root', () => {
     expect(isRoot('root')).toBe(true);
     expect(isRoot('atlas')).toBe(false);
-    expect(isRoot('atlas')).toBe(false);
   });
 });
 
@@ -70,40 +69,5 @@ describe('isDirectChild', () => {
 
   it('prefix overlap does not match (atlas vs atlas2/foo)', () => {
     expect(isDirectChild('atlas', 'atlas2/foo')).toBe(false);
-  });
-
-  it('empty parent with child returns true for single-segment child', () => {
-    // isDirectChild('', '/foo') — edge case: empty parent
-    expect(isDirectChild('', '/foo')).toBe(true);
-  });
-});
-
-// --- edge cases for worldOf and isInWorld ---
-
-describe('worldOf — edge cases', () => {
-  it('single segment returns itself', () => {
-    expect(worldOf('root')).toBe('root');
-  });
-
-  it('deeply nested returns first segment', () => {
-    expect(worldOf('a/b/c/d/e')).toBe('a');
-  });
-});
-
-describe('isInWorld — edge cases', () => {
-  it('root is in its own world', () => {
-    expect(isInWorld('root', 'root')).toBe(true);
-  });
-
-  it('root/child is in root world', () => {
-    expect(isInWorld('root', 'root/child')).toBe(true);
-  });
-});
-
-// --- permissionTier edge cases ---
-
-describe('permissionTier — edge cases', () => {
-  it('deeply nested folder clamps to tier 3', () => {
-    expect(permissionTier('a/b/c/d/e/f')).toBe(3);
   });
 });

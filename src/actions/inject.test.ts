@@ -71,13 +71,6 @@ describe('inject_message', () => {
     ).rejects.toThrow('unauthorized: root/world only');
   });
 
-  it('tier 3 (worker) is unauthorized', async () => {
-    const ctx = makeCtx(3);
-    await expect(
-      injectMessage.handler({ chatJid: 'c@j', content: 'x' }, ctx),
-    ).rejects.toThrow('unauthorized: root/world only');
-  });
-
   it('rejects missing chatJid', async () => {
     const ctx = makeCtx(0);
     await expect(

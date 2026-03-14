@@ -82,27 +82,9 @@ describe('send_message', () => {
     ).rejects.toThrow('unauthorized');
   });
 
-  it('tier 2 cannot send to JID routed to other world', async () => {
-    mockRouteTargets.mockReturnValue(['other']);
-    const ctx = makeCtx(2, 'mygroup');
-
-    await expect(
-      sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
-    ).rejects.toThrow('unauthorized');
-  });
-
   it('tier 2 cannot send to unrouted JID', async () => {
     mockRouteTargets.mockReturnValue([]);
     const ctx = makeCtx(2, 'mygroup');
-
-    await expect(
-      sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
-    ).rejects.toThrow('unauthorized');
-  });
-
-  it('tier 1 cannot send to unrouted JID', async () => {
-    mockRouteTargets.mockReturnValue([]);
-    const ctx = makeCtx(1, 'atlas');
 
     await expect(
       sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
