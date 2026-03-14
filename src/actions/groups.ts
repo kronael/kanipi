@@ -217,6 +217,7 @@ const RouteSchema = z.object({
   type: z.enum(['command', 'verb', 'pattern', 'keyword', 'sender', 'default']),
   match: z.string().nullable(),
   target: z.string().min(1),
+  command: z.string().nullable().optional(),
 });
 
 const GetRoutesInput = z.object({

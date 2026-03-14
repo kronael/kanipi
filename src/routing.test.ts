@@ -340,7 +340,7 @@ describe('resolveRoute — flat routing table', () => {
         target: 'atlas',
       },
     ];
-    expect(resolveRoute(mkMsg('@root help'), routes)).toBe('root');
+    expect(resolveRoute(mkMsg('@root help'), routes)?.target).toBe('root');
   });
 
   it('default fallback when no command match', () => {
@@ -362,7 +362,7 @@ describe('resolveRoute — flat routing table', () => {
         target: 'atlas',
       },
     ];
-    expect(resolveRoute(mkMsg('hello'), routes)).toBe('atlas');
+    expect(resolveRoute(mkMsg('hello'), routes)?.target).toBe('atlas');
   });
 
   it('respects seq order — first match wins', () => {
@@ -384,7 +384,7 @@ describe('resolveRoute — flat routing table', () => {
         target: 'general',
       },
     ];
-    expect(resolveRoute(mkMsg('urgent issue'), routes)).toBe('ops');
+    expect(resolveRoute(mkMsg('urgent issue'), routes)?.target).toBe('ops');
   });
 
   it('returns null when no routes match', () => {
@@ -420,8 +420,14 @@ describe('resolveRoute — flat routing table', () => {
         target: 'general',
       },
     ];
-    expect(resolveRoute(mkMsg('deploy the app'), routes)).toBe('deploy');
-    expect(resolveRoute(mkMsg('please deploy'), routes)).toBe('general');
+    expect(resolveRoute(mkMsg('deploy the app'), routes)).toEqual({
+      target: 'deploy',
+      command: null,
+    });
+    expect(resolveRoute(mkMsg('please deploy'), routes)).toEqual({
+      target: 'general',
+      command: null,
+    });
   });
 
   it('sender type matches sender_name', () => {
@@ -445,10 +451,10 @@ describe('resolveRoute — flat routing table', () => {
     ];
     expect(
       resolveRoute(msg('hi', 'alice@s.whatsapp.net', 'alice'), routes),
-    ).toBe('team/alice');
-    expect(resolveRoute(msg('hi', 'bob@s.whatsapp.net', 'bob'), routes)).toBe(
-      'general',
-    );
+    ).toEqual({ target: 'team/alice', command: null });
+    expect(
+      resolveRoute(msg('hi', 'bob@s.whatsapp.net', 'bob'), routes),
+    ).toEqual({ target: 'general', command: null });
   });
 
   it('verb type matches message verb', () => {
@@ -471,7 +477,10 @@ describe('resolveRoute — flat routing table', () => {
       },
     ];
     const joinMsg: NewMessage = { ...mkMsg(''), verb: 'join' };
-    expect(resolveRoute(joinMsg, routes)).toBe('welcome');
+    expect(resolveRoute(joinMsg, routes)).toEqual({
+      target: 'welcome',
+      command: null,
+    });
   });
 
   it('empty routes returns null', () => {
@@ -497,7 +506,10 @@ describe('resolveRoute — flat routing table', () => {
         target: 'general',
       },
     ];
-    expect(resolveRoute(mkMsg('@root help'), routes)).toBe('general');
+    expect(resolveRoute(mkMsg('@root help'), routes)).toEqual({
+      target: 'general',
+      command: null,
+    });
   });
 
   it('keyword type matches case-insensitively', () => {
@@ -519,9 +531,18 @@ describe('resolveRoute — flat routing table', () => {
         target: 'general',
       },
     ];
-    expect(resolveRoute(mkMsg('this is urgent'), routes)).toBe('ops');
-    expect(resolveRoute(mkMsg('this is URGENT'), routes)).toBe('ops');
-    expect(resolveRoute(mkMsg('this is Urgent'), routes)).toBe('ops');
+    expect(resolveRoute(mkMsg('this is urgent'), routes)).toEqual({
+      target: 'ops',
+      command: null,
+    });
+    expect(resolveRoute(mkMsg('this is URGENT'), routes)).toEqual({
+      target: 'ops',
+      command: null,
+    });
+    expect(resolveRoute(mkMsg('this is Urgent'), routes)).toEqual({
+      target: 'ops',
+      command: null,
+    });
   });
 
   it('pattern type skips invalid regex', () => {
@@ -543,7 +564,10 @@ describe('resolveRoute — flat routing table', () => {
         target: 'general',
       },
     ];
-    expect(resolveRoute(mkMsg('test'), routes)).toBe('general');
+    expect(resolveRoute(mkMsg('test'), routes)).toEqual({
+      target: 'general',
+      command: null,
+    });
   });
 
   it('pattern type skips regex longer than 200 chars', () => {
@@ -566,7 +590,10 @@ describe('resolveRoute — flat routing table', () => {
         target: 'general',
       },
     ];
-    expect(resolveRoute(mkMsg('a'), routes)).toBe('general');
+    expect(resolveRoute(mkMsg('a'), routes)).toEqual({
+      target: 'general',
+      command: null,
+    });
   });
 
   it('sender type falls back to sender JID when sender_name absent', () => {
@@ -590,7 +617,7 @@ describe('resolveRoute — flat routing table', () => {
     ];
     expect(
       resolveRoute(msg('hi', 'alice@s.whatsapp.net', undefined), routes),
-    ).toBe('team/alice');
+    ).toEqual({ target: 'team/alice', command: null });
   });
 
   it('sender type skips invalid regex', () => {
@@ -614,7 +641,7 @@ describe('resolveRoute — flat routing table', () => {
     ];
     expect(
       resolveRoute(msg('hi', 'alice@s.whatsapp.net', 'alice'), routes),
-    ).toBe('general');
+    ).toEqual({ target: 'general', command: null });
   });
 
   it('expands {sender} template in default route target', () => {
@@ -628,9 +655,10 @@ describe('resolveRoute — flat routing table', () => {
         target: 'atlas/{sender}',
       },
     ];
-    expect(resolveRoute(msg('hi', 'telegram:123456'), routes)).toBe(
-      'atlas/tg-123456',
-    );
+    expect(resolveRoute(msg('hi', 'telegram:123456'), routes)).toEqual({
+      target: 'atlas/tg-123456',
+      command: null,
+    });
   });
 
   it('expands {sender} template in command route target', () => {
@@ -644,8 +672,11 @@ describe('resolveRoute — flat routing table', () => {
         target: 'atlas/{sender}',
       },
     ];
-    expect(resolveRoute(msg('/ask something', 'telegram:789'), routes)).toBe(
-      'atlas/tg-789',
+    expect(resolveRoute(msg('/ask something', 'telegram:789'), routes)).toEqual(
+      {
+        target: 'atlas/tg-789',
+        command: null,
+      },
     );
   });
 
@@ -669,7 +700,10 @@ describe('resolveRoute — flat routing table', () => {
       },
     ];
     // Empty sender — template fails, falls through to support
-    expect(resolveRoute(msg('hi', ''), routes)).toBe('atlas/support');
+    expect(resolveRoute(msg('hi', ''), routes)).toEqual({
+      target: 'atlas/support',
+      command: null,
+    });
   });
 
   it('handles whatsapp sender in template', () => {
@@ -685,6 +719,9 @@ describe('resolveRoute — flat routing table', () => {
     ];
     expect(
       resolveRoute(msg('hi', 'whatsapp:5551234@s.whatsapp.net'), routes),
-    ).toBe('atlas/wa-5551234@s.whatsapp.net');
+    ).toEqual({
+      target: 'atlas/wa-5551234@s.whatsapp.net',
+      command: null,
+    });
   });
 });

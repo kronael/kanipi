@@ -82,6 +82,7 @@ export interface Route {
     | 'trigger';
   match: string | null;
   target: string;
+  command?: string | null;
 }
 
 // Zod schemas for DB JSON field validation

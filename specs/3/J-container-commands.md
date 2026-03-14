@@ -87,24 +87,23 @@ raw mode + isolated context.
 
 ### Routing table
 
-> **Not implemented.** The pipe-delimited syntax below is a design
-> sketch only. The `command` field is implemented for scheduled tasks
-> (raw mode in `container-runner.ts`) but routing targets do not
-> support inline commands. The `target` column holds a folder name.
-
-The original design proposed extending `target` to support command
-targets:
+The `routes` table has a `command` column (nullable TEXT). When set,
+`delegateToGroup` runs `runContainerCommand` in raw mode with that
+command instead of the agent runner.
 
 ```
-target = "atlas"                        → agent on atlas folder
-target = "atlas|bash -c 'echo hi'"      → bash in atlas sandbox
+{target: "atlas", command: null}              → agent on atlas folder
+{target: "atlas", command: "bash -c 'echo'"}  → bash in atlas sandbox
 ```
 
-Pipe delimiter separates folder from command. No pipe = agent default.
-The folder determines the sandbox (mounts, permissions, tier). The
-command determines what runs.
+`resolveRoute` returns `{target, command}`. The folder determines
+the sandbox (mounts, permissions, tier). The command determines
+what runs inside it. `null` command = agent default.
+
+The `add_route` IPC action accepts an optional `command` field.
 
 ## Migration
 
 - `ALTER TABLE scheduled_tasks ADD COLUMN command TEXT`
-- Existing tasks unaffected (command = NULL = agent mode)
+- `command` column on `routes` table (nullable, default NULL)
+- Existing rows unaffected (command = NULL = agent mode)

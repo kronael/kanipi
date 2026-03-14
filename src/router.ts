@@ -150,11 +150,19 @@ function routeMatches(r: Route, msg: NewMessage): boolean {
   }
 }
 
-export function resolveRoute(msg: NewMessage, routes: Route[]): string | null {
+export interface ResolvedRoute {
+  target: string;
+  command: string | null;
+}
+
+export function resolveRoute(
+  msg: NewMessage,
+  routes: Route[],
+): ResolvedRoute | null {
   for (const r of routes) {
     if (!routeMatches(r, msg)) continue;
     const t = expandTarget(r.target, msg);
-    if (t) return t;
+    if (t) return { target: t, command: r.command ?? null };
   }
   return null;
 }

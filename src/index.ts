@@ -312,11 +312,16 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   const lastMsg = missedMessages[missedMessages.length - 1];
   const routes = getRoutesForJid(chatJid);
-  const target = resolveRoute(lastMsg, routes);
-  if (target && target !== group.folder) {
+  const resolved = resolveRoute(lastMsg, routes);
+  if (resolved && resolved.target !== group.folder) {
     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
     saveState();
-    delegatePerSender(missedMessages, target, chatJid);
+    delegatePerSender(
+      missedMessages,
+      resolved.target,
+      chatJid,
+      resolved.command,
+    );
     return true;
   }
 
@@ -541,6 +546,7 @@ async function delegateToGroup(
   label: string,
   messageId?: string,
   escalationOrigin?: EscalationOrigin,
+  command?: string | null,
 ): Promise<void> {
   let target: GroupConfig | undefined = groups[targetFolder];
   if (!target) {
@@ -556,21 +562,55 @@ async function delegateToGroup(
 
   const taskId = `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
+  const rawCmd = command ? ['bash', '-c', command] : undefined;
+
   queue.enqueueTask(targetFolder, taskId, async () => {
     let lastSentId = messageId;
     try {
+      const onResult = async (result: ContainerOutput) => {
+        if (result.newSessionId) {
+          sessions[target.folder] = result.newSessionId;
+          setSession(target.folder, result.newSessionId);
+        }
+        if (result.result) {
+          const raw =
+            typeof result.result === 'string'
+              ? result.result
+              : JSON.stringify(result.result);
+          let text = raw.trim();
+          if (text) {
+            if (escalationOrigin) {
+              const msgAttr = escalationOrigin.messageId
+                ? ` origin_msg_id="${escapeXml(escalationOrigin.messageId)}"`
+                : '';
+              text =
+                `<escalation_response origin_jid="${escapeXml(escalationOrigin.jid)}"${msgAttr}>\n` +
+                `${text}\n</escalation_response>`;
+            }
+            const sentId = await channel.sendMessage(
+              originJid,
+              text,
+              lastSentId ? { replyTo: lastSentId } : undefined,
+            );
+            if (sentId) lastSentId = sentId;
+          }
+        }
+      };
+
       const output = await runContainerCommand(
         target,
-        {
-          prompt,
-          sessionId: sessions[target.folder],
-          groupFolder: target.folder,
-          chatJid: originJid,
-          channelName: channel.name,
-          messageCount: 1,
-          delegateDepth: depth,
-          messageId,
-        },
+        rawCmd
+          ? prompt
+          : {
+              prompt,
+              sessionId: sessions[target.folder],
+              groupFolder: target.folder,
+              chatJid: originJid,
+              channelName: channel.name,
+              messageCount: 1,
+              delegateDepth: depth,
+              messageId,
+            },
         (proc, containerName) =>
           queue.registerProcess(
             targetFolder,
@@ -578,36 +618,14 @@ async function delegateToGroup(
             containerName,
             target.folder,
           ),
-        async (result) => {
-          if (result.newSessionId) {
-            sessions[target.folder] = result.newSessionId;
-            setSession(target.folder, result.newSessionId);
-          }
-          if (result.result) {
-            const raw =
-              typeof result.result === 'string'
-                ? result.result
-                : JSON.stringify(result.result);
-            let text = raw.trim();
-            if (text) {
-              if (escalationOrigin) {
-                const msgAttr = escalationOrigin.messageId
-                  ? ` origin_msg_id="${escapeXml(escalationOrigin.messageId)}"`
-                  : '';
-                text =
-                  `<escalation_response origin_jid="${escapeXml(escalationOrigin.jid)}"${msgAttr}>\n` +
-                  `${text}\n</escalation_response>`;
-              }
-              const sentId = await channel.sendMessage(
-                originJid,
-                text,
-                lastSentId ? { replyTo: lastSentId } : undefined,
-              );
-              if (sentId) lastSentId = sentId;
-            }
-          }
-        },
+        rawCmd ? undefined : onResult,
+        rawCmd,
       );
+
+      // For raw commands, send output as a message
+      if (rawCmd && output.result) {
+        await onResult(output);
+      }
 
       if (output.newSessionId) {
         sessions[target.folder] = output.newSessionId;
@@ -631,6 +649,7 @@ function delegateToChild(
   originJid: string,
   depth: number,
   messageId?: string,
+  command?: string | null,
 ): Promise<void> {
   return delegateToGroup(
     childFolder,
@@ -639,6 +658,8 @@ function delegateToChild(
     depth,
     'delegate',
     messageId,
+    undefined,
+    command,
   );
 }
 
@@ -665,6 +686,7 @@ function delegatePerSender(
   messages: NewMessage[],
   target: string,
   chatJid: string,
+  command?: string | null,
 ): void {
   const bySender = new Map<string, NewMessage[]>();
   for (const m of messages) {
@@ -675,12 +697,14 @@ function delegatePerSender(
   for (const senderMsgs of bySender.values()) {
     const formatted = formatMessages(senderMsgs);
     const last = senderMsgs[senderMsgs.length - 1];
-    delegateToChild(target, formatted, chatJid, 0, last.id).catch((err) => {
-      logger.error(
-        { chatJid, target, err: String(err) },
-        'routing failed, message dropped',
-      );
-    });
+    delegateToChild(target, formatted, chatJid, 0, last.id, command).catch(
+      (err) => {
+        logger.error(
+          { chatJid, target, err: String(err) },
+          'routing failed, message dropped',
+        );
+      },
+    );
   }
 }
 
@@ -863,9 +887,11 @@ async function startMessageLoop(): Promise<void> {
                 : groupMessages;
             const lastMsg = candidateMsgs[candidateMsgs.length - 1];
             const routes = getRoutesForJid(chatJid);
-            const target = resolveRoute(lastMsg, routes);
+            const resolved = resolveRoute(lastMsg, routes);
             const routedGroup =
-              target && groups[target] ? groups[target] : group;
+              resolved && groups[resolved.target]
+                ? groups[resolved.target]
+                : group;
 
             for (const { msg, word, args } of deferredCmds) {
               const handler = findCommand(word.toLowerCase())!;
@@ -898,7 +924,7 @@ async function startMessageLoop(): Promise<void> {
 
             if (nonCommandMessages.length === 0) continue;
 
-            if (target && target !== group.folder) {
+            if (resolved && resolved.target !== group.folder) {
               await waitForEnrichments(nonCommandMessages.map((m) => m.id));
               const allForRoute = getMessagesSince(
                 chatJid,
@@ -910,7 +936,12 @@ async function startMessageLoop(): Promise<void> {
               lastAgentTimestamp[chatJid] =
                 toDelegate[toDelegate.length - 1].timestamp;
               saveState();
-              delegatePerSender(toDelegate, target, chatJid);
+              delegatePerSender(
+                toDelegate,
+                resolved.target,
+                chatJid,
+                resolved.command,
+              );
               continue;
             }
           }
@@ -1019,7 +1050,7 @@ async function main(): Promise<void> {
       const group = folder ? groups[folder] : undefined;
       if (attachments && download && group) {
         const routes = getRoutesForJid(msg.chat_jid);
-        const targetFolder = resolveRoute(msg, routes) || group.folder;
+        const targetFolder = resolveRoute(msg, routes)?.target || group.folder;
         enqueueEnrichment(msg.id, targetFolder, attachments, download);
         attachmentCache.set(msg.id, {
           attachments,

@@ -779,6 +779,7 @@ type RouteRow = {
   type: string;
   match: string | null;
   target: string;
+  command: string | null;
 };
 
 function rowToRoute(row: RouteRow): Route {
@@ -789,6 +790,7 @@ function rowToRoute(row: RouteRow): Route {
     type: row.type as Route['type'],
     match: row.match,
     target: row.target,
+    command: row.command,
   };
 }
 
@@ -815,26 +817,35 @@ export function getRoutedJids(): string[] {
 
 export function setRoutesForJid(
   jid: string,
-  routes: Omit<Route, 'id' | 'jid'>[],
+  routes: (Omit<Route, 'id' | 'jid' | 'command'> & {
+    command?: string | null;
+  })[],
 ): void {
   db.prepare('DELETE FROM routes WHERE jid = ?').run(jid);
   const insert = db.prepare(
-    'INSERT INTO routes (jid, seq, type, match, target) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO routes (jid, seq, type, match, target, command) VALUES (?, ?, ?, ?, ?, ?)',
   );
   for (const r of routes) {
-    insert.run(jid, r.seq, r.type, r.match, r.target);
+    insert.run(jid, r.seq, r.type, r.match, r.target, r.command ?? null);
   }
 }
 
 export function addRoute(
   jid: string,
-  route: Omit<Route, 'id' | 'jid'>,
+  route: Omit<Route, 'id' | 'jid' | 'command'> & { command?: string | null },
 ): number {
   const result = db
     .prepare(
-      'INSERT INTO routes (jid, seq, type, match, target) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO routes (jid, seq, type, match, target, command) VALUES (?, ?, ?, ?, ?, ?)',
     )
-    .run(jid, route.seq, route.type, route.match, route.target);
+    .run(
+      jid,
+      route.seq,
+      route.type,
+      route.match,
+      route.target,
+      route.command ?? null,
+    );
   return result.lastInsertRowid as number;
 }
 
