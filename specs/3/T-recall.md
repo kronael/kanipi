@@ -145,9 +145,39 @@ The agent iterates naturally — no hardcoded stages. It expands
 queries, judges results, and refines search terms as needed. This
 is what v1 does with Grep, but the search tool handles scale.
 
+### Config
+
+`.recallrc` in the group folder (TOML):
+
+```toml
+db = "knowledge.db"
+embed_url = "http://10.0.5.1:11434/api/embeddings"
+embed_model = "nomic-embed-text"
+
+[[store]]
+name = "facts"
+dir = "facts"
+
+[[store]]
+name = "diary"
+dir = "diary"
+
+[[store]]
+name = "users"
+dir = "users"
+
+[[store]]
+name = "episodes"
+dir = "episodes"
+```
+
+Seeded by the agent image. Paths relative to the group folder.
+Agent or user can add stores by adding `[[store]]` entries.
+
 ### The search tool
 
 A CLI tool in the agent container. `container/agent-runner/recall.ts`.
+Reads `.recallrc` from cwd.
 
 ```
 recall                          # sync index, show 5 newest
