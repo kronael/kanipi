@@ -59,8 +59,18 @@ subagent. It must:
 - Cross-reference against codebase and web sources
 - Check for contradictions with existing facts
 - Check that cited sources support the claims
-- Delete facts that fail verification
-- Update verified_at on facts that pass
+- For each fact, write a record to `verifier/<same-filename>.md`:
+  ```yaml
+  ---
+  result: pass
+  verified_at: 2026-03-15T10:30:00Z
+  reason: >
+    Sources confirmed. Pricing page matches claimed tiers.
+  ---
+  ```
+- On pass: update `verified_at` in both `facts/` and `verifier/`
+- On fail: delete the fact from `facts/`, keep the `verifier/` record
+- `verifier/` is the audit trail — rejected facts leave a record
 
 ## Step 3: Answer
 
@@ -73,5 +83,5 @@ process — just answer naturally as if you always knew.
 - ALWAYS use subagents — never research in main context
 - Batch verification: max 5 facts per verifier subagent
 - Research subagent tools: Read, Glob, Grep, WebSearch, WebFetch, Write
-- Verifier subagent tools: Read, Glob, Grep, WebSearch, WebFetch, Bash
+- Verifier subagent tools: Read, Glob, Grep, WebSearch, WebFetch, Write, Bash
 - headers must be dense enough to answer simple questions without reading the full file
