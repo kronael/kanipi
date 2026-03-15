@@ -7,6 +7,15 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Facts verifier audit trail**: verifier writes pass/fail YAML records to
+  `verifier/` directory, preserving rejected fact history.
+
+---
+
 ## [v1.8.0] — 2026-03-14
 
 ### Added
