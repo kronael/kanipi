@@ -53,8 +53,7 @@ function initDB(dbPath: string): Database.Database {
     );
   `);
   db.exec(`
-    CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries
-      WHEN new.embedding IS NOT NULL BEGIN
+    CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
       INSERT INTO entries_fts(rowid, key, summary)
         VALUES (new.id, new.key, new.summary);
       INSERT INTO entries_vec(id, embedding)
@@ -119,24 +118,13 @@ async function syncStore(
     if (!onDisk.has(p)) del.run(p);
   }
 
+  const ins = db.prepare(
+    'INSERT INTO entries (key, path, summary, embedding, mtime) VALUES (?, ?, ?, ?, ?)'
+  );
   const upsert = db.transaction(
-    (key: string, fp: string, summary: string, emb: Buffer | null, mt: number) => {
+    (key: string, fp: string, summary: string, emb: Buffer, mt: number) => {
       del.run(fp);
-      if (emb) {
-        db.prepare(
-          'INSERT INTO entries (key, path, summary, embedding, mtime) VALUES (?, ?, ?, ?, ?)'
-        ).run(key, fp, summary, emb, mt);
-      } else {
-        // no embedding — insert without vec (FTS only)
-        db.prepare(
-          'INSERT INTO entries (key, path, summary, mtime) VALUES (?, ?, ?, ?)'
-        ).run(key, fp, summary, mt);
-        // manual FTS insert since trigger expects embedding
-        const id = db.prepare('SELECT id FROM entries WHERE path = ?').get(fp) as { id: number };
-        db.prepare(
-          'INSERT INTO entries_fts(rowid, key, summary) VALUES (?, ?, ?)'
-        ).run(id.id, key, summary);
-      }
+      ins.run(key, fp, summary, emb, mt);
     }
   );
 
@@ -150,11 +138,11 @@ async function syncStore(
     const key = path.relative(dir, fp);
     const text = summary || key;
 
-    let emb: Buffer | null = null;
+    let emb: Buffer;
     try {
       emb = await embed(text, cfg);
     } catch {
-      // embedding unavailable — FTS only for this entry
+      continue; // skip — will retry next run (no mtime cached)
     }
 
     upsert(key, fp, summary, emb, mt);
