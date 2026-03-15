@@ -118,27 +118,27 @@ XML helper. The formatters stay in their own files:
 
 Episodes would follow the same pattern once built.
 
-## Pull layer: search
+## Pull layer: `/recall`
 
-**Shipped** (as CLAUDE.md behavior): agent-driven semantic grep. The agent
-greps `facts/` `header:` fields, deliberates in `<think>`, reads matches.
-The LLM's language understanding is the semantic matching.
+Agent-driven semantic grep — the LLM reads summaries/headers and judges
+relevance. No embeddings, no vector DB.
 
-**TODO**: Separate `/search` skill (always present) from `/facts` skill:
+**Shipped** (as CLAUDE.md behavior): agent greps `facts/` `header:` fields,
+deliberates in `<think>`, reads matches.
 
-- **`/search`** — always available. Scans headers across `facts/` and
-  `diary/`, returns relevant entries. No subagents, no research — just
-  retrieval. For "what do we know about X?" and "what did we do last
-  week about Y?" questions.
-- **`/facts`** — research only. Spawns subagents to create/refresh facts
-  when `/search` finds nothing relevant. Includes verification.
+**TODO**: `/recall` skill — always-present retrieval subagent that scans
+across all knowledge layers:
 
-Currently both search and research are bundled in `/facts`. The inline
-`<think>` scan (CLAUDE.md) handles quick lookups, but there's no skill
-for deeper search across both facts and diary without triggering research.
+- **`/recall`** — spawns a subagent that scans `facts/` headers AND
+  `diary/` summaries, returns relevant entries. No research, no writing —
+  pure retrieval. For "what do we know about X?" and "what happened
+  last week with Y?". Once episodes exist, scans those too.
+- **`/facts`** — becomes research-only. Spawns subagents to create/refresh
+  facts when `/recall` finds nothing. Includes verification.
 
-Diary search is valuable — "what happened with X last month" should scan
-diary entries the same way facts scan works (grep summaries, read matches).
+Currently search and research are bundled in `/facts`. The inline
+`<think>` scan (CLAUDE.md) handles quick lookups but there's no skill
+for deeper retrieval across facts + diary without triggering research.
 
 Scales to ~200 facts + 30 diary entries. At 500+ the header scan gets
 expensive — embeddings or cached index would help but aren't needed yet.
@@ -147,15 +147,16 @@ expensive — embeddings or cached index would help but aren't needed yet.
 
 1. **Unified schemas** — typed DTOs for each layer's XML format,
    shared `formatLayerXml()` helper
-2. **`/search` skill** — always-present retrieval across facts + diary
-3. **Separate search from `/facts`** — `/facts` becomes research-only
-4. **Episodes** — scheduled aggregation, formatter, injection
+2. **`/recall` skill** — always-present retrieval subagent across
+   facts + diary (+ episodes when built)
+3. **Separate recall from `/facts`** — `/facts` becomes research-only
+4. **Episodes** — scheduled aggregation from diary, formatter, injection
 5. **Episode aggregation prompt** — what to keep at each compression
    level (day→week→month)
 
 ## Open questions
 
-- Should `/search` also scan `users/` and `MEMORY.md`?
+- Should `/recall` also scan `users/` and `MEMORY.md`?
 - Episode format: same `<entry>` structure as diary, or its own?
 - Performance at 500+ facts: cached index vs embeddings vs status quo
 
