@@ -120,9 +120,9 @@ Episodes would follow the same pattern once built.
 
 ## Pull layer: `/recall`
 
-Agent-driven semantic grep — an Explore subagent reads summaries/headers
-and judges relevance. The LLM IS the search engine. No embeddings, no
-vector DB.
+Agent-driven knowledge retrieval across facts, diary, and episodes.
+Two phases: v1 ships LLM-as-search-engine (Explore subagent greps
+headers); v2 adds hybrid BM25+vector search for scale.
 
 **Shipped** (as CLAUDE.md behavior): agent greps `facts/` `header:` fields,
 deliberates in `<think>`, reads matches.
@@ -130,7 +130,7 @@ deliberates in `<think>`, reads matches.
 **TODO**: `/recall` skill — teaches the agent the semantic search protocol.
 Always-present base skill (like `/diary`, `/users`).
 
-### How it works
+### v1: LLM semantic grep (now)
 
 The agent spawns an **Explore subagent** with a query and target layers.
 The Explore agent knows the protocol:
@@ -152,6 +152,79 @@ Agent receives question
   → answers from knowledge, or runs /facts if gaps remain
 ```
 
+Scales to ~200 facts + 30 diary entries. At 500+ the header scan gets
+expensive and v2 takes over.
+
+### v2: Hybrid search (when scale demands it)
+
+Informed by OpenClaw's search architecture. Two retrieval paths fused:
+
+**BM25 (keyword)** — SQLite FTS5 on fact headers + diary summaries.
+Fast exact-match retrieval, good for names, dates, specific terms.
+
+**Vector (semantic)** — embeddings on the same text, stored in
+sqlite-vec. Cosine similarity finds conceptually related content
+even when wording differs.
+
+**Fusion** — Reciprocal Rank Fusion (RRF) combines both result sets.
+Default weights: vector 0.7, text 0.3. Single ranked list out.
+
+```
+query → BM25 (FTS5) → ranked results ─┐
+                                        ├─ RRF fusion → top-k results
+query → embed → cosine (sqlite-vec) ──┘
+```
+
+**Embedding provider**: Ollama (`nomic-embed-text`) at 10.0.5.1:11434.
+Local, no API costs, 768-dim vectors. Fallback: gateway computes
+embeddings at index time (on fact write / diary write), not at query
+time — query embeddings are cheap, indexing is the bottleneck.
+
+**Storage**: SQLite (already used for messages DB). Two tables:
+
+```sql
+-- FTS5 for keyword search
+CREATE VIRTUAL TABLE knowledge_fts USING fts5(
+  layer, key, summary, content='knowledge'
+);
+
+-- sqlite-vec for vector search
+CREATE VIRTUAL TABLE knowledge_vec USING vec0(
+  embedding float[768]
+);
+
+-- source table
+CREATE TABLE knowledge (
+  id INTEGER PRIMARY KEY,
+  layer TEXT,     -- 'fact', 'diary', 'episode'
+  key TEXT,       -- 'api-auth.md', '20260310', '2026-W10'
+  path TEXT,      -- relative path to file
+  summary TEXT,   -- header/summary frontmatter
+  embedding BLOB, -- 768-dim float vector
+  indexed_at TEXT
+);
+```
+
+**Indexing**: Gateway indexes on write. When agent writes a fact
+(via `/facts`) or diary entry (via `/diary`), gateway:
+
+1. Extracts `header:` or `summary:` from frontmatter
+2. Embeds the text via Ollama
+3. Upserts into knowledge + FTS5 + vec tables
+
+**Query**: Agent calls `/recall <question>`. Skill:
+
+1. Embeds the question
+2. Runs BM25 + vector in parallel
+3. Fuses with RRF, returns top-6 with scores
+4. Agent deliberates in `<think>`, reads matched files
+
+**Optional enhancements** (from OpenClaw, add if needed):
+
+- MMR re-ranking (lambda=0.7) for diversity in results
+- Temporal decay (halfLife=30 days) to prefer recent knowledge
+- Min score threshold (0.35) to filter noise
+
 ### Layers scanned
 
 | Layer    | Key field       | Example                              |
@@ -169,25 +242,29 @@ Agent receives question
 Currently both are bundled in `/facts`. Separating them means the agent
 can recall without the overhead of spawning researcher + verifier.
 
-Scales to ~200 facts + 30 diary entries. At 500+ the header scan gets
-expensive — embeddings or cached index would help but aren't needed yet.
-
 ## What's left to build
 
 1. **Unified schemas** — typed DTOs for each layer's XML format,
    shared `formatLayerXml()` helper
-2. **`/recall` skill** — always-present retrieval subagent across
-   facts + diary (+ episodes when built)
+2. **`/recall` v1 skill** — Explore subagent semantic grep across
+   facts + diary headers. Always-present base skill.
 3. **Separate recall from `/facts`** — `/facts` becomes research-only
-4. **Episodes** — scheduled aggregation from diary, formatter, injection
-5. **Episode aggregation prompt** — what to keep at each compression
+4. **`/recall` v2** — hybrid BM25+vector search. SQLite + sqlite-vec,
+   Ollama embeddings, RRF fusion. Ships when corpus exceeds ~200 facts.
+5. **Episodes** — scheduled aggregation from diary, formatter, injection
+6. **Episode aggregation prompt** — what to keep at each compression
    level (day→week→month)
 
 ## Open questions
 
 - Should `/recall` also scan `users/` and `MEMORY.md`?
 - Episode format: same `<entry>` structure as diary, or its own?
-- Performance at 500+ facts: cached index vs embeddings vs status quo
+- v2 trigger: at what corpus size does LLM grep become too slow/expensive?
+  Estimated ~200 facts is fine, 500+ needs v2.
+- Embedding model: `nomic-embed-text` (768-dim) vs `mxbai-embed-large`
+  (1024-dim) — nomic is faster, mxbai may be more accurate
+- Should v2 index full file content or just headers/summaries?
+  Headers-only keeps the index small and fast.
 
 ## Relationship to existing specs
 
