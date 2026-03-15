@@ -61,32 +61,34 @@ Body sections: Key decisions, Active work, Blockers.
 
 ## How episodes are created
 
-Scheduled tasks via existing `task-scheduler.ts`. Two cron entries
-per group, created by `group add` or migration:
+Scheduled tasks via `task-scheduler.ts` with `context_mode: 'isolated'`.
+Fresh container, no group session history, no persona — purely
+mechanical compression. The agent gets only its CLAUDE.md (which
+includes the `/episode` skill) and the prompt.
+
+Two cron entries per group, created by `group add` or migration:
 
 ```sql
 -- weekly episode
-INSERT INTO tasks (group_folder, chat_jid, prompt, schedule_type,
-  schedule_value, context_mode, status)
+INSERT INTO scheduled_tasks (group_folder, chat_jid, prompt,
+  schedule_type, schedule_value, context_mode, status)
 VALUES ('<folder>', '<jid>',
-  'Write a week episode. Read diary entries for this week, write episodes/YYYY-WNN.md.',
-  'cron', '0 2 * * 0', 'group', 'active');
+  'Run /episode week', 'cron', '0 2 * * 0', 'isolated', 'active');
 
 -- monthly episode
-INSERT INTO tasks (group_folder, chat_jid, prompt, schedule_type,
-  schedule_value, context_mode, status)
+INSERT INTO scheduled_tasks (group_folder, chat_jid, prompt,
+  schedule_type, schedule_value, context_mode, status)
 VALUES ('<folder>', '<jid>',
-  'Write a month episode. Read week episodes for this month, write episodes/YYYY-MM.md.',
-  'cron', '0 3 1 * *', 'group', 'active');
+  'Run /episode month', 'cron', '0 3 1 * *', 'isolated', 'active');
 ```
 
-The scheduler fires the prompt → spawns container → agent runs
-with group session context → reads diary/episodes → writes the
-episode file. No new gateway code — uses the existing prompt-based
-task path in `task-scheduler.ts`.
+`isolated` = no session ID passed → fresh container, no history.
+The agent mounts the same group folder (reads diary/, writes
+episodes/) but doesn't see the group's chat or persona.
 
-The agent knows the format from a `/episode` skill or CLAUDE.md
-instructions.
+Same mechanism works for diary too — a scheduled prompt can
+trigger diary summarization if the agent didn't write one during
+the session.
 
 ### What the agent does
 
