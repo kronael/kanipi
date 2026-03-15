@@ -83,7 +83,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | Q-auto-threading               | Template routing (per-user groups)                    | shipped |
 | R-reply-routing                | Per-sender batching, chunk chaining, reply threading  | shipped |
 | T-recall                       | Knowledge retrieval (LLM grep → hybrid search)        | open    |
-| _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes                       | open    |
+| _(4/B)_ B-memory-episodic      | Progressive compression (episodes + diary)            | open    |
 | _(4/P)_ P-dash-status          | Health dashboard (read-only)                          | open    |
 | _(4/V)_ V-platform-permissions | Per-platform action grants                            | spec    |
 | _(4/4)_ 4-dashboards           | Long-running web services                             | open    |

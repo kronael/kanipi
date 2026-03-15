@@ -6,7 +6,7 @@ status: shipped
 
 Recent message history piped to agent on each invocation.
 
-See `specs/1/K-knowledge-system.md` for memory layer overview.
+See `specs/3/D-knowledge-system.md` for memory layer overview.
 
 ## Stdin envelope
 

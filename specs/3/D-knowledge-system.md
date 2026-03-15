@@ -10,16 +10,16 @@ injected into agent context.
 
 ## Memory Layers
 
-| Layer    | Spec                   | Status  | Storage   |
-| -------- | ---------------------- | ------- | --------- |
-| Messages | memory-messages.md     | shipped | DB (SQL)  |
-| Session  | memory-session.md      | shipped | SDK (.jl) |
-| Managed  | memory-managed.md      | shipped | Files     |
-| Diary    | memory-diary.md        | shipped | Files     |
-| User ctx | 3/7-user-context.md    | shipped | Files     |
-| Facts    | 3/1-atlas.md           | shipped | Files     |
-| Recall   | 3/T-recall.md          | open    | Files+DB  |
-| Episodes | 4/B-memory-episodic.md | open    | Files     |
+| Layer    | Spec                | Status  | Storage   |
+| -------- | ------------------- | ------- | --------- |
+| Messages | 1/N-memory-messages | shipped | DB (SQL)  |
+| Session  | 3/E-memory-session  | shipped | SDK (.jl) |
+| Managed  | 1/M-memory-managed  | shipped | Files     |
+| Diary    | 1/L-memory-diary    | shipped | Files     |
+| User ctx | 3/7-user-context    | shipped | Files     |
+| Facts    | 3/1-atlas           | shipped | Files     |
+| Recall   | 3/T-recall          | open    | Files+DB  |
+| Compact  | 4/B-memory-episodic | open    | Files     |
 
 Messages, sessions, and MEMORY.md have their own implementations
 and aren't instances of this pattern.
@@ -39,7 +39,7 @@ Given a directory of markdown files:
 
 - **Diary** — 14 most recent, injected on session start
 - **User context** — sender pointer per message, agent reads file
-- **Episodes** — current + previous week (when built)
+- **Episodes** — most recent day/week/month (when built)
 
 **Pull** — large corpus, agent searches on demand:
 
@@ -55,8 +55,10 @@ Given a directory of markdown files:
 
 <user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />
 
-<episodes count="2">
-  <entry key="2026-W10" type="week">summary</entry>
+<episodes count="3">
+  <entry key="20260314" type="day">summary</entry>
+  <entry key="2026-W11" type="week">summary</entry>
+  <entry key="2026-02" type="month">summary</entry>
 </episodes>
 ```
 
@@ -65,18 +67,18 @@ Given a directory of markdown files:
 - Hook-based: PreCompact, Stop, session start
 - Message-based: first message from unknown user
 - Skill-based: `/diary`, `/facts`
-- Scheduled: cron triggers researcher, episode aggregation
+- Scheduled: cron triggers researcher, `/compact-memories` aggregation
 
 ## Specs
 
-| Spec                | What                                         |
-| ------------------- | -------------------------------------------- |
-| 1/L-memory-diary    | Diary layer (shipped)                        |
-| 1/M-memory-managed  | MEMORY.md + CLAUDE.md (shipped, not pattern) |
-| 1/N-memory-messages | Message history DB (shipped, not pattern)    |
-| 3/7-user-context    | User context layer (shipped)                 |
-| 3/1-atlas           | Facts + researcher (shipped)                 |
-| 3/3-code-research   | Research agent prompts (shipped)             |
-| 3/E-memory-session  | SDK sessions (shipped, not pattern)          |
-| 3/T-recall          | /recall retrieval (open)                     |
-| 4/B-memory-episodic | Episodes aggregation (open)                  |
+| Spec                | What                                             |
+| ------------------- | ------------------------------------------------ |
+| 1/L-memory-diary    | Diary layer (shipped)                            |
+| 1/M-memory-managed  | MEMORY.md + CLAUDE.md (shipped, not pattern)     |
+| 1/N-memory-messages | Message history DB (shipped, not pattern)        |
+| 3/7-user-context    | User context layer (shipped)                     |
+| 3/1-atlas           | Facts + researcher (shipped)                     |
+| 3/3-code-research   | Research agent prompts (shipped)                 |
+| 3/E-memory-session  | SDK sessions (shipped, not pattern)              |
+| 3/T-recall          | /recall retrieval (open)                         |
+| 4/B-memory-episodic | Progressive compression: episodes + diary (open) |

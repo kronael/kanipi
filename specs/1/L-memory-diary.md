@@ -68,5 +68,24 @@ ships.
 
 ## Progressive summarization (future)
 
-Daily → weekly → monthly rollup. See `specs/3/B-memory-episodic.md`.
-Until it ships, 14-day injection compensates.
+Diary has its own compression hierarchy, separate from episodes:
+
+```
+diary/20260310.md  ─┐
+diary/20260311.md  ─┤→ diary/week/2026-W11.md
+diary/20260312.md  ─┘
+                          ↓
+diary/week/2026-W10.md ─┐
+diary/week/2026-W11.md ─┤→ diary/month/2026-03.md
+diary/week/2026-W12.md ─┘
+```
+
+Same progressive pattern as episodes but from diary entries.
+Diary = agent's curated work log. Episodes = compressed session
+transcripts. Both exist, both compress, different source material.
+
+Compression uses `/compact-memories diary week` and `/compact-memories diary month`.
+Week/month diary summaries live in `diary/week/` and `diary/month/`
+subdirs. Each references its sources. See `specs/4/B-memory-episodic.md`.
+
+Until this ships, 14-day injection compensates.

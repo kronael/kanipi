@@ -280,7 +280,7 @@ Separate DBs per store — rebuild one without touching others.
 
 On each `recall` call:
 
-1. Scan each store dir for `*.md`
+1. Scan each store dir recursively for `*.md`
 2. Compare path + mtime against DB
 3. New/changed → parse `summary:`, embed via Ollama, upsert
 4. Deleted → prune stale rows

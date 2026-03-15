@@ -1,6 +1,8 @@
 ---
 name: howto
-description: Generate a getting-started howto page for this group. Deploys to the group's web directory. Use when asked to create onboarding, setup guide, or howto page.
+description: Generate a comprehensive howto page for this group. Documents all
+  features including memory, knowledge, scheduling, web apps. Deploys to the
+  group's web directory.
 ---
 
 # Howto
@@ -39,14 +41,51 @@ Customize:
 
 ## Content
 
-Three levels on the same page with anchor-linked nav:
+Progressive disclosure — six sections with anchor-linked nav:
 
-1. **Getting Started** — how to message the bot on each enabled channel, what it can do
-2. **Building Web Apps** — ask for apps, how deploy works, iterating, sharing URLs
-3. **Groups & Routing** — multi-group setup, scheduling, MCP, self-extending
+### 1. Getting Started
 
-Check enabled channels from env: `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `EMAIL_IMAP_HOST`.
-Show WhatsApp only if auth dir exists. Skip unconfigured channels.
+How to message the bot on each enabled channel. What it can do.
+Check enabled channels from env: `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`,
+`EMAIL_IMAP_HOST`. Show WhatsApp only if auth dir exists. Skip unconfigured.
+
+### 2. Memory & Knowledge
+
+How the assistant remembers and learns:
+
+- **Diary** — daily work log (`diary/YYYYMMDD.md`). Agent writes during sessions.
+  Gateway injects last 14 days on session start.
+- **MEMORY.md** — persistent preferences, patterns. Agent-managed, always loaded.
+- **User context** — per-user files (`users/<id>.md`). Preferences, interaction log.
+- **Facts** — researched knowledge (`facts/`). `/facts` skill creates, verifies,
+  refreshes. 14-day freshness gate.
+- **Episodes** — compressed session transcripts. Daily/weekly/monthly summaries
+  in `episodes/`. Created by `/compact-memories` cron tasks.
+- **Diary summaries** — weekly/monthly compressed diary in `diary/week/`, `diary/month/`.
+- **Recall** — `/recall <question>` searches across all stores by `summary:` frontmatter.
+
+### 3. Building Web Apps
+
+Ask for apps, how deploy works, iterating, sharing URLs.
+Web directory: `$WEB_DIR/`. Public at `https://$WEB_HOST/`.
+
+### 4. Scheduling & Automation
+
+- Cron tasks: recurring prompts on schedule (cron or interval)
+- Context modes: `group` (reuses session) or `isolated` (fresh container)
+- Memory compaction: `/compact-memories` runs daily/weekly/monthly crons
+- Gateway commands: `/new`, `/stop`, `/ping`, `/chatid`
+
+### 5. Groups & Routing
+
+Multi-group setup, nested groups (tiers 0-3), trigger patterns,
+routing rules, shared memory across groups.
+
+### 6. Tools & Capabilities
+
+Runtimes (node, python, go, rust), media tools (ffmpeg, imagemagick),
+research (web search, browser, pandoc), data (pandas, plotly),
+office (slides, excel), MCP extensions.
 
 ## Customization context
 

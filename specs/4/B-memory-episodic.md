@@ -2,29 +2,50 @@
 status: open
 ---
 
-# Memory: Episodes
+# Memory: Progressive Compression
 
-Scheduled compression of diary entries into week and month summaries.
-Agent is passive — a cron task does the aggregation.
+Session transcripts and diary entries compressed into progressive
+summaries. Same pattern, two stores, shared `/compact-memories` skill.
 
 ## Hierarchy
 
+### Episodes (from session transcripts)
+
 ```
-diary/20260303.md  ─┐
-diary/20260304.md  ─┤→ episodes/2026-W10.md  (week)
-diary/20260305.md  ─┘
-                         ↓
-                   episodes/2026-03.md  (month)
+.claude/projects/-home-node/<uuid>.jl  ─┐
+.claude/projects/-home-node/<uuid>.jl  ─┤→ episodes/20260310.md  (day)
+.claude/projects/-home-node/<uuid>.jl  ─┘
+                                              ↓
+episodes/20260310.md  ─┐
+episodes/20260311.md  ─┤→ episodes/2026-W11.md  (week)
+episodes/20260312.md  ─┘
+                                              ↓
+episodes/2026-W10.md  ─┐
+episodes/2026-W11.md  ─┤→ episodes/2026-03.md  (month)
+episodes/2026-W12.md  ─┘
 ```
+
+### Diary (from work log entries)
+
+```
+diary/20260310.md  ─┐
+diary/20260311.md  ─┤→ diary/week/2026-W11.md
+diary/20260312.md  ─┘
+                          ↓
+diary/week/2026-W10.md ─┐
+diary/week/2026-W11.md ─┤→ diary/month/2026-03.md
+diary/week/2026-W12.md ─┘
+```
+
+Episodes compress the full session record. Diary compresses the
+agent's curated work log. Both exist, both compress independently.
 
 ## Why
 
-Diary injects 14 days. Beyond that, no compressed context exists.
-Episodes fix this:
-
-- **Cold start** — week episode gives enough to resume
-- **Long arc** — month episodes surface project-level progress
-- **Recall** — `/recall` scans episode `summary:` like any store
+- **Cold start** — daily episode gives enough to resume
+- **Long arc** — month summaries surface project-level patterns
+- **Recall** — `/recall` scans `summary:` across all stores
+- **Navigation** — from month → weeks → days → sources
 
 ## File format
 
@@ -33,14 +54,14 @@ Episodes fix this:
 summary: >
   - Shipped discord channel support
   - Resolved telegram auth token rotation
-  - Started recall spec design
-period: 2026-W10
+period: '2026-W11'
 type: week
+store: episodes
 sources:
-  - diary/20260303.md
-  - diary/20260304.md
-  - diary/20260305.md
-aggregated_at: '2026-03-08T02:00:00Z'
+  - episodes/20260310.md
+  - episodes/20260311.md
+  - episodes/20260312.md
+aggregated_at: '2026-03-17T02:00:00Z'
 ---
 
 ## Key decisions
@@ -56,73 +77,55 @@ aggregated_at: '2026-03-08T02:00:00Z'
 - None
 ```
 
-Body sections: Key decisions, Active work, Blockers.
-`summary:` is for `/recall` indexing and gateway injection.
+`summary:` for `/recall` indexing and gateway injection.
+`sources:` for traceability — navigate back to originals.
+`store:` identifies `episodes` or `diary`.
 
-## How episodes are created
+## How compression happens
 
-Scheduled tasks via `task-scheduler.ts` with `context_mode: 'isolated'`.
-Fresh container, no group session history, no persona — purely
-mechanical compression. The agent gets only its CLAUDE.md (which
-includes the `/episode` skill) and the prompt.
+`/compact-memories` skill, scheduled via `task-scheduler.ts` with
+`context_mode: 'isolated'`. Fresh container, no session history —
+purely mechanical compression.
 
-Two cron entries per group, created by `group add` or migration:
-
-```sql
--- weekly episode
-INSERT INTO scheduled_tasks (group_folder, chat_jid, prompt,
-  schedule_type, schedule_value, context_mode, status)
-VALUES ('<folder>', '<jid>',
-  'Run /episode week', 'cron', '0 2 * * 0', 'isolated', 'active');
-
--- monthly episode
-INSERT INTO scheduled_tasks (group_folder, chat_jid, prompt,
-  schedule_type, schedule_value, context_mode, status)
-VALUES ('<folder>', '<jid>',
-  'Run /episode month', 'cron', '0 3 1 * *', 'isolated', 'active');
+```
+/compact-memories episodes day    → 0 2 * * *     daily
+/compact-memories episodes week   → 0 3 * * 1     Monday
+/compact-memories episodes month  → 0 4 1 * *     1st of month
+/compact-memories diary week      → 0 3 * * 1     Monday
+/compact-memories diary month     → 0 4 1 * *     1st of month
 ```
 
-`isolated` = no session ID passed → fresh container, no history.
-The agent mounts the same group folder (reads diary/, writes
-episodes/) but doesn't see the group's chat or persona.
-
-Diary is different — always agent-written during sessions, never
-scheduled. Episodes are the only scheduled memory layer.
-
-### What the agent does
-
-1. Glob `diary/*.md` for the target week (or `episodes/YYYY-W*.md`
-   for month)
-2. Read each file
-3. Compress: keep decisions, deliverables, active work, blockers.
-   Drop routine ops, dead-end debugging, conversation meta.
-4. Write `episodes/YYYY-WNN.md` with `summary:` frontmatter + body
-
-### Gaps
-
-- No diary entries for a week → agent writes nothing, no empty file
-- 1-2 entries → still aggregate
-- Multi-topic entries → capture all topics
+See `container/skills/compact-memories/SKILL.md` for protocol and
+compression rules.
 
 ## Gateway injection
 
-On session start, inject alongside diary:
+On session start, inject most recent of each episode type:
 
 ```xml
-<episodes count="2">
-  <entry key="2026-W10" type="week">summary</entry>
-  <entry key="2026-W09" type="week">summary</entry>
+<episodes count="3">
+  <entry key="20260314" type="day">summary</entry>
+  <entry key="2026-W11" type="week">summary</entry>
+  <entry key="2026-02" type="month">summary</entry>
 </episodes>
 ```
 
-Current + previous week. On month boundary, also previous month.
+Implementation: `formatEpisodeXml()` in `episode.ts`, same
+pattern as diary injection.
 
-**Implementation**: `formatEpisodeXml()` in `episode.ts`, called
-from `formatPrompt()` in `index.ts`. Same pattern as diary.
+Diary week/month summaries are not injected — the 14-day daily
+injection already covers. Week/month diary summaries exist for
+`/recall` searches over longer timeframes.
+
+## Recall integration
+
+Both `episodes/` and `diary/` (including subdirs) are stores in
+`.recallrc`. `/recall` searches all summaries — the agent discerns
+which level and store is relevant.
 
 ## What gets built
 
-1. `/episode` skill — teaches agent the episode format + compression rules
-2. Cron task entries — created by `group add` or migration (SQL above)
+1. `/compact-memories` skill — compression rules, protocol, cron setup
+2. Cron entries — five per group (3 episode + 2 diary)
 3. `formatEpisodeXml()` in `episode.ts` — gateway injection
-4. `episodes` store entry in `.recallrc` — for `/recall` indexing
+4. `episodes` + `diary` stores in `.recallrc`
