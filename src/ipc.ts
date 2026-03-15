@@ -362,24 +362,22 @@ export function startIpcWatcher(deps: IpcDeps): void {
   );
 
   const pollForNewGroups = () => {
-    let groupFolders: string[];
     try {
-      groupFolders = scanGroupFolders();
-    } catch {
-      return;
-    }
-
-    for (const sourceGroup of groupFolders) {
-      if (!groupWatchers.has(sourceGroup)) {
-        drainGroupMessages(ipcBaseDir, sourceGroup, deps).catch((err) =>
-          logger.error(
-            { sourceGroup, err },
-            'Error draining new group IPC dir',
-          ),
-        );
-        attachWatchers(sourceGroup);
-        logger.info({ sourceGroup }, 'IPC watcher attached to new group dir');
+      const groupFolders = scanGroupFolders();
+      for (const sourceGroup of groupFolders) {
+        if (!groupWatchers.has(sourceGroup)) {
+          drainGroupMessages(ipcBaseDir, sourceGroup, deps).catch((err) =>
+            logger.error(
+              { sourceGroup, err },
+              'Error draining new group IPC dir',
+            ),
+          );
+          attachWatchers(sourceGroup);
+          logger.info({ sourceGroup }, 'IPC watcher attached to new group dir');
+        }
       }
+    } catch (err) {
+      logger.error({ err }, 'IPC poll error');
     }
     setTimeout(pollForNewGroups, IPC_POLL_INTERVAL);
   };

@@ -134,7 +134,11 @@ export class WhatsAppChannel implements Channel {
             logger.error({ err }, 'Failed to reconnect, retrying in 5s');
             setTimeout(() => {
               this.connectInternal().catch((err2) => {
-                logger.error({ err: err2 }, 'Reconnection retry failed');
+                logger.fatal(
+                  { err: err2 },
+                  'WhatsApp reconnection failed twice, exiting',
+                );
+                process.exit(1);
               });
             }, 5000);
           });

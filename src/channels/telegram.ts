@@ -393,7 +393,7 @@ export class TelegramChannel implements Channel {
         logger.warn({ err }, 'Failed to set Telegram bot commands'),
       );
 
-    // Start polling — returns a Promise that resolves when started
+    // Start polling — resolves when connected, crashes on fatal polling error
     return new Promise<void>((resolve) => {
       this.bot!.start({
         onStart: (botInfo) => {
@@ -407,6 +407,12 @@ export class TelegramChannel implements Channel {
           );
           resolve();
         },
+      }).catch((err) => {
+        logger.fatal(
+          { err: err.message },
+          'Telegram polling loop crashed, exiting',
+        );
+        process.exit(1);
       });
     });
   }

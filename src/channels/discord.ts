@@ -51,6 +51,11 @@ export class DiscordChannel implements Channel {
         resolve();
       });
 
+      this.client!.on('error', (err) => {
+        logger.fatal({ err: err.message }, 'Discord client error, exiting');
+        process.exit(1);
+      });
+
       this.client!.on('messageCreate', (msg) => this.handleMessage(msg));
 
       this.client!.login(this.botToken).catch(reject);
