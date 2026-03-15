@@ -14,6 +14,16 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 - **Facts verifier audit trail**: verifier writes pass/fail YAML records to
   `verifier/` directory, preserving rejected fact history.
 
+### Docs
+
+- **Code research agent spec**: merged `4/H-researcher` and `4/3-support`
+  into `3/3-code-research.md` — full pattern docs with verbatim ElizaOS
+  prompts, SYSTEM.md reference, howto cookbook, strict relevance rule.
+- **Strict knowledge relevance**: `container/CLAUDE.md` Knowledge section
+  tightened — facts must answer 100% correctly or agent researches.
+- **Shipped Worlds concept**: added to `4/K-versioning-personas.md` as
+  future direction for packaging product configs as world templates.
+
 ---
 
 ## [v1.8.0] — 2026-03-14

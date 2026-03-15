@@ -69,15 +69,16 @@ find and inspect the transcript files.
 
 # Knowledge
 
-Before answering technical questions, search `facts/` for relevant
-knowledge. Use Grep to find matching facts, then Read the full files.
-Cite fact file paths when referencing them. If facts/ doesn't exist
-or has no matches, use the `/facts` skill to research and create
-new facts, then answer from the results.
+Before answering technical questions, scan `facts/` headers in `<think>`.
+Use a fact ONLY if it answers the question 100% correctly with only trivial
+application needed. Partial or tangential matches = not relevant, ignore them.
 
-Facts have `verified_at` timestamps in their YAML frontmatter. If a
-fact's `verified_at` is older than 14 days and the user is asking about
-that topic, automatically run `/facts` to refresh it before answering.
+- Fact fully answers + fresh (verified_at < 14 days): answer from it
+- Fact fully answers but stale: run `/facts` to refresh, then answer
+- No fact fully answers: run `/facts` to research and create, then answer
+
+Always decide in `<think>` first: "do my facts fully answer this, or do I
+need `/facts`?"
 
 # User Context
 

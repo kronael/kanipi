@@ -160,9 +160,35 @@ Before building the full plugin system, the smallest useful change:
 These don't require a plugin format or registry — just selective
 seeding and scoped migration.
 
+## Shipped Worlds
+
+Product configs like the code-researcher (`3/3-code-research.md`) are the
+natural realization of persona plugins — complete product configs packaged
+as a unit: SYSTEM.md, SOUL.md, CLAUDE.md overrides, skills, seed facts.
+
+These could ship as **world templates** via `container/worlds/`:
+
+```
+container/worlds/code-researcher/
+  SYSTEM.md         # research-focused system prompt
+  SOUL.md.template  # persona skeleton with {NAME} placeholders
+  facts/            # seed facts (empty or starter set)
+  skills.txt        # list of skills to enable
+  env.example       # required env vars (EXTRA_MOUNTS, etc.)
+```
+
+`kanipi create <name> --world code-researcher` would scaffold a new
+instance from the template. Migrations can update world templates.
+Users fork or extend by editing the group folder directly.
+
+This is future direction — the code-researcher currently deploys via
+manual setup (see the spec's howto cookbook). World templates formalize
+the pattern once more product configs exist.
+
 ## Related
 
 - `4/G-instance-repos.md` — git-based instance config
 - `3/5-permissions.md` — tier model, mount enforcement
 - `1/B-extend-skills.md` — skill system, /migrate
 - `1/X-sync.md` — migration system
+- `3/3-code-research.md` — first shipped product config (concrete example)

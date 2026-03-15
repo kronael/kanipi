@@ -57,36 +57,35 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 
 Focus: access control, partial implementations, cleanup, and selected phase 4 items pulled forward.
 
-| Spec                           | Topic                                                | Status  |
-| ------------------------------ | ---------------------------------------------------- | ------- |
-| 0-agent-capabilities           | Container tooling catalog                            | shipped |
-| 1-atlas                        | Facts, researcher, verifier                          | shipped |
-| 2-autotesting                  | Subsystem test strategy                              | shipped |
-| 4-paths                        | Path translation cleanup                             | shipped |
-| 5-permissions                  | Tier 0-3 hierarchy                                   | shipped |
-| 7-user-context                 | Per-user memory files                                | shipped |
-| 8-web-virtual-hosts            | Per-group web serving                                | shipped |
-| 9-whatsapp-improvements        | Read receipts, presence                              | shipped |
-| A-auth                         | Local auth, JWT                                      | shipped |
-| C-files-in                     | File transfer                                        | shipped |
-| D-knowledge-system             | Memory layers pattern                                | partial |
-| E-memory-session               | SDK sessions, .jl files                              | shipped |
-| G-codebase-trim                | Dead code removal (~900 lines)                       | shipped |
-| H-jid-format                   | Compact JID URIs, sender IDs                         | shipped |
-| J-container-commands           | Generic container commands                           | shipped |
-| K-remove-triggers              | Remove trigger pattern system                        | shipped |
-| L-chat-bound-sessions          | Chat-bound containers, send_reply, IDLE_TIMEOUT=0    | shipped |
-| M-think-blocks                 | <think> delimiter for silent decisions               | shipped |
-| N-status-messages              | Agent-initiated status updates                       | shipped |
-| P-message-ids                  | Reply/forward metadata per channel                   | shipped |
-| Q-auto-threading               | Template routing (per-user groups)                   | shipped |
-| R-reply-routing                | Per-sender batching, chunk chaining, reply threading | shipped |
-| _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes                      | open    |
-| _(4/H)_ H-researcher           | Background research subagent                         | open    |
-| _(4/P)_ P-dash-status          | Health dashboard (read-only)                         | open    |
-| _(4/V)_ V-platform-permissions | Per-platform action grants                           | spec    |
-| _(4/3)_ 3-support              | Code researcher product config                       | spec    |
-| _(4/4)_ 4-dashboards           | Long-running web services                            | open    |
+| Spec                           | Topic                                                 | Status  |
+| ------------------------------ | ----------------------------------------------------- | ------- |
+| 0-agent-capabilities           | Container tooling catalog                             | shipped |
+| 1-atlas                        | Facts, researcher, verifier                           | shipped |
+| 2-autotesting                  | Subsystem test strategy                               | shipped |
+| 4-paths                        | Path translation cleanup                              | shipped |
+| 5-permissions                  | Tier 0-3 hierarchy                                    | shipped |
+| 7-user-context                 | Per-user memory files                                 | shipped |
+| 8-web-virtual-hosts            | Per-group web serving                                 | shipped |
+| 9-whatsapp-improvements        | Read receipts, presence                               | shipped |
+| A-auth                         | Local auth, JWT                                       | shipped |
+| C-files-in                     | File transfer                                         | shipped |
+| D-knowledge-system             | Memory layers pattern                                 | partial |
+| E-memory-session               | SDK sessions, .jl files                               | shipped |
+| G-codebase-trim                | Dead code removal (~900 lines)                        | shipped |
+| H-jid-format                   | Compact JID URIs, sender IDs                          | shipped |
+| J-container-commands           | Generic container commands                            | shipped |
+| K-remove-triggers              | Remove trigger pattern system                         | shipped |
+| L-chat-bound-sessions          | Chat-bound containers, send_reply, IDLE_TIMEOUT=0     | shipped |
+| M-think-blocks                 | <think> delimiter for silent decisions                | shipped |
+| N-status-messages              | Agent-initiated status updates                        | shipped |
+| P-message-ids                  | Reply/forward metadata per channel                    | shipped |
+| Q-auto-threading               | Template routing (per-user groups)                    | shipped |
+| R-reply-routing                | Per-sender batching, chunk chaining, reply threading  | shipped |
+| _(4/B)_ B-memory-episodic      | Diary → weekly/monthly episodes                       | open    |
+| 3-code-research                | Code research agent (merged H-researcher + 3-support) | shipped |
+| _(4/P)_ P-dash-status          | Health dashboard (read-only)                          | open    |
+| _(4/V)_ V-platform-permissions | Per-platform action grants                            | spec    |
+| _(4/4)_ 4-dashboards           | Long-running web services                             | open    |
 
 ## Phase 4 — Arizuko (deferred)
 
