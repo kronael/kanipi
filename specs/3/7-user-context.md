@@ -22,6 +22,9 @@ Examples: `tg-123456.md`, `wa-5551234.md`, `dc-789.md`
 ---
 name: Alice
 first_seen: 2026-03-06
+summary: >
+  Backend developer working on validator-bonds. Prefers concise
+  answers with code refs.
 ---
 
 Backend developer. Works on validator-bonds.
@@ -33,7 +36,7 @@ Prefers concise answers with code refs.
 - 2026-03-08: debugging validator issue
 ```
 
-Frontmatter: identity fields. Body: stable knowledge + interaction log.
+Frontmatter: identity + summary fields. Body: stable knowledge + interaction log.
 
 - Profile section: role, expertise, preferences (<20 lines)
 - Recent section: high-level interactions, diary-like scope (~50 lines max)

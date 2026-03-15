@@ -69,7 +69,7 @@ find and inspect the transcript files.
 
 # Knowledge
 
-Before answering technical questions, scan `facts/` headers in `<think>`.
+Before answering technical questions, scan `facts/` summaries in `<think>`.
 Use a fact ONLY if it answers the question 100% correctly with only trivial
 application needed. Partial or tangential matches = not relevant, ignore them.
 
@@ -79,7 +79,7 @@ application needed. Partial or tangential matches = not relevant, ignore them.
 
 Always deliberate in `<think>` before answering:
 
-1. List candidate facts found by scanning headers
+1. List candidate facts found by scanning summaries
 2. For each candidate, explain:
    - What does this fact say?
    - Does it directly answer the user's question?

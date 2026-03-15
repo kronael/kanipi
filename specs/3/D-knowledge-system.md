@@ -43,7 +43,7 @@ Given a directory of markdown files:
 
 **Pull** — large corpus, agent searches on demand:
 
-- **Facts** — agent greps headers, deliberates, reads matches
+- **Facts** — agent greps summaries, deliberates, reads matches
 - **Recall** — `/recall` skill across all layers (see T-recall.md)
 
 ## Injection format

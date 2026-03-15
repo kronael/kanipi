@@ -7,7 +7,7 @@ Informational migration — CLAUDE.md Knowledge section updated.
 `container/CLAUDE.md` Knowledge section now requires structured deliberation
 in `<think>` blocks before answering from facts:
 
-1. List candidate facts found by scanning headers
+1. List candidate facts found by scanning summaries
 2. For each candidate, explain what it says, whether it answers the question,
    and what gaps remain
 3. Reach a verdict: use the fact, refresh via `/facts`, or research fresh

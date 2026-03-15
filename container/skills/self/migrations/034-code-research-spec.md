@@ -23,6 +23,6 @@ To manually apply the Knowledge section update:
 # Read the updated Knowledge section
 grep -A 10 "# Knowledge" ~/.claude/CLAUDE.md
 # If it says "search facts/ for relevant knowledge", update it to:
-# "scan facts/ headers in <think>. Use a fact ONLY if it answers
+# "scan facts/ summaries in <think>. Use a fact ONLY if it answers
 # the question 100% correctly..."
 ```

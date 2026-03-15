@@ -11,13 +11,13 @@ The evangelist plugin's real value stripped of ElizaOS scaffolding.
 YAML markdown knowledge files. Institutional memory.
 
 **Status:** Shipped. 85+ files live in `groups/main/facts/`.
-Schema: `path`, `category`, `topic`, `verified_at`, `header` (dense summary).
+Schema: `path`, `category`, `topic`, `verified_at`, `summary` (dense summary).
 
 ## 2. Facts retrieval + researcher + verifier
 
 `/facts` skill handles the full cycle:
 
-- Retrieval: Explore subagent scans `header:` fields to find relevant files
+- Retrieval: Explore subagent scans `summary:` fields to find relevant files
 - Research: subagent searches web + codebase, writes new/updated fact files
 - Verify: second subagent pass cross-checks and stamps `verified_at`
 - Age gate: facts older than 14 days are refreshed, not discarded

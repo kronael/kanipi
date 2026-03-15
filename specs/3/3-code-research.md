@@ -233,7 +233,7 @@ Source: `providers/knowledgeContext.ts`
 <knowledge_context query="{message text}">
   <tier name="High" count="2">
     <fact path="validator-bonds-overview" confidence="92%">
-      header: Validator Bonds Overview
+      summary: Validator Bonds Overview
       topic: validator-bonds
       verification: verified (high)
       summary: Bond accounts store validator identity...
@@ -530,7 +530,7 @@ Read SOUL.md on session start for your persona and voice.
 
 ## Knowledge-First Rule
 
-Before every answer, scan `facts/` headers in `<think>`:
+Before every answer, scan `facts/` summaries in `<think>`:
 
 A fact is relevant ONLY if it answers the question 100% correctly with
 only trivial application needed. No interpretation, no inference, no
@@ -544,7 +544,7 @@ Decision tree:
 
 Always deliberate in `<think>` before answering:
 
-1. List candidate facts found by scanning headers
+1. List candidate facts found by scanning summaries
 2. For each candidate, explain:
    - What does this fact say?
    - Does it directly answer the user's question?
@@ -700,7 +700,7 @@ Trigger: responds to all messages (requires_trigger=0)
 | Auth bridge (OAuth token mgmt)        | gateway runs outside container          | No      |
 | ALLOWED_TOOLS restriction             | SYSTEM.md convention (no write tools)   | No      |
 | Interim delivery via handleMessage    | `<status>` blocks + `send_reply` IPC    | No      |
-| knowledgeContextProvider (embeddings) | grep + header scanning (for now)        | No      |
+| knowledgeContextProvider (embeddings) | grep + summary scanning (for now)       | No      |
 | shouldRespondTemplate                 | gateway trigger_pattern routing         | No      |
 | messageHandlerTemplate                | Claude Code SDK native                  | No      |
 | character.json → system prompt        | SOUL.md + SYSTEM.md                     | No      |
@@ -724,7 +724,7 @@ From the original H-researcher spec:
   `/facts` skill. Not yet implemented.
 
 - **Semantic search**: Embedding-based fact retrieval would replace
-  grep + header scanning. Deferred — noted as future work. The strict
+  grep + summary scanning. Deferred — noted as future work. The strict
   relevance rule compensates by forcing research when grep matches
   are uncertain.
 

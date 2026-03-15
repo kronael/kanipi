@@ -16,6 +16,9 @@ arg: <user-id or action>
 ---
 name: Alice
 first_seen: 2026-03-06
+summary: >
+  Backend developer working on validator-bonds. Prefers concise
+  answers with code refs.
 ---
 
 Backend developer. Works on validator-bonds.
@@ -27,7 +30,7 @@ Prefers concise answers with code refs.
 - 2026-03-08: debugging validator issue
 ```
 
-- Frontmatter: identity fields (name, first_seen)
+- Frontmatter: identity + summary fields (name, first_seen, summary)
 - Profile: stable knowledge — role, expertise, preferences (<20 lines)
 - Recent: interaction log — meaningful interactions only (~50 lines max)
 
@@ -40,6 +43,9 @@ full file if you need more context (role, preferences, history).
 No `memory` attribute means no file exists yet.
 
 ## Writing
+
+**`summary:` frontmatter** — 1-2 sentence description of the user for recall
+indexing. Update when profile knowledge changes (role, expertise, preferences).
 
 **Profile section** — update when you learn something durable:
 

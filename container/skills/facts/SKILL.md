@@ -14,18 +14,18 @@ facts/ is your knowledge base. Use it for both retrieval and creation.
 ## Retrieval first
 
 Before researching anything, spawn an Explore subagent to scan `facts/`.
-Each file has a `header:` in its YAML frontmatter — a dense one-paragraph
-summary of the full file's content. The Explore agent reads headers across
+Each file has a `summary:` in its YAML frontmatter — a dense one-paragraph
+summary of the full file's content. The Explore agent reads summaries across
 all files and returns relevant ones without loading everything.
 
 A fact is fresh enough to trust if `verified_at` is within 14 days.
 If the matching fact is older than 14 days, treat it as a starting
 point — verify and update rather than discarding.
 
-If headers contain a good answer → answer directly, no research needed.
-If headers are relevant but stale → go to Step 1 with the existing files
+If summaries contain a good answer → answer directly, no research needed.
+If summaries are relevant but stale → go to Step 1 with the existing files
 as starting knowledge.
-If no headers match → go to Step 1 fresh.
+If no summaries match → go to Step 1 fresh.
 
 ## Step 1: Research (subagent)
 
@@ -41,7 +41,7 @@ Spawn a research subagent with the topic. It must:
   category: <top-level category>
   topic: <specific topic>
   verified_at: <ISO timestamp>
-  header: >
+  summary: >
     <one-paragraph summary — this is the retrieval key, make it dense>
   ---
   <full content with sources, code refs, explanations>
@@ -84,4 +84,4 @@ process — just answer naturally as if you always knew.
 - Batch verification: max 5 facts per verifier subagent
 - Research subagent tools: Read, Glob, Grep, WebSearch, WebFetch, Write
 - Verifier subagent tools: Read, Glob, Grep, WebSearch, WebFetch, Write, Bash
-- headers must be dense enough to answer simple questions without reading the full file
+- summaries must be dense enough to answer simple questions without reading the full file
