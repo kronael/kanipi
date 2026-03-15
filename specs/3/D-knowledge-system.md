@@ -1,5 +1,5 @@
 ---
-status: shipped
+status: partial
 ---
 
 # Knowledge System
@@ -83,45 +83,81 @@ Prompt the agent to write/update knowledge files:
 
 Nudge text comes from skill config, not hardcoded in gateway.
 
-## Push layer implementation (shipped)
+## Push layer implementation
 
-Each push layer has its own formatter in a single place:
+**Shipped**: diary (`formatDiaryXml()` in `diary.ts`) and user context
+(`userContextXml()` in `router.ts`). Both ~5 lines each. Injection
+point is `formatPrompt()` in `index.ts`.
 
-- `diary.ts` — `formatDiaryXml()`: reads `diary/*.md`, emits `<diary>` XML
-- `router.ts` — `userContextXml()`: reads `users/*.md` frontmatter, emits `<user>` tag
+**TODO**: Unified XML schemas. Each layer's format should be a typed
+structure (DTO/schema) with a shared formatter:
 
-Both are ~5 lines. The injection point is `formatPrompt()` in `index.ts`
-which concatenates system messages + push layer XML + message history.
+```ts
+// src/schemas/knowledge.ts — shared types
+interface KnowledgeEntry {
+  key: string;        // "20260306", "tg-123456", "2026-W09"
+  attrs: Record<string, string>;  // age, confidence, etc.
+  summary: string;
+}
 
-Episodes would follow the same pattern: `formatEpisodeXml()` reading
-`episodes/*.md`, emitting `<episode>` XML. One function, one call site.
+interface KnowledgeLayer {
+  tag: string;        // "diary", "user", "episode"
+  entries: KnowledgeEntry[];
+}
 
-No generic framework needed — each layer is a small formatter with its
-own tag name and selection logic. The shared part is just XML escaping.
+function formatLayerXml(layer: KnowledgeLayer): string { ... }
+```
 
-## Pull layer implementation (shipped)
+Each layer defines its own schema and selection logic, calls the
+shared formatter. Not a framework — just organized types and one
+XML helper. The formatters stay in their own files:
 
-Agent-driven semantic grep. No MCP tool, no embeddings, no vector DB.
+- `diary.ts` → `formatDiaryXml()` uses `KnowledgeLayer` with tag `"diary"`
+- `router.ts` → `userContextXml()` uses its own format (pointer, not entries)
+- `episode.ts` (future) → `formatEpisodeXml()` with tag `"episode"`
 
-The agent IS the search engine:
+Episodes would follow the same pattern once built.
 
-1. **Inline scan** — on every technical question, the agent greps `facts/`
-   `header:` fields in `<think>`, deliberates on each candidate (what does
-   it say, does it answer, what gaps remain), decides use/refresh/research.
-2. **Full retrieval** — `/facts` skill spawns an Explore subagent that reads
-   all headers across all files, returns relevant ones.
-3. **Write process** — researcher subagent creates new facts, verifier
-   cross-checks before committing. See `specs/3/3-code-research.md`.
+## Pull layer: search
 
-Scales to ~200 facts. At 500+ the header scan gets expensive — embeddings
-would help but aren't needed yet.
+**Shipped** (as CLAUDE.md behavior): agent-driven semantic grep. The agent
+greps `facts/` `header:` fields, deliberates in `<think>`, reads matches.
+The LLM's language understanding is the semantic matching.
+
+**TODO**: Separate `/search` skill (always present) from `/facts` skill:
+
+- **`/search`** — always available. Scans headers across `facts/` and
+  `diary/`, returns relevant entries. No subagents, no research — just
+  retrieval. For "what do we know about X?" and "what did we do last
+  week about Y?" questions.
+- **`/facts`** — research only. Spawns subagents to create/refresh facts
+  when `/search` finds nothing relevant. Includes verification.
+
+Currently both search and research are bundled in `/facts`. The inline
+`<think>` scan (CLAUDE.md) handles quick lookups, but there's no skill
+for deeper search across both facts and diary without triggering research.
+
+Diary search is valuable — "what happened with X last month" should scan
+diary entries the same way facts scan works (grep summaries, read matches).
+
+Scales to ~200 facts + 30 diary entries. At 500+ the header scan gets
+expensive — embeddings or cached index would help but aren't needed yet.
+
+## What's left to build
+
+1. **Unified schemas** — typed DTOs for each layer's XML format,
+   shared `formatLayerXml()` helper
+2. **`/search` skill** — always-present retrieval across facts + diary
+3. **Separate search from `/facts`** — `/facts` becomes research-only
+4. **Episodes** — scheduled aggregation, formatter, injection
+5. **Episode aggregation prompt** — what to keep at each compression
+   level (day→week→month)
 
 ## Open questions
 
-- Performance at scale: 500+ fact files means scanning all headers
-  per question. Embeddings or cached index would help. Not needed yet.
-- Episode aggregation prompt: what should the agent keep at each
-  compression level (day→week→month)?
+- Should `/search` also scan `users/` and `MEMORY.md`?
+- Episode format: same `<entry>` structure as diary, or its own?
+- Performance at 500+ facts: cached index vs embeddings vs status quo
 
 ## Relationship to existing specs
 
