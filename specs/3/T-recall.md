@@ -169,9 +169,7 @@ matches "login process"). Together with LLM expansion (step 1) and
 LLM judgment (step 3), the middle step covers all retrieval angles.
 
 **sqlite-vec**: alpha (`0.1.7-alpha.2`) but functional. Works with
-better-sqlite3 via `sqliteVec.load(db)`. JS cosine fallback if the
-extension fails to load (store embeddings as JSON, compute in JS —
-viable at <1000 entries).
+better-sqlite3 via `sqliteVec.load(db)`.
 
 **Embeddings**: Ollama `nomic-embed-text`, 768-dim, ~100ms/embed.
 
@@ -239,9 +237,6 @@ No args = sync + newest. Query = search. `-N` controls result count
 
 FTS5 query: tokenize → quote → join with OR.
 Score normalization: `1 / (1 + abs(rank))`.
-
-JS cosine fallback: if sqlite-vec fails to load, store embeddings
-as JSON, compute cosine in JS (~3MB + <10ms at <1000 entries).
 
 ### DB
 
