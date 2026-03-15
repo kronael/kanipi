@@ -164,21 +164,12 @@ Internally: BM25 (FTS5) + vector (sqlite-vec) + RRF fusion.
 The agent doesn't need to know how it works — it just calls
 the tool and gets results back.
 
-```json
-[
-  {
-    "path": "facts/telegram-bot-api.md",
-    "store": "facts",
-    "summary": "Telegram Bot API uses...",
-    "score": 0.82
-  },
-  {
-    "path": "diary/20260310.md",
-    "store": "diary",
-    "summary": "- Auth token rotation...",
-    "score": 0.64
-  }
-]
+```
+0.82  facts  facts/telegram-bot-api.md
+  Telegram Bot API uses long-polling or webhooks for message delivery...
+
+0.64  diary  diary/20260310.md
+  - Auth token rotation after security incident
 ```
 
 ### Search internals
