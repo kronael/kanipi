@@ -1,5 +1,5 @@
 ---
-status: partial
+status: shipped
 ---
 
 # Knowledge System
@@ -47,13 +47,14 @@ Given a directory of markdown files:
 **Pull layers** — large corpus, agent searches on demand:
 
 - **Facts** (`facts/*.md`) — topic-keyed, too many to inject all.
-  Agent uses search tool (RAG/grep) to find relevant files.
+  Agent scans `header:` frontmatter via grep, deliberates on relevance
+  in `<think>`, reads matching files. The LLM's language understanding
+  is the semantic matching — no embeddings needed.
   Researcher subagent writes; verifier reviews before merge.
 
-Push and pull are fundamentally different. Push layers need gateway
-code (read files, format XML, inject into prompt). Pull layers need
-a search tool (MCP server or skill) and a write process (researcher).
-Don't try to unify them into one mechanism.
+Push and pull are different. Push layers need gateway code (read files,
+format XML, inject). Pull layers are agent-driven — the agent searches
+and reads files directly using its native tools.
 
 Messages, sessions, and MEMORY.md have their own implementations
 and aren't forced into this pattern (see layer table above).
@@ -82,43 +83,45 @@ Prompt the agent to write/update knowledge files:
 
 Nudge text comes from skill config, not hardcoded in gateway.
 
-## Push layer implementation (first to build)
+## Push layer implementation (shipped)
 
-The gateway needs a minimal knowledge injector:
+Each push layer has its own formatter in a single place:
 
-1. Read configured directories of `.md` files
-2. Parse YAML frontmatter or first N lines as summary
-3. Select entries (by recency, by key match)
-4. Format as XML block, prepend to agent prompt
+- `diary.ts` — `formatDiaryXml()`: reads `diary/*.md`, emits `<diary>` XML
+- `router.ts` — `userContextXml()`: reads `users/*.md` frontmatter, emits `<user>` tag
 
-This is ~100 lines of code. Start with diary injection (already
-has agent-side skills), then user context.
+Both are ~5 lines. The injection point is `formatPrompt()` in `index.ts`
+which concatenates system messages + push layer XML + message history.
 
-## Pull layer implementation
+Episodes would follow the same pattern: `formatEpisodeXml()` reading
+`episodes/*.md`, emitting `<episode>` XML. One function, one call site.
 
-Facts are too numerous to inject. The agent needs:
+No generic framework needed — each layer is a small formatter with its
+own tag name and selection logic. The shared part is just XML escaping.
 
-1. A search tool — MCP server with `search_knowledge(query)`
-   backed by embeddings (Ollama at 10.0.5.1:11434) or grep
-2. A write process — researcher subagent triggered by knowledge
-   gaps or explicit request
-3. A quality gate — verifier reviews researcher output before
-   facts are committed
+## Pull layer implementation (shipped)
 
-See `specs/3/3-code-research.md` for the write process.
+Agent-driven semantic grep. No MCP tool, no embeddings, no vector DB.
+
+The agent IS the search engine:
+
+1. **Inline scan** — on every technical question, the agent greps `facts/`
+   `header:` fields in `<think>`, deliberates on each candidate (what does
+   it say, does it answer, what gaps remain), decides use/refresh/research.
+2. **Full retrieval** — `/facts` skill spawns an Explore subagent that reads
+   all headers across all files, returns relevant ones.
+3. **Write process** — researcher subagent creates new facts, verifier
+   cross-checks before committing. See `specs/3/3-code-research.md`.
+
+Scales to ~200 facts. At 500+ the header scan gets expensive — embeddings
+would help but aren't needed yet.
 
 ## Open questions
 
-- Should push layers be declarative (config) or imperative (code
-  per layer)? Start with code — abstract only if a third layer
-  looks identical to the first two.
-- Performance: scanning 500 fact files for search index?
-  Cache index in memory, refresh on file change.
-- Researcher quality: auto-commit facts or require review?
-  Unreviewed auto-injection is a misinformation pipeline.
-- Can the agent self-inject by reading files instead of gateway
-  injection? (Agent can always read — injection is optimization
-  for consistent context.)
+- Performance at scale: 500+ fact files means scanning all headers
+  per question. Embeddings or cached index would help. Not needed yet.
+- Episode aggregation prompt: what should the agent keep at each
+  compression level (day→week→month)?
 
 ## Relationship to existing specs
 
