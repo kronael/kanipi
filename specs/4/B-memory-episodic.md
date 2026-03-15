@@ -86,9 +86,8 @@ VALUES ('<folder>', '<jid>',
 The agent mounts the same group folder (reads diary/, writes
 episodes/) but doesn't see the group's chat or persona.
 
-Same mechanism works for diary too — a scheduled prompt can
-trigger diary summarization if the agent didn't write one during
-the session.
+Diary is different — always agent-written during sessions, never
+scheduled. Episodes are the only scheduled memory layer.
 
 ### What the agent does
 
