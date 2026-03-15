@@ -106,10 +106,10 @@ describe('diary', () => {
       const xml = formatDiaryXml([
         { date: '2026-03-08', summary: 'shipped v1.0.15' },
       ]);
-      expect(xml).toContain('<knowledge layer="diary" count="1">');
+      expect(xml).toContain('<diary count="1">');
       expect(xml).toContain('key="20260308"');
       expect(xml).toContain('shipped v1.0.15');
-      expect(xml).toContain('</knowledge>');
+      expect(xml).toContain('</diary>');
     });
 
     it('includes age label', () => {

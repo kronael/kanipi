@@ -101,5 +101,5 @@ export function formatDiaryXml(entries: DiaryEntry[]): string {
     (e) =>
       `  <entry key="${e.date.replace(/-/g, '')}" age="${ageLabel(e.date, now)}">${e.summary}</entry>`,
   );
-  return `<knowledge layer="diary" count="${entries.length}">\n${lines.join('\n')}\n</knowledge>`;
+  return `<diary count="${entries.length}">\n${lines.join('\n')}\n</diary>`;
 }

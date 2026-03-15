@@ -57,10 +57,10 @@ Same nudge text as PreCompact. Guard prevents loops.
 On new session, inject diary summaries as XML:
 
 ```xml
-<knowledge layer="diary" count="14">
+<diary count="14">
   <entry key="20260308" age="today">summary</entry>
   ...
-</knowledge>
+</diary>
 ```
 
 Injects 14 entries (two weeks) until progressive summarization

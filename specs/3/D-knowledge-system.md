@@ -63,14 +63,12 @@ and aren't forced into this pattern (see layer table above).
 Push layers format selected summaries as XML, inserted into prompt:
 
 ```xml
-<knowledge layer="diary" count="2">
+<diary count="2">
   <entry key="20260306" age="today">summary text</entry>
   <entry key="20260305" age="yesterday">summary text</entry>
-</knowledge>
+</diary>
 
-<knowledge layer="user" count="1">
-  <entry key="alice">Backend dev, works on validator-bonds</entry>
-</knowledge>
+<user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />
 ```
 
 ## Nudges
