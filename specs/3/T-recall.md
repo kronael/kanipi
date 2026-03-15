@@ -5,117 +5,137 @@ status: open
 # `/recall` — Knowledge Retrieval
 
 Generic search across knowledge stores. Read-only — never writes.
-Each store registers independently; recall searches them all the
-same way.
+All stores use `summary:` frontmatter, so recall treats them
+identically. A store is just a directory name.
 
-## Design
-
-`/recall` is a search tool. It doesn't know what facts or diary
-entries are — it knows how to search directories of markdown files
-with YAML frontmatter summaries.
-
-Each **store** registers:
+## Stores
 
 ```ts
-interface KnowledgeStore {
-  name: string; // 'facts', 'diary', 'episodes'
-  dir: string; // relative path: 'facts/', 'diary/'
-  field: string; // frontmatter field to index: 'header', 'summary'
-}
+const STORES = ['facts', 'diary', 'users', 'episodes'];
 ```
 
-Recall scans all registered stores identically: read the frontmatter
-`field` from each `*.md` in `dir`, match against the query, return
-results. A store is just a directory + a field name.
+Each store is a directory of `*.md` files with `summary:` in YAML
+frontmatter. Adding a store = one string. No recall code changes.
 
-Adding a new store (e.g. `episodes/` with `summary:`) means adding
-one entry to the registry. No recall code changes.
-
-## Separation from `/facts`
-
-`/facts` spawns researcher + verifier subagents — expensive.
-`/recall` just searches what already exists.
+## Flow
 
 ```
-question → /recall → matches? → answer from matched files
-                   → no match → /facts (research + create) → answer
+question → /recall → matches? → agent reads files → answer
+                   → no match → /facts (research) → answer
 ```
 
-## v1: LLM semantic grep
+`/recall` = retrieval (cheap). `/facts` = research + creation (expensive).
 
-The agent spawns an **Explore subagent** that acts as semantic grep.
-It reads frontmatter from all registered stores and judges relevance
-using language understanding. No embeddings, no vector DB.
+## v1: LLM semantic grep (ships now)
 
-### How it works
+Agent spawns an Explore subagent that greps `summary:` across all
+store dirs and judges relevance. The LLM is the search engine.
 
-1. For each registered store, grep `*.md` files for the store's
-   frontmatter `field`
-2. Read each value, judge: does this relate to the query?
-3. Return matches: file path + why it's relevant + store name
+### Skill
 
 ```
-/recall "how does telegram auth work?"
-  → scan facts/*.md header: fields
-  → scan diary/*.md summary: fields
-  → scan episodes/*.md summary: fields
-  → judge each candidate
-  → return: [
-      {path: "facts/telegram-bot-api.md", store: "facts", why: "covers bot token auth"},
-      {path: "diary/20260310.md", store: "diary", why: "mentions auth rotation"}
-    ]
+container/skills/recall/SKILL.md
 ```
 
-### After results
+```markdown
+---
+name: recall
+description: Search knowledge stores for relevant information.
+user_invocable: true
+arg: <question>
+---
 
-Agent deliberates in `<think>` (mandatory 3-step):
+# Recall
+
+Search `facts/`, `diary/`, `users/`, `episodes/` for information
+relevant to a question. Read-only — never writes files.
+
+## Protocol
+
+Spawn an Explore subagent with the query. The subagent:
+
+1. Grep `summary:` in `*.md` across facts/, diary/, users/, episodes/
+2. Read each summary value
+3. Judge: does this summary relate to the query?
+4. Return matches: file path, store name, why it matches
+
+Example subagent prompt:
+
+Search for markdown files whose `summary:` frontmatter relates to:
+"<question>"
+
+Directories: facts/, diary/, users/, episodes/
+
+For each .md file, read the YAML `summary:` field. Return only
+files where the summary clearly relates to the query. Report:
+file path, directory, and why it matches.
+
+## After results
+
+Deliberate in `<think>` (mandatory):
 
 1. List matched files
-2. For each: what does it say, does it answer, what gap remains
+2. For each: what does it say? Does it answer? What gap?
 3. Verdict: use it, refresh via `/facts`, or research fresh
+
+## When to use
+
+- Technical question → /recall (searches facts/)
+- Question about a person → /recall (searches users/)
+- Question about recent work → /recall (searches diary/)
+- Trivial message → skip
+```
+
+### How the Explore subagent works
+
+```
+1. Grep "^summary:" across facts/*.md diary/*.md users/*.md episodes/*.md
+2. For each hit, Read first 10 lines (frontmatter)
+3. Extract summary value
+4. Judge relevance (LLM reads natural language, decides)
+5. Return [{path, store, summary, why}, ...]
+```
 
 ### Scale
 
-Works up to ~200 files across all stores. At 500+ the header scan
-gets expensive and v2 takes over.
+Up to ~300 files total: fast, one Explore call.
+500+: too many summaries to read, switch to v2.
 
-## v2: Hybrid BM25 + vector search
+## v2: Hybrid search (when scale demands it)
 
-Replaces LLM header scan with a search index. Same store interface —
-just faster retrieval. Informed by OpenClaw (`refs/openclaw/`).
+Drop-in replacement for the Explore step. Same interface out
+(path, store, summary, score). Only the retrieval changes.
 
-### Search
-
-Two paths, fused:
+### Architecture
 
 ```
-query → BM25 (FTS5) → ranked results ─┐
-                                        ├─ RRF fusion → top-k
-query → embed → cosine (sqlite-vec) ──┘
+query → BM25 (FTS5) → ranked ─┐
+                                ├─ RRF → top-6
+query → embed (Ollama) → vec ──┘
 ```
 
-**BM25** — SQLite FTS5 on frontmatter text. Exact keyword matching.
-**Vector** — Ollama embeddings in sqlite-vec. Semantic similarity.
-**RRF** — Reciprocal Rank Fusion. Vector 0.7, BM25 0.3.
+BM25 via SQLite FTS5 — keyword matching.
+Vector via sqlite-vec — semantic similarity.
+RRF fusion — vector 0.7, BM25 0.3.
 
 ### Embeddings
 
-Ollama `nomic-embed-text` at 10.0.5.1:11434. Local, no API cost,
-768-dim vectors, ~100ms per embed.
+Ollama `nomic-embed-text` at 10.0.5.1:11434.
+768-dim, ~100ms/embed, local, no API cost.
 
-### Storage
+### DB
 
-One SQLite DB per group: `knowledge.db` in the group folder.
+One `knowledge.db` per group folder:
 
 ```sql
 CREATE TABLE knowledge (
   id INTEGER PRIMARY KEY,
-  store TEXT NOT NULL,   -- 'facts', 'diary', 'episodes'
-  key TEXT NOT NULL,     -- filename without extension
-  path TEXT NOT NULL,    -- relative: 'facts/telegram-bot-api.md'
-  summary TEXT,          -- extracted frontmatter field value
-  embedding BLOB,        -- 768-dim float vector
-  mtime INTEGER,         -- file mtime at index time
+  store TEXT NOT NULL,
+  key TEXT NOT NULL,
+  path TEXT NOT NULL,
+  summary TEXT,
+  embedding BLOB,
+  mtime INTEGER,
   UNIQUE(store, key)
 );
 
@@ -130,65 +150,48 @@ CREATE VIRTUAL TABLE knowledge_vec USING vec0(
 );
 ```
 
-### Indexing: lazy sync
+### Lazy indexing
 
-Decoupled from the write path. On each `/recall` query:
+On each query, before searching:
 
-1. For each registered store, scan `dir/*.md`
-2. Compare path + mtime against `knowledge` table
-3. New/changed → extract frontmatter, embed, upsert
-4. Deleted → remove stale rows
-5. Search the now-current index
+1. Scan each store dir for `*.md`
+2. Compare path + mtime against DB
+3. New/changed → parse `summary:`, embed, upsert
+4. Deleted → prune stale rows
 
-First query after writes pays ~100ms/file. Subsequent queries hit
-warm index. No file watchers, no gateway hooks.
+No file watchers. No gateway hooks. ~100ms/file for new entries.
+Warm index = zero sync cost.
 
-### Query flow
+### Query
 
-1. Sync index
-2. Embed query via Ollama
-3. BM25: `SELECT ... FROM knowledge_fts WHERE knowledge_fts MATCH ?`
-4. Vector: `SELECT ... FROM knowledge_vec WHERE embedding MATCH ?`
-5. RRF fusion, return top-6: path, summary, score, store
-6. Agent reads matched files, deliberates in `<think>`
+1. Sync index (above)
+2. Embed query text
+3. FTS5 match → top 20
+4. Vec cosine → top 20
+5. RRF: `score = Σ 1/(60 + rank)`, weighted
+6. Return top-6: path, summary, score, store
 
-### Optional (from OpenClaw, add if needed)
+### Optional (add if needed)
 
-- MMR re-ranking (lambda=0.7) — diversity in results
-- Temporal decay (halfLife=30 days) — boost recent
-- Min score threshold (0.35) — filter noise
+- MMR (lambda=0.7) — deduplicate similar results
+- Temporal decay (halfLife=30d) — boost recent
+- Min score (0.35) — filter noise
 
-## Registered stores
+## What ships (v1)
 
-| Store    | Dir         | Field     | Status  |
-| -------- | ----------- | --------- | ------- |
-| facts    | `facts/`    | `header`  | shipped |
-| diary    | `diary/`    | `summary` | shipped |
-| users    | `users/`    | `summary` | shipped |
-| episodes | `episodes/` | `summary` | open    |
+1. Create `container/skills/recall/SKILL.md` (content above)
+2. Update `container/CLAUDE.md` Knowledge section to use `/recall`
+3. Test: few facts + diary files, run `/recall`, verify results
 
-New stores register by adding a row. Recall code doesn't change.
+No gateway changes. No new TypeScript. The skill teaches the agent
+the protocol, the agent uses native tools to execute it.
 
-Recall is available, not mandatory. The agent decides when to search
-based on the question. Trivial messages don't trigger recall.
+## v1 → v2 migration
 
-## Where it runs
+When corpus passes ~300 files:
 
-v1: in-container. Explore subagent uses Grep/Read.
-v2: in-container. SQLite DB in group folder. Move to gateway-side
-only if multiple containers need the same index.
-
-## Skill
-
-```yaml
-# container/skills/recall/SKILL.md
-name: recall
-description: Search existing knowledge across all stores.
-always_loaded: true
-```
-
-## Open questions
-
-- Should `MEMORY.md` be a registered store?
-- Embedding model: `nomic-embed-text` (768d) vs `mxbai-embed-large` (1024d)
-- v2 trigger: exact file count where v1 becomes too expensive
+1. Add `knowledge.db` schema
+2. Add indexer (scan, parse, embed, upsert)
+3. Add query (FTS5 + vec + RRF)
+4. Replace Explore call with DB query
+5. Agent interface unchanged — still gets path + summary + why
