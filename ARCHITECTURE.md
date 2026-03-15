@@ -315,7 +315,7 @@ Config: `.recallrc` (TOML) in group folder, stores defined as
 entries into progressive summaries, scheduled via cron:
 
 ```
-sessions/*.jl  → episodes/YYYYMMDD.md   (day)     0 2 * * *
+.claude/projects/-home-node/*.jl → episodes/YYYYMMDD.md (day) 0 2 * * *
 daily episodes → episodes/YYYY-Wnn.md   (week)    0 3 * * 1
 weekly episodes → episodes/YYYY-MM.md   (month)   0 4 1 * *
 diary daily    → diary/week/YYYY-Wnn.md            0 3 * * 1

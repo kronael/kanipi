@@ -18,8 +18,8 @@ injected into agent context.
 | Diary    | 1/L-memory-diary    | shipped | Files     |
 | User ctx | 3/7-user-context    | shipped | Files     |
 | Facts    | 3/1-atlas           | shipped | Files     |
-| Recall   | 3/T-recall          | open    | Files+DB  |
-| Compact  | 4/B-memory-episodic | open    | Files     |
+| Recall   | 3/T-recall          | shipped | Files+DB  |
+| Compact  | 4/B-memory-episodic | shipped | Files     |
 
 Messages, sessions, and MEMORY.md have their own implementations
 and aren't instances of this pattern.

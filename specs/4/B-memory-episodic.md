@@ -1,5 +1,5 @@
 ---
-status: open
+status: shipped
 ---
 
 # Memory: Progressive Compression

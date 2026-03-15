@@ -185,11 +185,11 @@ Channel (tg/discord/wa/email/web)
           <tr><th>Mount</th><th>Path</th><th>Access</th></tr>
           <tr><td><code>home</code></td><td><code>/home/node</code></td><td>group workdir + .claude/ state (rw, ro setup files tier 2+, full ro tier 3)</td></tr>
           <tr><td><code>groups</code></td><td><code>~/groups</code></td><td>all groups (root tier 0 only, for skill sync)</td></tr>
-          <tr><td><code>share</code></td><td><code>~/share</code></td><td>world-level shared state (rw root/world, ro rest)</td></tr>
-          <tr><td><code>web</code></td><td><code>~/web</code></td><td>vite-served output (rw root/world, ro rest)</td></tr>
-          <tr><td><code>ipc</code></td><td><code>~/ipc</code></td><td>IPC requests/responses (rw all tiers)</td></tr>
-          <tr><td><code>self</code></td><td><code>~/self</code></td><td>kanipi source (ro, root tier 0 only)</td></tr>
-          <tr><td><code>agent-runner</code></td><td><code>~/agent-runner</code></td><td>agent-runner TS source (ro, hot-patch via bunx tsc)</td></tr>
+          <tr><td><code>share</code></td><td><code>/workspace/share</code></td><td>world-level shared state (rw root/world, ro rest)</td></tr>
+          <tr><td><code>web</code></td><td><code>/workspace/web</code></td><td>vite-served output (rw root/world, ro rest)</td></tr>
+          <tr><td><code>ipc</code></td><td><code>/workspace/ipc</code></td><td>IPC requests/responses (rw all tiers)</td></tr>
+          <tr><td><code>self</code></td><td><code>/workspace/self</code></td><td>kanipi source (ro, root tier 0 only)</td></tr>
+          <tr><td><code>agent-runner</code></td><td><code>/workspace/agent-runner</code></td><td>agent-runner TS source (ro, hot-patch via bunx tsc)</td></tr>
           <tr><td><code>extra</code></td><td><code>~/{name}</code></td><td>allowlisted additional mounts (ro, configured per instance)</td></tr>
         </table>
       </div>
@@ -324,7 +324,7 @@ Channel (tg/discord/wa/email/web)
         weekly into monthly. The <code>/compact-memories</code> skill runs on cron in isolated containers:
       </p>
 <pre style="font-size: 0.8em; padding: 0.8em; background: var(--surface, #1a1a2e); border-radius: 6px; color: var(--text, #e0e0e0); overflow-x: auto;">
-sessions/*.jl  &rarr;  episodes/20260310.md  (day)   &mdash; 0 2 * * *
+.claude/projects/-home-node/*.jl &rarr; episodes/20260310.md (day) &mdash; 0 2 * * *
 daily episodes &rarr;  episodes/2026-W11.md  (week)  &mdash; 0 3 * * 1
 weekly episodes &rarr; episodes/2026-03.md   (month) &mdash; 0 4 1 * *
 diary daily    &rarr;  diary/week/2026-W11.md        &mdash; 0 3 * * 1

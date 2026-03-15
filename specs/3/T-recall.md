@@ -1,5 +1,5 @@
 ---
-status: open
+status: shipped
 ---
 
 # `/recall` — Knowledge Retrieval
@@ -82,7 +82,7 @@ Deliberate in `<think>` (mandatory):
 
 - Technical question → /recall (searches facts/)
 - Question about a person → /recall (searches users/)
-- Question about recent work → /recall (searches diary/)
+- Question about recent work → /recall (searches diary/, episodes/)
 - Trivial message → skip
 ```
 
@@ -206,7 +206,7 @@ relative to the group folder. Add stores with `[[store]]` entries.
 
 ### The search tool
 
-A CLI tool in the agent container. `container/agent-runner/recall.ts`.
+A CLI tool in the agent container. `container/agent-runner/src/recall.ts`.
 Reads `.recallrc` from cwd. Uses better-sqlite3 (already in gateway,
 add to container image).
 
