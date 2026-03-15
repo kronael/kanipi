@@ -150,7 +150,7 @@ is what v1 does with Grep, but the search tool handles scale.
 `.recallrc` in the group folder (TOML):
 
 ```toml
-db = ".local/knowledge.db"
+db_dir = ".local"
 embed_url = "http://10.0.5.1:11434/api/embeddings"
 embed_model = "nomic-embed-text"
 
@@ -210,30 +210,40 @@ Ollama `nomic-embed-text` at 10.0.5.1:11434.
 
 ### DB
 
-One `.local/knowledge.db` per group folder (derived data, gitignored):
+One DB per store in `.local/` (derived data, gitignored):
+
+```
+.local/facts.db
+.local/diary.db
+.local/users.db
+.local/episodes.db
+```
+
+Each DB has the same schema:
 
 ```sql
-CREATE TABLE knowledge (
+CREATE TABLE entries (
   id INTEGER PRIMARY KEY,
-  store TEXT NOT NULL,
-  key TEXT NOT NULL,
-  path TEXT NOT NULL,
+  key TEXT NOT NULL UNIQUE,  -- filename without .md
+  path TEXT NOT NULL,         -- relative: 'facts/telegram-bot-api.md'
   summary TEXT,
   embedding BLOB,
-  mtime INTEGER,
-  UNIQUE(store, key)
+  mtime INTEGER
 );
 
-CREATE VIRTUAL TABLE knowledge_fts USING fts5(
-  store, key, summary,
-  content='knowledge', content_rowid='id'
+CREATE VIRTUAL TABLE entries_fts USING fts5(
+  key, summary,
+  content='entries', content_rowid='id'
 );
 
-CREATE VIRTUAL TABLE knowledge_vec USING vec0(
+CREATE VIRTUAL TABLE entries_vec USING vec0(
   id INTEGER PRIMARY KEY,
   embedding float[768]
 );
 ```
+
+Separate DBs keep stores independent — can rebuild one without
+touching others. Also simpler queries (no `store` column needed).
 
 ### Lazy indexing
 
