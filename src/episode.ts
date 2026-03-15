@@ -5,6 +5,7 @@ import { parse as parseYaml } from 'yaml';
 
 import { GROUPS_DIR } from './config.js';
 import { logger } from './logger.js';
+import { escapeXml } from './router.js';
 
 interface EpisodeEntry {
   key: string;
@@ -85,19 +86,11 @@ export function readEpisodeEntries(groupFolder: string): EpisodeEntry[] {
   return entries;
 }
 
-function escXml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 export function formatEpisodeXml(entries: EpisodeEntry[]): string {
   if (entries.length === 0) return '';
   const lines = entries.map(
     (e) =>
-      `  <entry key="${escXml(e.key)}" type="${escXml(e.type)}">${escXml(e.summary)}</entry>`,
+      `  <entry key="${escapeXml(e.key)}" type="${escapeXml(e.type)}">${escapeXml(e.summary)}</entry>`,
   );
   return `<episodes count="${entries.length}">\n${lines.join('\n')}\n</episodes>`;
 }
