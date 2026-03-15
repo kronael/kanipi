@@ -16,6 +16,13 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
   summary scanning in CLAUDE.md Knowledge section.
 - **Facts verifier audit trail**: verifier writes pass/fail YAML records to
   `verifier/` directory, preserving rejected fact history.
+- **Recall v2 CLI**: `recall` CLI tool with FTS5 + sqlite-vec hybrid search.
+  Per-store SQLite DBs, lazy mtime-based indexing, Ollama embeddings,
+  RRF fusion (0.7 vector, 0.3 BM25). Config via `.recallrc` (TOML).
+- **Episode injection**: gateway injects most recent day/week/month episode
+  summaries into agent prompt on session start (`<episodes>` XML block).
+- **`/compact-memories` skill**: progressive compression of session transcripts
+  into daily/weekly/monthly episodes, plus diary week/month summaries.
 
 ### Docs
 

@@ -89,6 +89,7 @@ import {
   readDiaryEntries,
   writeRecoveryEntry,
 } from './diary.js';
+import { readEpisodeEntries, formatEpisodeXml } from './episode.js';
 import chatidCommand from './commands/chatid.js';
 import { putCommand, getCommand, lsCommand } from './commands/file.js';
 import newCommand, { pendingCommandArgs } from './commands/new.js';
@@ -741,6 +742,8 @@ async function runAgent(
   if (!sessionId) {
     const diary = formatDiaryXml(readDiaryEntries(group.folder));
     if (diary) annotations.push(diary);
+    const episodes = formatEpisodeXml(readEpisodeEntries(group.folder));
+    if (episodes) annotations.push(episodes);
   }
 
   queue.preemptFolderIfNeeded(group.folder, chatJid);

@@ -1,0 +1,19 @@
+db_dir = ".local/recall"
+embed_url = "http://10.0.5.1:11434/api/embed"
+embed_model = "nomic-embed-text"
+
+[[store]]
+name = "facts"
+dir = "facts"
+
+[[store]]
+name = "diary"
+dir = "diary"
+
+[[store]]
+name = "users"
+dir = "users"
+
+[[store]]
+name = "episodes"
+dir = "episodes"

@@ -12,23 +12,24 @@ relevant to a question. Read-only — never writes files.
 
 ## Protocol
 
-Spawn an Explore subagent with the query. The subagent:
+Check if `recall` CLI is available (`which recall 2>/dev/null`).
 
-1. Grep `summary:` in `*.md` across facts/, diary/, users/, episodes/
-2. Read each summary value
-3. Judge: does this summary relate to the query?
-4. Return matches: file path, store name, why it matches
+### With CLI (v2)
 
-Example subagent prompt:
+1. In `<think>`, expand the question into ~10 search terms
+2. Run `recall "term"` for each term via Bash
+3. Collect all results (deduplicate by path)
+4. Spawn an Explore subagent with the collected results + question
+5. Explore judges which are relevant and why
 
-Search for markdown files whose `summary:` frontmatter relates to:
-"<question>"
+### Without CLI (v1 fallback)
 
-Directories: facts/, diary/, users/, episodes/
+Spawn an Explore subagent that:
 
-For each .md file, read the YAML `summary:` field. Return only
-files where the summary clearly relates to the query. Report:
-file path, directory, and why it matches.
+1. Greps `summary:` in `*.md` across facts/, diary/, users/, episodes/
+2. Reads each summary value
+3. Judges: does this summary relate to the query?
+4. Returns matches: file path, store name, why it matches
 
 ## After results
 
@@ -42,5 +43,5 @@ Deliberate in `<think>` (mandatory):
 
 - Technical question → /recall (searches facts/)
 - Question about a person → /recall (searches users/)
-- Question about recent work → /recall (searches diary/)
+- Question about recent work → /recall (searches diary/, episodes/)
 - Trivial message → skip
