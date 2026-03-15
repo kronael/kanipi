@@ -151,13 +151,13 @@ A small CLI script the agent calls via Bash. Takes a query string,
 returns JSON results from the index.
 
 ```
-container/agent-runner/search-knowledge.ts
+container/agent-runner/recall.ts
 ```
 
 ```
-search-knowledge "telegram auth"    → JSON results
-search-knowledge --sync             → rebuild index only
-search-knowledge --stats            → index stats
+recall "telegram auth"    → JSON results
+recall --sync             → rebuild index only
+recall --stats            → index stats
 ```
 
 Internally: BM25 (FTS5) + vector (sqlite-vec) + RRF fusion.
@@ -212,7 +212,7 @@ CREATE VIRTUAL TABLE knowledge_vec USING vec0(
 
 ### Lazy indexing
 
-On each `search-knowledge` call:
+On each `recall` call:
 
 1. Scan each store dir for `*.md`
 2. Compare path + mtime against DB
@@ -251,13 +251,13 @@ tool instead of raw grep. The LLM still makes all the decisions.
 
 ### v2 (when corpus > ~300 files)
 
-1. Add `container/agent-runner/search-knowledge.ts`
+1. Add `container/agent-runner/recall.ts`
 2. Add `better-sqlite3`, `sqlite-vec` to container image
-3. Update skill: agent calls `search-knowledge` instead of Grep
+3. Update skill: agent calls `recall` instead of Grep
 4. Agent interface unchanged — still returns path + summary + why
 
 ## v1 → v2 migration
 
-The skill tells the agent to use `search-knowledge` instead of
+The skill tells the agent to use `recall` instead of
 grepping raw files. The agent's behavior is the same — think about
 what to search, search, judge, iterate. Just faster retrieval.
