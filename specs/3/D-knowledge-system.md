@@ -107,7 +107,7 @@ Facts are too numerous to inject. The agent needs:
 3. A quality gate — verifier reviews researcher output before
    facts are committed
 
-See `specs/4/H-researcher.md` for the write process.
+See `specs/3/3-code-research.md` for the write process.
 
 ## Open questions
 
@@ -130,7 +130,7 @@ These specs describe specific layers built on this pattern:
   injection shipped)
 - `specs/4/B-memory-episodic.md` — episodes layer (designed, not built)
 - `specs/3/7-user-context.md` — user layer (designed, not built)
-- `specs/4/H-researcher.md` — writes to facts layer (designed, not built)
+- `specs/3/3-code-research.md` — facts layer (shipped, see research + verify)
 
 These specs describe different systems, NOT instances of this pattern:
 
