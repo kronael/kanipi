@@ -1,112 +1,222 @@
 ---
-status: planned
+status: open
 ---
 
-# Memory: Episodes — open (v2)
+# Memory: Episodes
 
 Mechanically produced summaries of past sessions. Automatic, always on.
-Feeds long-term/facts memory. Not planned for v1.
-
-The agent is passive — a scheduled process takes raw transcripts or diary
-entries and produces episode summaries without agent involvement. Contrast
-with diary (v1) which is agent-written and subjective.
+The agent is passive — a scheduled process aggregates diary entries
+into progressively compressed episode files.
 
 ## What it is
 
-Episodes are higher-level summaries produced by aggregating diary entries
-upward through a time hierarchy:
+Episodes compress diary entries upward through a time hierarchy:
 
 ```
-diary/20260305.md  ─┐
-diary/20260304.md  ─┤→ episodes/2026-W09.md  (week)
-diary/20260303.md  ─┘
+diary/20260303.md  ─┐
+diary/20260304.md  ─┤→ episodes/2026-W10.md  (week)
+diary/20260305.md  ─┘
                          ↓
                    episodes/2026-03.md  (month)
-                         ↓
-                   episodes/2026.md     (year)
 ```
 
-Each level compresses the level below using a silent agent turn or
-scheduled task. Agent decides what to keep at each compression step.
+Each level summarizes the level below. Weekly episodes aggregate daily
+diary entries. Monthly episodes aggregate weekly episodes.
 
-## Push (auto-injected)
+## Why
 
-On session reset, the gateway could inject the current week/month episode
-summary alongside the diary pointer. Not yet designed — depends on how
-large these summaries grow.
+Without episodes, the only long-term context is the full diary archive.
+After 30+ days the diary is too large to inject. Episodes provide
+compressed fallbacks:
 
-## Pull (on demand)
+- **Cold start**: agent has no session history. Week episode gives
+  enough context to resume (decisions, active projects, open blockers).
+- **Long arc**: month episodes capture project-level progress that
+  individual diary entries don't surface.
+- **Recall input**: `/recall` scans episode summaries alongside facts
+  and diary for retrieval.
 
-Agent reads episode files directly:
+## File format
+
+Same pattern as diary — YAML frontmatter + markdown body:
+
+```markdown
+---
+summary: >
+  - Shipped v1.0.15 with discord channel support
+  - Resolved telegram auth token rotation bug
+  - Started recall spec design, researched OpenClaw search
+period: 2026-W10
+type: week
+sources:
+  - diary/20260303.md
+  - diary/20260304.md
+  - diary/20260305.md
+  - diary/20260306.md
+  - diary/20260307.md
+aggregated_at: '2026-03-08T02:00:00Z'
+---
+
+## Key decisions
+
+- Discord uses same ChannelOpts as telegram (no separate interface)
+- Diary XML tag simplified from `<knowledge layer="diary">` to `<diary>`
+
+## Active work
+
+- /recall spec: v1 (LLM grep) + v2 (hybrid BM25+vector) designed
+- Episodic memory spec: in progress
+
+## Blockers
+
+- None open
+```
+
+### Frontmatter fields
+
+| Field           | Required | Description                    |
+| --------------- | -------- | ------------------------------ |
+| `summary:`      | yes      | 3-5 bullet points, dense       |
+| `period:`       | yes      | ISO week (`2026-W10`) or month |
+| `type:`         | yes      | `week` or `month`              |
+| `sources:`      | yes      | list of input files aggregated |
+| `aggregated_at` | yes      | timestamp of aggregation       |
+
+### Body sections
+
+- **Key decisions** — choices made and why
+- **Active work** — what's in progress at period end
+- **Blockers** — open issues, if any
+
+The body is what the agent reads when it needs full context. The
+`summary:` frontmatter is what `/recall` and gateway injection scan.
+
+## Aggregation
+
+### Trigger
+
+Scheduled task (using existing `task-scheduler.ts`):
+
+- **Weekly**: Sunday 02:00 UTC. Aggregates the past week's diary
+  entries into `episodes/YYYY-WNN.md`.
+- **Monthly**: 1st of month, 03:00 UTC. Aggregates the past month's
+  weekly episodes into `episodes/YYYY-MM.md`.
+
+One agent invocation per aggregation step. Sequential per group.
+
+### Aggregation prompt
+
+The scheduled task spawns a container with a system message that
+instructs the agent to:
 
 ```
-/workspace/group/episodes/2026-W09.md
-/workspace/group/episodes/2026-03.md
+Read the following diary entries and produce a week episode summary.
+
+Keep:
+- Decisions and their reasoning
+- Completed deliverables (shipped, deployed, merged)
+- Active work and current state
+- Open blockers and dependencies
+
+Drop:
+- Routine operations (restarts, config tweaks)
+- Debugging steps that led nowhere
+- Conversation meta (greetings, acknowledgements)
+- Details subsumed by a later decision
+
+Format: YAML frontmatter with summary (3-5 bullets), then body with
+sections: Key decisions, Active work, Blockers.
 ```
 
-MCP tool `get_episode(period)` could expose a structured query interface —
-not yet defined.
+Month aggregation uses the same prompt but reads week episodes instead
+of diary entries, and compresses further — only project-level outcomes
+survive.
 
-## Trigger
+### Handling gaps
 
-Scheduled task (using existing task-scheduler.ts) fires:
+Diary entries may be sparse (missed days, inactive periods). The
+aggregator must handle this:
 
-- Daily: aggregate yesterday's diary entry into the current week file
-- Weekly: aggregate the week into the month file
-- Monthly: aggregate the month into the year file
+- If no diary entries exist for a week, skip — don't create an empty
+  episode.
+- If only 1-2 entries exist, still aggregate — a short week is still
+  worth summarizing.
+- If a diary entry spans multiple topics, the episode should capture
+  all of them (don't filter by "importance").
 
-One agent invocation per aggregation step. Sequential (one agent per group).
+## Gateway injection (push layer)
 
-## Relationship to other layers
+On new session, inject recent episode summaries alongside diary:
 
-- **Input**: diary entries (`specs/1/L-memory-diary.md`)
-- **Output**: feeds long-term/facts (`specs/3/1-atlas.md`)
-- **Managed memory**: MEMORY.md and CLAUDE.md are separate
-  (`specs/1/M-memory-managed.md`) — agent may choose to promote episode
-  content to MEMORY.md manually
+```xml
+<diary count="14">
+  <entry key="20260308" age="today">...</entry>
+  ...
+</diary>
+
+<episodes count="2">
+  <entry key="2026-W10" type="week">summary text</entry>
+  <entry key="2026-W09" type="week" age="last week">summary text</entry>
+</episodes>
+```
+
+**Selection**: inject current + previous week episodes. On month
+boundary, also inject previous month. This gives the agent 2-3 weeks
+of compressed context beyond the 14-day diary window.
+
+**Implementation**: `formatEpisodeXml()` in a new `episode.ts`,
+following the same pattern as `formatDiaryXml()` in `diary.ts`.
+Called from `formatPrompt()` in `index.ts`.
+
+## Pull layer
+
+Episodes are also scanned by `/recall` (see `specs/3/T-recall.md`).
+The `summary:` frontmatter field is what gets indexed — same as diary
+summaries and fact headers.
+
+## What gets built
+
+1. **File format** — `episodes/*.md` with frontmatter (above)
+2. **Aggregation task** — scheduled weekly/monthly, spawns container
+   with aggregation prompt, writes episode file
+3. **Gateway injection** — `formatEpisodeXml()`, inject on session start
+4. **Recall integration** — `/recall` scans episode summaries
 
 ## Prior art
 
 - **Muaddib**: autochronicler triggers every ~10 interactions, batches
-  100 messages, sends to external LLM for summarization (1024 token cap).
-  External LLM does the compression; agent is passive. Our approach:
-  agent runs the compression turn itself via scheduled task.
+  100 messages, sends to external LLM (1024 token cap). External LLM
+  does compression; agent is passive. Our approach: agent runs the
+  compression turn itself via scheduled task.
 - **brainpro**: `memory/YYYY-MM-DD.md` daily notes, today + yesterday
-  auto-loaded. No explicit weekly/monthly hierarchy.
+  auto-loaded. No weekly/monthly hierarchy.
 
-## Episode notes (rhias, Mar 2026)
+## Operational notes (rhias, Mar 2026)
 
-The rhias instance ran a single session for 4+ days with no compaction and
-no episodic summaries. Every container restart replayed 45+ messages from
-raw JSONL. The startup cost grows linearly with session length; after 1000+
-messages this becomes expensive.
+The rhias instance ran a single session for 4+ days with no compaction
+and no episodes. Every container restart replayed 45+ messages from raw
+JSONL. Startup cost grows linearly with session length.
 
-**Why episodic memory matters here:**
+Episodes fix this: if the session is cold and no diary exists for today,
+the week episode gives the agent enough context to resume without
+replaying raw history.
 
-- Without episodic summaries, the only context available after a crash is
-  the full message history. For a 4-day project session, that's
-  potentially thousands of messages to replay.
-- The episodic layer (day → week aggregation) provides a compressed
-  fallback: if the session is cold and no diary entry exists, a week summary
-  gives the agent enough context to resume without replaying raw history.
-- Rhias's user (Czech entrepreneur, multi-day horse trail planning projects)
-  is exactly the episodic-memory use case: not a chat bot, but a project
-  assistant where session context spans weeks.
+Design implications:
 
-**Implication for episodic design:**
+- Weekly aggregation must be robust when diary entries are sparse
+- Week episode must be sufficient for cold-start resume
+- Content: decisions, active projects, open blockers
 
-- Daily aggregation must be robust even when diary entries are sparse or
-  absent (missed flush days). The aggregator should handle gaps gracefully.
-- The week episode should be sufficient for a cold-start resume — design
-  its content accordingly (decisions, active projects, open blockers).
+## Relationship to other specs
 
-## Open
+- `specs/1/L-memory-diary.md` — input layer (diary entries)
+- `specs/3/D-knowledge-system.md` — parent pattern (episodes = push layer)
+- `specs/3/T-recall.md` — episodes scanned by /recall
+- `specs/3/3-code-research.md` — facts layer (episodes may feed into)
 
-- Define episode file format (YAML frontmatter + body, like diary?)
-- Aggregation prompt design — what the agent is asked to do at each level
-- Whether the gateway injects episode summaries on reset (in addition to
-  diary pointer) and at what granularity
-- `get_episode` MCP tool interface
-- Retention policy — keep all episode files forever, or prune old ones?
-- Whether to use external LLM (muaddib-style) or agent-self (our approach)
-- Review atlas system approach before implementing facts integration
+## Open questions
+
+- Year-level aggregation: needed? Or month is enough?
+- Retention: keep all episode files forever, or prune after N months?
+- Should month episodes feed into facts? (auto-promote recurring themes)
+- External LLM vs agent-self for aggregation (muaddib-style vs ours)
