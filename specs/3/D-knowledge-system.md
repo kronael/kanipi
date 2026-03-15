@@ -120,25 +120,54 @@ Episodes would follow the same pattern once built.
 
 ## Pull layer: `/recall`
 
-Agent-driven semantic grep — the LLM reads summaries/headers and judges
-relevance. No embeddings, no vector DB.
+Agent-driven semantic grep — an Explore subagent reads summaries/headers
+and judges relevance. The LLM IS the search engine. No embeddings, no
+vector DB.
 
 **Shipped** (as CLAUDE.md behavior): agent greps `facts/` `header:` fields,
 deliberates in `<think>`, reads matches.
 
-**TODO**: `/recall` skill — always-present retrieval subagent that scans
-across all knowledge layers:
+**TODO**: `/recall` skill — teaches the agent the semantic search protocol.
+Always-present base skill (like `/diary`, `/users`).
 
-- **`/recall`** — spawns a subagent that scans `facts/` headers AND
-  `diary/` summaries, returns relevant entries. No research, no writing —
-  pure retrieval. For "what do we know about X?" and "what happened
-  last week with Y?". Once episodes exist, scans those too.
-- **`/facts`** — becomes research-only. Spawns subagents to create/refresh
-  facts when `/recall` finds nothing. Includes verification.
+### How it works
 
-Currently search and research are bundled in `/facts`. The inline
-`<think>` scan (CLAUDE.md) handles quick lookups but there's no skill
-for deeper retrieval across facts + diary without triggering research.
+The agent spawns an **Explore subagent** with a query and target layers.
+The Explore agent knows the protocol:
+
+1. Scan `header:` (facts) or `summary:` (diary) YAML frontmatter
+2. Read each candidate header, judge relevance to the query
+3. Return matches with file paths + why each is relevant
+
+The calling agent receives results, deliberates in `<think>` (mandatory
+3-step: what does it say, does it answer, what gaps remain), then either
+answers from the matched files or escalates to `/facts` for research.
+
+```
+Agent receives question
+  → spawns Explore with "/recall: <question>"
+  → Explore scans facts/ headers + diary/ summaries
+  → Explore returns: "3 matches: facts/X.md (covers Y), diary/20260310.md (mentions Z)"
+  → Agent reads matched files, deliberates in <think>
+  → answers from knowledge, or runs /facts if gaps remain
+```
+
+### Layers scanned
+
+| Layer    | Key field       | Example                              |
+| -------- | --------------- | ------------------------------------ |
+| Facts    | `header:` YAML  | dense paragraph, optimized for match |
+| Diary    | `summary:` YAML | 5 bullet points per day              |
+| Episodes | `summary:` YAML | week/month rollup (when built)       |
+
+### Separation from `/facts`
+
+- **`/recall`** — retrieval only. Scan, match, return. No writing.
+- **`/facts`** — research only. Create/refresh facts via research +
+  verification subagents. Called when `/recall` finds no matches.
+
+Currently both are bundled in `/facts`. Separating them means the agent
+can recall without the overhead of spawning researcher + verifier.
 
 Scales to ~200 facts + 30 diary entries. At 500+ the header scan gets
 expensive — embeddings or cached index would help but aren't needed yet.
