@@ -14,8 +14,7 @@ TypeScript (ESM, NodeNext), SQLite (better-sqlite3), Docker.
 Channel (telegram/whatsapp/discord/email)
   -> DB (store message + chat metadata)
   -> message loop (poll getNewMessages)
-  -> trigger check (direct mode or @name mention)
-  -> routing rules (resolveRoutingTarget: delegate to child group if matched)
+  -> routing rules (resolveRoute: delegate to child group if matched)
   -> GroupQueue (per-group serialization)
   -> runContainerAgent (docker run)
   -> stream output back to channel
@@ -77,9 +76,7 @@ Each channel stores incoming messages via `storeMessage` and
 provides `sendMessage(jid, text)` for outbound delivery.
 `sendMessage` returns the platform message ID (`string|undefined`)
 for reply threading. `ChannelOpts` supplies `isRoutedJid(jid)`
-(DB routes lookup) and `hasAlwaysOnGroup()` (any group with
-`requires_trigger=0`) so channels can decide whether to filter
-unregistered JIDs.
+(DB routes lookup) so channels can filter unregistered JIDs.
 
 ### web-proxy.ts
 

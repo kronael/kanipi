@@ -159,9 +159,9 @@ kanipi config <instance> group add <jid> [folder] # register group
 kanipi config <instance> group rm  <jid>          # unregister (not main)
 ```
 
-First group added defaults to folder `main` with direct mode
-(no trigger required). Subsequent groups require a folder name
-and use trigger mode (`@assistant_name` to activate).
+First group added defaults to folder `root`. Subsequent groups
+require a folder name. All groups use `default` route type
+(all messages processed).
 
 ## Web Channel (slink)
 
@@ -213,7 +213,7 @@ can delegate messages to child groups based on routing rules:
 
 | Rule type | Match criteria                              |
 | --------- | ------------------------------------------- |
-| command   | message starts with trigger string          |
+| command   | message starts with prefix string           |
 | pattern   | message matches regex (max 200 char)        |
 | keyword   | message contains keyword (case-insensitive) |
 | sender    | sender name matches regex                   |

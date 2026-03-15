@@ -112,7 +112,6 @@ function createTestOpts(
     onMessage: vi.fn(),
     onChatMetadata: vi.fn(),
     isRoutedJid: vi.fn((jid) => registeredJids.has(jid)),
-    hasAlwaysOnGroup: vi.fn(() => true),
     ...overrides,
   };
 }

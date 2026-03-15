@@ -78,8 +78,8 @@ Web directory: `$WEB_DIR/`. Public at `https://$WEB_HOST/`.
 
 ### 5. Groups & Routing
 
-Multi-group setup, nested groups (tiers 0-3), trigger patterns,
-routing rules, shared memory across groups.
+Multi-group setup, nested groups (tiers 0-3), routing rules
+(command/pattern/keyword/sender/default), shared memory across groups.
 
 ### 6. Tools & Capabilities
 

@@ -111,9 +111,7 @@ function groupList(instance: string): void {
     .prepare('SELECT folder, name FROM groups')
     .all() as GroupRow[];
   const routeRows = db
-    .prepare(
-      "SELECT jid, target FROM routes WHERE type IN ('default', 'trigger')",
-    )
+    .prepare("SELECT jid, target FROM routes WHERE type = 'default'")
     .all() as RouteRow[];
   const chats = db
     .prepare('SELECT jid, name, channel FROM chats WHERE is_group = 1')

@@ -674,23 +674,6 @@ describe('resolveRoute — flat routing table', () => {
     });
   });
 
-  it('trigger type always matches', () => {
-    const routes: Route[] = [
-      {
-        id: 1,
-        jid: 'tg:1',
-        seq: 0,
-        type: 'trigger',
-        match: null,
-        target: 'triggered',
-      },
-    ];
-    expect(resolveRoute(mkMsg('anything'), routes)).toEqual({
-      target: 'triggered',
-      command: null,
-    });
-  });
-
   it('unknown route type does not match', () => {
     const routes: Route[] = [
       {

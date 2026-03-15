@@ -64,7 +64,6 @@ import {
   getHubForJid,
   getDirectChildGroupCount,
   getGroupByFolder,
-  hasAlwaysOnRoute,
   getJidsForFolder,
   getMessagesSince,
   getRoutedJids,
@@ -1088,7 +1087,6 @@ async function main(): Promise<void> {
       isGroup?: boolean,
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
     isRoutedJid: (jid: string) => getRoutedJids().includes(jid),
-    hasAlwaysOnGroup: () => hasAlwaysOnRoute(),
   };
 
   if (TELEGRAM_BOT_TOKEN) {

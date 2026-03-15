@@ -147,14 +147,6 @@ export class EmailChannel implements Channel {
 
         this.opts.onChatMetadata(chatJid, timestamp, fromName, 'email', false);
 
-        if (!this.opts.hasAlwaysOnGroup()) {
-          logger.warn('email: no main group registered, dropping message');
-          await this.imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], {
-            uid: true,
-          });
-          continue;
-        }
-
         this.opts.onMessage(chatJid, {
           id: msgId,
           chat_jid: chatJid,

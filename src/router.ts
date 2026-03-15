@@ -142,7 +142,6 @@ function routeMatches(r: Route, msg: InboundEvent): boolean {
       } catch {
         return false;
       }
-    case 'trigger':
     case 'default':
       return true;
     default:

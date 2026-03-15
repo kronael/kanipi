@@ -136,7 +136,7 @@ Channel (tg/discord/wa/email/web)
           <tr>
             <td>Discord</td><td>discord.js</td>
             <td><code>DISCORD_BOT_TOKEN</code></td><td><code>discord:</code></td>
-            <td>gateway mode, @mention trigger, 2000-char split</td>
+            <td>gateway mode, 2000-char split</td>
           </tr>
           <tr>
             <td>WhatsApp</td><td>baileys</td>
@@ -391,15 +391,9 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
         Parent groups delegate to children via routing rules. Five rule types:
         <code>command</code> (prefix match), <code>pattern</code> (regex, max 200 chars),
         <code>keyword</code> (case-insensitive), <code>sender</code> (regex match on sender name),
-        <code>trigger</code> (mention-based trigger mode), <code>default</code> (fallback).
-        Rules evaluated in type order; first match wins. Delegation is parent-to-child or
+        <code>default</code> (fallback / catch-all).
+        Rules evaluated in seq order; first match wins. Delegation is parent-to-child or
         parent-to-self, same world (except tier 0 root can delegate anywhere), max chain depth 2.
-      </p>
-
-      <h3>Trigger mode</h3>
-      <p style="font-size: 0.9em; color: var(--dim);">
-        First group registered defaults to <code>folder=root</code> with direct mode (all messages processed).
-        Subsequent groups use trigger mode: agent responds only when mentioned (<code>@name</code>).
       </p>
 
       <h3>CLI</h3>
@@ -708,7 +702,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           /compact-memories: cron-scheduled progressive compression (sessions->daily->weekly->monthly).
           Config: .env + env vars. Channels enabled by token/config presence.
           Groups: CLI registration (folder-only, no JID), world-scoped authorization, hierarchical delegation
-          (5 rule types: command/pattern/keyword/sender/trigger/default, max chain depth 2), trigger mode for non-root,
+          (5 rule types: command/pattern/keyword/sender/default, max chain depth 2),
           multi-JID per folder via routes table.
           Actions: messaging (send_message, send_file, inject_message), tasks (schedule_task, cancel_task),
           groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session).
@@ -755,7 +749,7 @@ media: voice transcription (whisper, multi-language, .whisper-language per group
 error-handling: circuit breaker (3 failures), session eviction, no auto-retry
 dind-paths: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR for docker-in-docker mount translation
 hot-patching: agent-runner TS mounted, bunx tsc at runtime
-groups: cli registration (folder-only, no jid), world-scoped auth, hierarchical delegation (5 rule types: command/pattern/keyword/sender/trigger/default, max chain depth 2), trigger mode, multi-jid per folder via routes
+groups: cli registration (folder-only, no jid), world-scoped auth, hierarchical delegation (5 rule types: command/pattern/keyword/sender/default, max chain depth 2), multi-jid per folder via routes
 web: vite dev server, /pub/ public vs /priv/ auth, argon2+jwt, sloth.js widget
 products: atlas (code support, shipped), yonder (research, shipped), evangelist (planned)
 roadmap: v1m1 (sse, work), v1m2 (message-mcp, agent-messaging), v2m1 (agent-teams, feed-adapters), v2m2 (go-rewrite)

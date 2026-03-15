@@ -46,7 +46,6 @@ import {
   getSession,
   getTaskById,
   getTasksForGroup,
-  hasAlwaysOnRoute,
   isChatErrored,
   logTaskRun,
   markChatErrored,
@@ -1194,29 +1193,6 @@ describe('getRouteTargetsForJid', () => {
 
   it('returns empty for unknown JID', () => {
     expect(getRouteTargetsForJid('unknown:0')).toEqual([]);
-  });
-});
-
-// --- hasAlwaysOnRoute ---
-
-describe('hasAlwaysOnRoute', () => {
-  it('returns false when no routes exist', () => {
-    expect(hasAlwaysOnRoute()).toBe(false);
-  });
-
-  it('returns true when a default route exists', () => {
-    addRoute('tg:ao', { seq: 0, type: 'default', match: null, target: 'root' });
-    expect(hasAlwaysOnRoute()).toBe(true);
-  });
-
-  it('returns false when only command routes exist', () => {
-    addRoute('tg:cmd', {
-      seq: 0,
-      type: 'command',
-      match: '/x',
-      target: 'root',
-    });
-    expect(hasAlwaysOnRoute()).toBe(false);
   });
 });
 

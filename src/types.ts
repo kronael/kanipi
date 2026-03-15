@@ -72,14 +72,7 @@ export interface Route {
   id: number;
   jid: string;
   seq: number;
-  type:
-    | 'command'
-    | 'verb'
-    | 'pattern'
-    | 'keyword'
-    | 'sender'
-    | 'default'
-    | 'trigger';
+  type: 'command' | 'verb' | 'pattern' | 'keyword' | 'sender' | 'default';
   match: string | null;
   target: string;
   command?: string | null;
@@ -199,5 +192,4 @@ export interface ChannelOpts {
   onMessage: OnInboundMessage;
   onChatMetadata: OnChatMetadata;
   isRoutedJid: (jid: string) => boolean;
-  hasAlwaysOnGroup: () => boolean;
 }

@@ -852,13 +852,6 @@ export function getDirectChildGroupCount(parentFolder: string): number {
   return rows.filter((r) => r.folder.split('/').length === depth).length;
 }
 
-export function hasAlwaysOnRoute(): boolean {
-  return (
-    db.prepare("SELECT 1 FROM routes WHERE type = 'default' LIMIT 1").get() !=
-    null
-  );
-}
-
 type GroupsRow = {
   folder: string;
   name: string;
