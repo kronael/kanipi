@@ -112,15 +112,28 @@ aggregated_at: '2026-03-17T02:00:00Z'
 
 ## Cron setup
 
-Scheduled tasks per group, `context_mode: 'isolated'`:
+On-demand. Set up when the user or agent wants progressive compression
+for this group. Call `schedule_task` for each level:
+
+| Prompt                             | Cron        | When               |
+| ---------------------------------- | ----------- | ------------------ |
+| `/compact-memories episodes day`   | `0 2 * * *` | daily 02:00        |
+| `/compact-memories episodes week`  | `0 3 * * 1` | Monday 03:00       |
+| `/compact-memories episodes month` | `0 4 1 * *` | 1st of month 04:00 |
+| `/compact-memories diary week`     | `0 3 * * 1` | Monday 03:00       |
+| `/compact-memories diary month`    | `0 4 1 * *` | 1st of month 04:00 |
+
+All tasks use `context_mode: 'isolated'` (fresh container, no session
+history). `targetFolder` = `$NANOCLAW_GROUP_FOLDER`.
+
+Example — set up all five:
 
 ```
-/compact-memories episodes day    → 0 2 * * *     (daily at 02:00)
-/compact-memories episodes week   → 0 3 * * 1     (Monday at 03:00)
-/compact-memories episodes month  → 0 4 1 * *     (1st of month at 04:00)
-/compact-memories diary week      → 0 3 * * 1     (Monday at 03:00)
-/compact-memories diary month     → 0 4 1 * *     (1st of month at 04:00)
+schedule_task({ targetFolder: "<group>", prompt: "/compact-memories episodes day", schedule_type: "cron", schedule_value: "0 2 * * *", context_mode: "isolated" })
+schedule_task({ targetFolder: "<group>", prompt: "/compact-memories episodes week", schedule_type: "cron", schedule_value: "0 3 * * 1", context_mode: "isolated" })
+schedule_task({ targetFolder: "<group>", prompt: "/compact-memories episodes month", schedule_type: "cron", schedule_value: "0 4 1 * *", context_mode: "isolated" })
+schedule_task({ targetFolder: "<group>", prompt: "/compact-memories diary week", schedule_type: "cron", schedule_value: "0 3 * * 1", context_mode: "isolated" })
+schedule_task({ targetFolder: "<group>", prompt: "/compact-memories diary month", schedule_type: "cron", schedule_value: "0 4 1 * *", context_mode: "isolated" })
 ```
 
-`--isolated` = fresh container, no session history. Reads source
-files, writes compacted summaries, nothing else.
+Check existing tasks first — don't create duplicates.
