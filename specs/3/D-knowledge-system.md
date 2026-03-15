@@ -38,8 +38,8 @@ Given a directory of markdown files:
 - **Diary** (`diary/*.md`) — date-keyed, 14 most recent, injected on
   session start via `formatDiaryXml()` in `index.ts` (shipped v0.7.0).
   Agent writes via `/diary` skill.
-- **User context** (`users/*.md`) — sender-keyed, match by message
-  sender, gateway injects `<user>` tag per message (shipped).
+- **User context** (`users/*.md`) — sender-keyed, gateway injects
+  `<user>` pointer per message, agent reads file by default (shipped).
   Agent writes via `/users` skill.
 - **Episodes** (`episodes/*.md`) — event-keyed, all or recent,
   inject on session start. Not yet built.

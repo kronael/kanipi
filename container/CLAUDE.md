@@ -92,7 +92,12 @@ first, you will give wrong answers. The deliberation is mandatory.
 # User Context
 
 When a message arrives, the gateway injects `<user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />`.
-If `memory` is present, you have a context file for this user. Read it when context would help.
+If `memory` is present, **read the file unless you are certain it cannot
+help with this message**. When in doubt, read it — the cost of reading is
+low, the cost of missing context is high.
+
+Skip reading only for trivial exchanges where user context is clearly
+irrelevant (e.g. "thanks", "ok", simple acknowledgements).
 
 Update user files via `/users`:
 

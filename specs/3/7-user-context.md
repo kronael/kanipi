@@ -51,13 +51,15 @@ Gateway injects user identity, not full content:
 - `name`: from file frontmatter (omitted if no file or no name)
 - `memory`: path if file exists, omitted if no file yet
 
-Agent decides when to read the full file. Gateway extracts just the name from YAML frontmatter.
+Agent reads the full file unless certain it won't help (trivial
+exchanges like "ok", "thanks"). Default: read. Gateway extracts
+just the name from YAML frontmatter for the tag.
 
 ### Agent reads/writes
 
 Agent uses `/users` skill to:
 
-- Read user file when context would help
+- Read user file on most messages (default-read, skip only when clearly irrelevant)
 - Update profile when learning something durable (role, expertise, style)
 - Log meaningful interactions in Recent section (not every message)
 
