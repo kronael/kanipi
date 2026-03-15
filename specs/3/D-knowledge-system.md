@@ -176,13 +176,24 @@ query → embed → cosine (sqlite-vec) ──┘
 ```
 
 **Embedding provider**: Ollama (`nomic-embed-text`) at 10.0.5.1:11434.
-Local, no API costs, 768-dim vectors. Fallback: gateway computes
-embeddings at index time (on fact write / diary write), not at query
-time — query embeddings are cheap, indexing is the bottleneck.
+Local, no API costs, 768-dim vectors.
 
-**Storage**: SQLite (already used for messages DB). Two tables:
+**Storage**: SQLite DB per group (separate from messages DB, lives in
+group folder). Three tables:
 
 ```sql
+-- source table
+CREATE TABLE knowledge (
+  id INTEGER PRIMARY KEY,
+  layer TEXT,     -- 'fact', 'diary', 'episode'
+  key TEXT,       -- 'api-auth.md', '20260310', '2026-W10'
+  path TEXT,      -- relative path to file
+  summary TEXT,   -- header/summary frontmatter
+  embedding BLOB, -- 768-dim float vector
+  mtime INTEGER,  -- file mtime at index time
+  indexed_at TEXT
+);
+
 -- FTS5 for keyword search
 CREATE VIRTUAL TABLE knowledge_fts USING fts5(
   layer, key, summary, content='knowledge'
@@ -192,32 +203,34 @@ CREATE VIRTUAL TABLE knowledge_fts USING fts5(
 CREATE VIRTUAL TABLE knowledge_vec USING vec0(
   embedding float[768]
 );
-
--- source table
-CREATE TABLE knowledge (
-  id INTEGER PRIMARY KEY,
-  layer TEXT,     -- 'fact', 'diary', 'episode'
-  key TEXT,       -- 'api-auth.md', '20260310', '2026-W10'
-  path TEXT,      -- relative path to file
-  summary TEXT,   -- header/summary frontmatter
-  embedding BLOB, -- 768-dim float vector
-  indexed_at TEXT
-);
 ```
 
-**Indexing**: Gateway indexes on write. When agent writes a fact
-(via `/facts`) or diary entry (via `/diary`), gateway:
+**Indexing**: Lazy, self-managed. The index service is decoupled from
+the gateway — it doesn't need to know when files are written. On each
+`/recall` query:
 
-1. Extracts `header:` or `summary:` from frontmatter
-2. Embeds the text via Ollama
-3. Upserts into knowledge + FTS5 + vec tables
+1. Scan `facts/`, `diary/`, `episodes/` for `*.md` files
+2. Compare each file's path+mtime against the `knowledge` table
+3. For new/changed files: extract frontmatter, embed via Ollama, upsert
+4. For deleted files: remove stale rows
+5. Then run the search
 
-**Query**: Agent calls `/recall <question>`. Skill:
+This means the index rebuilds incrementally on demand. First query
+after bulk writes pays a small cost (~100ms per file to embed), but
+subsequent queries hit the warm index. No file watchers, no gateway
+hooks, no coupling to the write path.
 
-1. Embeds the question
-2. Runs BM25 + vector in parallel
-3. Fuses with RRF, returns top-6 with scores
-4. Agent deliberates in `<think>`, reads matched files
+Alternative: a standalone indexer process (cron or inotify watcher)
+that keeps the index warm. Only needed if query-time indexing latency
+becomes noticeable.
+
+**Query flow**:
+
+1. Sync index (steps 1-4 above)
+2. Embed the question via Ollama
+3. Run BM25 (FTS5) + vector (sqlite-vec) in parallel
+4. Fuse with RRF, return top-6 with scores
+5. Agent deliberates in `<think>`, reads matched files
 
 **Optional enhancements** (from OpenClaw, add if needed):
 
