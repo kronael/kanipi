@@ -108,12 +108,10 @@ v1's agent greps raw files. v2's agent calls `search_knowledge`
 backed by FTS5 + sqlite-vec. The agent is the same — it thinks
 about what to search, calls the tool, judges results, iterates.
 
-The DB narrows 500+ files to ~20 candidates. The agent then has
-a focused set to explore deeply AND the freedom to broaden — it
-can follow up with more targeted searches based on what it finds
-in the first pass. More focused because fewer candidates to
-evaluate. More broad because it can afford more iterations when
-each search is fast.
+The DB gives the agent a better-informed starting set — scored,
+ranked, with similarity context. The agent can then iterate:
+narrow down, broaden out, or dig deeper based on what it sees.
+Each search is fast, so the agent can afford more iterations.
 
 ### How the agent works
 
