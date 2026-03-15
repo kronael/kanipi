@@ -168,13 +168,12 @@ code identifiers). Vector catches semantic similarity ("auth flow"
 matches "login process"). Together with LLM expansion (step 1) and
 LLM judgment (step 3), the middle step covers all retrieval angles.
 
-**sqlite-vec**: alpha (`0.1.7-alpha.2`) but functional. Works with
-better-sqlite3 via `sqliteVec.load(db)`.
+**sqlite-vec**: v0.1.6 stable. `sqliteVec.load(db)` on better-sqlite3.
+`vec0` with `distance_metric=cosine`. Vectors as `Float32Array.buffer`.
+Prebuilt binaries for linux-x64 + Node 22.
 
-**Embeddings**: Ollama `nomic-embed-text`, 768-dim, ~100ms/embed.
-
-See `project/research/knowledge/recall-similarity-search.md` for
-OpenClaw analysis.
+**Embeddings**: Ollama `POST /api/embed` (NOT `/api/embeddings`).
+`nomic-embed-text`, 768-dim, ~100ms/embed. Batch via `input` array.
 
 ### Config
 
@@ -182,7 +181,7 @@ OpenClaw analysis.
 
 ```toml
 db_dir = ".local/recall"
-embed_url = "http://10.0.5.1:11434/api/embeddings"
+embed_url = "http://10.0.5.1:11434/api/embed"
 embed_model = "nomic-embed-text"
 
 [[store]]
@@ -270,7 +269,7 @@ CREATE VIRTUAL TABLE entries_fts USING fts5(
 
 CREATE VIRTUAL TABLE entries_vec USING vec0(
   id INTEGER PRIMARY KEY,
-  embedding float[768]
+  embedding float[768] distance_metric=cosine
 );
 ```
 
@@ -313,3 +312,112 @@ On each `recall` call:
 
 Skill adds step 1-2 (expand + CLI retrieval) before step 3
 (Explore judge). Explore works the same — just gets better input.
+
+## Code integration plan
+
+### 1. Dependencies — `container/agent-runner/package.json`
+
+```json
+"better-sqlite3": "^11.8.1",
+"sqlite-vec": "^0.1.6",
+"smol-toml": "^1.6.0",
+"yaml": "^2.8.2"
+```
+
+Plus `@types/better-sqlite3` in devDependencies. `better-sqlite3`
+requires `build-essential` + `pkg-config` (already in Dockerfile).
+
+### 2. CLI tool — `container/agent-runner/src/recall.ts`
+
+~200 lines. Entry point compiled to `/tmp/dist/recall.js` at
+container startup (alongside index.js — same tsconfig).
+
+**Structure:**
+
+```
+parseArgs()          → limit (-N), query string
+loadConfig()         → parse .recallrc (smol-toml)
+initDB(path)         → create tables, load sqlite-vec
+syncStore(db, dir)   → glob *.md, compare mtime, upsert/prune
+embed(text)          → POST /api/embed, return Float32Array
+search(db, q, n)     → FTS5 + vec0, RRF fusion
+newest(db, n)        → ORDER BY mtime DESC
+formatOutput()       → human-friendly score/store/path/summary
+main()               → for each store: init, sync, search/newest
+```
+
+**Key patterns:**
+
+- `sqliteVec.load(db)` after `new Database(path)`
+- Vectors stored as `Float32Array.buffer` (raw blob, 3072 bytes)
+- FTS5 content-sync triggers on insert/delete to keep index current
+- Vec0 KNN: `WHERE embedding MATCH ? AND k = ?`
+- RRF: `score = w / (60 + rank)` — vector w=0.7, BM25 w=0.3
+- Frontmatter parsing: match `^---\n(.*?)\n---`, yaml.parse, extract summary
+
+### 3. CLI wrapper — `container/Dockerfile`
+
+Add before the entrypoint:
+
+```dockerfile
+RUN printf '#!/bin/bash\nnode /tmp/dist/recall.js "$@"\n' \
+    > /usr/local/bin/recall && chmod +x /usr/local/bin/recall
+```
+
+Available after entrypoint compiles TypeScript. Agent calls
+`recall "query"` via Bash tool.
+
+### 4. Seed config — `container/.recallrc`
+
+Baked into image, copied to group folder on first run (migration).
+
+```toml
+db_dir = ".local/recall"
+embed_url = "http://10.0.5.1:11434/api/embed"
+embed_model = "nomic-embed-text"
+
+[[store]]
+name = "facts"
+dir = "facts"
+
+[[store]]
+name = "diary"
+dir = "diary"
+
+[[store]]
+name = "users"
+dir = "users"
+
+[[store]]
+name = "episodes"
+dir = "episodes"
+```
+
+### 5. Skill update — `container/skills/recall/SKILL.md`
+
+Update protocol for v2: agent expands query terms in `<think>`,
+calls `recall "term"` for each, collects results, then spawns
+Explore subagent with scored candidates. Same deliberation rules.
+
+### 6. Dockerfile — add COPY for .recallrc
+
+```dockerfile
+COPY .recallrc /home/node/.recallrc
+```
+
+### 7. Shipping artifacts
+
+- `CHANGELOG.md` entry
+- Migration `container/skills/self/migrations/NNN-recall-v2.md`
+- `MIGRATION_VERSION` bump
+- `SKILL.md` version ref update
+
+### Build order
+
+1. Add deps to package.json, `npm install`
+2. Write `src/recall.ts`
+3. Add wrapper + COPY to Dockerfile
+4. Create `.recallrc`
+5. Update recall SKILL.md for v2 protocol
+6. Add shipping artifacts
+7. `make -C container image` to verify
