@@ -264,6 +264,68 @@ Claude to summarise progress, prompts user to say "continue".
 **`<internal>` tag stripping**: agent-runner strips `<internal>`
 blocks from output before sending to channel users.
 
+## Memory System
+
+Seven memory layers, split into push (gateway-injected) and pull
+(agent-searched).
+
+### Push layers
+
+| Layer        | Storage               | Injection                                  |
+| ------------ | --------------------- | ------------------------------------------ |
+| Messages     | SQLite                | recent N as `<messages>` XML on stdin      |
+| Session      | SDK JSONL (`.jl`)     | Claude Code `--resume`                     |
+| Managed      | CLAUDE.md + MEMORY.md | Claude Code native read                    |
+| Diary        | `diary/*.md`          | 14 most recent as `<diary>` XML            |
+| User context | `users/*.md`          | `<user>` pointer per message sender        |
+| Episodes     | `episodes/*.md`       | most recent day/week/month as `<episodes>` |
+
+### Pull layers
+
+| Layer | Storage      | Search                                      |
+| ----- | ------------ | ------------------------------------------- |
+| Facts | `facts/*.md` | `/recall` (v1 grep or v2 CLI)               |
+| All   | all stores   | `/recall` across facts/diary/users/episodes |
+
+### Knowledge stores
+
+All file-based stores follow one pattern: markdown files with
+`summary:` YAML frontmatter. Four stores: `facts/`, `diary/`,
+`users/`, `episodes/`. Adding a store = adding a directory name.
+
+### Recall
+
+`/recall` skill searches across all knowledge stores.
+
+- **v1** (corpus < ~300 files): Explore subagent greps `summary:`
+  across store dirs, LLM judges relevance.
+- **v2** (corpus > ~300 files): `recall` CLI tool with FTS5 +
+  sqlite-vec hybrid search. Per-store SQLite DBs in
+  `.local/recall/`. Lazy mtime-based indexing, Ollama embeddings
+  (`nomic-embed-text`, 768-dim), RRF fusion (0.7 vector, 0.3 BM25).
+  Agent expands query into ~10 terms, calls `recall "term"` for
+  each, then spawns Explore to judge scored candidates.
+
+Config: `.recallrc` (TOML) in group folder, stores defined as
+`[[store]]` entries.
+
+### Progressive compression
+
+`/compact-memories` skill compresses session transcripts and diary
+entries into progressive summaries, scheduled via cron:
+
+```
+sessions/*.jl  → episodes/YYYYMMDD.md   (day)     0 2 * * *
+daily episodes → episodes/YYYY-Wnn.md   (week)    0 3 * * 1
+weekly episodes → episodes/YYYY-MM.md   (month)   0 4 1 * *
+diary daily    → diary/week/YYYY-Wnn.md            0 3 * * 1
+diary weekly   → diary/month/YYYY-MM.md            0 4 1 * *
+```
+
+Runs in isolated containers (no session history). Each compressed
+file tracks `sources:` for traceability. Gateway injects episode
+summaries; diary week/month exist for `/recall` only.
+
 ## Multi-instance Architecture
 
 Each instance is independent: own data dir, agent image tag, and
@@ -277,17 +339,11 @@ kanipi_foo.service              systemd unit
 
 ## State
 
-- Registered groups → SQLite (`groups` table + `routes` table; routes map JIDs to target folders)
-- Message history → SQLite (`messages` table)
-- Sessions → SQLite (`session_history` table) + filesystem. On agent error, the DB
-  pointer is evicted so the next run starts a fresh session; JSONL remains on
-  disk for history.
-- System messages → SQLite (`system_messages` table), flushed per invocation
-- Scheduled tasks → SQLite (`scheduled_tasks` table), run logs in `task_run_logs`
-- Email threads → SQLite (`email_threads` table) for SMTP reply threading
-- Web auth users → SQLite (`auth_users` table)
-- Web auth sessions → SQLite (`auth_sessions` table)
-- WhatsApp auth → `store/auth/` (baileys format)
+All gateway state in SQLite: `messages`, `groups`, `routes`,
+`session_history`, `system_messages`, `scheduled_tasks`,
+`task_run_logs`, `email_threads`, `auth_users`, `auth_sessions`.
+WhatsApp auth: `store/auth/` (baileys format). Agent knowledge
+stores: filesystem (`facts/`, `diary/`, `users/`, `episodes/`).
 
 ## External Systems
 
@@ -300,7 +356,3 @@ kanipi_foo.service              systemd unit
 | Docker   | child_process | agent container runtime                    |
 | Claude   | claude-code   | agent (runs in container)                  |
 | Whisper  | fetch (HTTP)  | voice/video transcription (kanipi-whisper) |
-
-## Repository Layout
-
-See CLAUDE.md Layout section.

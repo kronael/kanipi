@@ -34,9 +34,8 @@ function parseFrontmatter(content: string): {
   try {
     const fm = parseYaml(m[1]);
     return {
-      summary:
-        fm && typeof fm.summary === 'string' ? fm.summary.trim() : undefined,
-      type: fm && typeof fm.type === 'string' ? fm.type : undefined,
+      summary: typeof fm?.summary === 'string' ? fm.summary.trim() : undefined,
+      type: typeof fm?.type === 'string' ? fm.type : undefined,
     };
   } catch {
     return {};

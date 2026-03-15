@@ -12,7 +12,7 @@ interface Config {
   embed_model: string;
   store: Store[];
 }
-interface Result { score: number; store: string; path: string; summary: string }
+interface Result { score: number; store: string; key: string; summary: string }
 
 function parseArgs(): { limit: number; query: string | null } {
   const args = process.argv.slice(2);
@@ -82,7 +82,7 @@ function walkMd(dir: string): string[] {
   const out: string[] = [];
   for (const e of fs.readdirSync(dir, { withFileTypes: true, recursive: true })) {
     if (e.isFile() && e.name.endsWith('.md')) {
-      out.push(path.join(e.parentPath ?? (e as any).path, e.name));
+      out.push(path.join(e.parentPath, e.name));
     }
   }
   return out;
@@ -177,15 +177,15 @@ function search(
   if (ids.length === 0) return [];
 
   const get = db.prepare(
-    'SELECT id, key, path, summary FROM entries WHERE id = ?'
+    'SELECT id, key, summary FROM entries WHERE id = ?'
   );
   const maxScore = ids[0][1];
   return ids.map(([id, score]) => {
-    const row = get.get(id) as { id: number; key: string; path: string; summary: string };
+    const row = get.get(id) as { id: number; key: string; summary: string };
     return {
       score: score / maxScore,
       store: '',
-      path: row.key,
+      key: row.key,
       summary: row.summary || '(no summary)',
     };
   });
@@ -193,12 +193,12 @@ function search(
 
 function newest(db: Database.Database, limit: number): Result[] {
   const rows = db.prepare(
-    'SELECT key, path, summary FROM entries ORDER BY mtime DESC LIMIT ?'
-  ).all(limit) as { key: string; path: string; summary: string }[];
+    'SELECT key, summary FROM entries ORDER BY mtime DESC LIMIT ?'
+  ).all(limit) as { key: string; summary: string }[];
   return rows.map(r => ({
     score: 1.0,
     store: '',
-    path: r.key,
+    key: r.key,
     summary: r.summary || '(no summary)',
   }));
 }
@@ -227,15 +227,14 @@ async function main() {
       ? search(db, query, embBuf, limit)
       : newest(db, limit);
 
-    for (const r of results) {
-      all.push({ ...r, store: store.name });
-    }
+    for (const r of results) r.store = store.name;
+    all.push(...results);
     db.close();
   }
 
   all.sort((a, b) => b.score - a.score);
   for (const r of all.slice(0, limit)) {
-    console.log(`${r.score.toFixed(2)}  ${r.store}  ${r.path}`);
+    console.log(`${r.score.toFixed(2)}  ${r.store}  ${r.key}`);
     console.log(`  ${r.summary}`);
     console.log();
   }

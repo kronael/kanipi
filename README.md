@@ -39,9 +39,10 @@ container runtime, storage all have clean interfaces. When something
 better arrives, swap one piece without touching the rest.
 
 **Knowledge layers are the extension point** — push layers (diary,
-user context) for small corpora injected by gateway. Pull layers
-(facts, codebase) for large corpora searched by agent. New memory
-types plug into the same pattern.
+user context, episodes) injected by gateway. Pull layers (facts,
+all stores via `/recall`) searched by agent. Progressive compression
+(`/compact-memories`) turns sessions into day/week/month summaries.
+New memory types plug into the same pattern.
 
 **Extensibility over speed** — don't optimize for performance
 unless measured. Agent self-extension (skills, MCP servers,

@@ -40,7 +40,7 @@
         </a>
         <a href="#memory" class="nav-item">
           <span class="nav-label">Memory</span>
-          <span class="nav-hint">6 layers</span>
+          <span class="nav-hint">7 layers</span>
         </a>
         <a href="#groups" class="nav-item">
           <span class="nav-label">Groups</span>
@@ -263,9 +263,10 @@ Channel (tg/discord/wa/email/web)
       <h2>Memory Layers</h2>
 
       <p>
-        Six memory layers with different persistence, scope, and injection mechanisms.
+        Seven memory layers with different persistence, scope, and injection mechanisms.
         Push layers are injected by the gateway. Pull layers are searched by the agent.
-        The underlying pattern: markdown files in a directory, summaries selected and injected as XML.
+        The underlying pattern: markdown files in a directory with <code>summary:</code> frontmatter,
+        selected and injected as XML.
       </p>
 
       <div class="table-wrap">
@@ -273,36 +274,92 @@ Channel (tg/discord/wa/email/web)
           <tr><th>Layer</th><th>Storage</th><th>Scope</th><th>Injection</th><th>Status</th></tr>
           <tr>
             <td>Messages</td><td>SQLite</td><td>per-group</td>
-            <td>stdin XML history (recent N messages)</td>
+            <td>push: stdin XML history (recent N messages)</td>
             <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Session</td><td>SDK JSONL</td><td>per-container</td>
-            <td>Claude Code native <code>--resume</code></td>
+            <td>push: Claude Code native <code>--resume</code></td>
             <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Managed</td><td>CLAUDE.md + MEMORY.md</td><td>per-group</td>
-            <td>Claude Code native read</td>
+            <td>push: Claude Code native read</td>
             <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Diary</td><td><code>diary/*.md</code></td><td>per-group</td>
-            <td>gateway reads 14 most recent, injects as <code>&lt;diary&gt;</code> XML on session start</td>
+            <td>push: gateway injects 14 most recent as <code>&lt;diary&gt;</code> XML</td>
+            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
+          </tr>
+          <tr>
+            <td>User context</td><td><code>users/*.md</code></td><td>per-group</td>
+            <td>push: <code>&lt;user&gt;</code> pointer per message sender, agent reads file</td>
             <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Facts</td><td><code>facts/*.md</code></td><td>per-world</td>
-            <td>pull: agent searches via MCP tool</td>
-            <td><span style="color: var(--warn);">planned</span></td>
+            <td>pull: agent searches via <code>/recall</code> or grep</td>
+            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Episodes</td><td><code>episodes/*.md</code></td><td>per-group</td>
-            <td>scheduled aggregation of diary into weekly/monthly</td>
-            <td><span style="color: var(--warn);">planned</span></td>
+            <td>push: gateway injects most recent day/week/month as <code>&lt;episodes&gt;</code> XML</td>
+            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
         </table>
       </div>
+
+      <h3>Knowledge stores</h3>
+      <p>
+        Four directories follow the same pattern: markdown files with <code>summary:</code> YAML frontmatter.
+        <code>facts/</code> (per-world shared knowledge), <code>diary/</code> (daily work log),
+        <code>users/</code> (per-sender context), <code>episodes/</code> (compressed session history).
+        All four are indexed by <code>/recall</code> and searchable by the agent.
+      </p>
+
+      <h3>Episode system</h3>
+      <p>
+        Session transcripts (<code>.jl</code> files) are compressed into daily summaries, daily into weekly,
+        weekly into monthly. The <code>/compact-memories</code> skill runs on cron in isolated containers:
+      </p>
+<pre style="font-size: 0.8em; padding: 0.8em; background: var(--surface, #1a1a2e); border-radius: 6px; color: var(--text, #e0e0e0); overflow-x: auto;">
+sessions/*.jl  &rarr;  episodes/20260310.md  (day)   &mdash; 0 2 * * *
+daily episodes &rarr;  episodes/2026-W11.md  (week)  &mdash; 0 3 * * 1
+weekly episodes &rarr; episodes/2026-03.md   (month) &mdash; 0 4 1 * *
+diary daily    &rarr;  diary/week/2026-W11.md        &mdash; 0 3 * * 1
+diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Gateway injects most recent day, week, and month episode summaries on session start.
+        Each file tracks <code>sources:</code> for traceability back to originals.
+        Diary week/month summaries are not injected (14-day daily covers it) but are searchable via <code>/recall</code>.
+      </p>
+
+      <h3>Recall</h3>
+      <p>
+        <code>/recall</code> skill searches across all knowledge stores. Two implementations:
+      </p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Version</th><th>Method</th><th>When</th></tr>
+          <tr>
+            <td>v1</td>
+            <td>Explore subagent greps <code>summary:</code> across store dirs, LLM judges relevance</td>
+            <td>corpus &lt; ~300 files</td>
+          </tr>
+          <tr>
+            <td>v2</td>
+            <td><code>recall</code> CLI: FTS5 + sqlite-vec hybrid search (RRF fusion), then Explore judges candidates</td>
+            <td>corpus &gt; ~300 files</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        v2 uses per-store SQLite databases (<code>.local/recall/*.db</code>) with lazy mtime-based indexing.
+        Embeddings via Ollama (<code>nomic-embed-text</code>, 768-dim). RRF weights: 0.7 vector, 0.3 BM25.
+        Config in <code>.recallrc</code> (TOML). Agent expands query into ~10 search terms,
+        calls <code>recall "term"</code> for each, then spawns Explore to judge scored candidates.
+      </p>
 
       <p style="font-size: 0.9em; color: var(--dim);">
         Diary uses YAML frontmatter summaries. Age labels: "today", "yesterday", "3 days ago".
@@ -546,7 +603,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           <tr>
             <td>v1m1</td>
             <td>next</td>
-            <td>facts injection, SSE per-sender, session recovery, /work skill</td>
+            <td>SSE per-sender, session recovery, /work skill</td>
           </tr>
           <tr>
             <td>v1m2</td>
@@ -556,7 +613,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           <tr>
             <td>v2m1</td>
             <td>planned</td>
-            <td>episodic memory, agent teams, IPC-to-MCP proxy, feed adapters (twitter, reddit, facebook)</td>
+            <td>agent teams, IPC-to-MCP proxy, feed adapters (twitter, reddit, facebook)</td>
           </tr>
           <tr>
             <td>v2m2</td>
@@ -644,8 +701,11 @@ sudo systemctl enable --now kanipi_foo</pre>
           Mounts: home (/home/node, rw/ro by tier), groups (~/groups, root only), share (~/share, rw/ro by tier),
           web (~/web, rw root/world), ipc (~/ipc, rw), self (~/self, ro root-only), agent-runner (~/agent-runner, ro, hot-patch source).
           Memory layers: messages (DB, stdin XML), session (SDK JSONL, --resume), managed (CLAUDE.md/MEMORY.md),
-          diary (daily markdown, gateway injection of 2 most recent with relative time), facts (planned, MCP search),
-          episodes (planned, diary aggregation).
+          diary (daily markdown, gateway injection of 14 most recent with relative time),
+          user context (per-sender pointer, agent reads file), facts (shipped, /recall search),
+          episodes (shipped, day/week/month progressive compression via /compact-memories).
+          /recall: v1 (Explore grep across summary: frontmatter) + v2 (FTS5+sqlite-vec hybrid, RRF fusion, Ollama embeddings).
+          /compact-memories: cron-scheduled progressive compression (sessions->daily->weekly->monthly).
           Config: .env + env vars. Channels enabled by token/config presence.
           Groups: CLI registration (folder-only, no JID), world-scoped authorization, hierarchical delegation
           (5 rule types: command/pattern/keyword/sender/trigger/default, max chain depth 2), trigger mode for non-root,
@@ -664,7 +724,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. Migration system.
           Products are configurations: Atlas (code support, shipped), Yonder (research, shipped), Evangelist (planned).
           Deploy: systemd per instance, kanipi CLI for create/config/run.
-          Roadmap: v1m1 (facts, SSE, /work), v1m2 (message MCP, agent messaging), v2m1 (episodic memory, agent teams, feed adapters), v2m2 (Go rewrite).
+          Roadmap: v1m1 (SSE, /work), v1m2 (message MCP, agent messaging), v2m1 (agent teams, feed adapters), v2m2 (Go rewrite).
         </p>
       </details>
     </footer>
@@ -686,7 +746,9 @@ permissions: 4-tier (root 0=no /, world 1={world}, agent 2={world}/{name}, worke
 mounts: home(/home/node rw/ro), groups(~/groups root-only), share(~/share rw/ro), web(~/web rw root/world), ipc(~/ipc rw), self(~/self ro root), agent-runner(~/agent-runner ro hot-patch)
 skills: container/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; migration system
 ipc: signal-driven (SIGUSR1), 500ms fallback, file-based request/response
-memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (shipped, 2 recent), facts (planned), episodes (planned)
+memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (shipped, 14 recent), user-context (shipped, per-sender pointer), facts (shipped, /recall search), episodes (shipped, day/week/month compression via /compact-memories)
+recall: v1 (explore grep on summary: frontmatter) + v2 (FTS5+sqlite-vec hybrid, RRF fusion 0.7vec/0.3bm25, ollama nomic-embed-text, .recallrc config, per-store sqlite dbs)
+compact-memories: cron-scheduled progressive compression (sessions->daily->weekly->monthly episodes, diary->weekly->monthly summaries)
 actions: messaging (send_message, send_file, inject_message), tasks (schedule_task, cancel_task), groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session) — Zod-validated, tier-based auth
 generic-commands: runContainerCommand dual mode (agent ceremony vs raw bash), scheduler uses for maintenance
 media: voice transcription (whisper, multi-language, .whisper-language per group), file sending (send_file action), file commands (/put /get /ls), magic bytes mime (file-type), .gateway-caps TOML, ~/media/... paths
@@ -696,7 +758,7 @@ hot-patching: agent-runner TS mounted, bunx tsc at runtime
 groups: cli registration (folder-only, no jid), world-scoped auth, hierarchical delegation (5 rule types: command/pattern/keyword/sender/trigger/default, max chain depth 2), trigger mode, multi-jid per folder via routes
 web: vite dev server, /pub/ public vs /priv/ auth, argon2+jwt, sloth.js widget
 products: atlas (code support, shipped), yonder (research, shipped), evangelist (planned)
-roadmap: v1m1 (facts, sse, work), v1m2 (message-mcp, agent-messaging), v2m1 (episodic, agent-teams, feed-adapters), v2m2 (go-rewrite)
+roadmap: v1m1 (sse, work), v1m2 (message-mcp, agent-messaging), v2m1 (agent-teams, feed-adapters), v2m2 (go-rewrite)
 deploy: systemd per instance, kanipi CLI
 updated: 2026-03-11
 -->
