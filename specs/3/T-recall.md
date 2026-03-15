@@ -4,96 +4,89 @@ status: open
 
 # `/recall` — Knowledge Retrieval
 
-Agent-driven retrieval across facts, diary, and episodes. Read-only —
-never writes files. Separate from `/facts` (research + write).
+Generic search across knowledge stores. Read-only — never writes.
+Each store registers independently; recall searches them all the
+same way.
 
-## Why separate from `/facts`
+## Design
 
-`/facts` spawns researcher + verifier subagents to create/refresh
-knowledge files. That's expensive. Most questions just need retrieval:
-"do we already know this?" `/recall` answers that without the overhead.
+`/recall` is a search tool. It doesn't know what facts or diary
+entries are — it knows how to search directories of markdown files
+with YAML frontmatter summaries.
+
+Each **store** registers:
+
+```ts
+interface KnowledgeStore {
+  name: string; // 'facts', 'diary', 'episodes'
+  dir: string; // relative path: 'facts/', 'diary/'
+  field: string; // frontmatter field to index: 'header', 'summary'
+}
+```
+
+Recall scans all registered stores identically: read the frontmatter
+`field` from each `*.md` in `dir`, match against the query, return
+results. A store is just a directory + a field name.
+
+Adding a new store (e.g. `episodes/` with `summary:`) means adding
+one entry to the registry. No recall code changes.
+
+## Separation from `/facts`
+
+`/facts` spawns researcher + verifier subagents — expensive.
+`/recall` just searches what already exists.
 
 ```
 question → /recall → matches? → answer from matched files
                    → no match → /facts (research + create) → answer
 ```
 
-## Two phases
+## v1: LLM semantic grep
 
-### v1: LLM semantic grep (ships first)
+The agent spawns an **Explore subagent** that acts as semantic grep.
+It reads frontmatter from all registered stores and judges relevance
+using language understanding. No embeddings, no vector DB.
 
-The agent spawns an **Explore subagent** that acts as a semantic grep
-tool — it reads YAML frontmatter from knowledge files and judges
-relevance using language understanding. No embeddings, no vector DB.
+### How it works
 
-#### Protocol
-
-The `/recall` skill teaches the agent when and how to search. It is
-always loaded (base skill, like `/diary`).
-
-When the agent receives a question that might be answerable from
-existing knowledge:
-
-1. Agent spawns Explore subagent with the query
-2. Explore scans target directories for frontmatter fields:
-   - `facts/*.md` → `header:` field (dense paragraph)
-   - `diary/*.md` → `summary:` field (5 bullet points)
-   - `episodes/*.md` → `summary:` field (week/month rollup)
-3. For each file, Explore reads the frontmatter and judges: does this
-   header/summary relate to the query?
-4. Explore returns matches with file paths + why each is relevant
+1. For each registered store, grep `*.md` files for the store's
+   frontmatter `field`
+2. Read each value, judge: does this relate to the query?
+3. Return matches: file path + why it's relevant + store name
 
 ```
-Agent receives question
-  → spawns Explore: "/recall: how does telegram auth work?"
-  → Explore greps header:/summary: fields across facts/ diary/ episodes/
-  → reads each candidate, judges relevance
-  → returns: "2 matches:
-      facts/telegram-bot-api.md (covers bot token auth flow)
-      diary/20260310.md (mentions auth token rotation)"
-  → Agent reads matched files
-  → deliberates in <think> (mandatory 3-step)
-  → answers from knowledge, or escalates to /facts
+/recall "how does telegram auth work?"
+  → scan facts/*.md header: fields
+  → scan diary/*.md summary: fields
+  → scan episodes/*.md summary: fields
+  → judge each candidate
+  → return: [
+      {path: "facts/telegram-bot-api.md", store: "facts", why: "covers bot token auth"},
+      {path: "diary/20260310.md", store: "diary", why: "mentions auth rotation"}
+    ]
 ```
 
-#### Mandatory deliberation
+### After results
 
-After receiving `/recall` results, the agent MUST deliberate in
-`<think>` before answering:
+Agent deliberates in `<think>` (mandatory 3-step):
 
-1. **List** each matched file
-2. **Evaluate** each: what does it say? Does it directly answer the
-   question? What gap remains?
-3. **Verdict**: use the fact, refresh via `/facts`, or research fresh
+1. List matched files
+2. For each: what does it say, does it answer, what gap remains
+3. Verdict: use it, refresh via `/facts`, or research fresh
 
-This is the same 3-step rule from `container/CLAUDE.md` Knowledge
-section. `/recall` reinforces it in the skill description.
+### Scale
 
-#### Scale limits
+Works up to ~200 files across all stores. At 500+ the header scan
+gets expensive and v2 takes over.
 
-v1 works by having an LLM read every header. Cost is proportional to
-corpus size:
+## v2: Hybrid BM25 + vector search
 
-- ~200 facts + 30 diary entries: fine, Explore reads all headers quickly
-- 500+ files: header scan becomes expensive (tokens + latency)
-- At that point, v2 takes over
+Replaces LLM header scan with a search index. Same store interface —
+just faster retrieval. Informed by OpenClaw (`refs/openclaw/`).
 
-### v2: Hybrid BM25 + vector search (when scale demands it)
+### Search
 
-Replaces the LLM header scan with a proper search index. Informed by
-OpenClaw's architecture (see `refs/openclaw/`).
-
-#### Two retrieval paths
-
-**BM25 (keyword)** — SQLite FTS5 on frontmatter text. Fast exact-match
-retrieval. Good for names, dates, specific terms, code identifiers.
-
-**Vector (semantic)** — embeddings stored in sqlite-vec. Cosine
-similarity finds conceptually related content even when wording differs.
-"authentication flow" matches "login process" even though no words overlap.
-
-**Fusion** — Reciprocal Rank Fusion (RRF) combines both ranked lists
-into one. Default weights: vector 0.7, text 0.3.
+Two paths, fused:
 
 ```
 query → BM25 (FTS5) → ranked results ─┐
@@ -101,166 +94,101 @@ query → BM25 (FTS5) → ranked results ─┐
 query → embed → cosine (sqlite-vec) ──┘
 ```
 
-#### Embedding provider
+**BM25** — SQLite FTS5 on frontmatter text. Exact keyword matching.
+**Vector** — Ollama embeddings in sqlite-vec. Semantic similarity.
+**RRF** — Reciprocal Rank Fusion. Vector 0.7, BM25 0.3.
 
-Ollama (`nomic-embed-text`) at 10.0.5.1:11434. Local inference, no API
-costs, 768-dimension vectors. ~100ms per embedding.
+### Embeddings
 
-Alternative models:
+Ollama `nomic-embed-text` at 10.0.5.1:11434. Local, no API cost,
+768-dim vectors, ~100ms per embed.
 
-- `mxbai-embed-large` (1024-dim) — more accurate, slower
-- `nomic-embed-text` (768-dim) — faster, good enough for headers
+### Storage
 
-#### Storage
-
-SQLite DB per group, lives in the group folder alongside the knowledge
-dirs it indexes. Separate from the messages DB.
-
-```
-groups/<folder>/knowledge.db
-```
-
-Three tables:
+One SQLite DB per group: `knowledge.db` in the group folder.
 
 ```sql
--- source of truth
 CREATE TABLE knowledge (
   id INTEGER PRIMARY KEY,
-  layer TEXT NOT NULL,  -- 'fact', 'diary', 'episode'
-  key TEXT NOT NULL,    -- 'telegram-bot-api.md', '20260310', '2026-W10'
-  path TEXT NOT NULL,   -- relative: 'facts/telegram-bot-api.md'
-  summary TEXT,         -- extracted header:/summary: frontmatter
-  embedding BLOB,       -- 768-dim float vector (from Ollama)
-  mtime INTEGER,        -- file mtime at index time
-  indexed_at TEXT,
-  UNIQUE(layer, key)
+  store TEXT NOT NULL,   -- 'facts', 'diary', 'episodes'
+  key TEXT NOT NULL,     -- filename without extension
+  path TEXT NOT NULL,    -- relative: 'facts/telegram-bot-api.md'
+  summary TEXT,          -- extracted frontmatter field value
+  embedding BLOB,        -- 768-dim float vector
+  mtime INTEGER,         -- file mtime at index time
+  UNIQUE(store, key)
 );
 
--- FTS5 for keyword search (content-sync with knowledge table)
 CREATE VIRTUAL TABLE knowledge_fts USING fts5(
-  layer, key, summary,
-  content='knowledge',
-  content_rowid='id'
+  store, key, summary,
+  content='knowledge', content_rowid='id'
 );
 
--- sqlite-vec for vector search
 CREATE VIRTUAL TABLE knowledge_vec USING vec0(
   id INTEGER PRIMARY KEY,
   embedding float[768]
 );
 ```
 
-#### Indexing: lazy, self-managed
+### Indexing: lazy sync
 
-The index is decoupled from the write path. The gateway doesn't need to
-know when the agent writes files. Instead, the index syncs lazily on
-each `/recall` query:
+Decoupled from the write path. On each `/recall` query:
 
-1. **Scan** `facts/`, `diary/`, `episodes/` for `*.md` files
-2. **Compare** each file's path + mtime against the `knowledge` table
-3. **Index new/changed**: extract frontmatter, embed via Ollama, upsert
-   into all three tables
-4. **Prune deleted**: remove rows for files that no longer exist
-5. **Search**: run the actual query against the now-current index
+1. For each registered store, scan `dir/*.md`
+2. Compare path + mtime against `knowledge` table
+3. New/changed → extract frontmatter, embed, upsert
+4. Deleted → remove stale rows
+5. Search the now-current index
 
-First query after bulk writes pays the indexing cost (~100ms per file).
-Subsequent queries hit the warm index with no sync overhead (mtime
-matches → skip).
+First query after writes pays ~100ms/file. Subsequent queries hit
+warm index. No file watchers, no gateway hooks.
 
-```
-/recall query arrives
-  → scan dirs: 3 new facts, 1 changed diary entry
-  → embed 4 files via Ollama (~400ms)
-  → upsert into knowledge + FTS5 + vec tables
-  → run BM25 + vector search
-  → fuse results, return top-6
-```
+### Query flow
 
-Alternative: standalone indexer process (cron or inotify) that keeps
-the index warm. Only needed if query-time sync latency is noticeable.
+1. Sync index
+2. Embed query via Ollama
+3. BM25: `SELECT ... FROM knowledge_fts WHERE knowledge_fts MATCH ?`
+4. Vector: `SELECT ... FROM knowledge_vec WHERE embedding MATCH ?`
+5. RRF fusion, return top-6: path, summary, score, store
+6. Agent reads matched files, deliberates in `<think>`
 
-#### Query flow (v2 detail)
+### Optional (from OpenClaw, add if needed)
 
-```
-1. Sync index (scan dirs, embed new files)
-2. Embed the question text via Ollama
-3. BM25: SELECT * FROM knowledge_fts WHERE knowledge_fts MATCH ?
-         ORDER BY rank LIMIT 20
-4. Vector: SELECT id, distance FROM knowledge_vec
-           WHERE embedding MATCH ? ORDER BY distance LIMIT 20
-5. RRF fusion:
-     score(doc) = Σ 1/(k + rank_i)  for each retrieval method i
-     k = 60 (standard RRF constant)
-     weight: vector ranks × 0.7, BM25 ranks × 0.3
-6. Return top-6 results: path, summary, score, layer
-7. Agent reads matched files, deliberates in <think>
-```
+- MMR re-ranking (lambda=0.7) — diversity in results
+- Temporal decay (halfLife=30 days) — boost recent
+- Min score threshold (0.35) — filter noise
 
-#### What gets indexed
+## Registered stores
 
-Only frontmatter, not full file content:
+| Store    | Dir         | Field     | Status  |
+| -------- | ----------- | --------- | ------- |
+| facts    | `facts/`    | `header`  | shipped |
+| diary    | `diary/`    | `summary` | shipped |
+| users    | `users/`    | `summary` | shipped |
+| episodes | `episodes/` | `summary` | open    |
 
-| Layer   | Frontmatter field | Typical size      |
-| ------- | ----------------- | ----------------- |
-| Fact    | `header:`         | 1-3 sentences     |
-| Diary   | `summary:`        | 5 bullet points   |
-| Episode | `summary:`        | 3-5 bullet points |
+New stores register by adding a row. Recall code doesn't change.
 
-Headers are designed for retrieval — dense, keyword-rich. Full file
-content is what the agent reads AFTER matching. This keeps the index
-small and embeddings focused.
-
-#### Optional enhancements (add if needed)
-
-From OpenClaw's implementation, available but not shipped initially:
-
-- **MMR re-ranking** (lambda=0.7) — diversify results when top-k are
-  too similar. Useful when multiple facts cover overlapping topics.
-- **Temporal decay** (halfLife=30 days) — boost recent knowledge.
-  Useful for diary where last week matters more than last month.
-- **Min score threshold** (0.35) — filter noise. Below this score the
-  match is too weak to be useful.
+Recall is available, not mandatory. The agent decides when to search
+based on the question. Trivial messages don't trigger recall.
 
 ## Where it runs
 
-v1: inside the agent container. Explore subagent uses native Grep/Read
-tools — no gateway involvement.
+v1: in-container. Explore subagent uses Grep/Read.
+v2: in-container. SQLite DB in group folder. Move to gateway-side
+only if multiple containers need the same index.
 
-v2: the index service could run either:
-
-- **In-container**: agent manages its own index DB. Simpler, no IPC.
-  The SQLite DB lives in the group folder, accessible to the container.
-- **Gateway-side**: gateway manages the index, agent queries via IPC.
-  Better if multiple containers need the same index.
-
-Start with in-container. Move to gateway-side only if needed.
-
-## Skill definition
+## Skill
 
 ```yaml
 # container/skills/recall/SKILL.md
 name: recall
-description: >
-  Search existing knowledge before answering. Scans facts, diary,
-  and episodes for relevant information.
+description: Search existing knowledge across all stores.
 always_loaded: true
 ```
 
-The skill's description teaches the agent the protocol: when to search,
-how to interpret results, when to escalate to `/facts`.
-
-## Relationship to other specs
-
-- `specs/3/D-knowledge-system.md` — parent pattern (this is the pull layer)
-- `specs/3/3-code-research.md` — `/facts` research agent (called when
-  `/recall` finds no matches)
-- `specs/1/L-memory-diary.md` — diary layer (one of the scanned layers)
-- `specs/4/B-memory-episodic.md` — episodes layer (scanned when built)
-
 ## Open questions
 
-- Should `/recall` also scan `users/*.md` files?
-- Should `/recall` scan `MEMORY.md`?
-- Embedding model choice: `nomic-embed-text` vs `mxbai-embed-large`
-- v2 trigger: exact corpus size where v1 becomes too expensive
-- In-container vs gateway-side index for v2
+- Should `MEMORY.md` be a registered store?
+- Embedding model: `nomic-embed-text` (768d) vs `mxbai-embed-large` (1024d)
+- v2 trigger: exact file count where v1 becomes too expensive
