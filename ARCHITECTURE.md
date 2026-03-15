@@ -155,15 +155,9 @@ and `send_reply` return the sent message ID.
 
 ### ipc.ts
 
-File-based IPC between gateway and agent containers. Two modes:
-
-1. **Request-response** (new): agent writes to `requests/`,
-   gateway dispatches through action registry, writes reply to
-   `replies/`. Enables typed responses and tool discovery.
-2. **Fire-and-forget** (legacy): agent writes to `messages/`
-   or `tasks/`, gateway drains and executes. Kept for backwards
-   compat during rollout.
-
+File-based IPC between gateway and agent containers. Agent writes
+to `requests/`, gateway dispatches through action registry, writes
+reply to `replies/`. Enables typed responses and tool discovery.
 File sends serialized per group via drain lock.
 
 ### task-scheduler.ts

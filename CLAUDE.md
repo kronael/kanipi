@@ -52,13 +52,14 @@ systemd-managed instances, MCP extensibility.
 make build          # tsc compile (src/ → dist/)
 make lint           # typecheck without emitting
 make image                     # gateway docker image
-make -C container image        # agent docker image
+make agent-image               # agent docker image
 npm run dev         # tsx dev mode
 ```
 
-Tests use vitest (devDependency). Run all:
-`vitest run`. Run one file: `vitest run src/foo.test.ts`.
-Many tests require docker — they'll fail without it.
+Tests use vitest (devDependency):
+`make test` — unit+e2e (src/ + tests/e2e/).
+`make smoke` — all tests. `make integration` — docker-dependent tests.
+Run one file: `bunx vitest run src/foo.test.ts`.
 
 Pre-commit hooks (prettier, typecheck, hygiene) configured
 via `.pre-commit-config.yaml`. Prettier uses single quotes.
