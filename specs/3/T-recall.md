@@ -101,56 +101,72 @@ Deliberate in `<think>` (mandatory):
 Up to ~300 files total: fast, one Explore call.
 500+: too many summaries to read, switch to v2.
 
-## v2: Agent with search tool (when scale demands it)
+## v2: CLI retrieval + Explore judge (when scale demands it)
 
-Same Explore agent as v1, just with a faster retrieval tool.
-v1's agent greps raw files. v2's agent calls `search_knowledge`
-backed by FTS5 + sqlite-vec. The agent is the same — it thinks
-about what to search, calls the tool, judges results, iterates.
+Same Explore agent as v1 for judgment. But instead of grepping
+raw files, the main agent first retrieves candidates via the
+`recall` CLI tool, then feeds them to Explore.
 
-The DB gives the agent a better-informed starting set — scored,
-ranked, with similarity context. The agent can then iterate:
-narrow down, broaden out, or dig deeper based on what it sees.
-Each search is fast, so the agent can afford more iterations.
-
-### How the agent works
-
-The recall agent gets the user's question plus context from the
-main agent. Then it works in steps:
+### Three steps
 
 ```
-Step 1: Think about what to search for
-  "The user is asking about telegram auth. I should search for:
-   - telegram authentication
-   - bot token
-   - telegram login"
-
-Step 2: Call search_knowledge for each term
-  → search_knowledge("telegram authentication") → 5 results
-  → search_knowledge("bot token") → 3 results
-
-Step 3: Read the summaries, judge relevance
-  "facts/telegram-bot-api.md covers the auth flow directly.
-   diary/20260310.md mentions token rotation but tangentially."
-
-Step 4: Maybe search again with refined terms
-  "The bot-api fact mentions webhooks but I should also check
-   for webhook auth specifically..."
-  → search_knowledge("webhook authentication") → 2 more
-
-Step 5: Return final matches with reasoning
+1. Expand: main agent generates ~10 search terms from the question
+2. Retrieve: `recall "term"` for each (fast, CLI, mechanical)
+3. Judge: spawn Explore with all results as context + question
 ```
 
-The agent iterates naturally — no hardcoded stages. It expands
-queries, judges results, and refines search terms as needed. This
-is what v1 does with Grep, but the search tool handles scale.
+Step 1-2 are mechanical — the main agent thinks up terms and
+calls the CLI. Step 3 is the LLM judgment — same Explore
+subagent as v1, but with a pre-filtered, scored, richer set
+to work with.
+
+### Example
+
+```
+Main agent receives: "how does telegram auth work?"
+
+Step 1 — expand (in <think>):
+  telegram authentication, bot token, bot api login,
+  telegram webhook auth, telegram session, bot api key,
+  telegram oauth, telegram bot verification, ...
+
+Step 2 — retrieve (Bash calls):
+  $ recall "telegram authentication"
+  0.82  facts  facts/telegram-bot-api.md
+    Telegram Bot API uses long-polling or webhooks...
+  0.71  diary  diary/20260310.md
+    - Auth token rotation after security incident
+
+  $ recall "bot token"
+  0.79  facts  facts/telegram-bot-api.md
+    Telegram Bot API uses long-polling or webhooks...
+  0.45  facts  facts/discord-setup.md
+    Discord bot token stored in .env, enabled by presence...
+
+  ... (repeat for each term)
+
+Step 3 — spawn Explore with collected results:
+  "Given these search results for 'how does telegram auth work?':
+   - facts/telegram-bot-api.md (score 0.82): Telegram Bot API...
+   - diary/20260310.md (score 0.71): Auth token rotation...
+   - facts/discord-setup.md (score 0.45): Discord bot token...
+   Judge which are relevant and why."
+
+  Explore returns:
+   "facts/telegram-bot-api.md — directly covers auth flow
+    diary/20260310.md — mentions rotation, tangentially relevant
+    facts/discord-setup.md — different platform, not relevant"
+```
+
+The DB handles scale (500+ files → top candidates per term).
+The Explore agent handles understanding (judge, explain, filter).
 
 ### Config
 
 `.recallrc` in the group folder (TOML):
 
 ```toml
-db_dir = ".local"
+db_dir = ".local/recall"
 embed_url = "http://10.0.5.1:11434/api/embeddings"
 embed_model = "nomic-embed-text"
 
@@ -171,8 +187,8 @@ name = "episodes"
 dir = "episodes"
 ```
 
-Seeded by the agent image. Paths relative to the group folder.
-Agent or user can add stores by adding `[[store]]` entries.
+Baked into agent image, managed by migrations skill. Paths
+relative to the group folder. Add stores with `[[store]]` entries.
 
 ### The search tool
 
@@ -210,14 +226,16 @@ Ollama `nomic-embed-text` at 10.0.5.1:11434.
 
 ### DB
 
-One DB per store in `.local/` (derived data, gitignored):
+One DB per store in `.local/recall/` (derived cache, deletable):
 
 ```
-.local/facts.db
-.local/diary.db
-.local/users.db
-.local/episodes.db
+.local/recall/facts.db
+.local/recall/diary.db
+.local/recall/users.db
+.local/recall/episodes.db
 ```
+
+`recall` creates `.local/recall/` on first run.
 
 Each DB has the same schema:
 
@@ -263,20 +281,6 @@ On each `recall` call:
 - **Temporal decay** (halfLife=30d) — boost recent entries
 - **Min score** (0.35) — filter noise
 
-### Why agent > script pipeline
-
-A script pipeline (expand → retrieve → re-rank) is rigid — fixed
-stages, fixed number of iterations. The agent is flexible:
-
-- It decides how many search terms to try
-- It reads results and refines its search if the first pass
-  misses something
-- It can read the actual files if summaries are ambiguous
-- It explains WHY each match is relevant (not just a score)
-
-Same capability as v1's Explore subagent, but with a fast search
-tool instead of raw grep. The LLM still makes all the decisions.
-
 ## What ships
 
 ### v1 (shipped)
@@ -293,6 +297,5 @@ tool instead of raw grep. The LLM still makes all the decisions.
 
 ## v1 → v2 migration
 
-The skill tells the agent to use `recall` instead of
-grepping raw files. The agent's behavior is the same — think about
-what to search, search, judge, iterate. Just faster retrieval.
+Skill adds step 1-2 (expand + CLI retrieval) before step 3
+(Explore judge). Explore works the same — just gets better input.
