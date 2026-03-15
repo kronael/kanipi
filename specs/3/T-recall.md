@@ -101,92 +101,98 @@ Deliberate in `<think>` (mandatory):
 Up to ~300 files total: fast, one Explore call.
 500+: too many summaries to read, switch to v2.
 
-## v2: Hybrid search (when scale demands it)
+## v2: Agent with search tool (when scale demands it)
 
-Combines vector+BM25 retrieval with LLM-aided query expansion
-and re-ranking. The DB narrows 500+ files to ~20 candidates,
-then the LLM judges and expands — best of both worlds.
+Same Explore agent as v1, just with a faster retrieval tool.
+v1's agent greps raw files. v2's agent calls `search_knowledge`
+backed by FTS5 + sqlite-vec. The agent is the same — it thinks
+about what to search, calls the tool, judges results, iterates.
 
-### Architecture
+The DB narrows 500+ files to ~20 candidates. The agent then has
+a focused set to explore deeply AND the freedom to broaden — it
+can follow up with more targeted searches based on what it finds
+in the first pass. More focused because fewer candidates to
+evaluate. More broad because it can afford more iterations when
+each search is fast.
 
-```
-query ──→ LLM: expand search terms ──→ expanded queries
-                                           │
-              ┌────────────────────────────┘
-              ▼
-     BM25 (FTS5) → ranked ─┐
-                             ├─ RRF → top-20 candidates
-     embed → vec cosine ────┘
-              │
-              ▼
-     LLM: judge relevance, re-rank → top-6 results
-```
+### How the agent works
 
-Three stages:
-
-1. **Query expansion** — LLM generates 2-3 alternative phrasings
-   and related terms. "telegram auth" → ["telegram bot token",
-   "bot api authentication", "telegram login flow"]. Each becomes
-   a separate BM25+vec query.
-
-2. **Retrieval** — BM25 (FTS5) + vector (sqlite-vec) on each
-   expanded query. RRF fuses all result sets into one ranked list.
-   Returns top-20 candidates (generous, to feed the LLM judge).
-
-3. **Re-ranking** — LLM reads the top-20 summaries and the
-   original question. Judges each: relevant or not, and why.
-   Returns the final top-6 with explanations.
-
-This is strictly better than pure vector search (catches
-synonyms the embedder misses) and strictly better than pure
-LLM grep (scales past 300 files). The LLM still makes the
-final relevance decision — it just sees 20 candidates instead
-of 500.
-
-### Where code lives
-
-v2 is a standalone module the agent can run. Two options:
-
-**Option A: In-container script** (preferred, simpler)
+The recall agent gets the user's question plus context from the
+main agent. Then it works in steps:
 
 ```
-container/agent-runner/recall.ts    # indexer + search
+Step 1: Think about what to search for
+  "The user is asking about telegram auth. I should search for:
+   - telegram authentication
+   - bot token
+   - telegram login"
+
+Step 2: Call search_knowledge for each term
+  → search_knowledge("telegram authentication") → 5 results
+  → search_knowledge("bot token") → 3 results
+
+Step 3: Read the summaries, judge relevance
+  "facts/telegram-bot-api.md covers the auth flow directly.
+   diary/20260310.md mentions token rotation but tangentially."
+
+Step 4: Maybe search again with refined terms
+  "The bot-api fact mentions webhooks but I should also check
+   for webhook auth specifically..."
+  → search_knowledge("webhook authentication") → 2 more
+
+Step 5: Return final matches with reasoning
 ```
 
-The agent runs it directly: `npx tsx ~/recall.ts search "query"`.
-No gateway changes. The script reads the group folder, manages
-`knowledge.db`, and returns JSON results to stdout.
+The agent iterates naturally — no hardcoded stages. It expands
+queries, judges results, and refines search terms as needed. This
+is what v1 does with Grep, but the search tool handles scale.
+
+### The search tool
+
+A small CLI script the agent calls via Bash. Takes a query string,
+returns JSON results from the index.
 
 ```
-recall.ts index              # sync index (scan dirs, embed, upsert)
-recall.ts search "query"     # index + search, return JSON
-recall.ts stats              # show index stats (file counts, staleness)
+container/agent-runner/search-knowledge.ts
 ```
 
-**Option B: MCP tool** (if agent needs structured interface)
+```
+search-knowledge "telegram auth"    → JSON results
+search-knowledge --sync             → rebuild index only
+search-knowledge --stats            → index stats
+```
 
-Gateway exposes `recall_search(query)` MCP tool. Agent calls it
-like any other tool. Gateway manages the index. Only needed if
-multiple containers share one index.
+Internally: BM25 (FTS5) + vector (sqlite-vec) + RRF fusion.
+The agent doesn't need to know how it works — it just calls
+the tool and gets results back.
 
-Start with Option A. The skill teaches the agent to shell out to
-the script instead of spawning an Explore subagent.
+```json
+[
+  {
+    "path": "facts/telegram-bot-api.md",
+    "store": "facts",
+    "summary": "Telegram Bot API uses...",
+    "score": 0.82
+  },
+  {
+    "path": "diary/20260310.md",
+    "store": "diary",
+    "summary": "- Auth token rotation...",
+    "score": 0.64
+  }
+]
+```
+
+### Search internals
+
+**BM25** — SQLite FTS5 on `summary` text. Keyword matching.
+**Vector** — Ollama embeddings in sqlite-vec. Semantic similarity.
+**RRF** — fuses both ranked lists. Vector 0.7, BM25 0.3.
 
 ### Embeddings
 
 Ollama `nomic-embed-text` at 10.0.5.1:11434.
 768-dim, ~100ms/embed, local, no API cost.
-
-```ts
-async function embed(text: string): Promise<Float32Array> {
-  const r = await fetch('http://10.0.5.1:11434/api/embeddings', {
-    method: 'POST',
-    body: JSON.stringify({ model: 'nomic-embed-text', prompt: text }),
-  });
-  const { embedding } = await r.json();
-  return new Float32Array(embedding);
-}
-```
 
 ### DB
 
@@ -215,256 +221,54 @@ CREATE VIRTUAL TABLE knowledge_vec USING vec0(
 );
 ```
 
-Dependencies: `better-sqlite3`, `sqlite-vec` (npm packages,
-already available in agent container base image or add to
-container build).
+### Lazy indexing
 
-### Indexer
+On each `search-knowledge` call:
 
-Runs before every search. Incremental — only touches changed files.
+1. Scan each store dir for `*.md`
+2. Compare path + mtime against DB
+3. New/changed → parse `summary:`, embed via Ollama, upsert
+4. Deleted → prune stale rows
+5. Search
 
-```ts
-const STORES = [
-  { name: 'facts', dir: 'facts' },
-  { name: 'diary', dir: 'diary' },
-  { name: 'users', dir: 'users' },
-  { name: 'episodes', dir: 'episodes' },
-];
-
-async function syncIndex(db: Database, root: string) {
-  const indexed = new Set<string>();
-
-  for (const store of STORES) {
-    const dir = join(root, store.dir);
-    if (!existsSync(dir)) continue;
-
-    for (const file of readdirSync(dir).filter((f) => f.endsWith('.md'))) {
-      const path = join(store.dir, file);
-      const abs = join(root, path);
-      const mtime = statSync(abs).mtimeMs;
-      indexed.add(path);
-
-      // skip if unchanged
-      const row = db
-        .prepare('SELECT mtime FROM knowledge WHERE path = ?')
-        .get(path);
-      if (row && row.mtime === mtime) continue;
-
-      // extract summary from frontmatter
-      const content = readFileSync(abs, 'utf8');
-      const summary = parseSummary(content);
-      if (!summary) continue;
-
-      // embed
-      const embedding = await embed(summary);
-
-      // upsert
-      db.prepare(
-        `
-        INSERT INTO knowledge (store, key, path, summary, embedding, mtime)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(store, key) DO UPDATE SET
-          summary=excluded.summary, embedding=excluded.embedding,
-          mtime=excluded.mtime
-      `,
-      ).run(
-        store.name,
-        file.replace('.md', ''),
-        path,
-        summary,
-        Buffer.from(embedding.buffer),
-        mtime,
-      );
-    }
-  }
-
-  // prune deleted files
-  const all = db.prepare('SELECT path FROM knowledge').all();
-  for (const row of all) {
-    if (!indexed.has(row.path)) {
-      db.prepare('DELETE FROM knowledge WHERE path = ?').run(row.path);
-    }
-  }
-}
-```
-
-### Stage 1: Query expansion (LLM)
-
-Before hitting the DB, the LLM generates expanded search terms.
-This catches synonyms and related concepts the embedder might miss.
-
-```ts
-async function expandQuery(query: string): Promise<string[]> {
-  // LLM generates 2-3 alternative phrasings
-  // "telegram auth" → ["telegram bot token", "bot api authentication"]
-  const prompt = `Given this search query, generate 2-3 alternative
-phrasings that would match relevant documents. Return one per line,
-nothing else.\n\nQuery: ${query}`;
-  const expanded = await llm(prompt); // Ollama or Claude
-  return [query, ...expanded.split('\n').filter(Boolean)];
-}
-```
-
-Cheap — one small LLM call (~50 tokens out). Can use Ollama
-(llama3, mistral) or Claude haiku for this.
-
-### Stage 2: Retrieval (DB)
-
-Run BM25 + vector for each expanded query, fuse all results:
-
-```ts
-interface Result {
-  path: string;
-  store: string;
-  summary: string;
-  score: number;
-}
-
-async function retrieve(db: Database, queries: string[]): Promise<Result[]> {
-  const scores = new Map<string, { result: Result; score: number }>();
-  const K = 60;
-
-  for (const q of queries) {
-    const qvec = await embed(q);
-
-    // BM25
-    const bm25 = db
-      .prepare(
-        `
-      SELECT k.path, k.store, k.summary, rank
-      FROM knowledge_fts fts
-      JOIN knowledge k ON k.id = fts.rowid
-      WHERE knowledge_fts MATCH ?
-      ORDER BY rank LIMIT 20
-    `,
-      )
-      .all(q);
-
-    // Vector
-    const vec = db
-      .prepare(
-        `
-      SELECT k.path, k.store, k.summary, v.distance
-      FROM knowledge_vec v
-      JOIN knowledge k ON k.id = v.id
-      WHERE v.embedding MATCH ?
-      ORDER BY v.distance LIMIT 20
-    `,
-      )
-      .all(Buffer.from(qvec.buffer));
-
-    // RRF per query
-    for (let i = 0; i < bm25.length; i++) {
-      const r = bm25[i];
-      const s = scores.get(r.path) || { result: r, score: 0 };
-      s.score += 0.3 / (K + i + 1);
-      scores.set(r.path, s);
-    }
-    for (let i = 0; i < vec.length; i++) {
-      const r = vec[i];
-      const s = scores.get(r.path) || { result: r, score: 0 };
-      s.score += 0.7 / (K + i + 1);
-      scores.set(r.path, s);
-    }
-  }
-
-  return [...scores.values()]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 20) // generous — feed to LLM judge
-    .map((s) => ({ ...s.result, score: s.score }));
-}
-```
-
-### Stage 3: Re-ranking (LLM)
-
-The LLM reads the top-20 summaries and judges relevance to the
-original question. This is the v1 Explore judgment, but on 20
-pre-filtered candidates instead of 500 raw files.
-
-```ts
-async function rerank(query: string, candidates: Result[]): Promise<Result[]> {
-  const summaryList = candidates
-    .map((c, i) => `${i}. [${c.store}] ${c.path}: ${c.summary}`)
-    .join('\n');
-
-  const prompt = `Question: ${query}
-
-These are candidate knowledge files. For each, judge: does the
-summary answer or relate to the question? Return the indices of
-relevant results, most relevant first. One per line, nothing else.
-
-${summaryList}`;
-
-  const response = await llm(prompt);
-  const indices = response
-    .split('\n')
-    .map((l) => parseInt(l.trim()))
-    .filter((n) => !isNaN(n) && n < candidates.length);
-
-  return indices.slice(0, 6).map((i) => candidates[i]);
-}
-```
-
-### Full pipeline
-
-```ts
-async function search(db: Database, query: string): Promise<Result[]> {
-  await syncIndex(db, root);
-  const queries = await expandQuery(query);
-  const candidates = await retrieve(db, queries);
-  return rerank(query, candidates);
-}
-```
-
-### Output format
-
-```json
-{
-  "results": [
-    {
-      "path": "facts/telegram-bot-api.md",
-      "store": "facts",
-      "summary": "Telegram Bot API uses...",
-      "score": 0.0142
-    },
-    {
-      "path": "diary/20260310.md",
-      "store": "diary",
-      "summary": "- Auth token rotation...",
-      "score": 0.0098
-    }
-  ],
-  "indexed": 3,
-  "total": 247
-}
-```
+~100ms/file for new entries. Warm index = zero sync cost.
 
 ### Optional enhancements (add if needed)
 
 - **MMR** (lambda=0.7) — deduplicate similar results after RRF
 - **Temporal decay** (halfLife=30d) — boost recent entries
-- **Min score** (0.35) — filter noise before LLM re-ranking
+- **Min score** (0.35) — filter noise
+
+### Why agent > script pipeline
+
+A script pipeline (expand → retrieve → re-rank) is rigid — fixed
+stages, fixed number of iterations. The agent is flexible:
+
+- It decides how many search terms to try
+- It reads results and refines its search if the first pass
+  misses something
+- It can read the actual files if summaries are ambiguous
+- It explains WHY each match is relevant (not just a score)
+
+Same capability as v1's Explore subagent, but with a fast search
+tool instead of raw grep. The LLM still makes all the decisions.
 
 ## What ships
 
-### v1 (now)
+### v1 (shipped)
 
-1. Create `container/skills/recall/SKILL.md`
-2. Update `container/CLAUDE.md` Knowledge section
-3. Test: few facts + diary files, verify results
-
-No gateway changes. No new TypeScript.
+- `container/skills/recall/SKILL.md`
+- `container/CLAUDE.md` Knowledge section uses `/recall`
 
 ### v2 (when corpus > ~300 files)
 
-1. Add `container/agent-runner/recall.ts` (indexer + search)
-2. Add `sqlite-vec` to container image deps
-3. Update skill to call script instead of Explore subagent
-4. Agent interface unchanged — still gets path + summary + score
+1. Add `container/agent-runner/search-knowledge.ts`
+2. Add `better-sqlite3`, `sqlite-vec` to container image
+3. Update skill: agent calls `search-knowledge` instead of Grep
+4. Agent interface unchanged — still returns path + summary + why
 
 ## v1 → v2 migration
 
-The skill content changes from "spawn Explore subagent" to
-"run `recall.ts search`". The agent's deliberation protocol
-(3-step in `<think>`) stays the same. The output format is
-the same. Only the retrieval backend changes.
+The skill tells the agent to use `search-knowledge` instead of
+grepping raw files. The agent's behavior is the same — think about
+what to search, search, judge, iterate. Just faster retrieval.
