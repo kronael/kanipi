@@ -150,7 +150,7 @@ is what v1 does with Grep, but the search tool handles scale.
 `.recallrc` in the group folder (TOML):
 
 ```toml
-db = "knowledge.db"
+db = ".local/knowledge.db"
 embed_url = "http://10.0.5.1:11434/api/embeddings"
 embed_model = "nomic-embed-text"
 
@@ -210,7 +210,7 @@ Ollama `nomic-embed-text` at 10.0.5.1:11434.
 
 ### DB
 
-One `knowledge.db` per group folder:
+One `.local/knowledge.db` per group folder (derived data, gitignored):
 
 ```sql
 CREATE TABLE knowledge (
