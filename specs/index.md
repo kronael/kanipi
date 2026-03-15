@@ -99,6 +99,7 @@ Requires new instance or major architectural changes.
 | G-instance-repos      | Git-based config repos            | arizuko                                         |
 | Q-dash-memory         | Memory viewer/editor              | arizuko                                         |
 | R-evangelist          | Community engagement agent        | arizuko                                         |
+| K-versioning-personas | Versioning model, persona plugins | open                                            |
 | W-detached-containers | File-based container IPC, reclaim | arizuko (spec)                                  |
 
 ## Phase 5 — Agent Extensions & Workflows (future)
