@@ -16,12 +16,11 @@ summaries selected and injected into agent context.
 | Session  | memory-session.md      | shipped | SDK (.jl) |
 | Managed  | memory-managed.md      | shipped | Files     |
 | Diary    | memory-diary.md        | shipped | Files     |
-| Facts    | 2/3-memory-facts.md    | v2      | Files     |
-| Episodes | 3/B-memory-episodic.md | v2      | Files     |
+| User ctx | 3/7-user-context.md    | shipped | Files     |
+| Facts    | 3/1-atlas.md           | shipped | Files     |
+| Episodes | 4/B-memory-episodic.md | planned | Files     |
 
-Diary has agent-side skills (write/read) and gateway-side injection
-(shipped v0.7.0). Other push layers (user context, episodes) not yet
-built. Pull layers (facts search) not yet built.
+Diary, user context, and facts are shipped. Episodes not yet built.
 
 ## The pattern
 
@@ -36,13 +35,14 @@ Given a directory of markdown files:
 
 **Push layers** — small corpus, gateway injects automatically:
 
-- **Diary** (`diary/*.md`) — date-keyed, 2 most recent, injected on
+- **Diary** (`diary/*.md`) — date-keyed, 14 most recent, injected on
   session start via `formatDiaryXml()` in `index.ts` (shipped v0.7.0).
   Agent writes via `/diary` skill.
 - **User context** (`users/*.md`) — sender-keyed, match by message
-  sender, inject on every message. Agent writes on first encounter.
+  sender, gateway injects `<user>` tag per message (shipped).
+  Agent writes via `/users` skill.
 - **Episodes** (`episodes/*.md`) — event-keyed, all or recent,
-  inject on session start. Agent writes on notable events.
+  inject on session start. Not yet built.
 
 **Pull layers** — large corpus, agent searches on demand:
 
@@ -129,7 +129,7 @@ These specs describe specific layers built on this pattern:
 - `specs/1/L-memory-diary.md` — diary layer (agent skills + gateway
   injection shipped)
 - `specs/4/B-memory-episodic.md` — episodes layer (designed, not built)
-- `specs/3/7-user-context.md` — user layer (designed, not built)
+- `specs/3/7-user-context.md` — user layer (shipped)
 - `specs/3/3-code-research.md` — facts layer (shipped, see research + verify)
 
 These specs describe different systems, NOT instances of this pattern:

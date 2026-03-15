@@ -21,6 +21,11 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
   prompts, SYSTEM.md reference, howto cookbook, strict relevance rule.
 - **Strict knowledge relevance**: `container/CLAUDE.md` Knowledge section
   tightened — facts must answer 100% correctly or agent researches.
+- **Fact deliberation**: agents must explain in `<think>` what each candidate
+  fact says, whether it answers the question, and what gaps remain before
+  deciding to use it or research.
+- **Memory specs consistency**: fixed stale refs and statuses across
+  D-knowledge-system, M-memory-managed, and memory layer table.
 - **Shipped Worlds concept**: added to `4/K-versioning-personas.md` as
   future direction for packaging product configs as world templates.
 

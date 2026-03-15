@@ -536,11 +536,23 @@ A fact is relevant ONLY if it answers the question 100% correctly with
 only trivial application needed. No interpretation, no inference, no
 "probably matches". If you have any doubt, the fact is NOT relevant.
 
-Decision tree (always in `<think>` first):
+Decision tree:
 
 - Fact fully answers + fresh (verified_at < 14 days) → answer from it
 - Fact fully answers but stale → run `/facts` to refresh, then answer
 - No fact fully answers → run `/facts` to research and create, then answer
+
+Always deliberate in `<think>` before answering:
+
+1. List candidate facts found by scanning headers
+2. For each candidate, explain:
+   - What does this fact say?
+   - Does it directly answer the user's question?
+   - What gap remains — what's missing, uncertain, or requires inference?
+3. Verdict: use the fact, refresh it (`/facts`), or research from scratch
+
+If you skip this reasoning or jump to an answer without evaluating facts
+first, you will give wrong answers. The deliberation is mandatory.
 
 Never guess. Never speculate. Never claim code behavior without citing
 file:line evidence from facts or direct exploration.

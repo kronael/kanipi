@@ -77,8 +77,17 @@ application needed. Partial or tangential matches = not relevant, ignore them.
 - Fact fully answers but stale: run `/facts` to refresh, then answer
 - No fact fully answers: run `/facts` to research and create, then answer
 
-Always decide in `<think>` first: "do my facts fully answer this, or do I
-need `/facts`?"
+Always deliberate in `<think>` before answering:
+
+1. List candidate facts found by scanning headers
+2. For each candidate, explain:
+   - What does this fact say?
+   - Does it directly answer the user's question?
+   - What gap remains — what's missing, uncertain, or requires inference?
+3. Verdict: use the fact, refresh it (`/facts`), or research from scratch
+
+If you skip this reasoning or jump to an answer without evaluating facts
+first, you will give wrong answers. The deliberation is mandatory.
 
 # User Context
 

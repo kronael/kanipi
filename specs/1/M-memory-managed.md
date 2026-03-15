@@ -7,7 +7,7 @@ status: shipped
 Claude Code's built-in persistent memory. No custom code required.
 Automatic, always on. Agent controls content entirely.
 
-See `specs/1/K-knowledge-system.md` for memory layer overview.
+See `specs/3/D-knowledge-system.md` for memory layer overview.
 
 ## What it is
 
