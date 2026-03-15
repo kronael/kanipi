@@ -147,22 +147,17 @@ is what v1 does with Grep, but the search tool handles scale.
 
 ### The search tool
 
-A small CLI script the agent calls via Bash. Takes a query string,
-returns JSON results from the index.
+A CLI tool in the agent container. `container/agent-runner/recall.ts`.
 
 ```
-container/agent-runner/recall.ts
+recall                          # sync index, show 5 newest
+recall "telegram auth"          # search, show top 5
+recall -10 "telegram auth"      # search, show top 10
+recall -3                       # sync, show 3 newest
 ```
 
-```
-recall "telegram auth"    → JSON results
-recall --sync             → rebuild index only
-recall --stats            → index stats
-```
-
-Internally: BM25 (FTS5) + vector (sqlite-vec) + RRF fusion.
-The agent doesn't need to know how it works — it just calls
-the tool and gets results back.
+No args = sync + newest. Query = search. `-N` controls result count
+(default 5). Always syncs index before output.
 
 ```
 0.82  facts  facts/telegram-bot-api.md
