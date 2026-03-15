@@ -94,12 +94,20 @@ export function writeRecoveryEntry(
   logger.info({ groupFolder, reason }, 'wrote recovery diary entry');
 }
 
+function escXml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export function formatDiaryXml(entries: DiaryEntry[]): string {
   if (entries.length === 0) return '';
   const now = new Date();
   const lines = entries.map(
     (e) =>
-      `  <entry key="${e.date.replace(/-/g, '')}" age="${ageLabel(e.date, now)}">${e.summary}</entry>`,
+      `  <entry key="${e.date.replace(/-/g, '')}" age="${ageLabel(e.date, now)}">${escXml(e.summary)}</entry>`,
   );
   return `<diary count="${entries.length}">\n${lines.join('\n')}\n</diary>`;
 }

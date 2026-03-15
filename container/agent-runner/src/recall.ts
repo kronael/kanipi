@@ -53,7 +53,8 @@ function initDB(dbPath: string): Database.Database {
     );
   `);
   db.exec(`
-    CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
+    CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries
+      WHEN new.embedding IS NOT NULL BEGIN
       INSERT INTO entries_fts(rowid, key, summary)
         VALUES (new.id, new.key, new.summary);
       INSERT INTO entries_vec(id, embedding)
@@ -95,9 +96,11 @@ async function embed(text: string, cfg: Config): Promise<Buffer> {
     body: JSON.stringify({ model: cfg.embed_model, input: text }),
   });
   if (!r.ok) throw new Error(`embed failed: ${r.status}`);
-  const data = await r.json() as { embeddings: number[][] };
-  const f32 = new Float32Array(data.embeddings[0]);
-  return Buffer.from(f32.buffer);
+  const data = await r.json() as { embeddings?: number[][]; embedding?: number[] };
+  const vec = data.embeddings?.[0] ?? data.embedding;
+  if (!vec) throw new Error('embed: no vector in response');
+  const f32 = new Float32Array(vec);
+  return Buffer.copyBytesFrom(f32);
 }
 
 async function syncStore(
@@ -116,9 +119,27 @@ async function syncStore(
     if (!onDisk.has(p)) del.run(p);
   }
 
-  const ins = db.prepare(
-    'INSERT INTO entries (key, path, summary, embedding, mtime) VALUES (?, ?, ?, ?, ?)'
+  const upsert = db.transaction(
+    (key: string, fp: string, summary: string, emb: Buffer | null, mt: number) => {
+      del.run(fp);
+      if (emb) {
+        db.prepare(
+          'INSERT INTO entries (key, path, summary, embedding, mtime) VALUES (?, ?, ?, ?, ?)'
+        ).run(key, fp, summary, emb, mt);
+      } else {
+        // no embedding — insert without vec (FTS only)
+        db.prepare(
+          'INSERT INTO entries (key, path, summary, mtime) VALUES (?, ?, ?, ?)'
+        ).run(key, fp, summary, mt);
+        // manual FTS insert since trigger expects embedding
+        const id = db.prepare('SELECT id FROM entries WHERE path = ?').get(fp) as { id: number };
+        db.prepare(
+          'INSERT INTO entries_fts(rowid, key, summary) VALUES (?, ?, ?)'
+        ).run(id.id, key, summary);
+      }
+    }
   );
+
   for (const fp of files) {
     const stat = fs.statSync(fp);
     const mt = Math.floor(stat.mtimeMs);
@@ -126,23 +147,24 @@ async function syncStore(
 
     const content = fs.readFileSync(fp, 'utf8');
     const summary = parseSummary(content);
-    const key = path.relative('.', fp);
+    const key = path.relative(dir, fp);
     const text = summary || key;
 
-    let emb: Buffer;
+    let emb: Buffer | null = null;
     try {
       emb = await embed(text, cfg);
     } catch {
-      continue;
+      // embedding unavailable — FTS only for this entry
     }
 
-    del.run(fp);
-    ins.run(key, fp, summary, emb, mt);
+    upsert(key, fp, summary, emb, mt);
   }
 }
 
 function ftsQuery(q: string): string {
-  return q.split(/\s+/).filter(Boolean).map(w => `"${w}"`).join(' OR ');
+  const words = q.split(/\s+/).filter(Boolean).map(w => w.replace(/"/g, ''));
+  if (words.length === 0) return '""';
+  return words.map(w => `"${w}"`).join(' OR ');
 }
 
 function search(

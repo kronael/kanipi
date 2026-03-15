@@ -4,44 +4,44 @@ description: Recall v2 CLI, episode injection, /compact-memories skill
 
 # 037 — Recall v2, Episodes, Compact Memories
 
-## Recall v2
+## Goal
 
-The `recall` CLI is now available in the container for hybrid FTS5+vector
-search across knowledge stores. The `/recall` skill auto-detects it
-(`which recall`) and uses the three-step protocol: expand terms → CLI
-search → Explore judge. Falls back to v1 grep if CLI unavailable.
+Install recall v2 CLI config, compact-memories skill, and update recall
+skill to v2 protocol.
 
-Config at `~/.recallrc`. Per-store DBs in `.local/recall/`. Lazy indexing
-syncs on each call.
+## Check
 
-## Episodes
-
-Gateway now injects episode summaries on session start:
-
-```xml
-<episodes count="3">
-  <entry key="20260314" type="day">...</entry>
-  <entry key="2026-W11" type="week">...</entry>
-  <entry key="2026-03" type="month">...</entry>
-</episodes>
+```bash
+[ -f ~/.recallrc ] && [ -d ~/.claude/skills/compact-memories ] && echo "skip" && exit 0
 ```
 
-Episodes are created by `/compact-memories` cron tasks.
+## Steps
 
-## /compact-memories
+```bash
+# 1. Copy .recallrc seed if missing
+[ -f ~/.recallrc ] || cp /workspace/self/container/.recallrc ~/.recallrc
 
-New skill for progressive memory compression:
+# 2. Copy compact-memories skill
+mkdir -p ~/.claude/skills/compact-memories
+cp /workspace/self/container/skills/compact-memories/SKILL.md \
+   ~/.claude/skills/compact-memories/SKILL.md
 
-- `/compact-memories episodes day` — session transcripts → daily
-- `/compact-memories episodes week` — daily → weekly
-- `/compact-memories episodes month` — weekly → monthly
-- `/compact-memories diary week` — diary entries → weekly
-- `/compact-memories diary month` — weekly → monthly
+# 3. Update recall skill to v2
+cp /workspace/self/container/skills/recall/SKILL.md \
+   ~/.claude/skills/recall/SKILL.md
 
-Set up cron tasks with `context_mode: 'isolated'` per group.
+# 4. Create episodes directory
+mkdir -p ~/episodes
+```
 
-## Actions
+## After
 
-- Copy `.recallrc` from `/workspace/self/container/` if missing
-- Copy `compact-memories/SKILL.md` to `~/.claude/skills/`
-- Update `recall/SKILL.md` to latest version
+```bash
+echo "37" > ~/.claude/skills/self/MIGRATION_VERSION
+```
+
+## Notes
+
+- Gateway now injects `<episodes>` XML on session start (day/week/month)
+- Episodes created by `/compact-memories` cron tasks with `context_mode: 'isolated'`
+- Recall v2 does hybrid FTS5+vector search; falls back to v1 grep if CLI unavailable
