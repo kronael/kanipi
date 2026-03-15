@@ -156,18 +156,16 @@ function ftsQuery(q: string): string {
 }
 
 function search(
-  db: Database.Database, query: string, embBuf: Buffer | null, limit: number
+  db: Database.Database, query: string, embBuf: Buffer, limit: number
 ): Result[] {
   const n = limit * 3;
   const ftsRows = db.prepare(
     'SELECT rowid, rank FROM entries_fts WHERE entries_fts MATCH ? ORDER BY rank LIMIT ?'
   ).all(ftsQuery(query), n) as { rowid: number; rank: number }[];
 
-  const vecRows = embBuf
-    ? db.prepare(
-        'SELECT id, distance FROM entries_vec WHERE embedding MATCH ? AND k = ?'
-      ).all(embBuf, n) as { id: number; distance: number }[]
-    : [];
+  const vecRows = db.prepare(
+    'SELECT id, distance FROM entries_vec WHERE embedding MATCH ? AND k = ?'
+  ).all(embBuf, n) as { id: number; distance: number }[];
 
   const scores = new Map<number, number>();
   const k = 60;
@@ -220,11 +218,7 @@ async function main() {
 
   let embBuf: Buffer | null = null;
   if (query) {
-    try {
-      embBuf = await embed(query, cfg);
-    } catch {
-      // vector search unavailable, FTS only
-    }
+    embBuf = await embed(query, cfg);
   }
 
   const all: Result[] = [];
@@ -234,7 +228,7 @@ async function main() {
     await syncStore(db, store.dir, cfg);
 
     const results = query
-      ? search(db, query, embBuf, limit)
+      ? search(db, query, embBuf!, limit)
       : newest(db, limit);
 
     for (const r of results) r.store = store.name;
