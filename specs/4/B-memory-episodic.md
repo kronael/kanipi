@@ -59,34 +59,47 @@ aggregated_at: '2026-03-08T02:00:00Z'
 Body sections: Key decisions, Active work, Blockers.
 `summary:` is for `/recall` indexing and gateway injection.
 
-## Aggregation
+## How episodes are created
 
-**Weekly** — Sunday 02:00 UTC. Reads diary entries for the week,
-spawns container, agent writes `episodes/YYYY-WNN.md`.
+Scheduled tasks via existing `task-scheduler.ts`. Two cron entries
+per group, created by `group add` or migration:
 
-**Monthly** — 1st of month, 03:00 UTC. Reads week episodes for
-the month, agent writes `episodes/YYYY-MM.md`.
+```sql
+-- weekly episode
+INSERT INTO tasks (group_folder, chat_jid, prompt, schedule_type,
+  schedule_value, context_mode, status)
+VALUES ('<folder>', '<jid>',
+  'Write a week episode. Read diary entries for this week, write episodes/YYYY-WNN.md.',
+  'cron', '0 2 * * 0', 'group', 'active');
 
-Uses existing `task-scheduler.ts`. One container per aggregation.
-
-### Prompt
-
+-- monthly episode
+INSERT INTO tasks (group_folder, chat_jid, prompt, schedule_type,
+  schedule_value, context_mode, status)
+VALUES ('<folder>', '<jid>',
+  'Write a month episode. Read week episodes for this month, write episodes/YYYY-MM.md.',
+  'cron', '0 3 1 * *', 'group', 'active');
 ```
-Read the following diary entries and produce a week episode.
 
-Keep: decisions + reasoning, shipped deliverables, active work, blockers
-Drop: routine ops, dead-end debugging, conversation meta, subsumed details
+The scheduler fires the prompt → spawns container → agent runs
+with group session context → reads diary/episodes → writes the
+episode file. No new gateway code — uses the existing prompt-based
+task path in `task-scheduler.ts`.
 
-Format: YAML frontmatter (summary: 3-5 bullets, period, type, sources,
-aggregated_at), then body: Key decisions, Active work, Blockers.
-```
+The agent knows the format from a `/episode` skill or CLAUDE.md
+instructions.
 
-Month prompt reads week episodes, compresses further — only
-project-level outcomes survive.
+### What the agent does
+
+1. Glob `diary/*.md` for the target week (or `episodes/YYYY-W*.md`
+   for month)
+2. Read each file
+3. Compress: keep decisions, deliverables, active work, blockers.
+   Drop routine ops, dead-end debugging, conversation meta.
+4. Write `episodes/YYYY-WNN.md` with `summary:` frontmatter + body
 
 ### Gaps
 
-- No diary entries for a week → skip, no empty episode
+- No diary entries for a week → agent writes nothing, no empty file
 - 1-2 entries → still aggregate
 - Multi-topic entries → capture all topics
 
@@ -108,7 +121,7 @@ from `formatPrompt()` in `index.ts`. Same pattern as diary.
 
 ## What gets built
 
-1. `episodes/*.md` file format (above)
-2. Aggregation cron tasks (weekly + monthly)
-3. `formatEpisodeXml()` gateway injection
-4. `/recall` store entry in `.recallrc`
+1. `/episode` skill — teaches agent the episode format + compression rules
+2. Cron task entries — created by `group add` or migration (SQL above)
+3. `formatEpisodeXml()` in `episode.ts` — gateway injection
+4. `episodes` store entry in `.recallrc` — for `/recall` indexing
