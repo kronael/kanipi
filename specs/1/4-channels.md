@@ -163,6 +163,28 @@ Implemented. `email_threads` table maps
 See `specs/1/8-email.md`. Generalise to `channel_threads`
 only when a second channel needs it.
 
+## Resilience
+
+Every channel polling/event loop must either recover or crash.
+Silent death is never acceptable — systemd restarts the process.
+
+**Rule**: if a subsystem's loop fails, log ERROR, attempt recovery
+with backoff, crash after N consecutive failures.
+
+| Channel  | Error handling                                                          | Recovery                |
+| -------- | ----------------------------------------------------------------------- | ----------------------- |
+| telegram | `bot.start()` promise `.catch()` → `process.exit(1)`                    | crash (systemd restart) |
+| whatsapp | `connection: close` → `connectInternal()` retry, crash after 2 failures | reconnect then crash    |
+| discord  | `client.on('error')` → `process.exit(1)`                                | crash (systemd restart) |
+| email    | exponential backoff in `idleLoop()`, caps at 60s                        | reconnect with backoff  |
+
+Non-channel subsystems:
+
+- **IPC watcher** — `pollForNewGroups()` try-catch with setTimeout
+  outside the catch (loop survives exceptions)
+- **Scheduler** — try-catch continues loop unconditionally
+- **Web proxy** — server bind errors crash the process (acceptable)
+
 ## v2: plugin loading
 
 Dynamic import so unused channel deps aren't loaded.
