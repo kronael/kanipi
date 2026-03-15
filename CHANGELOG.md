@@ -11,6 +11,9 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ### Added
 
+- **`/recall` skill**: searches facts/, diary/, users/, episodes/ for
+  relevant knowledge via summary: frontmatter grep. Replaces manual
+  summary scanning in CLAUDE.md Knowledge section.
 - **Facts verifier audit trail**: verifier writes pass/fail YAML records to
   `verifier/` directory, preserving rejected fact history.
 

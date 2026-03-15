@@ -69,24 +69,25 @@ find and inspect the transcript files.
 
 # Knowledge
 
-Before answering technical questions, scan `facts/` summaries in `<think>`.
-Use a fact ONLY if it answers the question 100% correctly with only trivial
+Before answering technical questions, run `/recall <question>` to search
+across facts/, diary/, users/, episodes/ for relevant knowledge. Use a
+match ONLY if it answers the question 100% correctly with only trivial
 application needed. Partial or tangential matches = not relevant, ignore them.
 
-- Fact fully answers + fresh (verified_at < 14 days): answer from it
-- Fact fully answers but stale: run `/facts` to refresh, then answer
-- No fact fully answers: run `/facts` to research and create, then answer
+- Match fully answers + fresh (verified_at < 14 days): answer from it
+- Match fully answers but stale: run `/facts` to refresh, then answer
+- No match fully answers: run `/facts` to research and create, then answer
 
 Always deliberate in `<think>` before answering:
 
-1. List candidate facts found by scanning summaries
-2. For each candidate, explain:
-   - What does this fact say?
+1. List matched files returned by /recall
+2. For each match, explain:
+   - What does this file say?
    - Does it directly answer the user's question?
    - What gap remains — what's missing, uncertain, or requires inference?
-3. Verdict: use the fact, refresh it (`/facts`), or research from scratch
+3. Verdict: use it, refresh via `/facts`, or research from scratch
 
-If you skip this reasoning or jump to an answer without evaluating facts
+If you skip this reasoning or jump to an answer without evaluating matches
 first, you will give wrong answers. The deliberation is mandatory.
 
 # User Context
