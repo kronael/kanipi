@@ -296,13 +296,13 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     : getHubForJid(chatJid);
   const group = folder ? groups[folder] : undefined;
   if (!group) {
-    logger.warn({ chatJid, folder }, 'processMessages: no group');
+    logger.warn({ chatJid, folder }, 'No group for JID');
     return true;
   }
 
   const channel = findChannel(channels, chatJid);
   if (!channel) {
-    logger.warn({ chatJid }, 'processMessages: no channel owns JID');
+    logger.warn({ chatJid }, 'No channel owns JID');
     return true;
   }
 
@@ -314,12 +314,12 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   );
 
   if (missedMessages.length === 0) {
-    logger.info({ chatJid, sinceTimestamp }, 'processMessages: no pending');
+    logger.info({ group: group.name, sinceTimestamp }, 'No pending messages');
     return true;
   }
 
   if (isChatErrored(chatJid)) {
-    logger.info({ chatJid }, 'processMessages: chat errored, skip');
+    logger.info({ group: group.name }, 'Chat errored, skipping');
     return true;
   }
 
@@ -327,6 +327,14 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   const routes = getRoutesForJid(chatJid);
   const resolved = resolveRoute(lastMsg, routes);
   if (resolved && resolved.target !== group.folder) {
+    logger.info(
+      {
+        group: group.name,
+        target: resolved.target,
+        count: missedMessages.length,
+      },
+      'Delegating messages',
+    );
     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
     saveState();
     delegatePerSender(
@@ -859,7 +867,7 @@ async function startMessageLoop(): Promise<void> {
             : getHubForJid(chatJid);
           const group = folder ? groups[folder] : undefined;
           if (!group) {
-            logger.warn({ chatJid, folder }, 'no group for JID, skipping');
+            logger.warn({ chatJid, folder }, 'No group for JID, skipping');
             continue;
           }
 
@@ -873,7 +881,10 @@ async function startMessageLoop(): Promise<void> {
           }
           impulseStates.set(chatJid, iState);
           if (!shouldFlush) {
-            logger.info({ chatJid, impulse: iState.impulse }, 'impulse held');
+            logger.info(
+              { group: group.name, impulse: iState.impulse },
+              'Impulse held',
+            );
             continue;
           }
           impulseStates.delete(chatJid);
@@ -947,13 +958,21 @@ async function startMessageLoop(): Promise<void> {
 
             if (nonCommandMessages.length === 0) {
               logger.info(
-                { chatJid, commands: deferredCmds.length },
-                'all messages were commands, skip agent',
+                { group: group.name, commands: deferredCmds.length },
+                'All messages were commands, skip agent',
               );
               continue;
             }
 
             if (resolved && resolved.target !== group.folder) {
+              logger.info(
+                {
+                  group: group.name,
+                  target: resolved.target,
+                  count: nonCommandMessages.length,
+                },
+                'Delegating messages',
+              );
               await waitForEnrichments(nonCommandMessages.map((m) => m.id));
               const allForRoute = getMessagesSince(
                 chatJid,
@@ -994,8 +1013,8 @@ async function startMessageLoop(): Promise<void> {
 
           if (queue.sendMessage(chatJid, formatted)) {
             logger.info(
-              { chatJid, count: messagesToSend.length },
-              'Piped messages to active container',
+              { group: group.name, count: messagesToSend.length },
+              'Piped to active container',
             );
             clearChatErrored(chatJid);
             lastAgentTimestamp[chatJid] =
@@ -1004,10 +1023,6 @@ async function startMessageLoop(): Promise<void> {
             startTyping(channel, chatJid);
           } else {
             clearChatErrored(chatJid);
-            logger.info(
-              { chatJid, count: messagesToSend.length },
-              'Enqueuing message check',
-            );
             queue.enqueueMessageCheck(chatJid);
           }
         }

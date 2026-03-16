@@ -96,7 +96,6 @@ export class GroupQueue {
       return;
     }
 
-    logger.info({ groupJid }, 'Starting message processing');
     this.runForGroup(groupJid, 'messages').catch((err) =>
       logger.error({ groupJid, err }, 'Unhandled error in runForGroup'),
     );
@@ -233,6 +232,7 @@ export class GroupQueue {
     groupJid: string,
     reason: 'messages' | 'drain',
   ): Promise<void> {
+    const t0 = Date.now();
     const state = this.getGroup(groupJid);
     state.active = true;
     state.idleWaiting = false;
@@ -242,7 +242,7 @@ export class GroupQueue {
 
     logger.info(
       { groupJid, reason, activeCount: this.activeCount },
-      'runForGroup: start',
+      'Queue: group start',
     );
 
     try {
@@ -264,7 +264,7 @@ export class GroupQueue {
       state.consecutiveFailures++;
       logger.error({ groupJid, err }, 'Error processing messages for group');
     } finally {
-      this.releaseGroup(groupJid, state);
+      this.releaseGroup(groupJid, state, Date.now() - t0);
     }
   }
 
@@ -276,36 +276,41 @@ export class GroupQueue {
     state.isTaskContainer = true;
     this.activeCount++;
 
-    logger.debug(
+    logger.info(
       { groupJid, taskId: task.id, activeCount: this.activeCount },
-      'Running queued task',
+      'Queue: task start',
     );
 
     try {
       await task.fn();
-      logger.debug(
+      logger.info(
         { groupJid, taskId: task.id, dur: Date.now() - t0 },
-        'Task completed',
+        'Queue: task done',
       );
     } catch (err) {
       logger.error(
         { groupJid, taskId: task.id, dur: Date.now() - t0, err },
-        'Error running task',
+        'Queue: task error',
       );
     } finally {
       state.isTaskContainer = false;
-      this.releaseGroup(groupJid, state);
+      this.releaseGroup(groupJid, state, Date.now() - t0);
     }
   }
 
-  private releaseGroup(groupJid: string, state: GroupState): void {
+  private releaseGroup(
+    groupJid: string,
+    state: GroupState,
+    dur?: number,
+  ): void {
     logger.info(
       {
         groupJid,
-        hadPending: state.pendingMessages,
+        dur,
+        morePending: state.pendingMessages,
         pendingTasks: state.pendingTasks.length,
       },
-      'runForGroup: released',
+      'Queue: group released',
     );
     state.active = false;
     state.process = null;
