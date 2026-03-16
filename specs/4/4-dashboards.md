@@ -1,164 +1,158 @@
 ---
-status: planned
+status: open
 ---
 
-# Dashboards
+# Dashboard Portal
 
-Long-running web services for operator/admin interaction with
-gateway state. Not ephemeral like agent containers, not static
-like web content.
+Generic system for serving operator dashboards from the gateway.
+A portal index lists all registered dashboards; each dashboard is
+an independent module with its own routes and static frontend.
 
-## Problem
-
-Operators need interactive tools to:
-
-- Inspect and curate facts (atlas)
-- Review and approve draft responses (evangelist, cheerleader)
-- Monitor agent sessions and message queues
-- Edit knowledge base entries
-
-These require:
-
-- Read/write access to gateway DB and state
-- Long-running process (not per-request spawn)
-- Web UI with real-time updates
-- Same auth as gateway web (JWT)
-
-## Examples
-
-### Facts inspector (atlas)
-
-Browse, search, edit facts/\*.md files. View embeddings, verify
-sources, mark outdated. Trigger re-research on stale facts.
-
-### Curation dashboard (evangelist)
-
-Review draft queue. Approve/reject/edit responses before posting.
-See relevance scores, source context, posting history.
-
-### Session monitor
-
-View active containers, message queues, IPC traffic. Kill stuck
-containers, replay failed messages, inspect logs.
-
-## Architecture
+## Design
 
 ```
-gateway (main process)
-  ├── web proxy (vite)
-  ├── channel handlers
-  ├── container runner
-  └── dashboard services ← NEW
-        ├── facts-inspector
-        ├── curation
-        └── session-monitor
+/dash/                    → portal index (lists all dashboards)
+/dash/<name>/             → dashboard frontend (static HTML)
+/dash/<name>/api/<path>   → dashboard API routes (JSON)
 ```
 
-### Option A: In-process (gateway plugins)
+### Portal index
 
-Dashboards run as Express routes inside the gateway process.
-Share DB connection, state, auth middleware.
+`GET /dash/` returns a simple HTML page listing all registered
+dashboards with name, description, and link. No framework — a
+`<ul>` of `<a>` elements. Dashboards self-register at startup.
+
+### Dashboard module
+
+Each dashboard is a TypeScript file that exports a registration
+function:
 
 ```typescript
-// src/dashboards/facts-inspector.ts
-export function register(app: Express, db: Database) {
-  app.get('/dash/facts', authMiddleware, (req, res) => {
-    const facts = listFacts(db);
-    res.json(facts);
+// src/dashboards/status.ts
+import type { DashboardContext } from './types.js';
+
+export const meta = {
+  name: 'status',
+  title: 'Status & Health',
+  description: 'Gateway health, containers, queues, errors',
+};
+
+export function register(ctx: DashboardContext): void {
+  ctx.router.get('/api/state', (req, res) => {
+    res.json(buildState(ctx));
   });
 }
 ```
 
-Pro: Simple, shared state, no IPC
-Con: Couples dashboard code to gateway, restart gateway to update
+### DashboardContext
 
-### Option B: Companion processes
+Shared context passed to every dashboard at registration:
 
-Dashboards run as separate processes, connect to gateway via
-HTTP API or shared DB.
-
-```
-gateway ──HTTP API──► facts-inspector (port 3001)
-                    ► curation (port 3002)
-```
-
-Pro: Independent deployment, can use different tech
-Con: Need API surface, auth propagation, more moving parts
-
-### Option C: Agent-served dashboards
-
-Dashboard UI served from `/workspace/web/<dash>/`. Interactive
-features via agent MCP tools or gateway actions.
-
-Pro: Uses existing infrastructure
-Con: No long-running state, limited real-time capability
-
-## Recommendation
-
-**Option A** for v1. Dashboards are gateway plugins with Express
-routes. They share the DB connection and auth. Simple to build,
-easy to iterate.
-
-Structure:
-
-```
-src/
-  dashboards/
-    index.ts          ← registers all dashboards
-    facts-inspector/
-      routes.ts       ← Express routes
-      views/          ← HTML templates or React components
-    curation/
-      routes.ts
+```typescript
+interface DashboardContext {
+  router: Router; // Express router scoped to /dash/<name>/
+  db: Database; // SQLite connection (read-only recommended)
+  queue: GroupQueue; // queue state (active JIDs, counts)
+  channels: Channel[]; // connected channels
+}
 ```
 
-Mount at `/dash/<name>/`. Require auth (same as gateway web).
+Dashboards are trusted gateway code — they share the process and
+DB. No sandboxing needed.
+
+### Registration
+
+```typescript
+// src/dashboards/index.ts
+import type { Express } from 'express';
+import { Router } from 'express';
+
+interface DashboardMeta {
+  name: string;
+  title: string;
+  description: string;
+}
+
+const dashboards: DashboardMeta[] = [];
+
+export function registerDashboard(
+  app: Express,
+  meta: DashboardMeta,
+  register: (ctx: DashboardContext) => void,
+  ctx: Omit<DashboardContext, 'router'>,
+): void {
+  const router = Router();
+  register({ ...ctx, router });
+  app.use(`/dash/${meta.name}`, router);
+  dashboards.push(meta);
+}
+
+export function portalHandler(req, res): void {
+  const html = dashboards
+    .map(
+      (d) =>
+        `<li><a href="/dash/${d.name}/">${d.title}</a> — ${d.description}</li>`,
+    )
+    .join('\n');
+  res.send(`<html><body><h1>Dashboards</h1><ul>${html}</ul></body></html>`);
+}
+```
+
+## Auth
+
+All `/dash/*` routes require auth (same cookie/session as gateway
+web). The portal and individual dashboards are behind the same
+`checkAuth` middleware used by `web-proxy.ts`.
+
+```typescript
+// in web-proxy.ts
+if (url.startsWith('/dash/')) {
+  if (!checkAuth(req, authSecret)) {
+    res.writeHead(302, { Location: '/auth/login' });
+    res.end();
+    return;
+  }
+}
+```
+
+## Frontend
+
+Each dashboard ships a single `index.html` file — vanilla HTML +
+fetch, no build step. Served as the default route for the dashboard
+router. Dashboards that need real-time use SSE via their own
+`/api/stream` endpoint.
+
+No shared frontend framework. Each dashboard is self-contained.
+
+## File layout
+
+```
+src/dashboards/
+  index.ts          registration, portal index handler
+  types.ts          DashboardContext, DashboardMeta
+  status.ts         status & health dashboard
+  status.html       status frontend
+  memory.ts         memory browser dashboard
+  memory.html       memory frontend
+```
 
 ## Gateway changes
 
-1. Add `src/dashboards/` directory structure
-2. Register dashboard routes in `web-server.ts`
-3. Auth middleware for `/dash/*` routes
-4. Optional: WebSocket for real-time updates
+1. `web-proxy.ts`: route `/dash/` prefix, auth check, proxy to
+   dashboard handlers (not vite)
+2. `src/dashboards/index.ts`: registration system, portal handler
+3. Individual dashboard modules register at gateway startup
 
-## Dashboard API
+## Concrete dashboards
 
-Dashboards can use existing gateway internals:
+| Dashboard | Spec            | Description                          |
+| --------- | --------------- | ------------------------------------ |
+| status    | 4/P-dash-status | Uptime, channels, containers, queues |
+| memory    | 4/Q-dash-memory | Browse knowledge stores, sessions    |
 
-| Need            | Source                      |
-| --------------- | --------------------------- |
-| Read facts      | `fs.readdir(FACTS_DIR)`     |
-| Read messages   | `db.prepare('SELECT...')`   |
-| Read drafts     | `db.prepare('SELECT...')`   |
-| Write facts     | `fs.writeFile()`            |
-| Approve draft   | `db.prepare('UPDATE...')`   |
-| Send message    | `sendMessage()` from router |
-| List containers | `docker ps` via Bash        |
+## Not in scope
 
-No new IPC or MCP needed. Dashboards are trusted gateway code.
-
-## Per-group dashboards
-
-Some dashboards are group-specific (facts for atlas, curation
-for evangelist). Mount at `/dash/<folder>/<name>/`.
-
-Access control: tier 0-1 can view all dashboards. Tier 2 can
-view own group's dashboards only.
-
-## Individual specs
-
-| Dashboard      | Spec                 | Status |
-| -------------- | -------------------- | ------ |
-| Status/health  | `4/P-dash-status.md` | open   |
-| Memory browser | `4/Q-dash-memory.md` | open   |
-| WebDAV files   | `5/M-webdav.md`      | open   |
-
-Atlas facts inspector and evangelist curation deferred to
-phase 5-6 (depend on those features shipping first).
-
-## Open
-
-- Build system: bundle dashboard frontend separately?
-- Real-time: WebSocket or SSE for live updates?
-- Mobile: responsive or desktop-only for v1?
-- Extensibility: plugin system or hardcoded dashboards?
+- Per-group dashboards (mount at `/dash/<folder>/<name>/`) — future
+- Mutations (kill container, clear queue) — future
+- WebSocket — SSE sufficient for v1
+- Build tooling for dashboard frontends — keep it static
