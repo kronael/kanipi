@@ -70,7 +70,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | 9-whatsapp-improvements        | Read receipts, presence                               | shipped |
 | A-auth                         | Local auth, JWT                                       | shipped |
 | C-files-in                     | File transfer                                         | shipped |
-| D-knowledge-system             | Memory layers pattern                                 | partial |
+| D-knowledge-system             | Memory layers pattern                                 | shipped |
 | E-memory-session               | SDK sessions, .jl files                               | shipped |
 | G-codebase-trim                | Dead code removal (~900 lines)                        | shipped |
 | H-jid-format                   | Compact JID URIs, sender IDs                          | shipped |
@@ -82,8 +82,8 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | P-message-ids                  | Reply/forward metadata per channel                    | shipped |
 | Q-auto-threading               | Template routing (per-user groups)                    | shipped |
 | R-reply-routing                | Per-sender batching, chunk chaining, reply threading  | shipped |
-| T-recall                       | Knowledge retrieval (LLM grep → hybrid search)        | open    |
-| _(4/B)_ B-memory-episodic      | Progressive compression (episodes + diary)            | open    |
+| T-recall                       | Knowledge retrieval (LLM grep → hybrid search)        | shipped |
+| _(4/B)_ B-memory-episodic      | Progressive compression (episodes + diary)            | shipped |
 | _(4/P)_ P-dash-status          | Health dashboard (read-only)                          | open    |
 | _(4/V)_ V-platform-permissions | Per-platform action grants                            | spec    |
 | _(4/4)_ 4-dashboards           | Long-running web services                             | open    |

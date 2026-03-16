@@ -71,14 +71,14 @@ Given a directory of markdown files:
 
 ## Specs
 
-| Spec                | What                                             |
-| ------------------- | ------------------------------------------------ |
-| 1/L-memory-diary    | Diary layer (shipped)                            |
-| 1/M-memory-managed  | MEMORY.md + CLAUDE.md (shipped, not pattern)     |
-| 1/N-memory-messages | Message history DB (shipped, not pattern)        |
-| 3/7-user-context    | User context layer (shipped)                     |
-| 3/1-atlas           | Facts + researcher (shipped)                     |
-| 3/3-code-research   | Research agent prompts (shipped)                 |
-| 3/E-memory-session  | SDK sessions (shipped, not pattern)              |
-| 3/T-recall          | /recall retrieval (open)                         |
-| 4/B-memory-episodic | Progressive compression: episodes + diary (open) |
+| Spec                | What                                                |
+| ------------------- | --------------------------------------------------- |
+| 1/L-memory-diary    | Diary layer (shipped)                               |
+| 1/M-memory-managed  | MEMORY.md + CLAUDE.md (shipped, not pattern)        |
+| 1/N-memory-messages | Message history DB (shipped, not pattern)           |
+| 3/7-user-context    | User context layer (shipped)                        |
+| 3/1-atlas           | Facts + researcher (shipped)                        |
+| 3/3-code-research   | Research agent prompts (shipped)                    |
+| 3/E-memory-session  | SDK sessions (shipped, not pattern)                 |
+| 3/T-recall          | /recall retrieval (shipped)                         |
+| 4/B-memory-episodic | Progressive compression: episodes + diary (shipped) |
