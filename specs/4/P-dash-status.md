@@ -1,5 +1,5 @@
 ---
-status: open
+status: shipped
 ---
 
 # Dashboard: Status & Health
