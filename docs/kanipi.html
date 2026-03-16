@@ -11,16 +11,17 @@
   <button class="theme-toggle" aria-label="Toggle theme"></button>
 
   <div class="hub-container">
-    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.2.2</span></h1>
+    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.8.0</span></h1>
     <p class="hub-subtitle">multi-channel agent gateway</p>
 
     <div class="tldr-box">
       <div class="tldr-label">TL;DR</div>
       <div class="tldr-text">
-        Kanipi is a multi-tenant gateway that routes messages from Telegram, Discord, WhatsApp, Email, and Web
-        to containerized Claude Code agents. Each agent runs in Docker with full SDK access (subagents, tools, skills, MCP).
-        The gateway handles routing, queueing, IPC, media processing, and memory injection. Agents are configurations, not code.
-        <strong>62 source files, 10,788 LOC. 37 test files, 11,680 LOC. 92 specs.</strong>
+        Kanipi routes messages from 10 channels (Telegram, Discord, WhatsApp, Email, Web, Twitter/X, Facebook,
+        Reddit, Mastodon, Bluesky) to containerized Claude Code agents. Each agent runs in Docker with full SDK
+        access (subagents, tools, skills, MCP). The gateway handles routing, queueing, IPC, media, memory injection,
+        social actions, and a dashboard portal. Agents are configurations, not code.
+        <strong>65 source files, 13,980 LOC. 43 test files, 13,170 LOC. 798 tests. 97 specs.</strong>
       </div>
     </div>
 
@@ -32,7 +33,7 @@
         </a>
         <a href="#channels" class="nav-item">
           <span class="nav-label">Channels</span>
-          <span class="nav-hint">5 adapters</span>
+          <span class="nav-hint">10 adapters</span>
         </a>
         <a href="#runtime" class="nav-item">
           <span class="nav-label">Runtime</span>
@@ -40,15 +41,23 @@
         </a>
         <a href="#memory" class="nav-item">
           <span class="nav-label">Memory</span>
-          <span class="nav-hint">7 layers</span>
+          <span class="nav-hint">7 layers + recall</span>
         </a>
         <a href="#groups" class="nav-item">
           <span class="nav-label">Groups</span>
-          <span class="nav-hint">routing + worlds</span>
+          <span class="nav-hint">routing + threading</span>
         </a>
         <a href="#media" class="nav-item">
           <span class="nav-label">Media</span>
           <span class="nav-hint">voice + files</span>
+        </a>
+        <a href="#dashboard" class="nav-item">
+          <span class="nav-label">Dashboard</span>
+          <span class="nav-hint">portal + status</span>
+        </a>
+        <a href="#products" class="nav-item">
+          <span class="nav-label">Products</span>
+          <span class="nav-hint">Atlas, Yonder</span>
         </a>
         <a href="#quickstart" class="nav-item">
           <span class="nav-label">Quick Start</span>
@@ -63,53 +72,63 @@
 
       <p>
         TypeScript (ESM, NodeNext). Gateway polls channels for messages, stores them in SQLite, queues per group,
-        spawns a Docker container per agent invocation. Agent reads messages from stdin as XML, uses Claude Code SDK,
+        spawns a Docker container per agent invocation. Agent reads messages from IPC files as XML, uses Claude Code SDK,
         writes results to stdout as JSON. Gateway streams responses back to the originating channel.
+        Social channels use a unified inbound event model with verb-typed events (message, reply, post, react, repost, follow, etc.).
       </p>
 
 <pre style="font-size: 0.8em; line-height: 1.4; overflow-x: auto; padding: 1em; background: var(--surface, #1a1a2e); border-radius: 6px; color: var(--text, #e0e0e0);">
-Channel (tg/discord/wa/email/web)
-    |  message
+Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
+    |  message / social event (verb-typed)
     v
-  SQLite DB  ----  store message + attachments
+  Impulse Gate  ---  per-JID weight accumulation, flush on threshold
     |
     v
-  GroupQueue  ----  per-group FIFO, one agent at a time
+  SQLite DB  ------  store message + attachments + chat metadata
     |
     v
-  Router  --------  JID -> group lookup, prompt assembly
-    |                system messages, diary injection
-    v
-  Container  -----  docker run, stdin pipe, unified home mount
-    |                groups/{folder}/ mounted as /home/node
-    v
-  Claude Code  ---  SDK: tools, subagents, skills, MCP
+  GroupQueue  -----  per-group FIFO, one agent at a time
     |
     v
-  IPC (SIGUSR1)  -  file-based request/response
-    |                agent -> gateway actions
+  Router  ---------  JID -> group lookup, prompt assembly
+    |                 system messages, diary + episode injection
+    |                 {sender} template expansion (auto-threading)
     v
-  Action Registry   Zod-validated, tier-authorized
+  Container  ------  docker run, IPC file pipe, unified home mount
+    |                 groups/{folder}/ mounted as /home/node
+    v
+  Claude Code  ----  SDK: tools, subagents, skills, MCP
     |
     v
-  Channel  -------  send text, files, typing indicators
-</pre>
+  IPC (SIGUSR1)  --  file-based request/response
+    |                 agent -> gateway actions
+    v
+  Action Registry    Zod-validated, tier-authorized
+    |                 core + social actions (post, reply, react, repost...)
+    v
+  Reply Router  ---  per-sender batching, chunk chaining, reply threading
+    |
+    v
+  Channel  --------  send text, files, typing indicators, &lt;status&gt; updates</pre>
 
       <p>Key modules:</p>
       <div class="table-wrap">
         <table>
           <tr><th>Module</th><th>Purpose</th></tr>
-          <tr><td><code>index.ts</code></td><td>main loop, channel init, message routing</td></tr>
+          <tr><td><code>index.ts</code></td><td>main loop, channel init, message routing, delegatePerSender</td></tr>
           <tr><td><code>config.ts</code></td><td>typed constants from <code>.env</code> + env vars</td></tr>
-          <tr><td><code>db.ts</code></td><td>SQLite (better-sqlite3): messages, groups, sessions, tasks</td></tr>
-          <tr><td><code>container-runner.ts</code></td><td>docker lifecycle, stdin pipe, mount assembly</td></tr>
-          <tr><td><code>group-queue.ts</code></td><td>per-group message queueing, concurrency control</td></tr>
-          <tr><td><code>router.ts</code></td><td>JID resolution, prompt formatting, XML history</td></tr>
-          <tr><td><code>action-registry.ts</code></td><td>unified action system (Zod schemas, authorization)</td></tr>
-          <tr><td><code>ipc.ts</code></td><td>container-gateway IPC (request-response + legacy)</td></tr>
+          <tr><td><code>db.ts</code></td><td>SQLite (better-sqlite3): messages, groups, sessions, tasks, auth</td></tr>
+          <tr><td><code>container-runner.ts</code></td><td>docker lifecycle, IPC file pipe, mount assembly</td></tr>
+          <tr><td><code>group-queue.ts</code></td><td>per-group message queueing, concurrency control, circuit breaker</td></tr>
+          <tr><td><code>router.ts</code></td><td>JID resolution, prompt formatting, XML history, {sender} templates</td></tr>
+          <tr><td><code>action-registry.ts</code></td><td>unified action system (Zod schemas, authorization, MCP/command flags)</td></tr>
+          <tr><td><code>actions/social.ts</code></td><td>22 social actions (post, reply, react, repost, follow, ban, pin...)</td></tr>
+          <tr><td><code>impulse.ts</code></td><td>impulse gate: per-JID event weight accumulation before agent flush</td></tr>
+          <tr><td><code>ipc.ts</code></td><td>container-gateway IPC (request-response + file-based)</td></tr>
           <tr><td><code>task-scheduler.ts</code></td><td>cron-based scheduled tasks</td></tr>
-          <tr><td><code>channels/</code></td><td>telegram, whatsapp, discord, email, web adapters</td></tr>
-          <tr><td><code>actions/</code></td><td>action handlers: messaging, tasks, groups, session, inject</td></tr>
+          <tr><td><code>dashboards/</code></td><td>dashboard portal (self-registration) + status dashboard</td></tr>
+          <tr><td><code>channels/</code></td><td>telegram, whatsapp, discord, email, web, twitter, reddit, mastodon, bluesky, facebook</td></tr>
+          <tr><td><code>actions/</code></td><td>core (messaging, tasks, groups, session, inject) + social actions</td></tr>
         </table>
       </div>
     </section>
@@ -119,12 +138,17 @@ Channel (tg/discord/wa/email/web)
       <h2>Channels</h2>
 
       <p>
-        Five channel adapters implementing a shared interface (<code>Channel</code> in <code>types.ts</code>):
+        Ten channel adapters implementing a shared interface (<code>Channel</code> in <code>types.ts</code>):
         <code>connect()</code>, <code>sendMessage()</code>, <code>sendDocument?()</code>, <code>ownsJid()</code>.
         Each channel is enabled by config presence &mdash; no token, no channel. JIDs use URI-like prefixes
-        for cross-channel routing.
+        for cross-channel routing. Social channels register their <code>PlatformClient</code> at connect time,
+        enabling dynamic action availability.
       </p>
 
+      <h3>Chat channels</h3>
+      <p style="font-size: 0.9em; color: var(--dim); margin-bottom: 0.5em;">
+        Bidirectional messaging channels. Users send messages, agent responds in the same conversation.
+      </p>
       <div class="table-wrap">
         <table>
           <tr><th>Channel</th><th>Library</th><th>Enabled by</th><th>JID prefix</th><th>Notes</th></tr>
@@ -156,10 +180,68 @@ Channel (tg/discord/wa/email/web)
         </table>
       </div>
 
+      <h3>Social channels</h3>
+      <p style="font-size: 0.9em; color: var(--dim); margin-bottom: 0.5em;">
+        Social platform adapters. Inbound events use a unified verb model (message, reply, post, react, repost,
+        follow, join, edit, delete, close). Outbound uses the social action catalog. Each channel registers a
+        <code>PlatformClient</code> at connect time &mdash; actions are only available while the channel is connected.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Channel</th><th>Library</th><th>Enabled by</th><th>JID prefix</th><th>Notes</th></tr>
+          <tr>
+            <td>Twitter/X</td><td>agent-twitter-client</td>
+            <td><code>TWITTER_USERNAME</code></td><td><code>twitter:</code></td>
+            <td>mentions, replies, DMs; watcher polls timeline</td>
+          </tr>
+          <tr>
+            <td>Reddit</td><td>snoowrap</td>
+            <td><code>REDDIT_CLIENT_ID</code></td><td><code>reddit:</code></td>
+            <td>subreddit watching, post/comment/reply, moderation actions</td>
+          </tr>
+          <tr>
+            <td>Mastodon</td><td>masto.js</td>
+            <td><code>MASTODON_INSTANCE_URL</code></td><td><code>mastodon:</code></td>
+            <td>streaming API, notifications, post/reply/boost</td>
+          </tr>
+          <tr>
+            <td>Bluesky</td><td>@atproto/api</td>
+            <td><code>BLUESKY_IDENTIFIER</code></td><td><code>bluesky:</code></td>
+            <td>AT Protocol, notifications, post/reply/repost</td>
+          </tr>
+          <tr>
+            <td>Facebook</td><td>FB Graph API (fetch)</td>
+            <td><code>FACEBOOK_PAGE_ID</code></td><td><code>facebook:</code></td>
+            <td>Page API, post/comment/react, webhook events</td>
+          </tr>
+        </table>
+      </div>
+
+      <h3>Social actions</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        22 social actions available via IPC: <code>post</code>, <code>reply</code>, <code>react</code>,
+        <code>repost</code>, <code>follow</code>, <code>unfollow</code>, <code>set_profile</code>,
+        <code>delete_post</code>, <code>edit_post</code>, <code>ban</code>, <code>unban</code>,
+        <code>timeout</code>, <code>mute</code>, <code>block</code>, <code>pin</code>, <code>unpin</code>,
+        <code>lock</code>, <code>unlock</code>, <code>hide</code>, <code>approve</code>,
+        <code>set_flair</code>, <code>kick</code>.
+        Each action declares which platforms support it. Agents address actions by JID &mdash; the registry
+        routes to the correct platform client.
+      </p>
+
+      <h3>Impulse gate</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Social channels produce high-volume events (joins, edits, deletes) that shouldn't each trigger an agent.
+        The impulse gate accumulates event weights per JID and flushes to the agent when the threshold is reached
+        (default 100) or a max hold timer expires (default 5 min). Configurable per-verb weights &mdash; joins,
+        edits, and deletes default to weight 0 (dropped). Direct messages default to weight 100 (immediate flush).
+      </p>
+
       <p style="font-size: 0.9em; color: var(--dim);">
         All channels support <code>/chatid</code> and <code>/ping</code> commands.
         Forward metadata (origin, reply-to) extracted per channel and rendered as nested XML in agent prompt.
         Per-channel output styles (formatting conventions) activated via SDK settings.
+        Local channel (<code>local:</code> JID prefix) provides internal routing for delegation responses.
       </p>
     </section>
 
@@ -168,11 +250,11 @@ Channel (tg/discord/wa/email/web)
       <h2>Agent Runtime</h2>
 
       <p>
-        Each agent runs Claude Code inside a Docker container. The gateway mounts a structured workspace,
-        pipes messages via stdin, and reads JSON results from stdout. IPC is signal-driven: gateway writes
-        a file then sends SIGUSR1; agent wakes immediately (500ms fallback poll).
-        <code>MAX_CONCURRENT_CONTAINERS</code> limits total parallel agents (default 5).
-        <code>IDLE_TIMEOUT</code> controls container keepalive between messages (default 30min).
+        Each agent runs Claude Code inside a Docker container. The gateway writes <code>start.json</code> to IPC
+        (prompt + secrets), agent reads it and runs the SDK query. Follow-up messages arrive as IPC files with
+        SIGUSR1 wake signal (500ms fallback poll). <code>MAX_CONCURRENT_CONTAINERS</code> limits parallel agents
+        (default 5). <code>IDLE_TIMEOUT</code> controls container keepalive (default 30min; set to 0 for
+        chat-bound sessions that never idle out).
       </p>
 
       <h3>Workspace mounts</h3>
@@ -197,12 +279,12 @@ Channel (tg/discord/wa/email/web)
       <h3>Action registry</h3>
       <p>
         Agents request actions via IPC files. Gateway validates with Zod schemas and dispatches.
-        Domain handlers: messaging (<code>send_message</code>, <code>send_file</code>, <code>inject_message</code>),
-        tasks (<code>schedule_task</code>, <code>cancel_task</code>),
-        groups (<code>delegate_group</code>, <code>set_routing_rules</code>, <code>add_route</code>, <code>delete_route</code>),
-        session (<code>reset_session</code>).
-        Authorization enforced per action &mdash; agents can only act on their own group.
-        <code>inject_message</code> inserts into DB without channel delivery (enables retry after OOM kills).
+        Core actions: messaging (<code>send_message</code>, <code>send_file</code>, <code>send_reply</code>,
+        <code>inject_message</code>), tasks (<code>schedule_task</code>, <code>cancel_task</code>),
+        groups (<code>delegate_group</code>, <code>set_routing_rules</code>, <code>add_route</code>,
+        <code>delete_route</code>), session (<code>reset_session</code>).
+        Plus 22 social actions (see Channels). Each action is a single source of truth for IPC dispatch,
+        MCP tools, and commands. Authorization enforced per action and per tier.
       </p>
 
       <h3>4-tier permissions</h3>
@@ -221,6 +303,21 @@ Channel (tg/discord/wa/email/web)
         all others restricted to same-world descendants.
       </p>
 
+      <h3>Container commands</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        <code>runContainerCommand</code> supports dual modes: <strong>agent mode</strong> (full SDK ceremony
+        with prompt assembly, session, memory injection) and <strong>raw mode</strong> (bash command, captures stdout).
+        Raw mode used by task scheduler for git pulls and maintenance. Same sandbox, different command.
+      </p>
+
+      <h3>Agent output processing</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        <code>&lt;think&gt;</code> blocks are stripped from output before delivery &mdash; agents use them for
+        silent reasoning visible only in logs. <code>&lt;status&gt;</code> blocks are extracted and sent as
+        interim updates to the user while the agent continues working. <code>&lt;internal&gt;</code> blocks
+        are stripped entirely.
+      </p>
+
       <h3>Skills and identity</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
         Skills seeded from <code>container/skills/</code> to <code>.claude/skills/</code> inside the group folder
@@ -229,32 +326,19 @@ Channel (tg/discord/wa/email/web)
         <code>container/skills/self/migrations/</code>; <code>/migrate</code> skill syncs groups when version advances.
       </p>
 
-      <h3>Generic container commands</h3>
-      <p style="font-size: 0.9em; color: var(--dim);">
-        <code>runContainerCommand</code> supports dual modes: agent mode (default, full SDK ceremony) and
-        raw mode (bash command, captures stdout). Raw mode used by task scheduler for git pulls and
-        maintenance scripts. Same sandbox, different command.
-      </p>
-
-      <h3>Hot-patching</h3>
+      <h3>Hot-patching and DinD</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
         Agent-runner TypeScript source is mounted into containers and recompiled with <code>bunx tsc</code> at runtime.
         Changes to agent behavior deploy without rebuilding the container image.
-      </p>
-
-      <h3>DinD path translation</h3>
-      <p style="font-size: 0.9em; color: var(--dim);">
         When gateway runs in Docker, <code>HOST_GROUPS_DIR</code>, <code>HOST_DATA_DIR</code>, and
-        <code>HOST_APP_DIR</code> env vars translate container-internal paths to host paths for child
-        container mounts. Set by entrypoint, consumed by container-runner. Bare metal deployments use
-        project-relative paths directly.
+        <code>HOST_APP_DIR</code> translate container-internal paths to host paths for child container mounts.
       </p>
 
       <h3>Error handling</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
         Circuit breaker: 3 consecutive failures per group opens the breaker. New user message resets.
         Agent errors advance the cursor, notify the user, and evict the session.
-        No exponential backoff loops on permanent failures.
+        <code>error_max_turns</code> recovery resumes with <code>maxTurns=3</code> and asks the agent to summarize progress.
       </p>
     </section>
 
@@ -265,47 +349,41 @@ Channel (tg/discord/wa/email/web)
       <p>
         Seven memory layers with different persistence, scope, and injection mechanisms.
         Push layers are injected by the gateway. Pull layers are searched by the agent.
-        The underlying pattern: markdown files in a directory with <code>summary:</code> frontmatter,
-        selected and injected as XML.
+        The pattern: markdown files with <code>summary:</code> YAML frontmatter,
+        selected and injected as XML. Progressive compression turns conversations into
+        durable knowledge.
       </p>
 
       <div class="table-wrap">
         <table>
-          <tr><th>Layer</th><th>Storage</th><th>Scope</th><th>Injection</th><th>Status</th></tr>
+          <tr><th>Layer</th><th>Storage</th><th>Scope</th><th>Injection</th></tr>
           <tr>
             <td>Messages</td><td>SQLite</td><td>per-group</td>
             <td>push: stdin XML history (recent N messages)</td>
-            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Session</td><td>SDK JSONL</td><td>per-container</td>
             <td>push: Claude Code native <code>--resume</code></td>
-            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Managed</td><td>CLAUDE.md + MEMORY.md</td><td>per-group</td>
             <td>push: Claude Code native read</td>
-            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Diary</td><td><code>diary/*.md</code></td><td>per-group</td>
             <td>push: gateway injects 14 most recent as <code>&lt;diary&gt;</code> XML</td>
-            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>User context</td><td><code>users/*.md</code></td><td>per-group</td>
             <td>push: <code>&lt;user&gt;</code> pointer per message sender, agent reads file</td>
-            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Facts</td><td><code>facts/*.md</code></td><td>per-world</td>
             <td>pull: agent searches via <code>/recall</code> or grep</td>
-            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
           <tr>
             <td>Episodes</td><td><code>episodes/*.md</code></td><td>per-group</td>
             <td>push: gateway injects most recent day/week/month as <code>&lt;episodes&gt;</code> XML</td>
-            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
           </tr>
         </table>
       </div>
@@ -362,10 +440,9 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
       </p>
 
       <p style="font-size: 0.9em; color: var(--dim);">
-        Diary uses YAML frontmatter summaries. Age labels: "today", "yesterday", "3 days ago".
-        PreCompact hook nudges agent to write diary entries before context compression.
-        System messages (new-session, new-day) injected as XML; last 2 previous sessions included as
-        <code>&lt;previous_session&gt;</code> elements.
+        System messages (new-session, new-day) injected as XML. Last 2 previous sessions included as
+        <code>&lt;previous_session&gt;</code> elements. PreCompact hook nudges agent to write diary entries
+        before context compression.
       </p>
     </section>
 
@@ -392,8 +469,30 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
         <code>command</code> (prefix match), <code>pattern</code> (regex, max 200 chars),
         <code>keyword</code> (case-insensitive), <code>sender</code> (regex match on sender name),
         <code>default</code> (fallback / catch-all).
-        Rules evaluated in seq order; first match wins. Delegation is parent-to-child or
+        Rules evaluated in tier order; first match wins. Delegation is parent-to-child or
         parent-to-self, same world (except tier 0 root can delegate anywhere), max chain depth 2.
+      </p>
+
+      <h3>Auto-threading</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Route targets support RFC 6570 <code>{sender}</code> templates. At routing time, <code>{sender}</code>
+        expands to the sender name, creating per-sender child folders automatically. Enables one-group-per-user
+        patterns where each person gets their own agent context, diary, and memory.
+      </p>
+
+      <h3>Reply routing</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        <code>delegatePerSender</code> batches messages by sender before forwarding to child groups. Reply
+        threading tracks <code>lastSentId</code> per chunk sequence so multi-message responses chain correctly
+        on platforms that support reply threading. Escalation responses from <code>local:</code> JIDs carry
+        origin JID and messageId for proper attribution.
+      </p>
+
+      <h3>Chat-bound sessions</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Setting <code>IDLE_TIMEOUT=0</code> keeps containers alive indefinitely, binding them to the chat.
+        Useful for persistent agents that maintain conversational state across arbitrarily spaced messages.
+        Cross-channel preemption: if a different JID needs the same folder, idle containers are closed.
       </p>
 
       <h3>CLI</h3>
@@ -421,12 +520,11 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
         Per-group language hints via <code>.whisper-language</code> file (one BCP-47 code per line).
         Parallel passes: auto-detect + each configured language. Output labeled
         <code>[voice/auto&rarr;en]</code> or <code>[voice/cs]</code>.
-        Agent-writable <code>.whisper-language</code> configures transcription.
       </p>
 
       <h3>File sending</h3>
       <p>
-        Agents send files via <code>send_document</code> IPC action. Path-safe: must be under group dir.
+        Agents send files via <code>send_file</code> IPC action. Path-safe: must be under group dir.
         Telegram routes photos/videos/audio to native methods (inline display). WhatsApp routes by MIME.
         Discord uses <code>AttachmentBuilder</code>.
       </p>
@@ -451,7 +549,7 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
       <p>
         Vite dev server managed by the entrypoint (not the TS gateway). Serves from <code>web/</code> directory.
         <code>/pub/</code> prefix = public (no auth). <code>/priv/</code> = requires auth.
-        Auth: argon2-hashed local accounts + JWT sessions. OAuth providers (GitHub, Discord, Telegram) supported.
+        Auth: argon2-hashed local accounts + JWT sessions. OAuth providers: GitHub, Discord, Telegram.
       </p>
 
       <h3>Slink (web channel)</h3>
@@ -464,6 +562,27 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
       </p>
     </section>
 
+    <!-- DASHBOARD -->
+    <section id="dashboard">
+      <h2>Dashboard Portal</h2>
+
+      <p>
+        Self-registering dashboard system at <code>/dash/</code>. Each dashboard calls
+        <code>registerDashboard()</code> with name, title, description, and handler.
+        The portal index lists all registered dashboards. Dashboards receive a
+        <code>DashboardContext</code> with access to the group queue and connected channels.
+        Requires auth (<code>/dash/</code> is behind the auth boundary).
+      </p>
+
+      <h3>Status dashboard</h3>
+      <p>
+        Built-in at <code>/dash/status/</code>. Shows gateway uptime, memory usage, connected channels,
+        registered groups (with active/idle state), running containers (cached 5s via <code>docker ps</code>),
+        queue state per group (pending messages, pending tasks, failure count), and scheduled tasks.
+        JSON API at <code>/dash/status/api/state</code>. HTML auto-refreshes every 10s.
+      </p>
+    </section>
+
     <!-- SCHEDULING -->
     <section id="scheduling">
       <h2>Task Scheduling</h2>
@@ -472,6 +591,7 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
         SQLite-backed scheduler with three modes: <code>cron</code>, <code>interval</code>, <code>once</code>.
         Agents request scheduled tasks via <code>schedule_task</code> IPC action.
         Two context modes: <code>group</code> (shares conversation history) or <code>isolated</code> (fresh context per run).
+        Optional <code>command</code> field for raw-mode tasks (bash, not agent).
         Run log with per-task status and last result. <code>TIMEZONE</code> validated via <code>Intl.DateTimeFormat</code>.
       </p>
     </section>
@@ -490,7 +610,8 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
         <div class="card">
           <div class="card-title">Atlas</div>
           <p>Code support agent. Mounted repos, workspace knowledge, support persona.
-            Searches code, researches via subagents, answers architecture questions.</p>
+            Searches code, researches via subagents, answers architecture questions.
+            Uses facts/ memory for persistent knowledge, /recall for retrieval.</p>
           <p style="font-size: 0.9em; color: var(--dim);">
             Channels: Telegram, Discord &middot; <span style="color: var(--green, #4caf50);">shipped</span>
           </p>
@@ -501,14 +622,6 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
             builds knowledge pages, maps connections. Vite serves results live.</p>
           <p style="font-size: 0.9em; color: var(--dim);">
             Channels: Telegram, Web &middot; <span style="color: var(--green, #4caf50);">shipped</span>
-          </p>
-        </div>
-        <div class="card">
-          <div class="card-title">Evangelist</div>
-          <p>Drafts public posts and engages in relevant conversations.
-            V2 middleware intercepts post tool calls into a sign-off queue.</p>
-          <p style="font-size: 0.9em; color: var(--dim);">
-            Channels: X/Twitter, Discord &middot; <span style="color: var(--warn);">planned</span>
           </p>
         </div>
       </div>
@@ -525,7 +638,7 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
       <h3>Docker deployment</h3>
 <pre style="font-size: 0.8em; padding: 0.8em; background: var(--surface, #1a1a2e); border-radius: 6px; color: var(--text, #e0e0e0); overflow-x: auto;">
 make image                                    # gateway image
-make -C container image                       # agent image
+make agent-image                              # agent image
 ./kanipi create foo                           # seed /srv/data/kanipi_foo/
 edit /srv/data/kanipi_foo/.env                # set tokens
 ./kanipi config foo group add tg:-123456789   # register main group
@@ -536,7 +649,7 @@ edit /srv/data/kanipi_foo/.env                # set tokens
 npm install && make build
 npx tsx src/cli.ts create foo
 edit /srv/data/kanipi_foo/.env
-make -C container image                       # agent container still needs docker
+make agent-image                              # agent container still needs docker
 npx tsx src/cli.ts config foo group add tg:-123456789
 npm run dev</pre>
 
@@ -549,6 +662,9 @@ npm run dev</pre>
     .claude/              # skills, projects, MEMORY.md
     logs/                 # conversation logs
     diary/                # agent daily notes
+    episodes/             # compressed session history (day/week/month)
+    facts/                # world-shared knowledge
+    users/                # per-sender context files
     media/                # uploaded/generated files
     tmp/                  # scratch space
     CLAUDE.md             # agent behavior
@@ -565,12 +681,18 @@ npm run dev</pre>
           <tr><td><code>TELEGRAM_BOT_TOKEN</code></td><td>enables telegram</td></tr>
           <tr><td><code>DISCORD_BOT_TOKEN</code></td><td>enables discord</td></tr>
           <tr><td><code>EMAIL_IMAP_HOST</code></td><td>enables email (IMAP IDLE)</td></tr>
+          <tr><td><code>TWITTER_USERNAME</code></td><td>enables twitter/x (+ _PASSWORD, _EMAIL)</td></tr>
+          <tr><td><code>REDDIT_CLIENT_ID</code></td><td>enables reddit (+ _CLIENT_SECRET, _USERNAME, _PASSWORD)</td></tr>
+          <tr><td><code>MASTODON_INSTANCE_URL</code></td><td>enables mastodon (+ _ACCESS_TOKEN)</td></tr>
+          <tr><td><code>BLUESKY_IDENTIFIER</code></td><td>enables bluesky (+ _PASSWORD)</td></tr>
+          <tr><td><code>FACEBOOK_PAGE_ID</code></td><td>enables facebook (+ _PAGE_ACCESS_TOKEN)</td></tr>
           <tr><td><code>CONTAINER_IMAGE</code></td><td>agent docker image name</td></tr>
           <tr><td><code>CLAUDE_CODE_OAUTH_TOKEN</code></td><td>passed to agent containers</td></tr>
-          <tr><td><code>IDLE_TIMEOUT</code></td><td>container keepalive (ms, default 1800000)</td></tr>
+          <tr><td><code>IDLE_TIMEOUT</code></td><td>container keepalive (ms, default 1800000; 0 = never)</td></tr>
           <tr><td><code>MAX_CONCURRENT_CONTAINERS</code></td><td>parallel agent limit (default 5)</td></tr>
           <tr><td><code>MEDIA_ENABLED</code></td><td>attachment pipeline (default false)</td></tr>
-          <tr><td><code>VITE_PORT</code></td><td>enables web serving</td></tr>
+          <tr><td><code>VITE_PORT</code></td><td>enables web serving + dashboard</td></tr>
+          <tr><td><code>AUTH_SECRET</code></td><td>JWT secret for sessions and dashboard</td></tr>
           <tr><td><code>WHISPER_BASE_URL</code></td><td>whisper service URL</td></tr>
           <tr><td><code>TIMEZONE</code></td><td>cron timezone (validated, fallback UTC)</td></tr>
         </table>
@@ -580,6 +702,13 @@ npm run dev</pre>
 <pre style="font-size: 0.8em; padding: 0.8em; background: var(--surface, #1a1a2e); border-radius: 6px; color: var(--text, #e0e0e0); overflow-x: auto;">
 sudo cp /srv/data/kanipi_foo/kanipi_foo.service /etc/systemd/system/
 sudo systemctl enable --now kanipi_foo</pre>
+
+      <h3>Multi-instance</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Each instance runs independently with its own data dir, agent image tag, and systemd service.
+        Per-instance image tags (<code>kanipi-agent-foo:latest</code>) allow independent upgrades.
+        Set <code>CONTAINER_IMAGE</code> per instance in <code>.env</code>.
+      </p>
     </section>
 
     <!-- ROADMAP -->
@@ -588,29 +717,34 @@ sudo systemctl enable --now kanipi_foo</pre>
 
       <div class="table-wrap">
         <table>
-          <tr><th>Milestone</th><th>Status</th><th>Key items</th></tr>
+          <tr><th>Phase</th><th>Status</th><th>Key items</th></tr>
           <tr>
-            <td>v1</td>
+            <td>Phase 1</td>
             <td><span style="color: var(--green, #4caf50);">shipped</span></td>
-            <td>5 channels, routing, actions, diary, auth, 560 tests</td>
+            <td>5 chat channels, routing, actions, diary, auth, scheduling, IPC, skills</td>
           </tr>
           <tr>
-            <td>v1m1</td>
-            <td>next</td>
-            <td>SSE per-sender, session recovery, /work skill</td>
+            <td>Phase 2</td>
+            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
+            <td>5 social channels (Twitter, Reddit, Mastodon, Bluesky, Facebook), social events + actions, impulse gate</td>
           </tr>
           <tr>
-            <td>v1m2</td>
-            <td>planned</td>
-            <td>message MCP tools, agent messaging, identity linking, message WAL</td>
+            <td>Phase 3</td>
+            <td><span style="color: #ffa000;">almost done</span></td>
+            <td>4-tier permissions, recall v2, episodes, auto-threading, reply routing, chat-bound sessions, dashboard portal, status dashboard</td>
           </tr>
           <tr>
-            <td>v2m1</td>
-            <td>planned</td>
-            <td>agent teams, IPC-to-MCP proxy, feed adapters (twitter, reddit, facebook)</td>
+            <td>Phase 4</td>
+            <td>deferred</td>
+            <td>Gmail API, instance repos, memory viewer, evangelist product, per-platform action grants</td>
           </tr>
           <tr>
-            <td>v2m2</td>
+            <td>Phase 5</td>
+            <td>future</td>
+            <td>agent-to-agent messaging, IPC-to-MCP proxy, cross-channel identity, workflows</td>
+          </tr>
+          <tr>
+            <td>Future</td>
             <td>planned</td>
             <td>Go gateway rewrite (single binary, native concurrency, same interfaces)</td>
           </tr>
@@ -625,70 +759,50 @@ sudo systemctl enable --now kanipi_foo</pre>
       <div class="table-wrap">
         <table>
           <tr><th>Metric</th><th>Value</th></tr>
-          <tr><td>Source files</td><td><span class="metric">62 TypeScript</span></td></tr>
-          <tr><td>Source LOC</td><td><span class="metric">10,788</span></td></tr>
-          <tr><td>Test files</td><td>37 files &middot; 11,680 LOC</td></tr>
-          <tr><td>Test:code ratio</td><td>1.08:1</td></tr>
-          <tr><td>Spec files</td><td>92 specification documents</td></tr>
-          <tr><td>Tests</td><td>560</td></tr>
-          <tr><td>Channels</td><td>Telegram, WhatsApp, Discord, Email, Web (Slink)</td></tr>
+          <tr><td>Source files</td><td><span class="metric">65 TypeScript</span></td></tr>
+          <tr><td>Source LOC</td><td><span class="metric">13,980</span></td></tr>
+          <tr><td>Test files</td><td>43 files &middot; 13,170 LOC</td></tr>
+          <tr><td>Test:code ratio</td><td>0.94:1</td></tr>
+          <tr><td>Spec files</td><td>97 specification documents</td></tr>
+          <tr><td>Tests</td><td><span class="metric">798</span></td></tr>
+          <tr><td>Chat channels</td><td>Telegram, WhatsApp, Discord, Email, Web (Slink)</td></tr>
+          <tr><td>Social channels</td><td>Twitter/X, Reddit, Mastodon, Bluesky, Facebook</td></tr>
+          <tr><td>Social actions</td><td>22 (post, reply, react, repost, follow, ban, pin...)</td></tr>
+          <tr><td>Memory layers</td><td>7 (messages, session, managed, diary, user context, facts, episodes)</td></tr>
+          <tr><td>Permission tiers</td><td>4 (root, world, agent, worker)</td></tr>
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
           <tr><td>Deploy</td><td>systemd per instance, <code>kanipi create</code> CLI</td></tr>
           <tr><td>Base</td><td>NanoClaw fork (upstream v1.1.3)</td></tr>
-          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.2.2)</span></td></tr>
+          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.8.0)</span></td></tr>
         </table>
       </div>
     </section>
-
-    <!-- LINKS -->
-    <h2>Links</h2>
-
-    <div class="jump-box">
-      <div class="jump-title">Explore</div>
-      <div class="jump-grid">
-        <a href="/agents/" class="jump-link">
-          <span class="jump-icon">&#x1F916;</span>
-          <span class="jump-text">
-            <span class="jump-text-main">Agent Research</span>
-            <span class="jump-text-sub">6 systems, 13 patterns</span>
-          </span>
-        </a>
-        <a href="/agents/architecture-comparison/" class="jump-link">
-          <span class="jump-icon">&#x1F50D;</span>
-          <span class="jump-text">
-            <span class="jump-text-main">Systems Compared</span>
-            <span class="jump-text-sub">convergence + NanoClaw</span>
-          </span>
-        </a>
-        <a href="/agents/tools/" class="jump-link">
-          <span class="jump-icon">&#x1F510;</span>
-          <span class="jump-text">
-            <span class="jump-text-main">Tools &amp; Security</span>
-            <span class="jump-text-sub">IPC bus, secret boundary</span>
-          </span>
-        </a>
-      </div>
-    </div>
 
     <footer class="hub-footer">
       krons.fiu.wtf/kanipi &middot;
       <a href="https://github.com/kronael/kanipi">github.com/kronael/kanipi</a> &middot;
       <a href="https://github.com/kronael">kronael</a>
       <br>
-      <span style="color: var(--green, #4caf50);">v1.2.2 &middot; telegram &middot; discord &middot; whatsapp &middot; email &middot; web</span>
+      <span style="color: var(--green, #4caf50);">v1.8.0 &middot; 10 channels &middot; 798 tests &middot; 97 specs</span>
 
       <details class="llm-info">
         <summary>Agent context</summary>
         <p>
-          Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.2.2.
-          TypeScript (ESM, NodeNext). Routes messages from 5 channels to containerized Claude Code agents.
-          62 source files, 10,788 LOC + 37 test files, 11,680 LOC. 560 tests. 92 spec files.
-          Channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
+          Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.8.0.
+          TypeScript (ESM, NodeNext). Routes messages from 10 channels to containerized Claude Code agents.
+          65 source files, 13,980 LOC + 43 test files, 13,170 LOC. 798 tests. 97 spec files.
+          Chat channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
           Web/Slink (HMAC JWT, SSE streaming, rate limiting, sloth.js widget).
-          Architecture: Channel &rarr; SQLite DB &rarr; GroupQueue (per-group FIFO) &rarr; Router (JID &rarr; group, prompt assembly)
-          &rarr; Container (docker run, stdin pipe, unified home mount at /home/node) &rarr; Claude Code SDK (tools, subagents, skills, MCP)
-          &rarr; IPC (SIGUSR1 signal + file-based request/response) &rarr; Action Registry (Zod-validated, tier-authorized)
-          &rarr; Channel (send text/files back).
+          Social channels: Twitter/X (agent-twitter-client), Reddit (snoowrap), Mastodon (masto.js), Bluesky (@atproto/api), Facebook (Graph API).
+          Social inbound: unified InboundEvent model with verb types (message, reply, post, react, repost, follow, join, edit, delete, close).
+          Social outbound: 22 actions (post, reply, react, repost, follow, unfollow, set_profile, delete_post, edit_post,
+          ban, unban, timeout, mute, block, pin, unpin, lock, unlock, hide, approve, set_flair, kick).
+          Dynamic action registration: channels register PlatformClient at connect time; actions available only while channel is connected.
+          Impulse gate: per-JID event weight accumulation (configurable per-verb weights, threshold 100, max hold 5min) before agent flush.
+          Architecture: Channel &rarr; Impulse Gate &rarr; SQLite DB &rarr; GroupQueue (per-group FIFO) &rarr; Router (JID &rarr; group, prompt assembly, {sender} template expansion)
+          &rarr; Container (docker run, IPC file pipe, unified home mount at /home/node) &rarr; Claude Code SDK (tools, subagents, skills, MCP)
+          &rarr; IPC (SIGUSR1 signal + file-based request/response) &rarr; Action Registry (Zod-validated, tier-authorized, core + social actions)
+          &rarr; Reply Router (delegatePerSender, chunk chaining, reply threading) &rarr; Channel (send text/files back).
           Unified home: groups/{folder}/ mounted as /home/node (cwd + HOME). .claude/ state lives inside group folder.
           4-tier permissions: root (tier 0, no /), world (tier 1, {world}), agent (tier 2, {world}/{name}), worker (tier 3, deeper).
           Tier derived from folder depth (count / separators). Tier 2+ use overlay mounts for ro enforcement.
@@ -696,29 +810,37 @@ sudo systemctl enable --now kanipi_foo</pre>
           web (~/web, rw root/world), ipc (~/ipc, rw), self (~/self, ro root-only), agent-runner (~/agent-runner, ro, hot-patch source).
           Memory layers: messages (DB, stdin XML), session (SDK JSONL, --resume), managed (CLAUDE.md/MEMORY.md),
           diary (daily markdown, gateway injection of 14 most recent with relative time),
-          user context (per-sender pointer, agent reads file), facts (shipped, /recall search),
-          episodes (shipped, day/week/month progressive compression via /compact-memories).
-          /recall: v1 (Explore grep across summary: frontmatter) + v2 (FTS5+sqlite-vec hybrid, RRF fusion, Ollama embeddings).
-          /compact-memories: cron-scheduled progressive compression (sessions->daily->weekly->monthly).
+          user context (per-sender pointer, agent reads file), facts (per-world, /recall search),
+          episodes (day/week/month progressive compression via /compact-memories).
+          /recall: v1 (Explore grep across summary: frontmatter) + v2 (FTS5+sqlite-vec hybrid, RRF fusion 0.7vec/0.3bm25, Ollama nomic-embed-text embeddings).
+          /compact-memories: cron-scheduled progressive compression (sessions&rarr;daily&rarr;weekly&rarr;monthly).
+          Auto-threading: route targets support {sender} template expansion, creating per-sender child folders at routing time.
+          Reply routing: delegatePerSender batches messages by sender, chunk chaining tracks lastSentId for reply threading.
+          Chat-bound sessions: IDLE_TIMEOUT=0 keeps containers alive indefinitely.
+          Container commands: dual mode (agent ceremony vs raw bash).
+          Agent output: &lt;think&gt; blocks stripped (silent reasoning), &lt;status&gt; blocks sent as interim updates, &lt;internal&gt; stripped entirely.
+          Dashboard portal: /dash/ with self-registration. Status dashboard at /dash/status/ (uptime, memory, channels, groups, containers, queue, tasks).
+          JSON API at /dash/status/api/state, auto-refresh 10s.
+          Auth: argon2 local accounts + JWT sessions. OAuth: GitHub, Discord, Telegram.
           Config: .env + env vars. Channels enabled by token/config presence.
-          Groups: CLI registration (folder-only, no JID), world-scoped authorization, hierarchical delegation
+          Groups: CLI registration (folder-only), world-scoped authorization, hierarchical delegation
           (5 rule types: command/pattern/keyword/sender/default, max chain depth 2),
           multi-JID per folder via routes table.
-          Actions: messaging (send_message, send_file, inject_message), tasks (schedule_task, cancel_task),
+          Core actions: messaging (send_message, send_file, send_reply, inject_message), tasks (schedule_task, cancel_task),
           groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session).
-          Generic container commands: runContainerCommand dual mode (agent ceremony vs raw bash), used by scheduler for maintenance scripts.
+          Container commands: runContainerCommand dual mode (agent ceremony vs raw bash).
           Media: whisper voice transcription (multi-language, per-group .whisper-language),
           file sending (send_file action, path-safe), file commands (/put /get /ls), magic bytes MIME detection (file-type),
-          .gateway-caps TOML introspection manifest. Media paths use container-relative ~/media/... format.
+          .gateway-caps TOML introspection manifest.
           Task scheduler: cron/interval/once, group or isolated context modes, optional command field for raw mode.
-          Web: vite dev server, /pub/ (public) vs /priv/ (auth), argon2 + JWT auth.
-          Error handling: circuit breaker (3 failures), session eviction, no auto-retry.
-          DinD path translation: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR env vars for docker-in-docker mounts.
+          Web: vite dev server, /pub/ (public) vs /priv/ (auth), slink web channel.
+          Error handling: circuit breaker (3 failures), session eviction, error_max_turns recovery.
+          DinD path translation: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR for docker-in-docker mounts.
           Hot-patching: agent-runner TS source mounted, bunx tsc at runtime.
           Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. Migration system.
-          Products are configurations: Atlas (code support, shipped), Yonder (research, shipped), Evangelist (planned).
-          Deploy: systemd per instance, kanipi CLI for create/config/run.
-          Roadmap: v1m1 (SSE, /work), v1m2 (message MCP, agent messaging), v2m1 (agent teams, feed adapters), v2m2 (Go rewrite).
+          Products are configurations: Atlas (code support, shipped), Yonder (research, shipped).
+          Deploy: systemd per instance, multi-instance with independent image tags.
+          Roadmap: phase 1-2 shipped, phase 3 almost done, phase 4-5 future, Go rewrite planned.
         </p>
       </details>
     </footer>
@@ -729,32 +851,43 @@ type: product
 name: kanipi
 repo: github.com/kronael/kanipi
 base: nanoclaw (v1.1.3)
-status: v1.2.2
+status: v1.8.0
 lang: typescript (esm, nodenext)
-channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
+chat-channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
+social-channels: twitter (agent-twitter-client), reddit (snoowrap), mastodon (masto.js), bluesky (@atproto/api), facebook (graph api)
+social-events: unified InboundEvent with verbs (message, reply, post, react, repost, follow, join, edit, delete, close)
+social-actions: 22 actions (post, reply, react, repost, follow, unfollow, set_profile, delete_post, edit_post, ban, unban, timeout, mute, block, pin, unpin, lock, unlock, hide, approve, set_flair, kick)
+dynamic-registration: channels register PlatformClient at connect, actions available only while connected
+impulse-gate: per-jid weight accumulation (threshold 100, max-hold 5min, configurable per-verb weights, 0=drop)
 config: .env + env vars, sqlite group state
-source: 62 files 10788 LOC, 37 test files 11680 LOC, 560 tests, 92 specs
-architecture: channel -> sqlite -> group-queue -> router -> container (docker, unified home /home/node) -> claude-code-sdk -> ipc (sigusr1+files) -> action-registry -> channel
+source: 65 files 13980 LOC, 43 test files 13170 LOC, 798 tests, 97 specs
+architecture: channel -> impulse-gate -> sqlite -> group-queue -> router ({sender} template expansion) -> container (docker, unified home /home/node) -> claude-code-sdk -> ipc (sigusr1+files) -> action-registry (core+social) -> reply-router (delegatePerSender, chunk-chaining) -> channel
 unified-home: groups/{folder}/ mounted as /home/node (cwd+HOME), .claude/ inside group folder, media paths ~/media/...
 permissions: 4-tier (root 0=no /, world 1={world}, agent 2={world}/{name}, worker 3=deeper), tier from / count, overlay mounts tier 2+
 mounts: home(/home/node rw/ro), groups(~/groups root-only), share(~/share rw/ro), web(~/web rw root/world), ipc(~/ipc rw), self(~/self ro root), agent-runner(~/agent-runner ro hot-patch)
 skills: container/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; migration system
 ipc: signal-driven (SIGUSR1), 500ms fallback, file-based request/response
-memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (shipped, 14 recent), user-context (shipped, per-sender pointer), facts (shipped, /recall search), episodes (shipped, day/week/month compression via /compact-memories)
+memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (14 recent), user-context (per-sender pointer), facts (/recall search), episodes (day/week/month compression via /compact-memories)
 recall: v1 (explore grep on summary: frontmatter) + v2 (FTS5+sqlite-vec hybrid, RRF fusion 0.7vec/0.3bm25, ollama nomic-embed-text, .recallrc config, per-store sqlite dbs)
 compact-memories: cron-scheduled progressive compression (sessions->daily->weekly->monthly episodes, diary->weekly->monthly summaries)
-actions: messaging (send_message, send_file, inject_message), tasks (schedule_task, cancel_task), groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session) — Zod-validated, tier-based auth
-generic-commands: runContainerCommand dual mode (agent ceremony vs raw bash), scheduler uses for maintenance
+auto-threading: route targets support {sender} template, per-sender child folders created at routing time
+reply-routing: delegatePerSender batches by sender, chunk chaining tracks lastSentId for reply threading, escalation origin attribution
+chat-bound-sessions: IDLE_TIMEOUT=0 keeps containers alive indefinitely
+container-commands: dual mode (agent ceremony vs raw bash)
+agent-output: <think> stripped (silent reasoning), <status> sent as interim updates, <internal> stripped entirely
+dashboard: /dash/ portal with self-registration, /dash/status/ live status (uptime, memory, channels, groups, containers, queue, tasks), /dash/status/api/state JSON, 10s auto-refresh
+auth: argon2 local accounts + JWT sessions, OAuth (github, discord, telegram)
+core-actions: messaging (send_message, send_file, send_reply, inject_message), tasks (schedule_task, cancel_task), groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session) — Zod-validated, tier-based auth
 media: voice transcription (whisper, multi-language, .whisper-language per group), file sending (send_file action), file commands (/put /get /ls), magic bytes mime (file-type), .gateway-caps TOML, ~/media/... paths
-error-handling: circuit breaker (3 failures), session eviction, no auto-retry
+error-handling: circuit breaker (3 failures), session eviction, error_max_turns recovery
 dind-paths: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR for docker-in-docker mount translation
 hot-patching: agent-runner TS mounted, bunx tsc at runtime
-groups: cli registration (folder-only, no jid), world-scoped auth, hierarchical delegation (5 rule types: command/pattern/keyword/sender/default, max chain depth 2), multi-jid per folder via routes
+groups: cli registration (folder-only), world-scoped auth, hierarchical delegation (5 rule types: command/pattern/keyword/sender/default, max chain depth 2), multi-jid per folder via routes
 web: vite dev server, /pub/ public vs /priv/ auth, argon2+jwt, sloth.js widget
-products: atlas (code support, shipped), yonder (research, shipped), evangelist (planned)
-roadmap: v1m1 (sse, work), v1m2 (message-mcp, agent-messaging), v2m1 (agent-teams, feed-adapters), v2m2 (go-rewrite)
-deploy: systemd per instance, kanipi CLI
-updated: 2026-03-11
+products: atlas (code support, shipped), yonder (research, shipped)
+roadmap: phase-1 shipped (5 chat channels), phase-2 shipped (5 social channels), phase-3 almost-done (permissions, recall-v2, episodes, auto-threading, dashboard), phase-4 deferred (gmail, instance-repos, memory-viewer), phase-5 future (agent-messaging, ipc-mcp-proxy, identities, workflows), go-rewrite planned
+deploy: systemd per instance, multi-instance independent image tags
+updated: 2026-03-16
 -->
 
   <script src="/assets/hub.js"></script>
