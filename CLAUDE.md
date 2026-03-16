@@ -80,6 +80,7 @@ See `ARCHITECTURE.md` for full details. Key facts:
 ```
 src/                  gateway source (TypeScript)
   cli.ts              CLI entrypoint (config/create/run commands)
+  dashboards/         dashboard portal (/dash/ with self-registration)
 container/            agent container build
   agent-runner/       in-container agent entrypoint
   build.sh            agent image builder

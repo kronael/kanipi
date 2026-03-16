@@ -5,7 +5,6 @@ import { Channel } from '../types.js';
 import { getAllGroupConfigs, getAllChats, getAllTasks } from '../db.js';
 import { CONTAINER_IMAGE, MAX_CONCURRENT_CONTAINERS } from '../config.js';
 import { execSync } from 'child_process';
-import { logger } from '../logger.js';
 
 export interface DashboardContext {
   queue: GroupQueue;
@@ -34,27 +33,24 @@ export function handleDashRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   ctx: DashboardContext,
-): boolean {
+): void {
   const url = req.url || '/';
-  if (!url.startsWith('/dash')) return false;
 
   if (url === '/dash' || url === '/dash/') {
     servePortal(res);
-    return true;
+    return;
   }
 
   for (const d of dashboards) {
     const prefix = `/dash/${d.name}`;
     if (url === prefix || url.startsWith(prefix + '/')) {
-      const sub = url.slice(prefix.length) || '/';
-      d.handler(req, res, sub, ctx);
-      return true;
+      d.handler(req, res, url.slice(prefix.length) || '/', ctx);
+      return;
     }
   }
 
   res.writeHead(404);
   res.end('Not found');
-  return true;
 }
 
 function servePortal(res: http.ServerResponse): void {
@@ -71,8 +67,6 @@ function servePortal(res: http.ServerResponse): void {
 a{color:#0066cc}</style></head>
 <body><h1>Dashboards</h1><ul>${items}</ul></body></html>`);
 }
-
-// --- Status dashboard ---
 
 let containerCache: { ts: number; data: ContainerInfo[] } = {
   ts: 0,
@@ -109,11 +103,14 @@ function getContainers(): ContainerInfo[] {
 
 function buildState(ctx: DashboardContext) {
   const groups = getAllGroupConfigs();
-  const chats = getAllChats();
   const tasks = getAllTasks();
   const containers = getContainers();
-  const activeJids = ctx.queue.getActiveJids();
   const queueStatus = ctx.queue.getStatus();
+  const activeFolders = new Set(
+    queueStatus
+      .filter((s) => s.active && s.groupFolder)
+      .map((s) => s.groupFolder),
+  );
 
   return {
     uptime_s: Math.round(process.uptime()),
@@ -123,14 +120,11 @@ function buildState(ctx: DashboardContext) {
     groups: Object.values(groups).map((g) => ({
       name: g.name,
       folder: g.folder,
-      active: activeJids.some(
-        (jid) =>
-          queueStatus.find((s) => s.jid === jid)?.groupFolder === g.folder,
-      ),
+      active: activeFolders.has(g.folder),
     })),
     queue: queueStatus,
     containers,
-    chats: chats.length,
+    chats: getAllChats().length,
     tasks: tasks.map((t) => ({
       id: t.id,
       group_folder: t.group_folder,
@@ -152,7 +146,6 @@ function statusHandler(
     return;
   }
 
-  // Serve the HTML page for anything else
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(STATUS_HTML);
 }
@@ -171,7 +164,7 @@ body { font-family: monospace; max-width: 900px; margin: 20px auto; padding: 0 2
 table { border-collapse: collapse; width: 100%; margin: 10px 0; }
 th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
 th { background: #f0f0f0; }
-.ok { color: green; } .warn { color: orange; } .err { color: red; }
+.ok { color: green; } .err { color: red; }
 h2 { margin-top: 24px; }
 a { color: #0066cc; }
 #updated { color: #888; font-size: 12px; }

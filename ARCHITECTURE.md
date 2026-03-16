@@ -81,8 +81,21 @@ for reply threading. `ChannelOpts` supplies `isRoutedJid(jid)`
 ### web-proxy.ts
 
 HTTP server in front of Vite. Routes slink endpoints (`/pub/s/:token`,
-`/_sloth/stream`, `/_sloth/message`), proxies everything else to Vite.
-Auth boundary: `/pub/` and `/_sloth/` bypass basic auth.
+`/_sloth/stream`, `/_sloth/message`), dashboard requests (`/dash/*`),
+and proxies everything else to Vite. Auth boundary: `/pub/` and
+`/_sloth/` bypass basic auth; `/dash/` requires auth.
+
+### dashboards/index.ts
+
+Dashboard portal with self-registration. `/dash/` renders an index
+of registered dashboards. Each dashboard calls `registerDashboard()`
+with name, title, description, and handler. Handler receives
+`DashboardContext` (queue + channels) and the sub-path.
+
+Built-in: status dashboard at `/dash/status/` -- shows gateway
+uptime, memory, channels, groups, containers (cached 5s via
+`docker ps`), queue state (`getStatus()`), scheduled tasks.
+JSON API at `/dash/status/api/state`, HTML auto-refreshes every 10s.
 
 ### mime.ts + mime-enricher.ts + mime-handlers/
 
