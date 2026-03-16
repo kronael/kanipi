@@ -1,4 +1,4 @@
-.PHONY: build lint test smoke image agent-image integration clean
+.PHONY: build lint test smoke image agent-image integration play clean
 
 build:
 	bunx tsc
@@ -22,6 +22,9 @@ agent-image:
 
 integration: agent-image
 	bunx vitest run tests/integration --testTimeout=120000
+
+play:
+	npx playwright test
 
 clean:
 	rm -rf tmp/ dist/ container/agent-runner/dist/
