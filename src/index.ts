@@ -295,11 +295,14 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     ? chatJid.slice(6)
     : getHubForJid(chatJid);
   const group = folder ? groups[folder] : undefined;
-  if (!group) return true;
+  if (!group) {
+    logger.warn({ chatJid, folder }, 'processMessages: no group');
+    return true;
+  }
 
   const channel = findChannel(channels, chatJid);
   if (!channel) {
-    logger.warn({ chatJid }, 'no channel owns JID, skipping messages');
+    logger.warn({ chatJid }, 'processMessages: no channel owns JID');
     return true;
   }
 
@@ -310,13 +313,13 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     ASSISTANT_NAME,
   );
 
-  if (missedMessages.length === 0) return true;
+  if (missedMessages.length === 0) {
+    logger.info({ chatJid, sinceTimestamp }, 'processMessages: no pending');
+    return true;
+  }
 
   if (isChatErrored(chatJid)) {
-    logger.debug(
-      { chatJid },
-      'chat in errored state, skipping until user retries',
-    );
+    logger.info({ chatJid }, 'processMessages: chat errored, skip');
     return true;
   }
 
@@ -855,7 +858,10 @@ async function startMessageLoop(): Promise<void> {
             ? chatJid.slice(6)
             : getHubForJid(chatJid);
           const group = folder ? groups[folder] : undefined;
-          if (!group) continue;
+          if (!group) {
+            logger.warn({ chatJid, folder }, 'no group for JID, skipping');
+            continue;
+          }
 
           // impulse gate: accumulate per-group, skip if threshold not met
           let iState = impulseStates.get(chatJid) ?? emptyState();
@@ -866,7 +872,10 @@ async function startMessageLoop(): Promise<void> {
             if (r.flush) shouldFlush = true;
           }
           impulseStates.set(chatJid, iState);
-          if (!shouldFlush) continue;
+          if (!shouldFlush) {
+            logger.info({ chatJid, impulse: iState.impulse }, 'impulse held');
+            continue;
+          }
           impulseStates.delete(chatJid);
 
           const channel = findChannel(channels, chatJid);
@@ -936,7 +945,13 @@ async function startMessageLoop(): Promise<void> {
               queue.enqueueMessageCheck(chatJid);
             }
 
-            if (nonCommandMessages.length === 0) continue;
+            if (nonCommandMessages.length === 0) {
+              logger.info(
+                { chatJid, commands: deferredCmds.length },
+                'all messages were commands, skip agent',
+              );
+              continue;
+            }
 
             if (resolved && resolved.target !== group.folder) {
               await waitForEnrichments(nonCommandMessages.map((m) => m.id));
@@ -978,7 +993,7 @@ async function startMessageLoop(): Promise<void> {
           );
 
           if (queue.sendMessage(chatJid, formatted)) {
-            logger.debug(
+            logger.info(
               { chatJid, count: messagesToSend.length },
               'Piped messages to active container',
             );
@@ -989,6 +1004,10 @@ async function startMessageLoop(): Promise<void> {
             startTyping(channel, chatJid);
           } else {
             clearChatErrored(chatJid);
+            logger.info(
+              { chatJid, count: messagesToSend.length },
+              'Enqueuing message check',
+            );
             queue.enqueueMessageCheck(chatJid);
           }
         }

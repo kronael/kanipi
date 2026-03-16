@@ -80,7 +80,7 @@ export class GroupQueue {
 
     if (state.active) {
       state.pendingMessages = true;
-      logger.debug({ groupJid }, 'Container active, message queued');
+      logger.info({ groupJid }, 'Container active, message queued');
       return;
     }
 
@@ -89,13 +89,14 @@ export class GroupQueue {
       if (!this.waitingGroups.includes(groupJid)) {
         this.waitingGroups.push(groupJid);
       }
-      logger.debug(
+      logger.info(
         { groupJid, activeCount: this.activeCount },
         'At concurrency limit, message queued',
       );
       return;
     }
 
+    logger.info({ groupJid }, 'Starting message processing');
     this.runForGroup(groupJid, 'messages').catch((err) =>
       logger.error({ groupJid, err }, 'Unhandled error in runForGroup'),
     );
@@ -239,9 +240,9 @@ export class GroupQueue {
     state.pendingMessages = false;
     this.activeCount++;
 
-    logger.debug(
+    logger.info(
       { groupJid, reason, activeCount: this.activeCount },
-      'Starting container for group',
+      'runForGroup: start',
     );
 
     try {
@@ -298,6 +299,14 @@ export class GroupQueue {
   }
 
   private releaseGroup(groupJid: string, state: GroupState): void {
+    logger.info(
+      {
+        groupJid,
+        hadPending: state.pendingMessages,
+        pendingTasks: state.pendingTasks.length,
+      },
+      'runForGroup: released',
+    );
     state.active = false;
     state.process = null;
     state.containerName = null;
