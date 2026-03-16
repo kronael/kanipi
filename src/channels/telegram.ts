@@ -407,13 +407,18 @@ export class TelegramChannel implements Channel {
           );
           resolve();
         },
-      }).catch((err) => {
-        logger.fatal(
-          { err: err.message },
-          'Telegram polling loop crashed, exiting',
-        );
-        process.exit(1);
-      });
+      })
+        .then(() => {
+          logger.fatal('Telegram polling loop stopped unexpectedly, exiting');
+          process.exit(1);
+        })
+        .catch((err) => {
+          logger.fatal(
+            { err: err.message },
+            'Telegram polling loop crashed, exiting',
+          );
+          process.exit(1);
+        });
     });
   }
 
