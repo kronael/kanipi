@@ -58,15 +58,27 @@ test.describe('Status Dashboard - HTMX Fragments', () => {
 
   test('channels fragment shows channel names', async ({ page }) => {
     await page.goto('/dash/status/');
-    await expect(page.getByText('telegram')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('whatsapp')).toBeVisible();
-    await expect(page.getByText('discord')).toBeVisible();
+    await expect(page.getByText('3 channels')).toBeVisible({ timeout: 5000 });
+    await expect(
+      page.getByRole('cell', { name: 'telegram', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'whatsapp', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'discord', exact: true }),
+    ).toBeVisible();
   });
 
   test('groups fragment shows test groups', async ({ page }) => {
     await page.goto('/dash/status/');
-    await expect(page.getByText('Root')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Happy')).toBeVisible();
+    await expect(page.getByText('2 groups')).toBeVisible({ timeout: 5000 });
+    await expect(
+      page.getByRole('cell', { name: 'Root', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Happy', exact: true }),
+    ).toBeVisible();
   });
 
   test('queue fragment shows active and failure states', async ({ page }) => {
@@ -74,8 +86,8 @@ test.describe('Status Dashboard - HTMX Fragments', () => {
     await expect(page.locator('th:has-text("Failures")')).toBeVisible({
       timeout: 5000,
     });
-    await expect(page.locator('.err')).toBeVisible();
-    await expect(page.locator('.ok')).toBeVisible();
+    await expect(page.locator('.err').first()).toBeVisible();
+    await expect(page.locator('.ok').first()).toBeVisible();
   });
 
   test('tasks fragment shows scheduled tasks', async ({ page }) => {
@@ -210,7 +222,9 @@ test.describe('Navigation Flow', () => {
     await expect(page.locator('h1')).toContainText('Status');
 
     await expect(page.locator('text=Uptime')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('text=telegram')).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'telegram', exact: true }),
+    ).toBeVisible();
 
     await page.click('a[href="/dash/"]');
     await expect(page.locator('h1')).toHaveText('Dashboards');
