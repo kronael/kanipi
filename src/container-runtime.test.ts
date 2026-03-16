@@ -130,4 +130,25 @@ describe('cleanupOrphans', () => {
       'Stopped orphaned containers',
     );
   });
+
+  it('uses ancestor filter when containerImage is provided', () => {
+    mockExecFileSync.mockReturnValueOnce('nanoclaw-happy-111\n');
+    mockExecFileSync.mockReturnValue('');
+
+    cleanupOrphans('kanipi-agent-krons:latest');
+
+    // ps should use ancestor filter, not name filter
+    expect(mockExecFileSync).toHaveBeenNthCalledWith(
+      1,
+      CONTAINER_RUNTIME_BIN,
+      [
+        'ps',
+        '--filter=ancestor=kanipi-agent-krons:latest',
+        '--format',
+        '{{.Names}}',
+      ],
+      expect.any(Object),
+    );
+    expect(mockExecFileSync).toHaveBeenCalledTimes(2);
+  });
 });

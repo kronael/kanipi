@@ -60,14 +60,19 @@ export function ensureContainerRuntimeRunning(): void {
   }
 }
 
-/** Kill orphaned NanoClaw containers from previous runs. */
+/** Kill orphaned NanoClaw containers from previous runs.
+ * When containerImage is provided, only kills containers from that image
+ * to avoid cross-instance collateral damage in multi-instance deployments. */
 export function cleanupOrphans(containerImage?: string): void {
-  // Two separate queries: docker ps --filter doesn't support OR,
-  // so name-prefix and ancestor filters must be run independently.
-  const filters = ['name=nanoclaw-'];
-  if (containerImage) filters.push(`ancestor=${containerImage}`);
+  const filters: string[] = [];
+  if (containerImage) {
+    // Multi-instance safe: only kill containers from our own image
+    filters.push(`ancestor=${containerImage}`);
+  } else {
+    // Fallback: kill all nanoclaw containers (single-instance only)
+    filters.push('name=nanoclaw-');
+  }
 
-  const seen = new Set<string>();
   const orphans: string[] = [];
   for (const filter of filters) {
     try {
@@ -77,10 +82,7 @@ export function cleanupOrphans(containerImage?: string): void {
         { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
       );
       for (const name of out.trim().split('\n').filter(Boolean)) {
-        if (!seen.has(name)) {
-          seen.add(name);
-          orphans.push(name);
-        }
+        orphans.push(name);
       }
     } catch (err) {
       logger.warn({ err }, 'Failed to list containers for cleanup');
