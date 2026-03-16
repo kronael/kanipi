@@ -19,6 +19,7 @@ import { getGroupBySlink } from './db.js';
 import { logger } from './logger.js';
 import { handleSlinkPost } from './slink.js';
 import { addSseListener, removeSseListener } from './channels/web.js';
+import { handleDashRequest, DashboardContext } from './dashboards/index.js';
 import type { OnInboundMessage } from './types.js';
 
 const PUB_SLOTH_JS = `(function(){
@@ -168,8 +169,9 @@ export function startWebProxy(opts: {
   onMessage: OnInboundMessage;
   authSecret?: string;
   webPublic?: boolean;
+  dashCtx?: DashboardContext;
 }): http.Server {
-  const { webPort, vitePort, onMessage, authSecret, webPublic } = opts;
+  const { webPort, vitePort, onMessage, authSecret, webPublic, dashCtx } = opts;
 
   const server = http.createServer((req, res) => {
     const url = req.url || '/';
@@ -357,6 +359,11 @@ export function startWebProxy(opts: {
           res.end('{"ok":false}');
         }
       });
+      return;
+    }
+
+    if (dashCtx && url.startsWith('/dash')) {
+      handleDashRequest(req, res, dashCtx);
       return;
     }
 

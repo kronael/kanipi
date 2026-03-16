@@ -1220,6 +1220,7 @@ async function main(): Promise<void> {
       onMessage: channelOpts.onMessage,
       authSecret: process.env.AUTH_SECRET,
       webPublic: WEB_PUBLIC,
+      dashCtx: { queue, channels },
     });
   }
 

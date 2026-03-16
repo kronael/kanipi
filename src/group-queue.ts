@@ -41,6 +41,27 @@ export class GroupQueue {
       .map(([jid]) => jid);
   }
 
+  /** Snapshot of all tracked groups for dashboard */
+  getStatus(): {
+    jid: string;
+    active: boolean;
+    idleWaiting: boolean;
+    pendingMessages: boolean;
+    pendingTasks: number;
+    failures: number;
+    groupFolder: string | null;
+  }[] {
+    return [...this.groups.entries()].map(([jid, s]) => ({
+      jid,
+      active: s.active,
+      idleWaiting: s.idleWaiting,
+      pendingMessages: s.pendingMessages,
+      pendingTasks: s.pendingTasks.length,
+      failures: s.consecutiveFailures,
+      groupFolder: s.groupFolder,
+    }));
+  }
+
   private getGroup(groupJid: string): GroupState {
     let state = this.groups.get(groupJid);
     if (!state) {
