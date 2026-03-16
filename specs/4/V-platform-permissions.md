@@ -1,5 +1,5 @@
 ---
-status: spec
+status: dropped
 ---
 
 # Platform Permissions

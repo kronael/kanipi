@@ -86,7 +86,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | _(4/B)_ B-memory-episodic      | Progressive compression (episodes + diary)            | shipped |
 | _(4/4)_ 4-dashboards           | Dashboard portal system (index + registration)        | shipped |
 | _(4/P)_ P-dash-status          | Dashboard: status & health (read-only)                | shipped |
-| _(4/V)_ V-platform-permissions | Per-platform action grants                            | spec    |
+| _(4/V)_ V-platform-permissions | Per-platform action grants                            | dropped |
 
 ## Phase 4 — Arizuko (deferred)
 
