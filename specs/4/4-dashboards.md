@@ -6,54 +6,82 @@ status: open
 
 Generic system for serving operator dashboards from the gateway.
 A portal index lists all registered dashboards; each dashboard is
-an independent module with its own routes and static frontend.
+an independent module with its own routes. HTMX-based frontend
+with fragment endpoints for partial updates.
 
 ## Design
 
 ```
-/dash/                    → portal index (lists all dashboards)
-/dash/<name>/             → dashboard frontend (static HTML)
-/dash/<name>/api/<path>   → dashboard API routes (JSON)
+/dash/                       -> portal index (lists all dashboards)
+/dash/<name>/                -> dashboard shell (loads HTMX fragments)
+/dash/<name>/x/<fragment>    -> HTML fragment (partial)
+/dash/<name>/api/<path>      -> JSON API (programmatic)
 ```
+
+### HTMX pattern
+
+Dashboards use HTMX (loaded from CDN: unpkg.com/htmx.org). The main
+page is a shell with `hx-get` attributes that load fragments from
+`/dash/<name>/x/<fragment>` endpoints. Fragments return bare HTML
+(table, list, paragraph) with no `<html>` wrapper. Auto-refresh
+via `hx-trigger="every 10s"` on fragment containers.
+
+```html
+<div hx-get="/dash/status/x/gateway" hx-trigger="every 10s" hx-swap="innerHTML">
+  Loading...
+</div>
+```
+
+JSON API endpoints remain for programmatic use (scripts, monitoring).
 
 ### Portal index
 
 `GET /dash/` returns a simple HTML page listing all registered
-dashboards with name, description, and link. No framework — a
-`<ul>` of `<a>` elements. Dashboards self-register at startup.
+dashboards with title, description, and link. Dashboards self-register
+at startup.
 
 ### Dashboard module
 
-Each dashboard is a TypeScript file that exports a registration
-function:
+Each dashboard registers via `registerDashboard` with a handler
+function that receives the raw Node http request/response:
 
 ```typescript
-// src/dashboards/status.ts
-import type { DashboardContext } from './types.js';
-
-export const meta = {
+// src/dashboards/index.ts
+registerDashboard({
   name: 'status',
   title: 'Status & Health',
-  description: 'Gateway health, containers, queues, errors',
-};
+  description: 'Gateway health, containers, queues, channels',
+  handler: statusHandler,
+});
 
-export function register(ctx: DashboardContext): void {
-  ctx.router.get('/api/state', (req, res) => {
-    res.json(buildState(ctx));
-  });
+function statusHandler(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  path: string,
+  ctx: DashboardContext,
+): void {
+  if (path === '/api/state') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(buildState(ctx)));
+    return;
+  }
+  if (path.startsWith('/x/')) {
+    serveFragment(res, path.slice(3), ctx);
+    return;
+  }
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(SHELL_HTML);
 }
 ```
 
 ### DashboardContext
 
-Shared context passed to every dashboard at registration:
+Shared context passed to every dashboard handler:
 
 ```typescript
 interface DashboardContext {
-  router: Router; // Express router scoped to /dash/<name>/
-  db: Database; // SQLite connection (read-only recommended)
-  queue: GroupQueue; // queue state (active JIDs, counts)
-  channels: Channel[]; // connected channels
+  queue: GroupQueue;
+  channels: Channel[];
 }
 ```
 
@@ -64,39 +92,54 @@ DB. No sandboxing needed.
 
 ```typescript
 // src/dashboards/index.ts
-import type { Express } from 'express';
-import { Router } from 'express';
-
-interface DashboardMeta {
+interface DashboardEntry {
   name: string;
   title: string;
   description: string;
+  handler: (
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    path: string,
+    ctx: DashboardContext,
+  ) => void;
 }
 
-const dashboards: DashboardMeta[] = [];
+const dashboards: DashboardEntry[] = [];
 
-export function registerDashboard(
-  app: Express,
-  meta: DashboardMeta,
-  register: (ctx: DashboardContext) => void,
-  ctx: Omit<DashboardContext, 'router'>,
+export function registerDashboard(entry: DashboardEntry): void {
+  dashboards.push(entry);
+}
+
+export function handleDashRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  ctx: DashboardContext,
 ): void {
-  const router = Router();
-  register({ ...ctx, router });
-  app.use(`/dash/${meta.name}`, router);
-  dashboards.push(meta);
-}
-
-export function portalHandler(req, res): void {
-  const html = dashboards
-    .map(
-      (d) =>
-        `<li><a href="/dash/${d.name}/">${d.title}</a> — ${d.description}</li>`,
-    )
-    .join('\n');
-  res.send(`<html><body><h1>Dashboards</h1><ul>${html}</ul></body></html>`);
+  const url = req.url || '/';
+  if (url === '/dash' || url === '/dash/') {
+    servePortal(res);
+    return;
+  }
+  for (const d of dashboards) {
+    const prefix = `/dash/${d.name}`;
+    if (url === prefix || url.startsWith(prefix + '/')) {
+      d.handler(req, res, url.slice(prefix.length) || '/', ctx);
+      return;
+    }
+  }
+  res.writeHead(404);
+  res.end('Not found');
 }
 ```
+
+## Stories
+
+1. Operator opens `/dash/` -> sees list of all registered dashboards
+   with titles and descriptions
+2. Operator clicks a dashboard -> navigates to that dashboard's page
+3. Dashboard page loads -> HTMX fetches fragments to populate sections
+4. Unknown dashboard path -> 404 response
+5. Auth required -> redirects to login when auth is configured
 
 ## Auth
 
@@ -117,10 +160,10 @@ if (url.startsWith('/dash/')) {
 
 ## Frontend
 
-Each dashboard ships a single `index.html` file — vanilla HTML +
-fetch, no build step. Served as the default route for the dashboard
-router. Dashboards that need real-time use SSE via their own
-`/api/stream` endpoint.
+HTMX loaded from CDN (`unpkg.com/htmx.org`), no build step.
+Each dashboard serves a shell HTML page with `hx-get` attributes
+pointing to fragment endpoints. Fragments return bare HTML partials.
+JSON API endpoints remain for programmatic/scripting use.
 
 No shared frontend framework. Each dashboard is self-contained.
 
@@ -128,20 +171,16 @@ No shared frontend framework. Each dashboard is self-contained.
 
 ```
 src/dashboards/
-  index.ts          registration, portal index handler
-  types.ts          DashboardContext, DashboardMeta
-  status.ts         status & health dashboard
-  status.html       status frontend
-  memory.ts         memory browser dashboard
-  memory.html       memory frontend
+  index.ts          registration, portal handler, status dashboard
+  types.ts          DashboardContext, DashboardEntry (if extracted)
 ```
 
 ## Gateway changes
 
-1. `web-proxy.ts`: route `/dash/` prefix, auth check, proxy to
-   dashboard handlers (not vite)
+1. `web-proxy.ts`: route `/dash/` prefix, auth check, delegate to
+   `handleDashRequest` (not vite)
 2. `src/dashboards/index.ts`: registration system, portal handler
-3. Individual dashboard modules register at gateway startup
+3. Individual dashboard handlers register at module load
 
 ## Concrete dashboards
 
@@ -152,7 +191,7 @@ src/dashboards/
 
 ## Not in scope
 
-- Per-group dashboards (mount at `/dash/<folder>/<name>/`) — future
-- Mutations (kill container, clear queue) — future
-- WebSocket — SSE sufficient for v1
-- Build tooling for dashboard frontends — keep it static
+- Per-group dashboards (mount at `/dash/<folder>/<name>/`) -- future
+- Mutations (kill container, clear queue) -- future
+- WebSocket -- HTMX polling sufficient for v1
+- Build tooling for dashboard frontends -- keep it static

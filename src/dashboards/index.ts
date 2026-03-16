@@ -68,6 +68,8 @@ a{color:#0066cc}</style></head>
 <body><h1>Dashboards</h1><ul>${items}</ul></body></html>`);
 }
 
+// --- container cache ---
+
 let containerCache: { ts: number; data: ContainerInfo[] } = {
   ts: 0,
   data: [],
@@ -100,6 +102,8 @@ function getContainers(): ContainerInfo[] {
     return containerCache.data;
   }
 }
+
+// --- state builder ---
 
 function buildState(ctx: DashboardContext) {
   const groups = getAllGroupConfigs();
@@ -134,6 +138,119 @@ function buildState(ctx: DashboardContext) {
   };
 }
 
+// --- html helpers ---
+
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function fmtUptime(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h + 'h ' + m + 'm';
+}
+
+// --- fragment renderers ---
+
+function renderGateway(d: ReturnType<typeof buildState>): string {
+  return (
+    '<table>' +
+    `<tr><th>Uptime</th><td>${fmtUptime(d.uptime_s)}</td></tr>` +
+    `<tr><th>Memory</th><td>${d.memory_mb} MB</td></tr>` +
+    `<tr><th>Max concurrent</th><td>${d.max_concurrent}</td></tr>` +
+    '</table>'
+  );
+}
+
+function renderChannels(d: ReturnType<typeof buildState>): string {
+  let h = `<h3>${d.channels.length} channels</h3>`;
+  h += '<table><tr><th>Name</th></tr>';
+  for (const c of d.channels) {
+    h += `<tr><td>${esc(c.name)}</td></tr>`;
+  }
+  return h + '</table>';
+}
+
+function renderGroups(d: ReturnType<typeof buildState>): string {
+  let h = `<h3>${d.groups.length} groups</h3>`;
+  h += '<table><tr><th>Name</th><th>Folder</th><th>Active</th></tr>';
+  for (const g of d.groups) {
+    const cls = g.active ? ' class="ok"' : '';
+    h +=
+      `<tr><td>${esc(g.name)}</td><td>${esc(g.folder)}</td>` +
+      `<td${cls}>${g.active ? 'yes' : ''}</td></tr>`;
+  }
+  return h + '</table>';
+}
+
+function renderContainers(d: ReturnType<typeof buildState>): string {
+  let h = `<h3>${d.containers.length} containers</h3>`;
+  h += '<table><tr><th>Name</th><th>Status</th><th>Created</th></tr>';
+  for (const c of d.containers) {
+    h +=
+      `<tr><td>${esc(c.name)}</td><td>${esc(c.status)}</td>` +
+      `<td>${esc(c.created)}</td></tr>`;
+  }
+  return h + '</table>';
+}
+
+function renderQueue(d: ReturnType<typeof buildState>): string {
+  let h =
+    '<table><tr><th>JID</th><th>Active</th><th>Idle</th>' +
+    '<th>Pending msgs</th><th>Pending tasks</th>' +
+    '<th>Failures</th></tr>';
+  for (const q of d.queue) {
+    const aCls = q.active ? ' class="ok"' : '';
+    const fCls = q.failures > 0 ? ' class="err"' : '';
+    h +=
+      `<tr><td>${esc(q.jid)}</td>` +
+      `<td${aCls}>${q.active}</td>` +
+      `<td>${q.idleWaiting}</td>` +
+      `<td>${q.pendingMessages}</td>` +
+      `<td>${q.pendingTasks}</td>` +
+      `<td${fCls}>${q.failures}</td></tr>`;
+  }
+  return h + '</table>';
+}
+
+function renderTasks(d: ReturnType<typeof buildState>): string {
+  let h = `<h3>${d.tasks.length} tasks</h3>`;
+  h +=
+    '<table><tr><th>ID</th><th>Group</th>' +
+    '<th>Schedule</th><th>Status</th></tr>';
+  for (const t of d.tasks) {
+    h +=
+      `<tr><td>${t.id}</td><td>${esc(t.group_folder)}</td>` +
+      `<td>${esc(t.schedule)}</td><td>${t.status}</td></tr>`;
+  }
+  return h + '</table>';
+}
+
+function renderSummary(d: ReturnType<typeof buildState>): string {
+  const now = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  return (
+    `<p>${d.chats} chats tracked</p>` + `<p id="updated">Updated: ${now}</p>`
+  );
+}
+
+type FragmentRenderer = (d: ReturnType<typeof buildState>) => string;
+
+const fragments: Record<string, FragmentRenderer> = {
+  gateway: renderGateway,
+  channels: renderChannels,
+  groups: renderGroups,
+  containers: renderContainers,
+  queue: renderQueue,
+  tasks: renderTasks,
+  summary: renderSummary,
+};
+
+// --- status handler ---
+
 function statusHandler(
   _req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -143,6 +260,21 @@ function statusHandler(
   if (path === '/api/state') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(buildState(ctx)));
+    return;
+  }
+
+  const xMatch = path.match(/^\/x\/(\w+)$/);
+  if (xMatch) {
+    const name = xMatch[1];
+    const renderer = fragments[name];
+    if (!renderer) {
+      res.writeHead(404);
+      res.end('Unknown fragment');
+      return;
+    }
+    const d = buildState(ctx);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderer(d));
     return;
   }
 
@@ -157,8 +289,44 @@ registerDashboard({
   handler: statusHandler,
 });
 
+// --- shell html ---
+
+const SECTIONS = [
+  'gateway',
+  'channels',
+  'groups',
+  'containers',
+  'queue',
+  'tasks',
+  'summary',
+] as const;
+
+function buildSectionDivs(): string {
+  const titles: Record<string, string> = {
+    gateway: 'Gateway',
+    channels: 'Channels',
+    groups: 'Groups',
+    containers: 'Containers',
+    queue: 'Queue',
+    tasks: 'Tasks',
+    summary: '',
+  };
+  return SECTIONS.map((s) => {
+    const hdr = titles[s] ? `<h2>${titles[s]}</h2>` : '';
+    return (
+      hdr +
+      '<div' +
+      ` hx-get="/dash/status/x/${s}"` +
+      ' hx-trigger="load, every 10s"' +
+      ' hx-swap="innerHTML"' +
+      '>Loading...</div>'
+    );
+  }).join('\n');
+}
+
 const STATUS_HTML = `<!DOCTYPE html>
 <html><head><title>Status</title>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
 <style>
 body { font-family: monospace; max-width: 900px; margin: 20px auto; padding: 0 20px; }
 table { border-collapse: collapse; width: 100%; margin: 10px 0; }
@@ -171,69 +339,5 @@ a { color: #0066cc; }
 </style></head>
 <body>
 <h1><a href="/dash/">&larr;</a> Status &amp; Health</h1>
-<p id="updated"></p>
-<div id="content">Loading...</div>
-<script>
-function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function render(d) {
-  var h = '<h2>Gateway</h2>';
-  h += '<table><tr><th>Uptime</th><td>' + fmt(d.uptime_s) + '</td></tr>';
-  h += '<tr><th>Memory</th><td>' + d.memory_mb + ' MB</td></tr>';
-  h += '<tr><th>Max concurrent</th><td>' + d.max_concurrent + '</td></tr></table>';
-
-  h += '<h2>Channels (' + d.channels.length + ')</h2><table><tr><th>Name</th></tr>';
-  d.channels.forEach(function(c) { h += '<tr><td>' + esc(c.name) + '</td></tr>'; });
-  h += '</table>';
-
-  h += '<h2>Groups (' + d.groups.length + ')</h2>';
-  h += '<table><tr><th>Name</th><th>Folder</th><th>Active</th></tr>';
-  d.groups.forEach(function(g) {
-    h += '<tr><td>' + esc(g.name) + '</td><td>' + esc(g.folder) + '</td>';
-    h += '<td class="' + (g.active ? 'ok' : '') + '">' + (g.active ? 'yes' : '') + '</td></tr>';
-  });
-  h += '</table>';
-
-  h += '<h2>Containers (' + d.containers.length + ')</h2>';
-  h += '<table><tr><th>Name</th><th>Status</th><th>Created</th></tr>';
-  d.containers.forEach(function(c) {
-    h += '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.status) + '</td>';
-    h += '<td>' + esc(c.created) + '</td></tr>';
-  });
-  h += '</table>';
-
-  h += '<h2>Queue</h2>';
-  h += '<table><tr><th>JID</th><th>Active</th><th>Idle</th><th>Pending msgs</th><th>Pending tasks</th><th>Failures</th></tr>';
-  d.queue.forEach(function(q) {
-    h += '<tr><td>' + esc(q.jid) + '</td>';
-    h += '<td class="' + (q.active ? 'ok' : '') + '">' + q.active + '</td>';
-    h += '<td>' + q.idleWaiting + '</td>';
-    h += '<td>' + q.pendingMessages + '</td>';
-    h += '<td>' + q.pendingTasks + '</td>';
-    h += '<td class="' + (q.failures > 0 ? 'err' : '') + '">' + q.failures + '</td></tr>';
-  });
-  h += '</table>';
-
-  h += '<h2>Tasks (' + d.tasks.length + ')</h2>';
-  h += '<table><tr><th>ID</th><th>Group</th><th>Schedule</th><th>Status</th></tr>';
-  d.tasks.forEach(function(t) {
-    h += '<tr><td>' + t.id + '</td><td>' + esc(t.group_folder) + '</td>';
-    h += '<td>' + esc(t.schedule) + '</td><td>' + t.status + '</td></tr>';
-  });
-  h += '</table>';
-
-  h += '<p>' + d.chats + ' chats tracked</p>';
-  document.getElementById('content').innerHTML = h;
-  document.getElementById('updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-}
-function fmt(s) {
-  var h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
-  return h + 'h ' + m + 'm';
-}
-function load() {
-  fetch('/dash/status/api/state').then(function(r) { return r.json(); }).then(render)
-    .catch(function(e) { document.getElementById('content').textContent = 'Error: ' + e; });
-}
-load();
-setInterval(load, 10000);
-</script>
+${buildSectionDivs()}
 </body></html>`;
