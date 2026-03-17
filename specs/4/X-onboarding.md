@@ -28,8 +28,16 @@ container, no group until approval. State machine in
 2. Root gets notification: "alice wants 'alice-studio'
    — `/approve telegram:-12345`"
 3. `/approve telegram:-12345` — creates world, routes JID
-4. `/reject telegram:-12345` — suppresses forever
-5. Dashboard shows pending requests in status page
+4. `/approve telegram:-12345 --proto support` — with prototype
+5. `/reject telegram:-12345` — suppresses forever
+6. Dashboard shows pending requests in status page
+
+Root is LLM-driven — the root agent sees the notification
+and can act on it. Configure via root's CLAUDE.md:
+
+- **Manual** — agent relays to operator, operator types command
+- **Suggest** — agent recommends prototype, operator confirms
+- **Auto** — agent approves automatically (CLAUDE.md rules)
 
 ## How it works
 
@@ -98,12 +106,17 @@ CREATE TABLE onboarding (
 
 Registered in `src/commands/` like `/status`:
 
-### /approve <jid>
+### /approve <jid> [--proto <name>]
 
 - Root-only (`permissionTier === 0`)
 - Reads `world_name` from onboarding table
 - Creates world folder: `groups/<world_name>/`
-- Copies prototype if `ONBOARDING_PROTOTYPE` set
+- Copies prototype: `--proto <name>` or default from
+  `ONBOARDING_DEFAULT_PROTO` env (fallback: `default`)
+- Prototypes live in `groups/_prototypes/<name>/`
+  (not real groups — underscore prefix, never routed)
+- Copies: CLAUDE.md, SOUL.md, .claude/, skills/, facts/
+- Does NOT copy: diary/, users/, sessions
 - Inserts group in DB (tier 1)
 - Adds routes: default (seq 0), @ (seq -2), # (seq -1)
 - Grants: tier 1 defaults (V-action-grants)
@@ -121,7 +134,7 @@ Registered in `src/commands/` like `/status`:
 
 ```
 ONBOARDING_ENABLED=0              # off by default
-ONBOARDING_PROTOTYPE=             # optional: clone from prototype/
+ONBOARDING_DEFAULT_PROTO=default  # prototype name (from _prototypes/)
 ```
 
 ## Welcome system message
