@@ -93,6 +93,15 @@ kanipi config marinade route set <jid> \
 
 `max_children` on hub caps total auto-created threads (default 50).
 
+## Related: S-topic-routing
+
+`@agent` routing (S-topic-routing.md) also delegates to child
+groups, but via explicit user addressing (`@support hello`)
+rather than automatic template expansion. Both use
+`delegateToChild`. A group can combine both: `{sender}` as
+default route for per-user isolation, `@agent` prefix routes
+for explicit child addressing.
+
 ## Future
 
 - TTL/LRU eviction of stale threads

@@ -17,14 +17,12 @@ Channel inbound
     -> queue.push(chatJid)    (group-queue.ts)
 
 Queue drains -> processGroupMessages(chatJid)  (index.ts)
-  1. registeredGroups[chatJid] lookup
+  1. getHubForJid(chatJid) → folder → groups[folder]
   2. findChannel(channels, chatJid)
   3. getMessagesSince(chatJid, cursor)
-  4. trigger check (non-root)
-  4b. routing rules (resolveRoutingTarget)
-      - self-target (target === folder): skip, fall through
-      - authorized target: delegate, return
-      - unauthorized: log warn, fall through
+  4. resolveRoute(lastMsg, routes)
+     - self-target (target === folder): skip, fall through
+     - different target: delegatePerSender, return
   5. session history injection (new session only)
   6. new-day trigger
   7. flushSystemMessages(groupFolder)
@@ -39,8 +37,11 @@ Queue drains -> processGroupMessages(chatJid)  (index.ts)
 
 ### JID -> group resolution
 
-`registeredGroups`: flat `Record<string, RegisteredGroup>`
-from DB. Exact match. Worlds spec adds glob via minimatch.
+`getHubForJid(jid)`: queries the routes table for the first
+default route target. Template targets like `atlas/{sender}`
+return the base folder (strips last segment after `/`).
+`groups`: flat `Record<string, GroupConfig>` from DB, keyed
+by folder.
 
 ### JID -> channel resolution
 
@@ -85,10 +86,15 @@ Skills seeded into `.claude/skills/` on first spawn.
 - `ago` attribute, `<in_reply_to>` child (channels.md)
 - 30 msgs / 2 days limit (memory-messages.md)
 
-### Glob routing (worlds.md)
+### Topic routing (S-topic-routing.md, not yet implemented)
 
-Exact -> glob fallback. minimatch patterns, most-specific
-wins. Enables catch-all groups and topic routing.
+`@agent` and `#topic` will be predefined route table entries
+(type `prefix`, tiers 0-2). `@agent` delegates to child
+group, `#topic` routes to named session within same group.
+Requires new `prefix` route type in `routeMatches` that
+matches `text.startsWith(match)`. Post-match dispatch in
+`processGroupMessages` will handle @agent vs #topic
+resolution. See `specs/3/S-topic-routing.md` for full spec.
 
 ### Volume mount extensibility
 

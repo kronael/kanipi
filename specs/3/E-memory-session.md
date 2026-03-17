@@ -105,5 +105,6 @@ session. Commands must not bypass routing.
 
 ## Deferred
 
-- Sessions table collapse into `registered_groups.session_id` (cleanup only)
 - Agent SKILL.md session layout docs (cosmetic)
+- Topic-scoped sessions: `(group_folder, topic)` PK
+  (see `specs/3/S-topic-routing.md`)

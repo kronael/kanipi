@@ -12,13 +12,13 @@ Two related issues compound to break the natural chat flow.
 ### 1. Delegation path loses replyTo
 
 The direct path (`processGroupMessages` → `runAgent`) passes
-`replyTo: lastMsg.id` (index.ts:460):
+`replyTo: lastMsg.id`:
 
 ```typescript
 await channel.sendMessage(chatJid, text, { replyTo: lastMsg.id });
 ```
 
-But the delegation path (`delegateToGroup`) drops it (index.ts:616):
+But the delegation path (`delegateToGroup`) originally dropped it:
 
 ```typescript
 if (text) await channel.sendMessage(originJid, text);

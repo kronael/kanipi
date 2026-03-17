@@ -48,6 +48,9 @@ Outbound notifications are recorded via `storeOutbound()` with
 - Command handlers are normal gateway code, not agent tools
 - Root-only commands check `permissionTier(group.folder) === 0`
 - Non-command messages proceed to agent normally
+- `@agent` and `#topic` will be route table entries (type
+  `prefix`), not commands — see `specs/3/S-topic-routing.md`
+  (not yet implemented)
 
 Some channels have native command affordances; kanipi uses
 text-command interception for consistency.

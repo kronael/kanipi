@@ -57,42 +57,43 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 
 Focus: access control, partial implementations, cleanup, and selected phase 4 items pulled forward.
 
-| Spec                      | Topic                                                 | Status  |
-| ------------------------- | ----------------------------------------------------- | ------- |
-| 0-agent-capabilities      | Container tooling catalog                             | shipped |
-| 1-atlas                   | Facts, researcher, verifier                           | shipped |
-| 2-autotesting             | Subsystem test strategy                               | shipped |
-| 3-code-research           | Code research agent (merged H-researcher + 3-support) | shipped |
-| 4-paths                   | Path translation cleanup                              | shipped |
-| 5-permissions             | Tier 0-3 hierarchy                                    | shipped |
-| 7-user-context            | Per-user memory files                                 | shipped |
-| 8-web-virtual-hosts       | Per-group web serving                                 | shipped |
-| 9-whatsapp-improvements   | Read receipts, presence                               | shipped |
-| A-auth                    | Local auth, JWT                                       | shipped |
-| C-files-in                | File transfer                                         | shipped |
-| D-knowledge-system        | Memory layers pattern                                 | shipped |
-| E-memory-session          | SDK sessions, .jl files                               | shipped |
-| G-codebase-trim           | Dead code removal (~900 lines)                        | shipped |
-| H-jid-format              | Compact JID URIs, sender IDs                          | shipped |
-| J-container-commands      | Generic container commands                            | shipped |
-| K-remove-triggers         | Remove trigger pattern system                         | shipped |
-| L-chat-bound-sessions     | Chat-bound containers, send_reply, IDLE_TIMEOUT=0     | shipped |
-| M-think-blocks            | <think> delimiter for silent decisions                | shipped |
-| N-status-messages         | Agent-initiated status updates                        | shipped |
-| P-message-ids             | Reply/forward metadata per channel                    | shipped |
-| Q-auto-threading          | Template routing (per-user groups)                    | shipped |
-| R-reply-routing           | Per-sender batching, chunk chaining, reply threading  | shipped |
-| T-recall                  | Knowledge retrieval (LLM grep → hybrid search)        | shipped |
-| _(4/B)_ B-memory-episodic | Progressive compression (episodes + diary)            | shipped |
-| _(4/4)_ 4-dashboards      | Dashboard portal system (tile-based, registration)    | shipped |
-| _(4/P)_ P-dash-status     | Dashboard: status & health (expanded, errors)         | shipped |
-| _(4/S)_ S-dash-tasks      | Dashboard: scheduled tasks & run history              | spec    |
-| _(4/Q)_ Q-dash-memory     | Dashboard: memory & knowledge browser (read-only)     | spec    |
-| _(4/T)_ T-dash-activity   | Dashboard: messages & activity flow                   | spec    |
-| _(4/U)_ U-dash-groups     | Dashboard: groups, routing, world structure           | spec    |
-| _(4/V)_ V-action-grants   | Token-based action permissions, delegation scoping    | shipped |
-| _(impl)_ SYSTEM.md        | Custom system prompt override (agent-runner)          | shipped |
-| _(4/Z)_ Z-audit-log       | Outbound message recording in messages table          | shipped |
+| Spec                      | Topic                                                                | Status  |
+| ------------------------- | -------------------------------------------------------------------- | ------- |
+| 0-agent-capabilities      | Container tooling catalog                                            | shipped |
+| 1-atlas                   | Facts, researcher, verifier                                          | shipped |
+| 2-autotesting             | Subsystem test strategy                                              | shipped |
+| 3-code-research           | Code research agent (merged H-researcher + 3-support)                | shipped |
+| 4-paths                   | Path translation cleanup                                             | shipped |
+| 5-permissions             | Tier 0-3 hierarchy                                                   | shipped |
+| 7-user-context            | Per-user memory files                                                | shipped |
+| 8-web-virtual-hosts       | Per-group web serving                                                | shipped |
+| 9-whatsapp-improvements   | Read receipts, presence                                              | shipped |
+| A-auth                    | Local auth, JWT                                                      | shipped |
+| C-files-in                | File transfer                                                        | shipped |
+| D-knowledge-system        | Memory layers pattern                                                | shipped |
+| E-memory-session          | SDK sessions, .jl files                                              | shipped |
+| G-codebase-trim           | Dead code removal (~900 lines)                                       | shipped |
+| H-jid-format              | Compact JID URIs, sender IDs                                         | shipped |
+| J-container-commands      | Generic container commands                                           | shipped |
+| K-remove-triggers         | Remove trigger pattern system                                        | shipped |
+| L-chat-bound-sessions     | Chat-bound containers, send_reply, IDLE_TIMEOUT=0                    | shipped |
+| M-think-blocks            | <think> delimiter for silent decisions                               | shipped |
+| N-status-messages         | Agent-initiated status updates                                       | shipped |
+| P-message-ids             | Reply/forward metadata per channel                                   | shipped |
+| Q-auto-threading          | Template routing (per-user groups)                                   | shipped |
+| R-reply-routing           | Per-sender batching, chunk chaining, reply threading                 | shipped |
+| T-recall                  | Knowledge retrieval (LLM grep → hybrid search)                       | shipped |
+| _(4/B)_ B-memory-episodic | Progressive compression (episodes + diary)                           | shipped |
+| _(4/4)_ 4-dashboards      | Dashboard portal system (tile-based, registration)                   | shipped |
+| _(4/P)_ P-dash-status     | Dashboard: status & health (expanded, errors)                        | shipped |
+| _(4/S)_ S-dash-tasks      | Dashboard: scheduled tasks & run history                             | spec    |
+| _(4/Q)_ Q-dash-memory     | Dashboard: memory & knowledge browser (read-only)                    | spec    |
+| _(4/T)_ T-dash-activity   | Dashboard: messages & activity flow                                  | spec    |
+| _(4/U)_ U-dash-groups     | Dashboard: groups, routing, world structure                          | spec    |
+| _(4/V)_ V-action-grants   | Token-based action permissions, delegation scoping                   | shipped |
+| _(impl)_ SYSTEM.md        | Custom system prompt override (agent-runner)                         | shipped |
+| _(4/Z)_ Z-audit-log       | Outbound message recording in messages table                         | shipped |
+| _(5/K)_ S-topic-routing   | @agent/#topic prefix routes, named sessions, new `prefix` route type | spec    |
 
 ## Phase 4 — Arizuko (deferred)
 
@@ -112,7 +113,7 @@ Requires new instance or major architectural changes.
 
 ## Phase 5 — Agent Extensions & Workflows (future)
 
-14 specs. Focus: agent-to-agent, self-modification, workflows.
+13 specs. Focus: agent-to-agent, self-modification, workflows.
 
 | Spec                      | Topic                              | Status            |
 | ------------------------- | ---------------------------------- | ----------------- |
@@ -127,7 +128,6 @@ Requires new instance or major architectural changes.
 | E-plugins                 | Agent-proposed plugins             | not implemented   |
 | F-prototypes              | Group spawn from routing           | open              |
 | J-sse                     | Per-group SSE stream               | incomplete        |
-| K-topicrouting            | @agent #topic routing              | open              |
 | M-webdav                  | WebDAV workspace access            | spec              |
 | N-workflows               | Media MCP, delegation              | spec              |
 

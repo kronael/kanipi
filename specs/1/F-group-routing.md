@@ -30,7 +30,8 @@ CREATE TABLE routes (
   seq INTEGER NOT NULL,      -- evaluation order (lower first)
   type TEXT NOT NULL,        -- command/verb/pattern/keyword/sender/default
   match TEXT,                -- trigger/pattern/keyword/verb value
-  target TEXT NOT NULL       -- destination folder
+  target TEXT NOT NULL,      -- destination folder
+  command TEXT               -- optional shell command override
 );
 ```
 
@@ -38,9 +39,11 @@ CREATE TABLE routes (
 
 Message arrives on JID:
 
+0. Gateway commands (`/new`, `/stop`, `/ping`, etc.)
+   intercepted first — before route table scan.
 1. Select all routes for that JID, ordered by `seq`
 2. Scan rules, first match wins:
-   - `command` — message starts with `match` value
+   - `command` — message equals `match` or starts with `match` + space
    - `verb` — message verb equals `match`
    - `pattern` — regex `match` against message text
    - `keyword` — case-insensitive substring
@@ -86,14 +89,18 @@ CREATE TABLE groups (
 );
 ```
 
-Tier is derived from folder path (same as today):
+Tier is derived from folder path:
 
 ```typescript
 function permissionTier(folder: string): 0 | 1 | 2 | 3 {
   if (folder === 'root') return 0;
-  return Math.min(folder.split('/').length, 3);
+  return Math.min(folder.split('/').length, 3) as 1 | 2 | 3;
 }
 ```
+
+`root` is always tier 0. All other folders derive tier from
+depth: `atlas` = 1, `atlas/support` = 2, `atlas/support/web` = 3
+(capped at 3).
 
 ## IPC actions
 
@@ -160,6 +167,15 @@ followed. Bad routes in DB are the operator's problem.
 
 **Dynamic delegation** (`delegate_group`): unauthorized
 target → error reply via IPC. The agent handles it.
+
+## Predefined routes (planned)
+
+Groups at tiers 0-2 will get predefined `@` and `#` route
+entries on creation (type `prefix`, seq -2 and -1, before
+user-defined routes at seq 0+). These enable @agent routing
+(delegation to child groups) and #topic routing (named sessions
+within the same group). Requires the `prefix` route type
+from `specs/3/S-topic-routing.md` (not yet implemented).
 
 ## Open
 
