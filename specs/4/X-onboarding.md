@@ -4,17 +4,18 @@ status: spec
 
 # Onboarding
 
-When a message arrives from an unrouted JID, notify root for
-approval. On approval, create a world and route the JID to it.
+When a message arrives from an unrouted JID, notify the control
+chat (Y-control-chat) for approval. On approval, create a world
+and route the JID to it.
 
 ## Flow
 
 ```
 message from unknown JID
   → gateway finds no group (index.ts:298)
-    → if ONBOARDING_ENABLED: inject to root
+    → if ONBOARDING_ENABLED: notify control chat
       → "New: alice via telegram:-12345. /approve or /reject"
-        → root replies /approve
+        → operator replies /approve
           → gateway creates world folder (alice/)
             → adds default route: JID → alice/
               → next message processes normally
@@ -24,9 +25,11 @@ message from unknown JID
 
 ```
 ONBOARDING_ENABLED=1              # off by default
-ONBOARDING_TARGET=root            # folder that gets notifications
 ONBOARDING_PROTOTYPE=             # optional: clone from prototype
 ```
+
+Notifications go to CONTROL_JID (see Y-control-chat).
+Approval commands registered in control command registry.
 
 ## Implementation
 
@@ -42,15 +45,15 @@ if (!group && onboardingEnabled) {
 
 `src/onboarding.ts` — small module:
 
-- `enqueueOnboarding(jid, msg)` — dedup by JID, inject
-  notification to target folder with sender info
+- `enqueueOnboarding(jid, msg)` — dedup by JID, call
+  `control.notify()` with sender info
 - `approveOnboarding(jid, worldName?)` — create folder,
   add default route, optionally clone prototype
 - `rejectOnboarding(jid)` — mark rejected (don't re-notify)
 
-Approval via commands (registered in command registry):
+Registers commands with control chat (Y-control-chat):
 
-- `/approve` — approve pending JID from context
+- `/approve` — approve pending JID
 - `/reject` — reject and suppress future notifications
 
 ## State
@@ -82,7 +85,7 @@ On approve:
 3. If prototype set: copy prototype contents
 4. `register_group` in DB
 5. `add_route`: JID → folder (type: default)
-6. Reply to root: "Created world <folder> for <jid>"
+6. `control.notify("Created world <folder> for <jid>")`
 
 ## Not in scope
 

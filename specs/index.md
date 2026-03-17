@@ -92,16 +92,17 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 
 Requires new instance or major architectural changes.
 
-| Spec                  | Topic                             | Status                                          |
-| --------------------- | --------------------------------- | ----------------------------------------------- |
-| 1-agent-routing       | Pipeline routing to workers       | dropped — superseded by nested groups + routing |
-| 8-gmail               | Gmail API channel                 | arizuko                                         |
-| G-instance-repos      | Git-based config repos            | arizuko                                         |
-| Q-dash-memory         | Memory viewer/editor              | arizuko                                         |
-| R-evangelist          | Community engagement agent        | arizuko                                         |
-| K-versioning-personas | Versioning model, persona plugins | open                                            |
-| W-detached-containers | File-based container IPC, reclaim | arizuko (spec)                                  |
-| X-onboarding          | Unrouted JID → approve → world    | spec                                            |
+| Spec                  | Topic                              | Status                                          |
+| --------------------- | ---------------------------------- | ----------------------------------------------- |
+| 1-agent-routing       | Pipeline routing to workers        | dropped — superseded by nested groups + routing |
+| 8-gmail               | Gmail API channel                  | arizuko                                         |
+| G-instance-repos      | Git-based config repos             | arizuko                                         |
+| Q-dash-memory         | Memory viewer/editor               | arizuko                                         |
+| R-evangelist          | Community engagement agent         | arizuko                                         |
+| K-versioning-personas | Versioning model, persona plugins  | open                                            |
+| W-detached-containers | File-based container IPC, reclaim  | arizuko (spec)                                  |
+| X-onboarding          | Unrouted JID → approve → world     | spec                                            |
+| Y-control-chat        | Gateway ↔ operator command channel | spec                                            |
 
 ## Phase 5 — Agent Extensions & Workflows (future)
 
