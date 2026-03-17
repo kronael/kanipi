@@ -31,14 +31,13 @@ CREATE TABLE grants (
 ## Token lifecycle
 
 ```
-group created (CLI / auto-thread / clone)
-  → default grants seeded in DB: (folder, "*", '["*"]')
-    → container spawns
-      → gateway reads grants from DB
-        → token injected into start.json
-          → agent calls IPC action + token
-            → gateway validates token
-              → dispatch or deny
+container spawns
+  → gateway derives defaults from routing table
+    → gateway reads grants overrides from DB (if any)
+      → token injected into start.json
+        → agent calls IPC action + token
+          → gateway validates token
+            → dispatch or deny
 ```
 
 On delegation:
@@ -69,9 +68,21 @@ validates: does `grants[scope]` include the requested action?
 
 ## Defaults
 
-On group creation, seed `(folder, "*", '["*"]')` — full access,
-same as today. Restriction is opt-in. Specific defaults per
-platform TBD — will iterate based on real usage patterns.
+Default permissions are derived from the routing table: a group
+can send messages to any JID that has a route to it. No grants
+table row needed for the common case.
+
+The `grants` table is only for overrides:
+
+- **Restrict** — deny a group access to an action it would
+  normally have via routing (e.g. block `atlas` from posting
+  tweets even though `twitter:*` routes to it)
+- **Delegate** — give a child group explicit access to actions
+  on a JID that routes to the parent
+
+If no grants row exists for a folder, the routing table applies.
+If a grants row exists, it replaces the routing-derived default
+for that scope.
 
 ## Authority
 
