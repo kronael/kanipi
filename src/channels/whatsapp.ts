@@ -78,6 +78,17 @@ export class WhatsAppChannel implements Channel {
     });
   }
 
+  private scheduleReconnect(attempt: number): void {
+    const delay = Math.min(30000, 2000 * attempt);
+    logger.info({ attempt, delay }, 'Reconnecting to WhatsApp...');
+    setTimeout(() => {
+      this.connectInternal().catch((err) => {
+        logger.error({ err, attempt }, 'WhatsApp reconnect failed');
+        this.scheduleReconnect(attempt + 1);
+      });
+    }, delay);
+  }
+
   private async connectInternal(): Promise<void> {
     const authDir = path.join(STORE_DIR, 'auth');
     fs.mkdirSync(authDir, { recursive: true });
@@ -131,22 +142,12 @@ export class WhatsAppChannel implements Channel {
         );
 
         if (shouldReconnect) {
-          logger.info('Reconnecting...');
-          this.connectInternal().catch((err) => {
-            logger.error({ err }, 'Failed to reconnect, retrying in 5s');
-            setTimeout(() => {
-              this.connectInternal().catch((err2) => {
-                logger.fatal(
-                  { err: err2 },
-                  'WhatsApp reconnection failed twice, exiting',
-                );
-                process.exit(1);
-              });
-            }, 5000);
-          });
+          this.scheduleReconnect(1);
         } else {
-          logger.info('Logged out. Run /setup to re-authenticate.');
-          process.exit(0);
+          logger.error(
+            'WhatsApp logged out — creds invalid. Retrying in 60s (re-pair to fix permanently).',
+          );
+          this.scheduleReconnect(30);
         }
       } else if (connection === 'open') {
         this.connected = true;
