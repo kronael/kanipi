@@ -17,7 +17,7 @@ with their matching rules in the manifest.
 
 ```
 twitter_*                       allow all twitter actions, any params
-twitter_*()                     allow, no params
+twitter_*()                     same as above (parens optional)
 !twitter_post                   deny twitter post
 send_message(jid=telegram:*)    jid constrained, other params allowed
 twitter_post(!media)             media param must not be present
@@ -31,8 +31,7 @@ twitter_post(!media)             media param must not be present
 - Specifying a param constrains only that param — unmentioned
   params are allowed
 - `!param` inside parens = param must NOT be present
-- No parens = any params
-- `()` = no params allowed
+- No parens or `()` = any params (equivalent)
 - Last match wins; no match = deny
 
 ## Defaults (from routing table)
