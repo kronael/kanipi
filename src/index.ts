@@ -26,6 +26,7 @@ import {
   TWITTER_EMAIL,
   FACEBOOK_PAGE_ID,
   FACEBOOK_PAGE_ACCESS_TOKEN,
+  ONBOARDING_ENABLED,
   TIMEZONE,
   whatsappEnabled,
 } from './config.js';
@@ -96,6 +97,8 @@ import newCommand, { pendingCommandArgs } from './commands/new.js';
 import pingCommand from './commands/ping.js';
 import statusCommand from './commands/status.js';
 import stopCommand, { setStopDeps } from './commands/stop.js';
+import approveCommand, { setApproveDeps } from './commands/approve.js';
+import rejectCommand from './commands/reject.js';
 import { setNotifyChannels } from './commands/notify.js';
 import {
   findCommand,
@@ -120,6 +123,7 @@ import {
   resolveRoute,
   userContextXml,
 } from './router.js';
+import { handleOnboarding } from './onboarding.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, InboundEvent } from './types.js';
 import { logger } from './logger.js';
@@ -886,7 +890,14 @@ async function startMessageLoop(): Promise<void> {
             : getHubForJid(chatJid);
           const group = folder ? groups[folder] : undefined;
           if (!group) {
-            logger.warn({ chatJid, folder }, 'No group for JID, skipping');
+            if (ONBOARDING_ENABLED) {
+              const channel = findChannel(channels, chatJid);
+              if (channel) {
+                await handleOnboarding(chatJid, groupMessages, channel);
+              }
+            } else {
+              logger.warn({ chatJid, folder }, 'No group for JID, skipping');
+            }
             continue;
           }
 
@@ -1086,7 +1097,10 @@ function initCommands(): void {
   registerCommand(getCommand);
   registerCommand(lsCommand);
   registerCommand(statusCommand);
+  registerCommand(approveCommand);
+  registerCommand(rejectCommand);
   setStopDeps({ closeStdin: (jid) => queue.closeStdin(jid) });
+  setApproveDeps({ registerGroup });
 }
 
 async function main(): Promise<void> {

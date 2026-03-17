@@ -981,3 +981,58 @@ export function setGroupConfig(config: GroupConfig): void {
 export function deleteGroupConfig(folder: string): void {
   db.prepare('DELETE FROM groups WHERE folder = ?').run(folder);
 }
+
+// --- Onboarding ---
+
+export interface OnboardingEntry {
+  jid: string;
+  status: string;
+  sender: string | null;
+  channel: string | null;
+  world_name: string | null;
+  created: string;
+}
+
+export function getOnboardingEntry(jid: string): OnboardingEntry | undefined {
+  return db.prepare('SELECT * FROM onboarding WHERE jid = ?').get(jid) as
+    | OnboardingEntry
+    | undefined;
+}
+
+export function upsertOnboarding(
+  jid: string,
+  fields: Partial<Omit<OnboardingEntry, 'jid' | 'created'>>,
+): void {
+  const entry = getOnboardingEntry(jid);
+  if (!entry) {
+    db.prepare(
+      'INSERT INTO onboarding (jid, status, sender, channel, world_name, created) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(
+      jid,
+      fields.status ?? 'new',
+      fields.sender ?? null,
+      fields.channel ?? null,
+      fields.world_name ?? null,
+      new Date().toISOString(),
+    );
+  } else {
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    for (const [k, v] of Object.entries(fields)) {
+      sets.push(`${k} = ?`);
+      vals.push(v);
+    }
+    vals.push(jid);
+    db.prepare(`UPDATE onboarding SET ${sets.join(', ')} WHERE jid = ?`).run(
+      ...vals,
+    );
+  }
+}
+
+export function getPendingOnboarding(): OnboardingEntry[] {
+  return db
+    .prepare(
+      "SELECT * FROM onboarding WHERE status = 'pending' ORDER BY created DESC",
+    )
+    .all() as OnboardingEntry[];
+}

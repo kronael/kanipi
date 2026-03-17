@@ -18,6 +18,7 @@ const envConfig = readEnvFile([
   'GITHUB_CLIENT_SECRET',
   'DISCORD_CLIENT_ID',
   'DISCORD_CLIENT_SECRET',
+  'ONBOARDING_ENABLED',
   'MEDIA_ENABLED',
   'MEDIA_MAX_FILE_BYTES',
   'VOICE_TRANSCRIPTION_ENABLED',
@@ -219,6 +220,9 @@ export function whatsappEnabled(): boolean {
   return fs.existsSync(path.join(WHATSAPP_AUTH_DIR, 'creds.json'));
 }
 
+export const ONBOARDING_ENABLED =
+  (process.env.ONBOARDING_ENABLED || envConfig.ONBOARDING_ENABLED || '0') ===
+  '1';
 export let MEDIA_ENABLED =
   (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true';
 export let MEDIA_MAX_FILE_BYTES = parseInt(
