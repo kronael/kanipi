@@ -146,6 +146,162 @@ describe('unregisterAction', () => {
   });
 });
 
+describe('grants filtering in manifest', () => {
+  it('denied action excluded from manifest', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: [`!${name}`],
+    });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+
+  it('allowed action included with grants field', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: [name],
+    });
+    const entry = manifest.find((m) => m.name === name);
+    expect(entry).toBeDefined();
+    expect(entry!.grants).toEqual([name]);
+  });
+
+  it('wildcard grant includes all actions with grants field', () => {
+    const n1 = uid();
+    const n2 = uid();
+    registerAction(makeAction(n1));
+    registerAction(makeAction(n2));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: ['*'],
+    });
+    const e1 = manifest.find((m) => m.name === n1);
+    const e2 = manifest.find((m) => m.name === n2);
+    expect(e1).toBeDefined();
+    expect(e2).toBeDefined();
+    expect(e1!.grants).toEqual(['*']);
+    expect(e2!.grants).toEqual(['*']);
+  });
+
+  it('wildcard then deny excludes specific action', () => {
+    const n1 = uid();
+    const n2 = uid();
+    registerAction(makeAction(n1));
+    registerAction(makeAction(n2));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: ['*', `!${n1}`],
+    });
+    expect(manifest.find((m) => m.name === n1)).toBeUndefined();
+    expect(manifest.find((m) => m.name === n2)).toBeDefined();
+  });
+
+  it('no grants field means no grants filtering', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', { tier: 0, platforms: [] });
+    const entry = manifest.find((m) => m.name === name);
+    expect(entry).toBeDefined();
+    expect(entry!.grants).toBeUndefined();
+  });
+
+  it('empty grants array excludes all actions', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: [],
+    });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+
+  it('glob grant matches action names', () => {
+    const name = `send_test_${++seq}`;
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: ['send_*'],
+    });
+    const entry = manifest.find((m) => m.name === name);
+    expect(entry).toBeDefined();
+    expect(entry!.grants).toEqual(['send_*']);
+  });
+
+  it('parameterized grant rules attached to manifest entry', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: [`${name}(jid=twitter:*)`, `${name}(jid=reddit:*)`],
+    });
+    const entry = manifest.find((m) => m.name === name);
+    expect(entry).toBeDefined();
+    expect(entry!.grants).toEqual([
+      `${name}(jid=twitter:*)`,
+      `${name}(jid=reddit:*)`,
+    ]);
+  });
+
+  it('grants interact correctly with maxTier filter', () => {
+    const name = uid();
+    registerAction(makeAction(name, { maxTier: 0 }));
+    // maxTier=0 + tier=1 → excluded before grants check
+    const manifest = getManifest('root', {
+      tier: 1,
+      platforms: [],
+      grants: ['*'],
+    });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+
+  it('grants interact correctly with platform filter', () => {
+    const name = uid();
+    registerAction(makeAction(name, { platforms: ['reddit'] }));
+    // platforms don't match → excluded before grants check
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: ['twitter'],
+      grants: ['*'],
+    });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+
+  it('mcp:false excluded even with grants allowing', () => {
+    const name = uid();
+    registerAction(makeAction(name, { mcp: false }));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: ['*'],
+    });
+    expect(manifest.find((m) => m.name === name)).toBeUndefined();
+  });
+
+  it('re-allowed action after deny shows only allow rules', () => {
+    const name = uid();
+    registerAction(makeAction(name));
+    const manifest = getManifest('root', {
+      tier: 0,
+      platforms: [],
+      grants: ['*', `!${name}`, `${name}(jid=reddit:*)`],
+    });
+    const entry = manifest.find((m) => m.name === name);
+    expect(entry).toBeDefined();
+    // matchingRules collects allow rules: '*' and the specific one
+    expect(entry!.grants).toEqual(['*', `${name}(jid=reddit:*)`]);
+  });
+});
+
 describe('maxTier filtering', () => {
   it('action with maxTier 0 excluded at tier 1', () => {
     const name = uid();

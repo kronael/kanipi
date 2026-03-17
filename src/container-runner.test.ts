@@ -442,6 +442,82 @@ describe('unified home mount behavior', () => {
   });
 });
 
+describe('container-runner grants injection', () => {
+  it('writes grants array into start.json', async () => {
+    const fsModule = await import('fs');
+    vi.mocked(fsModule.default.writeFileSync).mockClear();
+
+    const resultPromise = runContainerCommand(testGroup, testInput, () => {});
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Find the writeFileSync call that writes start.json.tmp
+    const calls = vi.mocked(fsModule.default.writeFileSync).mock.calls;
+    const startJsonCall = calls.find(
+      ([p]) => typeof p === 'string' && p.endsWith('start.json.tmp'),
+    );
+    expect(startJsonCall).toBeDefined();
+    const startJson = JSON.parse(startJsonCall![1] as string);
+    expect(startJson.grants).toBeDefined();
+    expect(Array.isArray(startJson.grants)).toBe(true);
+    // Default mock: deriveRules returns ['*'], getGrantOverrides returns null
+    expect(startJson.grants).toEqual(['*']);
+
+    await closeAndAwait(resultPromise);
+  });
+
+  it('merges grant overrides into start.json grants', async () => {
+    const grants = await import('./grants.js');
+    vi.mocked(grants.getGrantOverrides).mockReturnValue([
+      '!post',
+      'send_reply',
+    ]);
+
+    const fsModule = await import('fs');
+    vi.mocked(fsModule.default.writeFileSync).mockClear();
+
+    const resultPromise = runContainerCommand(testGroup, testInput, () => {});
+    await vi.advanceTimersByTimeAsync(10);
+
+    const calls = vi.mocked(fsModule.default.writeFileSync).mock.calls;
+    const startJsonCall = calls.find(
+      ([p]) => typeof p === 'string' && p.endsWith('start.json.tmp'),
+    );
+    expect(startJsonCall).toBeDefined();
+    const startJson = JSON.parse(startJsonCall![1] as string);
+    // deriveRules returns ['*'] + overrides ['!post', 'send_reply']
+    expect(startJson.grants).toEqual(['*', '!post', 'send_reply']);
+
+    // Reset the mock for other tests
+    vi.mocked(grants.getGrantOverrides).mockReturnValue(null);
+
+    await closeAndAwait(resultPromise);
+  });
+
+  it('grants without overrides uses only derived rules', async () => {
+    const grants = await import('./grants.js');
+    vi.mocked(grants.deriveRules).mockReturnValue(['send_reply']);
+    vi.mocked(grants.getGrantOverrides).mockReturnValue(null);
+
+    const fsModule = await import('fs');
+    vi.mocked(fsModule.default.writeFileSync).mockClear();
+
+    const resultPromise = runContainerCommand(testGroup, testInput, () => {});
+    await vi.advanceTimersByTimeAsync(10);
+
+    const calls = vi.mocked(fsModule.default.writeFileSync).mock.calls;
+    const startJsonCall = calls.find(
+      ([p]) => typeof p === 'string' && p.endsWith('start.json.tmp'),
+    );
+    const startJson = JSON.parse(startJsonCall![1] as string);
+    expect(startJson.grants).toEqual(['send_reply']);
+
+    // Reset
+    vi.mocked(grants.deriveRules).mockReturnValue(['*']);
+
+    await closeAndAwait(resultPromise);
+  });
+});
+
 describe('runContainerCommand input validation', () => {
   it('throws when agent mode receives string input', async () => {
     await expect(
