@@ -19,22 +19,20 @@ with their matching rules in the manifest.
 twitter_*                       allow all twitter actions, any params
 twitter_*()                     allow, no params
 !twitter_post                   deny twitter post
-send_message(jid=telegram:*)    only telegram JIDs, no other params
-send_message(jid=telegram:*,**) only telegram JIDs, other params ok
-twitter_*(*)                    one param, any key/value
-twitter_*(**)                   any params (explicit, same as no parens)
+send_message(jid=telegram:*)    jid constrained, other params allowed
+twitter_post(!media)             media param must not be present
 *                               allow everything (root default)
 ```
 
 - `!` prefix = deny
 - Parsed as: `[!] name [( params )]` — name and params are separate
 - `*` in name matches `[a-zA-Z0-9_]` only (identifier chars)
-- `*` in param values matches any char except `,` and `)` (one param)
-- `**` in params matches any remaining params (like globstar)
-- No parens = any params (shorthand for `(**)`)
+- `*` in param values matches any char except `,` and `)`
+- Specifying a param constrains only that param — unmentioned
+  params are allowed
+- `!param` inside parens = param must NOT be present
+- No parens = any params
 - `()` = no params allowed
-- `(k=v)` = only this param, no others
-- `(k=v,**)` = this param required, others allowed
 - Last match wins; no match = deny
 
 ## Defaults (from routing table)
