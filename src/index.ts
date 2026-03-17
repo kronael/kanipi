@@ -94,7 +94,9 @@ import chatidCommand from './commands/chatid.js';
 import { putCommand, getCommand, lsCommand } from './commands/file.js';
 import newCommand, { pendingCommandArgs } from './commands/new.js';
 import pingCommand from './commands/ping.js';
+import statusCommand from './commands/status.js';
 import stopCommand, { setStopDeps } from './commands/stop.js';
+import { setNotifyChannels } from './commands/notify.js';
 import {
   findCommand,
   registerCommand,
@@ -1083,6 +1085,7 @@ function initCommands(): void {
   registerCommand(putCommand);
   registerCommand(getCommand);
   registerCommand(lsCommand);
+  registerCommand(statusCommand);
   setStopDeps({ closeStdin: (jid) => queue.closeStdin(jid) });
 }
 
@@ -1242,6 +1245,7 @@ async function main(): Promise<void> {
   }
 
   channels.push(new LocalChannel());
+  setNotifyChannels(channels);
 
   startSchedulerLoop({
     getGroupConfig: getGroupByFolder,
