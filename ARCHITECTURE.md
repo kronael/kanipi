@@ -158,6 +158,17 @@ batches messages by sender before forwarding to child groups.
 Escalation responses via `local:` JIDs are wrapped with
 `<escalation_origin>` XML carrying the origin JID and messageId.
 
+### grants.ts
+
+Action-level permission system. Rules use glob syntax with param
+matching (`send_message(platform=telegram)`). `parseRule` parses,
+`checkAction` evaluates, `matchingRules`/`narrowRules` filter.
+DB-backed overrides in `grants` table. Tier defaults: 0=`*`,
+1=world-scoped social+messaging, 2=own-platform social+messaging,
+3=`send_reply` only. Parent rules narrow child grants via
+`deriveRules` delegation in `start.json`. Enforced in
+container-runner (manifest filtering) and IPC (action dispatch).
+
 ### action-registry.ts + actions/
 
 Unified action system. Each action has name, Zod schema, handler,
@@ -252,6 +263,11 @@ is also seeded alongside.
 **Soul**: agent personality is defined by `SOUL.md` in the group
 folder (which IS `/home/node/`). The agent-runner checks
 `/home/node/SOUL.md` and appends a persona nudge to the system prompt.
+
+**SYSTEM.md**: `SYSTEM.md` in the group folder replaces the entire
+Claude Code default system prompt (`systemPrompt` string instead of
+`claude_code` preset). SOUL.md is auto-appended when both present.
+Used for user-facing groups where developer-style output is unwanted.
 
 **Migration system**: `container/skills/self/MIGRATION_VERSION`
 tracks the applied version number. `container/skills/self/migrations/`

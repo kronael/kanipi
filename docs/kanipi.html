@@ -103,7 +103,7 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
   IPC (SIGUSR1)  --  file-based request/response
     |                 agent -> gateway actions
     v
-  Action Registry    Zod-validated, tier-authorized
+  Action Registry    Zod-validated, grants-enforced
     |                 core + social actions (post, reply, react, repost...)
     v
   Reply Router  ---  per-sender batching, chunk chaining, reply threading
@@ -126,7 +126,8 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
           <tr><td><code>impulse.ts</code></td><td>impulse gate: per-JID event weight accumulation before agent flush</td></tr>
           <tr><td><code>ipc.ts</code></td><td>container-gateway IPC (request-response + file-based)</td></tr>
           <tr><td><code>task-scheduler.ts</code></td><td>cron-based scheduled tasks</td></tr>
-          <tr><td><code>dashboards/</code></td><td>dashboard portal (self-registration) + status dashboard</td></tr>
+          <tr><td><code>grants.ts</code></td><td>action grants: tier-based rules, glob matching, DB overrides, delegation narrowing</td></tr>
+          <tr><td><code>dashboards/</code></td><td>HTMX dashboard portal (self-registration) + status dashboard with fragment endpoints</td></tr>
           <tr><td><code>channels/</code></td><td>telegram, whatsapp, discord, email, web, twitter, reddit, mastodon, bluesky, facebook</td></tr>
           <tr><td><code>actions/</code></td><td>core (messaging, tasks, groups, session, inject) + social actions</td></tr>
         </table>
@@ -370,6 +371,8 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
         Circuit breaker: 3 consecutive failures per group opens the breaker. New user message resets.
         Agent errors advance the cursor, notify the user, and evict the session.
         <code>error_max_turns</code> recovery resumes with <code>maxTurns=3</code> and asks the agent to summarize progress.
+        Fatal channel errors crash the process for systemd restart (subsystem resilience).
+        IPC poll loop correctly handles edge cases in file watching.
       </p>
     </section>
 
@@ -702,6 +705,7 @@ npm run dev</pre>
     tmp/                  # scratch space
     CLAUDE.md             # agent behavior
     SOUL.md               # agent personality
+    SYSTEM.md             # custom system prompt (optional, replaces default)
   data/ipc/main/          # IPC requests/responses per group
   web/pub/                # public web (no auth)
   web/priv/               # private web (auth required)</pre>
@@ -834,7 +838,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           Impulse gate: per-JID event weight accumulation (configurable per-verb weights, threshold 100, max hold 5min) before agent flush.
           Architecture: Channel &rarr; Impulse Gate &rarr; SQLite DB &rarr; GroupQueue (per-group FIFO) &rarr; Router (JID &rarr; group, prompt assembly, {sender} template expansion)
           &rarr; Container (docker run, IPC file pipe, unified home mount at /home/node) &rarr; Claude Code SDK (tools, subagents, skills, MCP)
-          &rarr; IPC (SIGUSR1 signal + file-based request/response) &rarr; Action Registry (Zod-validated, tier-authorized, core + social actions)
+          &rarr; IPC (SIGUSR1 signal + file-based request/response) &rarr; Action Registry (Zod-validated, grants-enforced, core + social actions)
           &rarr; Reply Router (delegatePerSender, chunk chaining, reply threading) &rarr; Channel (send text/files back).
           Unified home: groups/{folder}/ mounted as /home/node (cwd + HOME). .claude/ state lives inside group folder.
           4-tier permissions: root (tier 0, no /), world (tier 1, {world}), agent (tier 2, {world}/{name}), worker (tier 3, deeper).
@@ -870,10 +874,10 @@ sudo systemctl enable --now kanipi_foo</pre>
           .gateway-caps TOML introspection manifest.
           Task scheduler: cron/interval/once, group or isolated context modes, optional command field for raw mode.
           Web: vite dev server, /pub/ (public) vs /priv/ (auth), slink web channel.
-          Error handling: circuit breaker (3 failures), session eviction, error_max_turns recovery.
+          Error handling: circuit breaker (3 failures), session eviction, error_max_turns recovery, fatal channel crash for systemd restart.
           DinD path translation: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR for docker-in-docker mounts.
           Hot-patching: agent-runner TS source mounted, bunx tsc at runtime.
-          Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. Migration system.
+          Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. SYSTEM.md for custom system prompt. Migration system.
           Products are configurations: Atlas (code support, shipped), Yonder (research, shipped).
           Deploy: systemd per instance, multi-instance with independent image tags.
           Roadmap: phase 1-2 shipped, phase 3 almost done, phase 4-5 future, Go rewrite planned.
@@ -896,12 +900,12 @@ social-actions: 22 actions (post, reply, react, repost, follow, unfollow, set_pr
 dynamic-registration: channels register PlatformClient at connect, actions available only while connected
 impulse-gate: per-jid weight accumulation (threshold 100, max-hold 5min, configurable per-verb weights, 0=drop)
 config: .env + env vars, sqlite group state
-source: 65 files 13980 LOC, 43 test files 13170 LOC, 798 tests, 97 specs
+source: 69 files 15389 LOC, 58 test files 17419 LOC, 926 tests, 102 specs
 architecture: channel -> impulse-gate -> sqlite -> group-queue -> router ({sender} template expansion) -> container (docker, unified home /home/node) -> claude-code-sdk -> ipc (sigusr1+files) -> action-registry (core+social) -> reply-router (delegatePerSender, chunk-chaining) -> channel
 unified-home: groups/{folder}/ mounted as /home/node (cwd+HOME), .claude/ inside group folder, media paths ~/media/...
 permissions: 4-tier (root 0=no /, world 1={world}, agent 2={world}/{name}, worker 3=deeper), tier from / count, overlay mounts tier 2+
 mounts: home(/home/node rw/ro), groups(~/groups root-only), share(~/share rw/ro), web(~/web rw root/world), ipc(~/ipc rw), self(~/self ro root), agent-runner(~/agent-runner ro hot-patch)
-skills: container/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; migration system
+skills: container/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; SYSTEM.md for custom system prompt; migration system
 ipc: signal-driven (SIGUSR1), 500ms fallback, file-based request/response
 memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (14 recent), user-context (per-sender pointer), facts (/recall search), episodes (day/week/month compression via /compact-memories)
 recall: v1 (explore grep on summary: frontmatter) + v2 (FTS5+sqlite-vec hybrid, RRF fusion 0.7vec/0.3bm25, ollama nomic-embed-text, .recallrc config, per-store sqlite dbs)
@@ -911,9 +915,11 @@ reply-routing: delegatePerSender batches by sender, chunk chaining tracks lastSe
 chat-bound-sessions: IDLE_TIMEOUT=0 keeps containers alive indefinitely
 container-commands: dual mode (agent ceremony vs raw bash)
 agent-output: <think> stripped (silent reasoning), <status> sent as interim updates, <internal> stripped entirely
-dashboard: /dash/ portal with self-registration, /dash/status/ live status (uptime, memory, channels, groups, containers, queue, tasks), /dash/status/api/state JSON, 10s auto-refresh
+action-grants: tier-based permission system, glob syntax rules with param matching, DB-backed overrides, delegation scoping, replaces assertAuthorized/maxTier
+system-md: per-group custom system prompt replaces Claude Code default, SOUL.md auto-appended, for user-facing bots
+dashboard: /dash/ HTMX portal with self-registration, /dash/status/ live status with fragment endpoints at /x/ (uptime, memory, channels, groups, containers, queue, tasks), /dash/status/api/state JSON, 10s auto-refresh, 22 Playwright e2e tests
 auth: argon2 local accounts + JWT sessions, OAuth (github, discord, telegram)
-core-actions: messaging (send_message, send_file, send_reply, inject_message), tasks (schedule_task, cancel_task), groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session) — Zod-validated, tier-based auth
+core-actions: messaging (send_message, send_file, send_reply, inject_message), tasks (schedule_task, cancel_task), groups (delegate_group, set_routing_rules, add_route, delete_route), session (reset_session) — Zod-validated, grants-enforced
 media: voice transcription (whisper, multi-language, .whisper-language per group), file sending (send_file action), file commands (/put /get /ls), magic bytes mime (file-type), .gateway-caps TOML, ~/media/... paths
 error-handling: circuit breaker (3 failures), session eviction, error_max_turns recovery
 dind-paths: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR for docker-in-docker mount translation
@@ -921,9 +927,9 @@ hot-patching: agent-runner TS mounted, bunx tsc at runtime
 groups: cli registration (folder-only), world-scoped auth, hierarchical delegation (5 rule types: command/pattern/keyword/sender/default, max chain depth 2), multi-jid per folder via routes
 web: vite dev server, /pub/ public vs /priv/ auth, argon2+jwt, sloth.js widget
 products: atlas (code support, shipped), yonder (research, shipped)
-roadmap: phase-1 shipped (5 chat channels), phase-2 shipped (5 social channels), phase-3 almost-done (permissions, recall-v2, episodes, auto-threading, dashboard), phase-4 deferred (gmail, instance-repos, memory-viewer), phase-5 future (agent-messaging, ipc-mcp-proxy, identities, workflows), go-rewrite planned
+roadmap: phase-1 shipped (5 chat channels), phase-2 shipped (5 social channels), phase-3 shipped (permissions, grants, recall-v2, episodes, system.md, auto-threading, dashboard), phase-4 deferred (gmail, instance-repos, memory-viewer), phase-5 future (agent-messaging, ipc-mcp-proxy, identities, workflows), go-rewrite planned
 deploy: systemd per instance, multi-instance independent image tags
-updated: 2026-03-16
+updated: 2026-03-17
 -->
 
   <script src="/assets/hub.js"></script>

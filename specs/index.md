@@ -84,13 +84,14 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | R-reply-routing           | Per-sender batching, chunk chaining, reply threading  | shipped |
 | T-recall                  | Knowledge retrieval (LLM grep → hybrid search)        | shipped |
 | _(4/B)_ B-memory-episodic | Progressive compression (episodes + diary)            | shipped |
-| _(4/4)_ 4-dashboards      | Dashboard portal system (tile-based, registration)    | spec    |
-| _(4/P)_ P-dash-status     | Dashboard: status & health (expanded, errors)         | spec    |
+| _(4/4)_ 4-dashboards      | Dashboard portal system (tile-based, registration)    | shipped |
+| _(4/P)_ P-dash-status     | Dashboard: status & health (expanded, errors)         | shipped |
 | _(4/S)_ S-dash-tasks      | Dashboard: scheduled tasks & run history              | spec    |
 | _(4/Q)_ Q-dash-memory     | Dashboard: memory & knowledge browser (read-only)     | spec    |
 | _(4/T)_ T-dash-activity   | Dashboard: messages & activity flow                   | spec    |
 | _(4/U)_ U-dash-groups     | Dashboard: groups, routing, world structure           | spec    |
-| _(4/V)_ V-action-grants   | Token-based action permissions, delegation scoping    | spec    |
+| _(4/V)_ V-action-grants   | Token-based action permissions, delegation scoping    | shipped |
+| _(impl)_ SYSTEM.md        | Custom system prompt override (agent-runner)          | shipped |
 
 ## Phase 4 — Arizuko (deferred)
 
