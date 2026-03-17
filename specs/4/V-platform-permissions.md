@@ -108,31 +108,86 @@ Same rules as routing:
 - `get_grants` — list grants for a folder
 - `delegate_group` — existing action, add optional `grants` param
 
+## Module: `src/grants.ts`
+
+Self-contained module. No dependency on IPC, action-registry, or
+container-runner. Callers import what they need.
+
+```typescript
+// Types
+type Grants = Record<string, string[]>;  // scope → actions
+
+// Build token at container spawn
+deriveGrants(folder: string, tier: number): Grants
+  // tier 0: {"*": ["*"]}
+  // tier 1: collect all routes in world → scope: ["*"] per platform
+  // tier 2: collect routes to folder + children → scope: ["*"]
+  // tier 3+: collect routes to folder only → scope: ["*"]
+  // then overlay DB overrides (replace matching scopes)
+
+// Check at dispatch time
+checkGrants(grants: Grants, scope: string, action: string): boolean
+  // grants[scope] includes action or "*"?
+  // grants["*"] includes "*"?
+
+// Narrow on delegation
+intersectGrants(parent: Grants, requested: Grants): Grants
+  // per scope: intersection of action lists
+  // scope not in parent → dropped
+
+// DB operations
+getGrantOverrides(folder: string): Grants | null
+setGrantOverrides(folder: string, grants: Grants): void
+deleteGrantOverrides(folder: string): void
+```
+
+### Integration points
+
+IPC dispatch (`ipc.ts:drainRequests`) calls `checkGrants` before
+`action.handler`. The grants token lives on the IPC context, set
+once when the container starts. No change to the dispatch flow —
+just a guard added before the existing handler call.
+
+Container spawn (`container-runner.ts`) calls `deriveGrants` and
+writes the result into `start.json`.
+
+Delegation (`actions/groups.ts:delegateGroup`) calls
+`intersectGrants` when a parent passes grants to a child.
+
+The module reads routes from DB (same as routing) but owns its
+own `grants` table. No coupling to action-registry internals.
+
 ## Enforcement
 
-In `action-registry.ts` at dispatch time:
+At dispatch time (`ipc.ts`), before calling `action.handler`:
 
 1. Extract scope from action (e.g. `post_tweet` → `twitter`)
-2. Check token: `grants["twitter"]` includes `"post"` or `"*"`?
-3. Check token: `grants["*"]` includes `"*"`?
-4. If no match → deny with error message
+2. `checkGrants(token, scope, actionName)` → allow or deny
+3. If denied → reply with error, skip handler
+
+Each action declares its scope via `Action.scope` field
+(e.g. `"twitter"`, `"email"`, `"system"`). Actions without a
+scope field default to `"system"`.
 
 ## Security
 
 - Agent cannot edit grants DB (not mounted in container)
 - Token is ephemeral (per-session, in start.json)
-- Delegation can only narrow, never widen (gateway intersects)
+- Delegation can only narrow, never widen (`intersectGrants`)
 - Missing grants table row → routing-derived defaults apply
 - Missing grants in start.json → default `{"*": ["*"]}` for
   backward compat during rollout
+- `grants.ts` has no side effects — pure functions + DB reads
 
 ## Migration
 
 1. Gateway DB migration: add `grants` table
-2. Add `grants` field to `start.json` (derived from routing + tier)
-3. Enforce in action-registry (check token)
-4. Add `grants` param to `delegate_group` IPC
-5. Agent-side migration: document grants in action manifest
+2. Add `src/grants.ts` module
+3. Add `scope` field to `Action` interface
+4. Add `grants` to `start.json` (call `deriveGrants` at spawn)
+5. Add `checkGrants` guard in `ipc.ts:drainRequests`
+6. Add `grants` param to `delegate_group` IPC
+7. Agent-side: document grants in action manifest
 
 ## Not in scope
 
