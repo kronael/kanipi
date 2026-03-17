@@ -38,12 +38,6 @@ vi.mock('./db.js', () => ({
   updateSessionEnd: vi.fn(),
 }));
 
-// Mock grants (container-runner calls deriveRules/getGrantOverrides)
-vi.mock('./grants.js', () => ({
-  deriveRules: () => ['*'],
-  getGrantOverrides: () => null,
-}));
-
 // Mock logger
 vi.mock('./logger.js', () => ({
   logger: {
