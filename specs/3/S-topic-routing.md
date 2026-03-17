@@ -146,12 +146,29 @@ The `@` route's `target` field stores the group's own folder
 _base path_, not the final destination. Post-match logic
 appends the parsed agent name to form the child folder.
 
+**Self-route caveat:** both `@` and `#` routes have
+`target = group.folder`. The existing `processGroupMessages`
+code treats `resolved.target === group.folder` as a self-route
+(no delegation). The implementation must check the route's
+`match` value BEFORE this comparison:
+
+- `match === '@'`: parse `@<name>`, rewrite effective target
+  to `<folder>/<name>`, then delegate
+- `match === '#'`: handle as topic-scoped self-route (see
+  #topic resolution below)
+- Otherwise: existing logic applies
+
+This means `resolveRoute` returns the route's raw `match`
+field in its result (already available via `ResolvedRoute`),
+and `processGroupMessages` inspects it to determine dispatch
+behavior.
+
 After route match with `@` prefix:
 
-1. Parse `@<name>` from message
-2. Resolve child folder: `<target>/<name>` (target = route target = parent folder)
+1. Parse `@<name>` from message text
+2. Resolve child folder: `<target>/<name>` (target = parent folder)
 3. Check child exists in groups table
-4. Strip prefix, delegate with stripped text
+4. Strip prefix, delegate with stripped text via `delegateToChild`
 5. Reply threading per R-reply-routing
 
 If child doesn't exist, log and drop (no fall-through to
@@ -159,14 +176,22 @@ default route — the `@` route already matched).
 
 ## #topic resolution
 
-After route match with `#` prefix:
+After route match with `#` prefix (detected via
+`resolved.match === '#'`):
 
-1. Parse `#<name>` from message
-2. Target is the group itself (self-route)
-3. Look up `getSession(folder, topic)` for topic-specific session
-4. Run container with that session ID
-5. Store returned session ID via `setSession(folder, sessionId, topic)`
-6. Agent sees stripped message + topic session history only
+1. Parse `#<name>` from message text
+2. Target is the group itself (self-route, `resolved.target === group.folder`)
+3. Strip prefix from message text
+4. Look up `getSession(folder, topic)` for topic-specific session
+5. Pass topic to `runAgent` / container input (via `start.json`)
+6. Run container with that session ID
+7. Store returned session ID via `setSession(folder, sessionId, topic)`
+8. Agent sees stripped message + topic session history only
+
+Since `resolved.target === group.folder`, the `#` route
+falls into the normal (non-delegation) processing path.
+The topic-aware logic is an extension of the existing
+self-processing code, not a new delegation path.
 
 ### Schema change
 
@@ -292,33 +317,48 @@ is `@` or `#`, `processGroupMessages` applies @agent or
 #topic resolution instead of normal delegation.
 
 One new route type (`prefix`). One new case in `routeMatches`.
-No changes to `resolveRoute`. The dispatch logic in
-`processGroupMessages` handles the special cases after route
-resolution.
+`resolveRoute` must also return the matched route's `match`
+field in `ResolvedRoute` (currently returns only `target`
+and `command`). The dispatch logic in `processGroupMessages`
+inspects `resolved.match` to detect `@`/`#` prefix routes.
 
 ## Implementation changes
 
-| File            | Change                                                     |
-| --------------- | ---------------------------------------------------------- |
-| `src/types.ts`  | `Route.type`: add `'prefix'` to union                      |
-| `src/router.ts` | `routeMatches`: add `prefix` type case                     |
-| `src/index.ts`  | `registerGroup`: insert @ and # routes for tiers 0-2       |
-| `src/index.ts`  | `processGroupMessages`: handle @ and # after resolve       |
-| `src/db.ts`     | `getSession`/`setSession`/`deleteSession`: add topic param |
-| `src/cli.ts`    | CLI `group add`: insert @ and # for tiers 0-2              |
-| migration 0013  | sessions table: add topic column, change PK                |
-| migration 0013  | messages table: add topic column                           |
+| File            | Change                                                      |
+| --------------- | ----------------------------------------------------------- |
+| `src/types.ts`  | `Route.type`: add `'prefix'` to union                       |
+| `src/router.ts` | `routeMatches`: add `prefix` type case                      |
+| `src/router.ts` | `ResolvedRoute`: add `match` field, return from resolve     |
+| `src/index.ts`  | `registerGroup`: insert @ and # routes for tiers 0-2        |
+| `src/index.ts`  | `processGroupMessages`: handle @ and # via `resolved.match` |
+| `src/db.ts`     | `getSession`/`setSession`/`deleteSession`: add topic param  |
+| `src/cli.ts`    | CLI `group add`: insert @ and # for tiers 0-2               |
+| migration 0013  | sessions table: add topic column, change PK                 |
+| migration 0013  | messages table: add topic column                            |
 
 ## Interaction with per-sender batching (R-reply-routing)
 
 Per-sender batching splits messages by sender before
-dispatch. Topic routing applies _per-message_ — different
-senders can address different topics in the same poll cycle.
-Each sender's messages resolve independently through the
-route table.
+dispatch. In the current code, route resolution happens on
+the batch's last non-command message BEFORE the per-sender
+split. All messages in the batch go to the same resolved
+target, then `delegatePerSender` splits by sender for
+reply threading.
 
-Order: gateway commands intercepted first, then per-sender
-split, then route table resolution per sender's last message.
+For `@agent` and `#topic`, this means the LAST message in
+the batch determines routing. If Alice sends `@support help`
+and Bob sends `#deploy status` in the same poll cycle, only
+Bob's message determines the route (last wins). This is a
+known limitation of batch-then-route ordering.
+
+**Future improvement:** resolve routes per-message instead
+of per-batch, allowing mixed `@`/`#` routing within a single
+poll cycle. This would require restructuring the message loop
+to iterate messages individually before batching.
+
+Order: gateway commands intercepted first, then route table
+resolution on last message, then per-sender split for
+dispatch.
 
 ## Interaction with template routing (Q-auto-threading)
 
