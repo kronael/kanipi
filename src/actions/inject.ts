@@ -16,7 +16,6 @@ const InjectMessageInput = z.object({
 export const injectMessage: Action = {
   name: 'inject_message',
   description: 'Insert a message into DB without sending to channel',
-  maxTier: 1,
   input: InjectMessageInput,
   async handler(raw, ctx) {
     const input = InjectMessageInput.parse(raw);

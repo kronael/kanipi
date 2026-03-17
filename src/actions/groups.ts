@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { Action } from '../action-registry.js';
 import { writeCommandsXml } from '../commands/index.js';
+import { setGrantOverrides } from '../grants.js';
 import {
   addRoute,
   deleteRoute,
@@ -21,7 +22,6 @@ const MAX_DELEGATE_DEPTH = 1;
 export const refreshGroups: Action = {
   name: 'refresh_groups',
   description: 'Refresh group metadata from channels',
-  maxTier: 0,
   input: z.object({}),
   async handler(_input, ctx) {
     if (ctx.tier !== 0) throw new Error('unauthorized');
@@ -51,7 +51,6 @@ const RegisterGroupSchema = z.object({
 export const registerGroup: Action = {
   name: 'register_group',
   description: 'Register a new group for agent responses',
-  maxTier: 1,
   input: RegisterGroupSchema,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
@@ -173,6 +172,7 @@ const DelegateGroupInput = z.object({
   prompt: z.string().min(1),
   chatJid: z.string().min(1),
   depth: z.number().int().min(0).optional(),
+  grants: z.array(z.string()).optional(),
 });
 
 export const delegateGroup: Action = {
@@ -194,6 +194,11 @@ export const delegateGroup: Action = {
       throw new Error(
         `unauthorized: ${ctx.sourceGroup} cannot delegate to ${input.group}`,
       );
+    }
+
+    // If parent passes grants, store as overrides for child
+    if (input.grants && input.grants.length > 0) {
+      setGrantOverrides(input.group, input.grants);
     }
 
     logger.info(
@@ -228,7 +233,6 @@ export const getRoutes: Action = {
   name: 'get_routes',
   description:
     'Get routing rules. Pass jid ($NANOCLAW_CHAT_JID) to filter, omit for all routes.',
-  maxTier: 1,
   input: GetRoutesInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
@@ -249,7 +253,6 @@ export const addRouteAction: Action = {
   name: 'add_route',
   description:
     'Add a routing rule for a JID. Use $NANOCLAW_CHAT_JID for the current chat.',
-  maxTier: 1,
   input: AddRouteInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');
@@ -272,7 +275,6 @@ const DeleteRouteInput = z.object({
 export const deleteRouteAction: Action = {
   name: 'delete_route',
   description: 'Delete a routing rule by ID',
-  maxTier: 1,
   input: DeleteRouteInput,
   async handler(raw, ctx) {
     if (ctx.tier >= 2) throw new Error('unauthorized');

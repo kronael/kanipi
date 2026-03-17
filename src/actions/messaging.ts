@@ -1,28 +1,7 @@
 import { z } from 'zod';
 
-import { Action, ActionContext } from '../action-registry.js';
-import { getRouteTargetsForJid } from '../db.js';
+import { Action } from '../action-registry.js';
 import { logger } from '../logger.js';
-import { isInWorld } from '../permissions.js';
-
-function assertAuthorized(
-  chatJid: string,
-  ctx: ActionContext,
-  action: string,
-): void {
-  if (ctx.tier === 0) return;
-  const targets = getRouteTargetsForJid(chatJid);
-  if (ctx.tier >= 2) {
-    if (targets.includes(ctx.sourceGroup)) return;
-  } else if (targets.some((t) => isInWorld(ctx.sourceGroup, t))) {
-    return;
-  }
-  logger.warn(
-    { chatJid, sourceGroup: ctx.sourceGroup },
-    `unauthorized ${action} blocked`,
-  );
-  throw new Error('unauthorized');
-}
 
 const SendMessageInput = z.object({
   chatJid: z.string(),
@@ -37,7 +16,6 @@ export const sendMessage: Action = {
   input: SendMessageInput,
   async handler(raw, ctx) {
     const input = SendMessageInput.parse(raw);
-    assertAuthorized(input.chatJid, ctx, 'send_message');
     const messageId = await ctx.sendMessage(
       input.chatJid,
       input.text,
@@ -86,10 +64,7 @@ export const sendFile: Action = {
   description: 'Send a file to a channel',
   input: SendFileInput,
   async handler(raw, ctx) {
-    if (ctx.tier >= 3)
-      throw new Error('unauthorized: workers cannot send files');
     const input = SendFileInput.parse(raw);
-    assertAuthorized(input.chatJid, ctx, 'send_file');
     await ctx.sendDocument(input.chatJid, input.filepath, input.filename);
     logger.info(
       { chatJid: input.chatJid, sourceGroup: ctx.sourceGroup },
