@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
@@ -160,6 +161,38 @@ export function storeMessage(msg: InboundEvent): void {
     msg.forwarded_from_id ?? null,
     msg.forwarded_msgid ?? null,
   );
+}
+
+export function storeOutbound(entry: {
+  chatJid: string;
+  content: string;
+  source: string;
+  groupFolder?: string;
+  replyToId?: string;
+  platformMsgId?: string;
+}): void {
+  try {
+    const id = entry.platformMsgId
+      ? `out-${entry.platformMsgId}`
+      : `out-${crypto.randomUUID()}`;
+    db.prepare(
+      `INSERT OR IGNORE INTO messages
+         (id, chat_jid, sender, content, timestamp,
+          is_from_me, is_bot_message, reply_to_id, source, group_folder)
+       VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?)`,
+    ).run(
+      id,
+      entry.chatJid,
+      'assistant',
+      entry.content,
+      new Date().toISOString(),
+      entry.replyToId ?? null,
+      entry.source,
+      entry.groupFolder ?? null,
+    );
+  } catch (err) {
+    logger.warn({ err, chatJid: entry.chatJid }, 'Failed to log outbound');
+  }
 }
 
 export function getMessageById(id: string): InboundEvent | undefined {

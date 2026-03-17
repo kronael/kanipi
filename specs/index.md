@@ -92,6 +92,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | _(4/U)_ U-dash-groups     | Dashboard: groups, routing, world structure           | spec    |
 | _(4/V)_ V-action-grants   | Token-based action permissions, delegation scoping    | shipped |
 | _(impl)_ SYSTEM.md        | Custom system prompt override (agent-runner)          | shipped |
+| _(4/Z)_ Z-audit-log       | Outbound message recording in messages table          | shipped |
 
 ## Phase 4 — Arizuko (deferred)
 

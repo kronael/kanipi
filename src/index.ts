@@ -80,6 +80,7 @@ import {
   setSession,
   storeChatMetadata,
   storeMessage,
+  storeOutbound,
 } from './db.js';
 import { AttachmentDownloader, RawAttachment } from './mime.js';
 import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
@@ -446,6 +447,14 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
               text,
               lastSentId ? { replyTo: lastSentId } : undefined,
             );
+            storeOutbound({
+              chatJid,
+              content: text,
+              source: 'agent',
+              groupFolder: group.folder,
+              replyToId: lastSentId,
+              platformMsgId: sentId,
+            });
             if (sentId) lastSentId = sentId;
             outputSentToUser = true;
           }
@@ -603,6 +612,14 @@ async function delegateToGroup(
               text,
               lastSentId ? { replyTo: lastSentId } : undefined,
             );
+            storeOutbound({
+              chatJid: originJid,
+              content: text,
+              source: 'agent',
+              groupFolder: targetFolder,
+              replyToId: lastSentId,
+              platformMsgId: sentId,
+            });
             if (sentId) lastSentId = sentId;
           }
         }
@@ -1239,17 +1256,33 @@ async function main(): Promise<void> {
         return undefined;
       }
       const text = rawText.trim();
-      if (text) return channel.sendMessage(jid, text);
+      if (text) {
+        const sentId = await channel.sendMessage(jid, text);
+        storeOutbound({
+          chatJid: jid,
+          content: text,
+          source: 'scheduler',
+        });
+        return sentId;
+      }
       return undefined;
     },
   });
   startIpcWatcher({
-    sendMessage: (jid, text, opts) => {
+    sendMessage: async (jid, text, opts) => {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
-      return channel.sendMessage(jid, text, opts);
+      const sentId = await channel.sendMessage(jid, text, opts);
+      storeOutbound({
+        chatJid: jid,
+        content: text,
+        source: 'ipc',
+        replyToId: opts?.replyTo,
+        platformMsgId: sentId,
+      });
+      return sentId;
     },
-    sendDocument: (jid, filePath, filename) => {
+    sendDocument: async (jid, filePath, filename) => {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
       if (!channel.sendDocument) {
@@ -1257,9 +1290,14 @@ async function main(): Promise<void> {
           { jid, channel: channel.name },
           'sendDocument not supported by channel, skipping',
         );
-        return Promise.resolve();
+        return;
       }
-      return channel.sendDocument(jid, filePath, filename);
+      await channel.sendDocument(jid, filePath, filename);
+      storeOutbound({
+        chatJid: jid,
+        content: `[file: ${filename || path.basename(filePath)}]`,
+        source: 'ipc',
+      });
     },
     getHubForJid,
     getJidsForFolder,
