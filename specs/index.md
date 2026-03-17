@@ -101,6 +101,7 @@ Requires new instance or major architectural changes.
 | R-evangelist          | Community engagement agent        | arizuko                                         |
 | K-versioning-personas | Versioning model, persona plugins | open                                            |
 | W-detached-containers | File-based container IPC, reclaim | arizuko (spec)                                  |
+| X-onboarding          | Unrouted JID → approve → world    | spec                                            |
 
 ## Phase 5 — Agent Extensions & Workflows (future)
 
