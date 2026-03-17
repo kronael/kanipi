@@ -10,15 +10,16 @@ container, no group until approval. State machine in
 
 ## User journey
 
-1. User finds the bot, sends "hello"
-2. No route exists — gateway runs onboarding flow
-3. Bot replies: "Pick a name for your workspace:"
-4. User types: "alice-studio"
-5. Bot validates, stores, notifies root
-6. Bot replies: "Got it! Waiting for approval."
-7. Operator approves — world created, route added
-8. User sends next message — routes to their world
-9. Agent wakes with welcome system message, runs
+1. User finds the bot, sends anything
+2. No route — gateway sends welcome:
+   "Hi! I'm <BOT_NAME>. To get started, request your
+   own workspace: `/request <name>`"
+3. User sends `/request alice-studio`
+4. Bot validates, stores, notifies root:
+   "Request received! Waiting for approval."
+5. Operator approves — world created, route added
+6. User sends next message — routes to their world
+7. Agent wakes with welcome system message, runs
    `/hello` + `/howto`
 
 ## Admin journey
@@ -55,16 +56,20 @@ responses, no LLM.
 message arrives, no route exists
   → look up jid in onboarding table
 
-  no entry:
-    → insert (status: awaiting_name)
-    → send "Pick a name for your workspace (lowercase, no spaces):"
+  no entry or status=new:
+    → insert (status: new) if missing
+    → send "Hi! I'm <BOT_NAME>. To get started, request
+      your own workspace: /request <name>"
 
-  awaiting_name:
-    → validate input (a-z0-9-, not taken, not reserved)
-    → invalid: send "Try again — lowercase letters, numbers, hyphens only"
+  new + message is "/request <name>":
+    → validate name (a-z0-9-, not taken, not reserved)
+    → invalid: send "Invalid name — lowercase letters, numbers, hyphens only"
     → valid: set status=pending, store world_name
     → notify() root: "alice wants 'alice-studio' — /approve telegram:-12345"
-    → send "Got it! Waiting for approval."
+    → send "Request received! Waiting for approval."
+
+  new + message is anything else:
+    → send "To request a workspace: /request <name>"
 
   pending:
     → send "Still waiting for approval."
@@ -81,7 +86,7 @@ message arrives, no route exists
 ```sql
 CREATE TABLE onboarding (
   jid        TEXT PRIMARY KEY,
-  status     TEXT NOT NULL,  -- awaiting_name | pending | approved | rejected
+  status     TEXT NOT NULL,  -- new | pending | approved | rejected
   sender     TEXT,
   channel    TEXT,
   world_name TEXT,
