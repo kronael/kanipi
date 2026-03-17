@@ -8,27 +8,33 @@ See `S-social-events.md` for social channel usage.
 
 ## Model
 
-Every group is created from a prototype. A prototype is
-just a group. The `template/` directory is renamed to
-`prototype/` — it seeds the root group, which is the
-only group not spawned from another group.
+A group's `prototype/` subdirectory defines what its
+children look like. When a child is spawned, the
+parent's `prototype/` contents are copied into the new
+child folder.
+
+```
+groups/root/prototype/         → what new worlds look like
+groups/atlas/prototype/        → what atlas children look like
+groups/atlas/support/prototype/→ what support children look like
+```
 
 When the router resolves a target that doesn't exist,
-the gateway clones it from the routing source group
-(the group whose routing rule matched). The source IS
-the prototype.
+`spawnGroupFromPrototype` copies from the parent's
+`prototype/` dir, registers the child in DB, and routes
+to it.
 
 ```
 router resolves target "main/support/user_123"
   → target doesn't exist
-  → clone from "main/support" (the routing source)
-  → register clone in DB
-  → route to clone
+  → copy from "main/support/prototype/"
+  → register child in DB
+  → route to child
 ```
 
-No special prototype flag, no prototype column. The
-group that holds the routing rule is the prototype by
-convention. Any group can be a prototype.
+No special prototype flag, no prototype column. Any
+group with a `prototype/` subdirectory can spawn
+children.
 
 ## Spawns are just child directories
 
@@ -37,16 +43,16 @@ No special naming. Spawns are children in the existing
 siblings from seeing each other:
 
 ```
-main/support/                   prototype
+main/support/                   parent (has prototype/)
 main/support/tg_1112184352/     spawn (child)
 main/support/web_abc123/        spawn (child)
-main/reddit/                    prototype
+main/reddit/                    parent (has prototype/)
 main/reddit/post_abc123/        spawn (child)
 ```
 
-Children can't see siblings. The prototype (parent)
-can't see children's state. World boundaries already
-enforce this. No new isolation mechanism needed.
+Children can't see siblings. The parent can't see
+children's state. World boundaries already enforce
+this. No new isolation mechanism needed.
 
 ## What gets copied
 
@@ -55,13 +61,13 @@ enforce this. No new isolation mechanism needed.
   Spawns are independent once created.
 - Session, memory, workdir — NOT copied (fresh)
 - DB state — new row, empty session
-- skills/ — mounted read-only from prototype (not copied)
+- skills/ — mounted read-only from parent (not copied)
 
 ## Spawn limits
 
-`max_children` on the prototype group (default: 50).
-When reached, new targets route to the prototype
-instead (fallback, not error). Prevents runaway from
+`max_children` on the parent group (default: 50).
+When reached, new targets fall through to the next
+route (fallback, not error). Prevents runaway from
 config errors.
 
 ```typescript
@@ -72,33 +78,37 @@ max_children?: number;  // default: 50, 0 = no spawning
 ## Filesystem
 
 ```
-prototype/                 seeds root (was template/)
-  env.example
-  workspace/
-  web/
-
 groups/
-  main/support/            prototype
-    CLAUDE.md
-    SOUL.md                read by agent at /home/node/SOUL.md
-    skills/
-  main/support/tg_123/     spawn
-    CLAUDE.md              copied from prototype
-    SOUL.md                copied from prototype
-    skills/                mounted ro from prototype
+  root/
+    prototype/             what new worlds look like
+      CLAUDE.md
+      SOUL.md
+  main/
+    support/               parent group
+      prototype/           what support children look like
+        CLAUDE.md
+        SOUL.md
+      tg_123/              spawn (child)
+        CLAUDE.md          copied from support/prototype/
+        SOUL.md            copied from support/prototype/
+        skills/            mounted ro from parent
 ```
+
+The repo-root `prototype/` directory seeds
+`groups/root/prototype/` on `kanipi create`. It is
+the initial definition of what new worlds look like.
 
 ## Routing rules
 
-Spawns inherit routing rules from the prototype. The
+Spawns inherit routing rules from the parent. The
 hierarchy is for session and data isolation — routing
-is fixed by the prototype's config.
+is fixed by the parent's config.
 
 ## Thread lifecycle
 
 `Close` events from platforms (see `S-social-events.md`)
 mark thread groups as closed. Closed groups don't accept
-new messages — events route to the prototype instead.
+new messages — events fall through to the next route.
 
 ## Retention and archival
 
@@ -114,10 +124,10 @@ Three states:
 
 - **active**: normal routing and processing
 - **closed**: marked by Close event or inactivity. No new
-  messages accepted, routes to prototype. Group folder
+  messages accepted, falls through to next route. Group folder
   preserved on disk for archival reads.
 - **archived**: folder compressed and moved to
-  `groups/{prototype}/archive/`. DB row removed. Agent
+  `groups/{parent}/archive/`. DB row removed. Agent
   can still read archived threads via skills if needed.
 
 Cleanup runs once per day (existing scheduler loop):
@@ -129,11 +139,11 @@ Cleanup runs once per day (existing scheduler loop):
 
 ## Migrations
 
-Spawns inherit the prototype's `MIGRATION_VERSION`. On
-boot, if spawn version < prototype version, the agent
+Spawns inherit the parent's `MIGRATION_VERSION`. On
+boot, if spawn version < parent version, the agent
 runs migrations from `skills/self/migrations/`.
 
-New spawns get current prototype state. Existing spawns
+New spawns get current parent state. Existing spawns
 don't auto-update — delete and re-create to refresh.
 
 ## Spawn folder naming
@@ -165,13 +175,6 @@ registerSystemTask({
 });
 ```
 
-## Template rename
-
-`template/` → `prototype/` in repo. For existing deployments:
-`kanipi create` checks for `prototype/` first, falls back to
-`template/` for backwards compat. No migration needed — new
-installs use `prototype/`, old installs keep working.
-
 ## Scope
 
 This milestone: router clone-on-missing, spawn folder
@@ -181,10 +184,9 @@ deferred until social channels land.
 
 ## Acceptance criteria
 
-1. Router clones from routing source when target doesn't exist
-2. CLAUDE.md, SOUL.md copied from prototype to spawn
-3. skills/ mounted read-only from prototype in container-runner
-4. max_children limit enforced, fallback to prototype
+1. `spawnGroupFromPrototype` copies parent's `prototype/` to child
+2. CLAUDE.md, SOUL.md copied from `prototype/` to spawn
+3. skills/ mounted read-only from parent in container-runner
+4. max_children limit enforced, fallback to next route
 5. `spawnFolderName()` generates valid folder names from JIDs
-6. `template/` renamed to `prototype/` with backwards compat
-7. All existing tests pass
+6. All existing tests pass

@@ -28,15 +28,14 @@ container, no group until approval. State machine in
 2. Root gets notification: "alice wants 'alice-studio'
    — `/approve telegram:-12345`"
 3. `/approve telegram:-12345` — creates world, routes JID
-4. `/approve telegram:-12345 --proto support` — with prototype
-5. `/reject telegram:-12345` — suppresses forever
-6. Dashboard shows pending requests in status page
+4. `/reject telegram:-12345` — suppresses forever
+5. Dashboard shows pending requests in status page
 
 Root is LLM-driven — the root agent sees the notification
 and can act on it. Configure via root's CLAUDE.md:
 
 - **Manual** — agent relays to operator, operator types command
-- **Suggest** — agent recommends prototype, operator confirms
+- **Suggest** — agent recommends approval, operator confirms
 - **Auto** — agent approves automatically (CLAUDE.md rules)
 
 ## How it works
@@ -110,12 +109,11 @@ Registered in `src/commands/` like `/status`:
 
 - Root-only (`permissionTier === 0`)
 - Reads `world_name` from onboarding table
-- Creates world folder: `groups/<world_name>/`
-- Copies from root's `prototype/` dir (same mechanism as
-  child group spawn — index.ts:527 — but using root as
-  the prototype source for worlds). Root's `prototype/`
-  defines what new worlds look like: CLAUDE.md, SOUL.md,
-  skills, etc.
+- Uses `spawnGroupFromPrototype` with root as parent:
+  copies `groups/root/prototype/` into `groups/<world_name>/`
+  (CLAUDE.md, SOUL.md, skills, etc.)
+- Root's `prototype/` defines what new worlds look like
+  (same mechanism as auto-threading child spawn)
 - Inserts group in DB (tier 1, no parent)
 - Adds routes: default (seq 0), @ (seq -2), # (seq -1)
 - Grants: tier 1 defaults (V-action-grants)
@@ -134,6 +132,9 @@ Registered in `src/commands/` like `/status`:
 ```
 ONBOARDING_ENABLED=0              # off by default
 ```
+
+No `ONBOARDING_PROTOTYPE` env var needed — always uses
+`groups/root/prototype/`.
 
 ## Welcome system message
 
@@ -170,7 +171,7 @@ New world gets tier 1 defaults:
 - Routes: default + predefined @ and # (S-topic-routing)
 - Grants: tier 1 from V-action-grants
 - Folder: world-level, can create children
-- Container config: from prototype or default
+- Container config: from root's `prototype/`
 
 Operator can restrict after creation: `/grant alice-studio !post`
 

@@ -126,7 +126,7 @@ Requires new instance or major architectural changes.
 | C-message-mcp             | Agent-side history queries         | spec              |
 | D-message-wal             | Write-ahead log delivery           | spec              |
 | E-plugins                 | Agent-proposed plugins             | not implemented   |
-| F-prototypes              | Group spawn from routing           | open              |
+| F-prototypes              | Parent prototype/ seeds children   | open              |
 | J-sse                     | Per-group SSE stream               | incomplete        |
 | M-webdav                  | WebDAV workspace access            | spec              |
 | N-workflows               | Media MCP, delegation              | spec              |

@@ -85,7 +85,7 @@ container/            agent container build
   agent-runner/       in-container agent entrypoint
   build.sh            agent image builder
   skills/             agent-side skills
-prototype/            seed for new instances
+prototype/            seeds groups/root/prototype/ on `kanipi create`
   .claude/CLAUDE.md   default group CLAUDE.md (group-chat behavior instructions)
 kanipi                bash entrypoint (legacy, for docker deployments)
 specs/                design specs (see below)
