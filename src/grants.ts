@@ -1,4 +1,4 @@
-import { getAllRoutes } from './db.js';
+import { getAllRoutes, getDatabase } from './db.js';
 import { permissionTier } from './config.js';
 import { worldOf } from './permissions.js';
 
@@ -249,21 +249,8 @@ export function deriveRules(folder: string, tier?: number): Rule[] {
 
 // --- DB operations for grant overrides ---
 
-import Database from 'better-sqlite3';
-
-let _db: Database.Database | null = null;
-
-export function setGrantsDb(db: Database.Database): void {
-  _db = db;
-}
-
-function getDb(): Database.Database {
-  if (!_db) throw new Error('grants DB not initialized');
-  return _db;
-}
-
 export function getGrantOverrides(folder: string): Rule[] | null {
-  const row = getDb()
+  const row = getDatabase()
     .prepare('SELECT rules FROM grants WHERE folder = ?')
     .get(folder) as { rules: string } | undefined;
   if (!row) return null;
@@ -275,11 +262,11 @@ export function getGrantOverrides(folder: string): Rule[] | null {
 }
 
 export function setGrantOverrides(folder: string, rules: Rule[]): void {
-  getDb()
+  getDatabase()
     .prepare(`INSERT OR REPLACE INTO grants (folder, rules) VALUES (?, ?)`)
     .run(folder, JSON.stringify(rules));
 }
 
 export function deleteGrantOverrides(folder: string): void {
-  getDb().prepare('DELETE FROM grants WHERE folder = ?').run(folder);
+  getDatabase().prepare('DELETE FROM grants WHERE folder = ?').run(folder);
 }

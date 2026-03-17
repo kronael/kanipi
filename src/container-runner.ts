@@ -42,6 +42,7 @@ import {
 import { validateAdditionalMounts } from './mount-security.js';
 import { GroupConfig } from './db.js';
 import { worldOf } from './permissions.js';
+import { deriveRules, getGrantOverrides } from './grants.js';
 
 export let _spawnProcess: (
   cmd: string,
@@ -666,6 +667,8 @@ async function runAgentMode(
     }
     fs.mkdirSync(inputDir, { recursive: true });
 
+    const grants = deriveRules(group.folder);
+    const overrides = getGrantOverrides(group.folder);
     const startJson = {
       sessionId: input.sessionId,
       groupFolder: input.groupFolder,
@@ -678,6 +681,7 @@ async function runAgentMode(
       messageCount: input.messageCount,
       delegateDepth: input.delegateDepth,
       messageId: input.messageId,
+      grants: overrides ? [...grants, ...overrides] : grants,
     };
     const startPath = path.join(groupIpcDir, 'start.json');
     const startTmp = `${startPath}.tmp`;

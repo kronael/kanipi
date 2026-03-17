@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { AvailableGroup } from './container-runner.js';
 import { GroupConfig } from './db.js';
+import { matchingRules, Rule } from './grants.js';
 import { SendOpts } from './types.js';
 
 export interface ActionContext {
@@ -76,26 +77,52 @@ export function unregisterAction(name: string): void {
 
 export function getManifest(
   sourceGroup = '',
-  opts: { tier: number; platforms: string[] } = { tier: 0, platforms: [] },
+  opts: {
+    tier: number;
+    platforms: string[];
+    grants?: Rule[];
+  } = { tier: 0, platforms: [] },
 ): Array<{
   name: string;
   description: string;
   input: unknown;
+  grants?: Rule[];
 }> {
-  return [...actions.values()]
-    .filter((a) => a.mcp !== false)
-    .filter((a) => {
-      if (a.maxTier !== undefined && opts.tier > a.maxTier) return false;
-      if (
-        a.platforms?.length &&
-        !a.platforms.some((p) => opts.platforms.includes(p))
-      )
-        return false;
-      return true;
-    })
-    .map((a) => ({
-      name: a.name,
-      description: a.description,
-      input: z.toJSONSchema(a.input),
-    }));
+  const result: Array<{
+    name: string;
+    description: string;
+    input: unknown;
+    grants?: Rule[];
+  }> = [];
+
+  for (const a of actions.values()) {
+    if (a.mcp === false) continue;
+    if (a.maxTier !== undefined && opts.tier > a.maxTier) continue;
+    if (
+      a.platforms?.length &&
+      !a.platforms.some((p) => opts.platforms.includes(p))
+    ) {
+      continue;
+    }
+
+    // If grants provided, filter and attach matching rules
+    if (opts.grants) {
+      const matched = matchingRules(opts.grants, a.name);
+      if (!matched) continue;
+      result.push({
+        name: a.name,
+        description: a.description,
+        input: z.toJSONSchema(a.input),
+        grants: matched,
+      });
+    } else {
+      result.push({
+        name: a.name,
+        description: a.description,
+        input: z.toJSONSchema(a.input),
+      });
+    }
+  }
+
+  return result;
 }

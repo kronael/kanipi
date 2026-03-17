@@ -18,6 +18,9 @@ let db: Database.Database;
 export function setDatabase(d: Database.Database): void {
   db = d;
 }
+export function getDatabase(): Database.Database {
+  return db;
+}
 
 export function initDatabase(): void {
   const dbPath = path.join(STORE_DIR, 'messages.db');

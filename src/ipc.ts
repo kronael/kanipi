@@ -44,6 +44,7 @@ import {
   isRoot,
   permissionTier,
 } from './config.js';
+import { checkAction, deriveRules, getGrantOverrides } from './grants.js';
 import { AvailableGroup } from './container-runner.js';
 import { GroupConfig } from './db.js';
 import { logger } from './logger.js';
@@ -177,16 +178,43 @@ export async function drainRequests(
               .filter((p) => p.length > 0 && !p.includes('@')),
           ),
         ];
+        const listRules = deriveRules(sourceGroup);
+        const listOverrides = getGrantOverrides(sourceGroup);
+        const listGrants = listOverrides
+          ? [...listRules, ...listOverrides]
+          : listRules;
         reply = {
           id,
           ok: true,
-          result: getManifest(sourceGroup, { tier, platforms }),
+          result: getManifest(sourceGroup, {
+            tier,
+            platforms,
+            grants: listGrants,
+          }),
         };
       } else {
         const action = getAction(type);
         if (!action) {
           reply = { id, ok: false, error: `unknown action: ${type}` };
         } else {
+          // Grants check: derive rules + overrides, check action
+          const rules = deriveRules(sourceGroup);
+          const overrides = getGrantOverrides(sourceGroup);
+          const allRules = overrides ? [...rules, ...overrides] : rules;
+          const grantParams: Record<string, string> = {};
+          const jidVal = data.jid ?? data.chatJid;
+          if (typeof jidVal === 'string') grantParams.jid = jidVal;
+          if (!checkAction(allRules, type, grantParams)) {
+            reply = {
+              id,
+              ok: false,
+              error: `denied by grants: ${type}`,
+            };
+            writeReply(repliesDir, reply);
+            unlinkSafe(filePath);
+            continue;
+          }
+
           try {
             // For send_file, translate container path to host path
             if (type === 'send_file' && data.filepath) {
