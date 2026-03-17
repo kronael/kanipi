@@ -9,13 +9,23 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+---
+
+## [v1.9.0] — 2026-03-17
+
 ### Added
 
+- **Action grants**: tier-based permission system for agent actions. Glob
+  syntax rules with param matching, DB-backed overrides, delegation scoping.
+  Replaces `assertAuthorized`/`maxTier` with single grants enforcement point.
+- **SYSTEM.md support**: per-group custom system prompt replaces the default
+  Claude Code system prompt. ElizaOS-inspired should-respond rules, knowledge
+  pipeline, and focused tool guidance for user-facing bots.
+- **Dashboard portal**: HTMX-based `/dash/` with status dashboard, fragment
+  endpoints at `/x/`, live gateway state.
 - **`/recall` skill**: searches facts/, diary/, users/, episodes/ for
   relevant knowledge via summary: frontmatter grep. Replaces manual
   summary scanning in CLAUDE.md Knowledge section.
-- **Facts verifier audit trail**: verifier writes pass/fail YAML records to
-  `verifier/` directory, preserving rejected fact history.
 - **Recall v2 CLI**: `recall` CLI tool with FTS5 + sqlite-vec hybrid search.
   Per-store SQLite DBs, lazy mtime-based indexing, Ollama embeddings,
   RRF fusion (0.7 vector, 0.3 BM25). Config via `.recallrc` (TOML).
@@ -23,21 +33,45 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
   summaries into agent prompt on session start (`<episodes>` XML block).
 - **`/compact-memories` skill**: progressive compression of session transcripts
   into daily/weekly/monthly episodes, plus diary week/month summaries.
+- **Facts verifier audit trail**: verifier writes pass/fail YAML records to
+  `verifier/` directory, preserving rejected fact history.
+- **Subsystem resilience**: crash on fatal channel errors, fix IPC poll loop.
+- **Playwright e2e tests**: 22 tests for dashboards with isolated gateway.
+
+### Fixed
+
+- **Bot-mention override**: `mentions_me="true"` always triggers visible
+  response, overrides all silence rules in container CLAUDE.md.
+- **WhatsApp reconnect hang**: `connect()` promise no longer hangs when
+  first attempt errors and triggers reconnect.
+- **Grammy deaf gateway**: exit on silent polling stop to prevent deaf state.
+- **Orphan cleanup scoping**: scoped to own container image, prevents
+  cross-instance kills in multi-instance deployments.
+- **Message tracing**: consistent group names, timing in queue, delegation
+  logs, removed redundancy.
+- **Recall fixes**: require Ollama for search (no silent FTS fallback),
+  skip files cleanly on embed fail, compact-memories on-demand cron.
+- **SDK update**: claude-agent-sdk 0.2.34 → 0.2.76 (OAuth token flow fix).
+
+### Changed
+
+- **Test suite**: 792 → 926 tests across 53 files. Added grants unit/
+  integration/e2e tests, Playwright dashboard tests.
+- **Strict knowledge relevance**: facts must answer 100% correctly or
+  agent researches. Mandatory `<think>` deliberation before answering.
 
 ### Docs
 
+- **Action grants spec**: tier-based social defaults, glob matching, param
+  exclusion, manifest constraints, delegation scoping.
+- **Dashboard specs**: portal, status, activity, groups, memory, tasks —
+  6 specs with HTMX stories and fragment endpoints.
+- **Control chat + onboarding spec**: gateway command channel, unrouted
+  JID approval flow.
 - **Code research agent spec**: merged `4/H-researcher` and `4/3-support`
-  into `3/3-code-research.md` — full pattern docs with verbatim ElizaOS
-  prompts, SYSTEM.md reference, howto cookbook, strict relevance rule.
-- **Strict knowledge relevance**: `container/CLAUDE.md` Knowledge section
-  tightened — facts must answer 100% correctly or agent researches.
-- **Fact deliberation**: agents must explain in `<think>` what each candidate
-  fact says, whether it answers the question, and what gaps remain before
-  deciding to use it or research.
-- **Memory specs consistency**: fixed stale refs and statuses across
-  D-knowledge-system, M-memory-managed, and memory layer table.
-- **Shipped Worlds concept**: added to `4/K-versioning-personas.md` as
-  future direction for packaging product configs as world templates.
+  into `3/3-code-research.md` — ElizaOS patterns, SYSTEM.md reference.
+- **Memory specs**: fixed stale refs across D-knowledge-system,
+  M-memory-managed. Added Worlds concept to `4/K-versioning-personas.md`.
 
 ---
 
