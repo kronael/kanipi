@@ -57,6 +57,7 @@ export class WhatsAppChannel implements Channel {
   private outgoingQueue: Array<{ jid: string; text: string }> = [];
   private flushing = false;
   private groupSyncTimerStarted = false;
+  private connectResolver?: () => void;
 
   private opts: ChannelOpts;
 
@@ -72,11 +73,12 @@ export class WhatsAppChannel implements Channel {
 
   async connect(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      this.connectInternal(resolve).catch(reject);
+      this.connectResolver = resolve;
+      this.connectInternal().catch(reject);
     });
   }
 
-  private async connectInternal(onFirstOpen?: () => void): Promise<void> {
+  private async connectInternal(): Promise<void> {
     const authDir = path.join(STORE_DIR, 'auth');
     fs.mkdirSync(authDir, { recursive: true });
 
@@ -185,9 +187,9 @@ export class WhatsAppChannel implements Channel {
         }
 
         // Signal first connection to caller
-        if (onFirstOpen) {
-          onFirstOpen();
-          onFirstOpen = undefined;
+        if (this.connectResolver) {
+          this.connectResolver();
+          this.connectResolver = undefined;
         }
       }
     });
