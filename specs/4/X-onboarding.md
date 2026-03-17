@@ -106,18 +106,17 @@ CREATE TABLE onboarding (
 
 Registered in `src/commands/` like `/status`:
 
-### /approve <jid> [--proto <name>]
+### /approve <jid>
 
 - Root-only (`permissionTier === 0`)
 - Reads `world_name` from onboarding table
 - Creates world folder: `groups/<world_name>/`
-- Copies prototype: `--proto <name>` or default from
-  `ONBOARDING_DEFAULT_PROTO` env (fallback: `default`)
-- Prototypes live in `groups/_prototypes/<name>/`
-  (not real groups — underscore prefix, never routed)
-- Copies: CLAUDE.md, SOUL.md, .claude/, skills/, facts/
-- Does NOT copy: diary/, users/, sessions
-- Inserts group in DB (tier 1)
+- Copies from root's `prototype/` dir (same mechanism as
+  child group spawn — index.ts:527 — but using root as
+  the prototype source for worlds). Root's `prototype/`
+  defines what new worlds look like: CLAUDE.md, SOUL.md,
+  skills, etc.
+- Inserts group in DB (tier 1, no parent)
 - Adds routes: default (seq 0), @ (seq -2), # (seq -1)
 - Grants: tier 1 defaults (V-action-grants)
 - Enqueues welcome system message
@@ -134,7 +133,6 @@ Registered in `src/commands/` like `/status`:
 
 ```
 ONBOARDING_ENABLED=0              # off by default
-ONBOARDING_DEFAULT_PROTO=default  # prototype name (from _prototypes/)
 ```
 
 ## Welcome system message
