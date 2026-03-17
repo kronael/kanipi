@@ -16,16 +16,17 @@ with their matching rules in the manifest.
 ```
 
 ```
-twitter_*                       allow all twitter actions, any params
-twitter_*()                     same as above (parens optional)
-!twitter_post                   deny twitter post
-send_message(jid=telegram:*)    jid constrained, other params allowed
-twitter_post(!media)             media param must not be present
-*                               allow everything (root default)
+post                         allow post, any params
+post(jid=twitter:*)          allow post, only to twitter
+!post                        deny post
+send_message(jid=telegram:*) allow send_message, only telegram
+react(jid=reddit:*)          allow react, only on reddit
+send_reply                   allow reply in same thread
+*                            allow everything (root default)
 ```
 
 - `!` prefix = deny
-- Parsed as: `[!] name [( params )]` — name and params are separate
+- Parsed as: `[!] name [( params )]` — name and params split first
 - `*` in name matches `[a-zA-Z0-9_]` only (identifier chars)
 - `*` in param values matches any char except `,` and `)`
 - Specifying a param constrains only that param — unmentioned
@@ -34,20 +35,31 @@ twitter_post(!media)             media param must not be present
 - No parens or `()` = any params (equivalent)
 - Last match wins; no match = deny
 
+Action names match actual IPC names: `post`, `reply`, `react`,
+`send_message`, `send_reply`, `send_file`, `ban`, `delete`,
+`set_profile`, `schedule_task`, `delegate_group`, etc.
+Platform scoping is via the `jid` param (e.g. `jid=twitter:*`).
+
 ## Defaults (from routing table)
 
-- **Tier 0 (root)** — `["*"]`. All actions, all grants.
+Derived from routing + tier. Platform access determined by which
+JIDs have routes to the group (or its world/children per tier).
+
+- **Tier 0 (root)** — `["*"]`. All actions, all params.
 - **Tier 1 (world root)** — all actions on every platform with
-  at least one route in the world. Single-account model: if a
-  platform connects to the world, the world root gets full
-  access (post, reply, react, follow, ban, set_profile, etc.).
-  `["post", "reply", "react", "set_profile", ...]` per platform.
-- **Tier 2** — `send_message` + `send_reply` + social actions
-  on routed platforms. Can do cross-user messaging (send to
-  different chats than the receipt).
+  at least one route anywhere in the world. Single-account
+  model: full social access (post, reply, react, follow, ban,
+  set_profile, etc.) plus messaging. Derived as allow rules
+  per routed platform: `post(jid=P:*)`, `reply(jid=P:*)`, etc.
+- **Tier 2** — `send_message`, `send_reply`, plus social
+  actions on platforms routed to self or children. Can do
+  cross-user messaging (send to different chats).
 - **Tier 3+ (leaf)** — `send_reply` only. Same chat/thread,
-  gateway-handled threading. No cross-chat, no post, no react.
+  gateway-handled threading. No cross-chat, no social actions.
   Everything else needs explicit grant override.
+
+Replaces existing `assertAuthorized()` and `maxTier` checks —
+grants become the single enforcement point.
 
 ## Overrides (DB)
 
@@ -64,8 +76,11 @@ defaults only.
 
 ## Token in start.json
 
+Added alongside existing fields (sessionId, groupFolder,
+chatJid, prompt, etc.):
+
 ```json
-{ "grants": ["twitter_*", "!twitter_post", "send_message(jid=telegram:*)"] }
+{ "grants": ["send_reply", "react(jid=twitter:*)", "!post"] }
 ```
 
 ## Agent manifest
@@ -73,11 +88,12 @@ defaults only.
 Denied actions omitted. Allowed actions include matching rules:
 
 ```json
-{ "name": "twitter_reply", "grants": ["twitter_*"] }
-{ "name": "send_message", "grants": ["send_message(jid=telegram:*)"] }
+{ "name": "send_reply", "grants": ["send_reply"] }
+{ "name": "react", "grants": ["react(jid=twitter:*)"] }
 ```
 
-Same rule syntax everywhere — no translation.
+Same rule syntax everywhere. Agent reads its capabilities from
+the manifest — same format as `start.json` grants.
 
 ## Delegation
 
@@ -100,12 +116,21 @@ getGrantOverrides(folder: string): Rule[] | null
 setGrantOverrides(folder: string, rules: Rule[]): void
 ```
 
+`deriveRules` reads routes from DB to determine which platforms
+are accessible per tier, then generates allow rules for each
+action+platform combination.
+
 ## Integration
 
-- `container-runner.ts`: `deriveRules` → write to `start.json`
-- `ipc.ts`: `checkAction` before `action.handler`
-- `action-registry.ts`: `matchingRules` in `getManifest`
-- `actions/groups.ts`: `narrowRules` in `delegateGroup`
+- `container-runner.ts` (startJson, ~line 669): call
+  `deriveRules(folder, tier)`, add `grants` to start.json
+- `ipc.ts` (drainRequests, ~line 186): call `checkAction`
+  before `action.handler`, deny with error if check fails.
+  Replaces existing `assertAuthorized()` and `maxTier` checks.
+- `action-registry.ts` (getManifest, ~line 85): call
+  `matchingRules` per action, omit denied, attach grants
+- `actions/groups.ts` (delegateGroup, ~line 179): add optional
+  `grants` param, call `narrowRules`
 
 ## Authority
 
@@ -130,10 +155,11 @@ setGrantOverrides(folder: string, rules: Rule[]): void
 
 1. DB: add `grants` table
 2. Add `src/grants.ts`
-3. `start.json`: add `grants` via `deriveRules`
-4. `ipc.ts`: add `checkAction` guard
-5. Manifest: add `grants` field via `matchingRules`
-6. `delegate_group`: add `grants` param
+3. `container-runner.ts`: add `grants` to start.json
+4. `ipc.ts`: add `checkAction` guard, remove `assertAuthorized`
+5. `action-registry.ts`: add `grants` to manifest output
+6. `actions/groups.ts`: add `grants` to `delegate_group`
+7. Remove `maxTier` from actions (replaced by grants)
 
 ## Not in scope
 
