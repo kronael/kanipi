@@ -75,8 +75,10 @@ Default grants are derived from the routing table + tier:
   JID that has a route to the world root OR any subgroup in
   that world. If `twitter:*` routes to `atlas/social`, then
   `atlas` gets `twitter: ["*"]` by default.
-- **Tier 2+ (subgroups)** — all actions on JIDs that route
-  directly to this folder only.
+- **Tier 2 (e.g. `atlas/social`)** — all actions on JIDs that
+  route to this folder or any of its children.
+- **Tier 3+ (leaf)** — all actions on JIDs that route directly
+  to this folder only.
 
 No grants table row needed for the common case.
 
