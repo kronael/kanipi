@@ -36,11 +36,18 @@ twitter_post(!media)             media param must not be present
 
 ## Defaults (from routing table)
 
-- **Tier 0 (root)** — `["*"]`
-- **Tier 1 (world root)** — `platform_*` for every platform
-  with a route anywhere in the world
-- **Tier 2** — `platform_*` for routes to self + children
-- **Tier 3+** — `platform_*` for routes to self only
+- **Tier 0 (root)** — `["*"]`. All actions, all grants.
+- **Tier 1 (world root)** — all actions on every platform with
+  at least one route in the world. Single-account model: if a
+  platform connects to the world, the world root gets full
+  access (post, reply, react, follow, ban, set_profile, etc.).
+  `["post", "reply", "react", "set_profile", ...]` per platform.
+- **Tier 2** — `send_message` + `send_reply` + social actions
+  on routed platforms. Can do cross-user messaging (send to
+  different chats than the receipt).
+- **Tier 3+ (leaf)** — `send_reply` only. Same chat/thread,
+  gateway-handled threading. No cross-chat, no post, no react.
+  Everything else needs explicit grant override.
 
 ## Overrides (DB)
 
