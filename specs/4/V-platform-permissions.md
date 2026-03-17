@@ -1,78 +1,121 @@
 ---
-status: dropped
+status: spec
 ---
 
-# Platform Permissions
+# Action Grants
 
-Groups can act on platforms (post to Twitter, send email, etc.) via
-social actions. There is no enforcement today — any group that has a
-platform JID routed to it can call any action on that platform.
-
-This spec defines a permissions layer for platform actions, modeled
-after the routing table: explicit rows, same authority rules.
+Token-based permission system for IPC actions. Every container
+session receives an action token derived from the group's grants.
+Gateway validates the token at dispatch time. Delegation narrows
+the token scope — agents cannot self-escalate.
 
 ## Problem
 
-A subgroup should not automatically inherit its parent's platform
-credentials. The routing layer controls _which messages reach a group_;
-a platform permissions layer controls _which actions a group may
-perform on a platform_.
+Any group with a platform JID routed to it can call any action.
+No mechanism to restrict a child group to read-only, or to grant
+a delegated agent only specific actions.
 
-Example: `atlas` has a twitter JID routed to it. `atlas/support` should
-not be able to post tweets unless explicitly granted.
+## Model
 
-## Proposed model
-
-A flat `platform_grants` table, parallel to `routes`:
+A `grants` table in the gateway DB:
 
 ```sql
-CREATE TABLE platform_grants (
-  id      INTEGER PRIMARY KEY AUTOINCREMENT,
-  folder  TEXT NOT NULL,   -- group folder that receives the grant
-  platform TEXT NOT NULL,  -- e.g. 'twitter', 'email', 'mastodon'
-  actions TEXT NOT NULL    -- JSON array: ["*"] or ["post","reply"]
+CREATE TABLE grants (
+  folder  TEXT NOT NULL,
+  scope   TEXT NOT NULL,   -- "twitter", "email", "*"
+  actions TEXT NOT NULL,   -- JSON: ["*"] or ["post","reply"]
+  PRIMARY KEY (folder, scope)
 );
 ```
 
-Grant lookup at action dispatch time: does the calling group's folder
-have a grant row for the target platform + action? If not, deny.
+## Token lifecycle
+
+```
+group created (CLI / auto-thread / clone)
+  → default grants seeded in DB: (folder, "*", '["*"]')
+    → container spawns
+      → gateway reads grants from DB
+        → token injected into start.json
+          → agent calls IPC action + token
+            → gateway validates token
+              → dispatch or deny
+```
+
+On delegation:
+
+```
+parent calls delegate_group with grants subset
+  → gateway intersects parent token with requested grants
+    → child token = intersection (can only narrow, never widen)
+      → child container gets scoped token
+```
+
+## Token format
+
+Injected into `start.json` alongside existing fields:
+
+```json
+{
+  "grants": {
+    "twitter": ["post", "reply", "like"],
+    "email": ["send"],
+    "*": ["*"]
+  }
+}
+```
+
+Agent passes `grants` back with each IPC action call. Gateway
+validates: does `grants[scope]` include the requested action?
+
+## Defaults
+
+On group creation, seed `(folder, "*", '["*"]')` — full access,
+same as today. Restriction is opt-in. Specific defaults per
+platform TBD — will iterate based on real usage patterns.
 
 ## Authority
 
 Same rules as routing:
 
 - Tier 0 (root) — can create/delete any grant
-- Tier 1 (world root, e.g. `atlas`) — can grant to descendants in own
-  world only
+- Tier 1 (world root) — can grant to descendants in own world
 - Tier 2+ — cannot modify grants
 
-IPC actions: `add_platform_grant`, `remove_platform_grant`,
-`list_platform_grants`.
+## IPC actions
 
-## Platform resolution
+- `set_grants` — set grants for a folder (replaces all)
+- `get_grants` — list grants for a folder
+- `delegate_group` — existing action, add optional `grants` param
 
-Platform is derived from the JIDs that route to the group
-(same as action manifest filtering today). A grant for `twitter`
-only activates if a `twitter:*` JID routes to that folder.
+## Enforcement
 
-## Current behavior (until implemented)
+In `action-registry.ts` at dispatch time:
 
-All groups are implicitly granted `["*"]` on all platforms.
-The action manifest already filters by platform presence — a group
-without a twitter JID routed to it won't see twitter actions regardless
-of grants.
+1. Extract scope from action (e.g. `post_tweet` → `twitter`)
+2. Check token: `grants["twitter"]` includes `"post"` or `"*"`?
+3. Check token: `grants["*"]` includes `"*"`?
+4. If no match → deny with error message
 
-## Migration path
+## Security
 
-1. Add `platform_grants` table (migration)
-2. Seed existing groups with `["*"]` grants for their current platforms
-3. Enforce at action dispatch in `action-registry.ts`
-4. Expose IPC actions for grant management
+- Agent cannot edit grants DB (not mounted in container)
+- Token is ephemeral (per-session, in start.json)
+- Delegation can only narrow, never widen (gateway intersects)
+- Missing grants table row → no access (fail-closed)
+- Missing grants in start.json → default `{"*": ["*"]}` for
+  backward compat during rollout
 
-## Open
+## Migration
 
-- Wildcard platform (`*`) in grants — allow all platforms?
-- Inherited grants — child inherits parent's grants unless explicitly
-  restricted?
-- Read vs write distinction — some platforms may allow read-only by
-  default, write requires explicit grant
+1. Gateway DB migration: add `grants` table
+2. Seed existing groups with `("*", '["*"]')`
+3. Add `grants` field to `start.json` and container input
+4. Enforce in action-registry (check token)
+5. Add `grants` param to `delegate_group` IPC
+6. Agent-side migration: document grants in action manifest
+
+## Not in scope
+
+- Per-action override in group config (future)
+- Read/write distinction (future — just action names for now)
+- Grant expiry / TTL
