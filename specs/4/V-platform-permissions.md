@@ -68,21 +68,29 @@ validates: does `grants[scope]` include the requested action?
 
 ## Defaults
 
-Default permissions are derived from the routing table: a group
-can send messages to any JID that has a route to it. No grants
-table row needed for the common case.
+Default grants are derived from the routing table + tier:
+
+- **Tier 0 (root)** — `{"*": ["*"]}`. All actions, all scopes.
+- **Tier 1 (world root, e.g. `atlas`)** — all actions on every
+  JID that has a route to the world root OR any subgroup in
+  that world. If `twitter:*` routes to `atlas/social`, then
+  `atlas` gets `twitter: ["*"]` by default.
+- **Tier 2+ (subgroups)** — all actions on JIDs that route
+  directly to this folder only.
+
+No grants table row needed for the common case.
 
 The `grants` table is only for overrides:
 
 - **Restrict** — deny a group access to an action it would
   normally have via routing (e.g. block `atlas` from posting
-  tweets even though `twitter:*` routes to it)
+  tweets even though `twitter:*` routes through its world)
 - **Delegate** — give a child group explicit access to actions
   on a JID that routes to the parent
 
-If no grants row exists for a folder, the routing table applies.
-If a grants row exists, it replaces the routing-derived default
-for that scope.
+If no grants row exists for a folder, the routing-derived
+default applies. If a grants row exists, it replaces the
+routing-derived default for that scope.
 
 ## Authority
 
@@ -112,18 +120,17 @@ In `action-registry.ts` at dispatch time:
 - Agent cannot edit grants DB (not mounted in container)
 - Token is ephemeral (per-session, in start.json)
 - Delegation can only narrow, never widen (gateway intersects)
-- Missing grants table row → no access (fail-closed)
+- Missing grants table row → routing-derived defaults apply
 - Missing grants in start.json → default `{"*": ["*"]}` for
   backward compat during rollout
 
 ## Migration
 
 1. Gateway DB migration: add `grants` table
-2. Seed existing groups with `("*", '["*"]')`
-3. Add `grants` field to `start.json` and container input
-4. Enforce in action-registry (check token)
-5. Add `grants` param to `delegate_group` IPC
-6. Agent-side migration: document grants in action manifest
+2. Add `grants` field to `start.json` (derived from routing + tier)
+3. Enforce in action-registry (check token)
+4. Add `grants` param to `delegate_group` IPC
+5. Agent-side migration: document grants in action manifest
 
 ## Not in scope
 
