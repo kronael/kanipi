@@ -21,6 +21,17 @@ vi.mock('./config.js', async (importOriginal) => {
   };
 });
 
+// Mock grants — tests run as tier 0 (root), grant everything
+vi.mock('./grants.js', async (importOriginal) => {
+  const actual = (await importOriginal()) as object;
+  return {
+    ...actual,
+    deriveRules: () => ['*'],
+    getGrantOverrides: () => null,
+    checkAction: () => true,
+  };
+});
+
 // Must import after mock
 const { drainRequests } = await import('./ipc.js');
 

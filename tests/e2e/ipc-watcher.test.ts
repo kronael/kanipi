@@ -104,6 +104,13 @@ beforeEach(() => {
     permissionTier: (f: string) =>
       f.includes('/') ? Math.min(f.split('/').length, 3) : 0,
   }));
+
+  vi.doMock('../../src/grants.js', () => ({
+    deriveRules: () => ['*'],
+    getGrantOverrides: () => null,
+    checkAction: () => true,
+    matchingRules: (_rules: string[], _action: string) => ['*'],
+  }));
 });
 
 afterEach(() => {

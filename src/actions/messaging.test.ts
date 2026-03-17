@@ -6,14 +6,7 @@ vi.mock('../logger.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn() },
 }));
 
-vi.mock('../db.js', () => ({
-  getRouteTargetsForJid: vi.fn(() => []),
-}));
-
-import { getRouteTargetsForJid } from '../db.js';
 import { sendMessage, sendFile, sendReply } from './messaging.js';
-
-const mockRouteTargets = vi.mocked(getRouteTargetsForJid);
 
 function makeCtx(
   tier: 0 | 1 | 2 | 3,
@@ -46,7 +39,7 @@ function makeCtx(
 describe('send_message', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('tier 0 sends message', async () => {
+  it('sends message', async () => {
     const ctx = makeCtx(0);
     const r = await sendMessage.handler(
       { chatJid: 'chat@jid', text: 'hello' },
@@ -61,45 +54,6 @@ describe('send_message', () => {
     expect(r).toEqual({ sent: true, messageId: 'msg-001' });
   });
 
-  it('tier 2 can send to JID routed to own folder', async () => {
-    mockRouteTargets.mockReturnValue(['myworld/mygroup']);
-    const ctx = makeCtx(2, 'myworld/mygroup');
-    const r = await sendMessage.handler(
-      { chatJid: 'chat@jid', text: 'hi' },
-      ctx,
-    );
-
-    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi', undefined);
-    expect(r).toEqual({ sent: true, messageId: 'msg-001' });
-  });
-
-  it('tier 2 cannot send to sibling in same world', async () => {
-    mockRouteTargets.mockReturnValue(['myworld/sibling']);
-    const ctx = makeCtx(2, 'myworld/mygroup');
-
-    await expect(
-      sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
-    ).rejects.toThrow('unauthorized');
-  });
-
-  it('tier 2 cannot send to unrouted JID', async () => {
-    mockRouteTargets.mockReturnValue([]);
-    const ctx = makeCtx(2, 'mygroup');
-
-    await expect(
-      sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
-    ).rejects.toThrow('unauthorized');
-  });
-
-  it('tier 1 cannot send to JID routed only to other world', async () => {
-    mockRouteTargets.mockReturnValue(['other/group']);
-    const ctx = makeCtx(1, 'atlas');
-
-    await expect(
-      sendMessage.handler({ chatJid: 'chat@jid', text: 'hi' }, ctx),
-    ).rejects.toThrow('unauthorized');
-  });
-
   it('sends with replyTo option', async () => {
     const ctx = makeCtx(0);
     await sendMessage.handler(
@@ -110,18 +64,6 @@ describe('send_message', () => {
     expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'reply', {
       replyTo: 'msg-99',
     });
-  });
-
-  it('tier 1 can send to JID with any route in same world', async () => {
-    mockRouteTargets.mockReturnValue(['atlas/deep/child', 'other']);
-    const ctx = makeCtx(1, 'atlas');
-    const r = await sendMessage.handler(
-      { chatJid: 'chat@jid', text: 'hi' },
-      ctx,
-    );
-
-    expect(ctx.sendMessage).toHaveBeenCalledWith('chat@jid', 'hi', undefined);
-    expect(r).toEqual({ sent: true, messageId: 'msg-001' });
   });
 });
 
@@ -160,7 +102,7 @@ describe('send_reply', () => {
 describe('send_file', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('tier 0 sends file', async () => {
+  it('sends file', async () => {
     const ctx = makeCtx(0);
     const r = await sendFile.handler(
       { chatJid: 'chat@jid', filepath: '/tmp/f.txt', filename: 'f.txt' },
@@ -173,21 +115,5 @@ describe('send_file', () => {
       'f.txt',
     );
     expect(r).toEqual({ sent: true });
-  });
-
-  it('tier 3 (worker) cannot send files', async () => {
-    const ctx = makeCtx(3);
-    await expect(
-      sendFile.handler({ chatJid: 'chat@jid', filepath: '/tmp/f.txt' }, ctx),
-    ).rejects.toThrow('unauthorized: workers cannot send files');
-  });
-
-  it('tier 2 cannot send to JID routed to other world', async () => {
-    mockRouteTargets.mockReturnValue(['other']);
-    const ctx = makeCtx(2, 'mygroup');
-
-    await expect(
-      sendFile.handler({ chatJid: 'chat@jid', filepath: '/tmp/f.txt' }, ctx),
-    ).rejects.toThrow('unauthorized');
   });
 });

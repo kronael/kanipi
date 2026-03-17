@@ -78,6 +78,11 @@ vi.mock('../../src/db.js', () => ({
   updateSessionEnd: vi.fn(),
 }));
 
+vi.mock('../../src/grants.js', () => ({
+  deriveRules: vi.fn(() => ['*']),
+  getGrantOverrides: vi.fn(() => null),
+}));
+
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
   return {

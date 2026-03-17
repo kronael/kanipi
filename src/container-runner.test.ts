@@ -38,6 +38,12 @@ vi.mock('./db.js', () => ({
   updateSessionEnd: vi.fn(),
 }));
 
+// Mock grants (container-runner calls deriveRules/getGrantOverrides)
+vi.mock('./grants.js', () => ({
+  deriveRules: () => ['*'],
+  getGrantOverrides: () => null,
+}));
+
 // Mock logger
 vi.mock('./logger.js', () => ({
   logger: {
@@ -73,6 +79,12 @@ vi.mock('fs', async () => {
 // Mock mount-security
 vi.mock('./mount-security.js', () => ({
   validateAdditionalMounts: vi.fn(() => []),
+}));
+
+// Mock grants (container-runner calls deriveRules + getGrantOverrides)
+vi.mock('./grants.js', () => ({
+  deriveRules: vi.fn(() => ['*']),
+  getGrantOverrides: vi.fn(() => null),
 }));
 
 // Create a controllable fake ChildProcess
