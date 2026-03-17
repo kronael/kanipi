@@ -43,11 +43,11 @@ throws. ID prefixed `out-` to avoid PK collision with inbound.
 
 | Source    | File:line           | What                     |
 | --------- | ------------------- | ------------------------ |
-| agent     | `src/index.ts:444`  | streaming agent output   |
-| agent     | `src/index.ts:610`  | delegate/escalate output |
-| ipc       | `src/index.ts:1264` | IPC sendMessage dep      |
-| ipc       | `src/index.ts:1285` | IPC sendDocument dep     |
-| scheduler | `src/index.ts:1258` | scheduler sendMessage    |
+| agent     | `src/index.ts:450`  | streaming agent output   |
+| agent     | `src/index.ts:615`  | delegate/escalate output |
+| ipc       | `src/index.ts:1276` | IPC sendMessage dep      |
+| ipc       | `src/index.ts:1296` | IPC sendDocument dep     |
+| scheduler | `src/index.ts:1261` | scheduler sendMessage    |
 
 ## Queries
 
