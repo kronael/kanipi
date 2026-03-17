@@ -4,48 +4,113 @@ status: spec
 
 # Onboarding
 
-Message from unrouted JID → notify root → approve → create
-world → welcome message. Minimal: one hook point, one table,
-two commands, one system message.
+Hardcoded gateway flow for unrouted JIDs. No LLM, no
+container, no group until approval. State machine in
+`src/onboarding.ts`, state in `onboarding` table.
 
 ## User journey
 
-1. **User finds the bot** — adds it on telegram, discord,
-   or whatsapp. Sends their first message: "hello"
-2. **No response** — the message has no route. Gateway stores
-   it but drops processing. User waits.
-3. **Gateway notifies root** — operator sees:
-   "New: alice via telegram:-12345"
-4. **Operator approves** — `/approve telegram:-12345 alice`
-   (or `/reject` to suppress forever)
-5. **World created** — folder `alice/`, routes configured,
-   prototype copied if set. Gateway confirms to root:
-   "Approved: alice → alice/"
-6. **User sends another message** — now routes normally.
-   Agent wakes up with a welcome system message explaining
-   this is a new user. Agent introduces itself, shows what
-   it can do, and suggests 3-5 example prompts.
-7. **User is onboarded** — ongoing conversation in their
-   own world. They can create subgroups (@agent), use
-   topics (#topic), and interact with the agent's full
-   capabilities based on their tier.
+1. User finds the bot, sends "hello"
+2. No route exists — gateway runs onboarding flow
+3. Bot replies: "Pick a name for your workspace:"
+4. User types: "alice-studio"
+5. Bot validates, stores, notifies root
+6. Bot replies: "Got it! Waiting for approval."
+7. Operator approves — world created, route added
+8. User sends next message — routes to their world
+9. Agent wakes with welcome system message, runs
+   `/hello` + `/howto`
 
 ## Admin journey
 
-1. **Enable onboarding** — set `ONBOARDING_ENABLED=1` in
-   instance `.env`. Optionally set `ONBOARDING_PROTOTYPE`
-   to clone from a template.
-2. **Monitor incoming** — root agent or dashboard shows
-   pending requests. Admin reviews sender info (name,
-   platform, JID).
-3. **Approve or reject** — `/approve <jid> [folder]` creates
-   the world. `/reject <jid>` suppresses. Both notify root.
-4. **Customize (optional)** — after approval, admin can:
-   - `/grant alice !post !react` to restrict permissions
-   - Edit `groups/alice/CLAUDE.md` for custom behavior
-   - Add routes for specific channels
-5. **Dashboard view** — pending approvals in dash-status,
-   new group in dash-groups tree immediately after approval.
+1. Enable: `ONBOARDING_ENABLED=1` in `.env`
+2. Root gets notification: "alice wants 'alice-studio'
+   — `/approve telegram:-12345`"
+3. `/approve telegram:-12345` — creates world, routes JID
+4. `/reject telegram:-12345` — suppresses forever
+5. Dashboard shows pending requests in status page
+
+## How it works
+
+No group, no folder, no container spawn. The gateway's
+existing `!group` branch (index.ts:301) is the only hook:
+
+```typescript
+if (!group) {
+  if (onboardingEnabled) {
+    await handleOnboarding(chatJid, messages, channel);
+    return true;
+  }
+  return true;
+}
+```
+
+`handleOnboarding` is a state machine driven by the
+onboarding table. Pure gateway code — `channel.sendMessage()`
+responses, no LLM.
+
+## State machine
+
+```
+message arrives, no route exists
+  → look up jid in onboarding table
+
+  no entry:
+    → insert (status: awaiting_name)
+    → send "Pick a name for your workspace (lowercase, no spaces):"
+
+  awaiting_name:
+    → validate input (a-z0-9-, not taken, not reserved)
+    → invalid: send "Try again — lowercase letters, numbers, hyphens only"
+    → valid: set status=pending, store world_name
+    → notify() root: "alice wants 'alice-studio' — /approve telegram:-12345"
+    → send "Got it! Waiting for approval."
+
+  pending:
+    → send "Still waiting for approval."
+
+  rejected:
+    → silence (or "This request was declined.")
+
+  approved:
+    → unreachable (route exists, !group branch never hit)
+```
+
+## State table
+
+```sql
+CREATE TABLE onboarding (
+  jid        TEXT PRIMARY KEY,
+  status     TEXT NOT NULL,  -- awaiting_name | pending | approved | rejected
+  sender     TEXT,
+  channel    TEXT,
+  world_name TEXT,
+  created    TEXT NOT NULL
+);
+```
+
+## Commands
+
+Registered in `src/commands/` like `/status`:
+
+### /approve <jid>
+
+- Root-only (`permissionTier === 0`)
+- Reads `world_name` from onboarding table
+- Creates world folder: `groups/<world_name>/`
+- Copies prototype if `ONBOARDING_PROTOTYPE` set
+- Inserts group in DB (tier 1)
+- Adds routes: default (seq 0), @ (seq -2), # (seq -1)
+- Grants: tier 1 defaults (V-action-grants)
+- Enqueues welcome system message
+- Sets onboarding status to `approved`
+- `notify()`: "Approved: alice → alice-studio/"
+
+### /reject <jid>
+
+- Root-only
+- Sets status to `rejected`
+- `notify()`: "Rejected: <jid>"
 
 ## Config
 
@@ -54,64 +119,14 @@ ONBOARDING_ENABLED=0              # off by default
 ONBOARDING_PROTOTYPE=             # optional: clone from prototype/
 ```
 
-## Gateway intercept
-
-One change in `processGroupMessages` (index.ts:301):
-
-```typescript
-if (!group && onboardingEnabled) {
-  enqueueOnboarding(chatJid, lastMessage);
-  return true;
-}
-```
-
-## Commands
-
-Registered in `src/commands/` like `/status`:
-
-### /approve <jid> [folder]
-
-- Root-only (`permissionTier === 0`)
-- Creates world: `groups/<folder>/` (folder derived from
-  sender name or JID if not specified)
-- Copies prototype if `ONBOARDING_PROTOTYPE` set
-- Inserts group in DB (tier 1)
-- Adds routes: default (seq 0), @ (seq -2), # (seq -1)
-- Enqueues welcome system message for the new group
-- Grants: tier 1 defaults from V-action-grants
-- `notify()`: "Approved: <sender> → <folder>/"
-
-### /reject <jid>
-
-- Root-only
-- Sets status to `rejected` in onboarding table
-- No further notifications for this JID
-- `notify()`: "Rejected: <jid>"
-
-## State
-
-```sql
-CREATE TABLE onboarding (
-  jid     TEXT PRIMARY KEY,
-  status  TEXT NOT NULL,  -- pending | approved | rejected
-  sender  TEXT,
-  channel TEXT,
-  created TEXT NOT NULL
-);
-```
-
-Dedup: same JID notifies once. Pending JIDs silently dropped.
-Rejected JIDs stay rejected until operator clears manually.
-
 ## Welcome system message
 
-On approve, gateway enqueues a system message for the new
-group (same mechanism as new-session, new-day):
+On approve, gateway enqueues for the new group:
 
 ```xml
 <system origin="gateway" event="onboarding">
   <user id="tg-12345" jid="telegram:-12345" />
-  <group folder="alice" tier="1" />
+  <group folder="alice-studio" tier="1" />
   <instructions>
     This is a new user's first interaction.
     1. Run /hello to welcome the user.
@@ -120,18 +135,9 @@ group (same mechanism as new-session, new-day):
 </system>
 ```
 
-The agent processes this alongside the user's first message.
-`/hello` sends the welcome (skill already exists).
-`/howto` generates a web page showing the user what they can
-do and how to interact — delivered as a link. Products
-customize both skills via their CLAUDE.md/SOUL.md.
-
 ## Dashboard
 
-### Pending approvals in dash-status
-
-The status dashboard (P-dash-status) shows pending onboarding
-requests as a section:
+Status page (P-dash-status) shows pending requests:
 
 ```
 Pending onboarding (2)
@@ -139,64 +145,34 @@ Pending onboarding (2)
   discord:98765    bob        15m ago  /approve discord:98765
 ```
 
-API endpoint: `GET /dash/api/onboarding` returns pending list.
-
-### New group in dash-groups
-
-After approval, the new group appears in the groups tree
-(U-dash-groups) immediately. No dashboard-specific code —
-it reads from the groups table which `/approve` already
-populates.
+API: `GET /dash/api/onboarding`
 
 ## Permissions
 
-### Who can approve/reject
+New world gets tier 1 defaults:
 
-Root-only (tier 0). Commands check `permissionTier === 0`
-in their handler, same as other control commands.
+- Routes: default + predefined @ and # (S-topic-routing)
+- Grants: tier 1 from V-action-grants
+- Folder: world-level, can create children
+- Container config: from prototype or default
 
-### What the new group gets
-
-On approval, the new world gets tier 1 defaults:
-
-- **Routes**: default + predefined @ and # (S-topic-routing)
-- **Grants**: tier 1 defaults from V-action-grants (platform
-  access for all routed platforms, messaging, social actions)
-- **Folder**: world-level (`alice/`), can create children
-- **Container config**: inherited from prototype or default
-
-The operator can customize grants after creation via
-`/grant` command or dashboard.
-
-### Restricting new groups
-
-To give new groups fewer permissions (e.g., tier 2 behavior
-on a tier 1 folder), add grant overrides:
-
-```
-/grant alice !post !react !set_profile
-```
-
-Or change the prototype's default grants.
+Operator can restrict after creation: `/grant alice-studio !post`
 
 ## Module: `src/onboarding.ts`
 
-Small, self-contained:
-
 ```typescript
-export function enqueueOnboarding(jid: string, msg: InboundEvent): void;
-export function approveOnboarding(jid: string, folder?: string): string;
+export async function handleOnboarding(
+  chatJid: string,
+  messages: InboundEvent[],
+  channel: Channel,
+): Promise<void>;
+export function approveOnboarding(jid: string): string;
 export function rejectOnboarding(jid: string): void;
 export function getPendingOnboarding(): OnboardingEntry[];
 ```
 
-Uses `notify()` from `src/commands/notify.ts` for root
-notifications. Uses `registerGroup()` for world creation.
-
 ## Not in scope
 
 - Auto-approve (allowlist, rate limit)
-- Invite link generation
-- Multi-step approval
-- Per-channel onboarding customization
-- Onboarding for existing worlds (adding JIDs to existing groups)
+- Multi-step onboarding (language, purpose, etc.)
+- Onboarding for adding JIDs to existing worlds
