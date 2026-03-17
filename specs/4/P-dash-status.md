@@ -1,202 +1,165 @@
 ---
-status: shipped
+status: spec
 ---
 
 # Dashboard: Status & Health
 
-First concrete dashboard. Read-only operator view of gateway
-health, active containers, message queues, and recent activity.
-HTMX-based with fragment endpoints for partial updates.
+Operator view of gateway health, channels, containers, queues,
+and recent errors. Primary diagnostic tool -- the first place an
+operator looks when something seems wrong.
 
-## Screen
+## Criticism of Current Design
 
-Monospace font, max-width 900px, centered. Back link
-(`<- Dashboards`) to portal. H1: "Status & Health". Timestamp
-showing last update time.
+The shipped v1 is a flat list of tables. Problems:
 
-Sections in order, each an H2 with count in parens followed by
-a table:
+1. **No errors visible** -- failures are a number in the queue table.
+   No error messages, no stack traces, no timestamps. An operator
+   sees "failures: 2" but can't tell what happened.
+2. **Tasks not explorable** -- task rows show ID/schedule/status but
+   not run history, last result, or failure details.
+3. **No historical data** -- everything is current-moment snapshot.
+   No way to see if failures happened an hour ago or are ongoing.
+4. **Monolithic refresh** -- all sections rebuild on every 10s poll.
+   Wasteful when only queue state changes frequently.
+5. **No drill-down** -- groups are listed but you can't click one
+   to see its containers, queue, tasks. Everything is flat.
+6. **Container names are opaque** -- shows docker names but not
+   which group/JID they serve or how long they've been running.
+7. **Version info missing** -- no gateway version, no agent image tag.
 
-1. **Gateway** -- uptime (Xh Ym format), memory (MB), max concurrent
-2. **Channels** -- connected channel names
-3. **Groups** -- name, folder, active indicator (green=active)
-4. **Containers** -- name, status, created time
-5. **Queue** -- per-JID: active, idle, pending msgs, pending tasks,
-   failures (red if >0)
-6. **Tasks** -- ID, group, schedule, status
-7. **Summary** -- chat count + timestamp
+## Redesigned Screen
 
-Tables: border-collapse, 1px solid #ccc borders, #f0f0f0 header
-background. Color classes: `.ok` (green) for active states,
-`.err` (red) for failures >0.
+Monospace font, max-width 900px, centered. Back link to portal.
+H1: "Status & Health". Sections in order:
 
-## What it shows
+### 1. Health Banner
 
-| Section    | Data source                               |
-| ---------- | ----------------------------------------- |
-| Gateway    | `process.uptime()`, `process.memoryUsage` |
-| Channels   | `channels[]` -- name                      |
-| Groups     | DB groups -- name, folder, active status  |
-| Containers | `docker ps` filtered by CONTAINER_IMAGE   |
-| Queue      | `GroupQueue.getStatus()` per-JID state    |
-| Tasks      | DB tasks -- id, group, schedule, status   |
-| Summary    | `getAllChats().length`                    |
+Single row at top. Green/yellow/red background.
+
+- Green: all channels connected, no failures, queue draining
+- Yellow: >0 failures in queue, or container count at max
+- Red: channel disconnected, or circuit breaker tripped
+
+Shows: version, uptime, memory. One line.
+
+```
+v1.5.0 | up 2h 15m | 128 MB | 3 channels | 2/3 containers
+```
+
+### 2. Channels
+
+Table: name, status (connected/disconnected), message count (24h).
+Disconnected channels highlighted red.
+
+### 3. Groups
+
+Table: name, folder, tier, active (dot), container status, queue depth.
+Clickable rows -- expand inline to show group detail (routes,
+recent tasks, queue entries for that group).
+
+### 4. Containers
+
+Table: name, group, status, uptime, idle (yes/no).
+Container names decoded to show group folder.
+
+### 5. Queue
+
+Table: JID, group folder, active, idle, pending msgs, pending tasks,
+failures, circuit breaker state. Failures column red when >0.
+Circuit breaker column shows "tripped" in red when applicable.
+
+### 6. Recent Errors
+
+New section. Shows last 20 errors from task_run_logs (status=error)
+and queue failures. Each row: timestamp, group, source (task/queue),
+error message (truncated). Expandable rows show full error text.
+
+Auto-refresh every 5s (errors are the most time-sensitive section).
+
+### 7. Summary
+
+Chat count, task count, route count. Timestamp of last update.
+
+## Health Function
+
+```typescript
+health(ctx): { status, summary }
+// ok: 0 failures, all channels connected
+// warn: >0 failures or container count == max
+// error: channel disconnected or circuit breaker tripped
+```
+
+Summary format: `"3 channels, 2 containers, 0 errors"` or
+`"1 channel down, 3 errors"`.
 
 ## Stories
 
-1. Operator opens `/dash/status/` -> sees status shell, HTMX loads
-   all section fragments
-2. Gateway section shows uptime, memory, max concurrent containers
-3. Channels section shows connected channel names
-4. Groups section shows all groups with name, folder, active status
-   (green=active)
-5. Containers section shows running containers with name, status,
-   created time
-6. Queue section shows per-JID queue state: active, idle, pending
-   messages/tasks, failures (red if >0)
-7. Tasks section shows scheduled tasks with ID, group, schedule, status
-8. Chat count shown at bottom
-9. Sections auto-refresh every 10s via HTMX polling
+1. Operator opens `/dash/status/` -> sees health banner (green), all sections
+2. Channel goes down -> banner turns red, channel row highlighted
+3. Task fails -> error appears in Recent Errors section within 5s
+4. Operator clicks a group row -> expands to show routes, tasks, queue for that group
+5. Queue failure count > 0 -> failures cell turns red
+6. Circuit breaker trips -> queue row shows "tripped" in red
+7. All containers at max -> banner turns yellow
+8. Operator checks version -> visible in health banner
+9. Error row clicked -> expands to show full error message
 10. Operator navigates back to portal via back link
+
+## HTMX Fragments
+
+```
+GET /dash/status/x/banner      -> health banner (5s refresh)
+GET /dash/status/x/channels    -> channels table (30s refresh)
+GET /dash/status/x/groups      -> groups table (10s refresh)
+GET /dash/status/x/containers  -> containers table (10s refresh)
+GET /dash/status/x/queue       -> queue table (5s refresh)
+GET /dash/status/x/errors      -> recent errors (5s refresh)
+GET /dash/status/x/summary     -> summary line (30s refresh)
+GET /dash/status/x/group-detail?folder=<f>  -> expanded group detail
+```
 
 ## API
 
 ```
-GET /dash/status/              -> shell HTML (HTMX fragments load sections)
-GET /dash/status/x/gateway     -> uptime, memory, max concurrent table
-GET /dash/status/x/channels    -> channel list table
-GET /dash/status/x/groups      -> groups table with active indicators
-GET /dash/status/x/containers  -> running containers table
-GET /dash/status/x/queue       -> queue state table
-GET /dash/status/x/tasks       -> scheduled tasks table
-GET /dash/status/x/summary     -> chat count + timestamp
-GET /dash/status/api/state     -> JSON snapshot (programmatic use)
-```
-
-### Shell HTML
-
-The shell loads HTMX from CDN and contains `div` elements with
-`hx-get` and `hx-trigger="every 10s"` for each section:
-
-```html
-<script src="https://unpkg.com/htmx.org"></script>
-<h2>Gateway</h2>
-<div hx-get="/dash/status/x/gateway" hx-trigger="load, every 10s">
-  Loading...
-</div>
-<h2>Channels</h2>
-<div hx-get="/dash/status/x/channels" hx-trigger="load, every 10s">
-  Loading...
-</div>
-...
-```
-
-### Fragment responses
-
-Each `/x/<fragment>` endpoint returns a bare HTML partial (table
-rows, paragraph) with no document wrapper. Example:
-
-```html
-<!-- GET /dash/status/x/gateway -->
-<table>
-  <tr>
-    <th>Uptime</th>
-    <td>2h 15m</td>
-  </tr>
-  <tr>
-    <th>Memory</th>
-    <td>128 MB</td>
-  </tr>
-  <tr>
-    <th>Max concurrent</th>
-    <td>3</td>
-  </tr>
-</table>
+GET /dash/status/api/state     -> full JSON snapshot
+GET /dash/status/api/errors    -> recent errors JSON
 ```
 
 ### `GET /api/state`
 
+Same as current but adds: `version`, `errors[]`, per-group
+`tier` and `circuit_breaker` fields, channel `connected` boolean.
+
+### `GET /api/errors`
+
 ```json
-{
-  "uptime_s": 86400,
-  "memory_mb": 128,
-  "max_concurrent": 3,
-  "channels": [{ "name": "telegram" }, { "name": "whatsapp" }],
-  "groups": [{ "name": "root", "folder": "root", "active": true }],
-  "containers": [
-    {
-      "name": "nanoclaw-root-abc",
-      "status": "running",
-      "created": "2026-03-16 10:00:00"
-    }
-  ],
-  "queue": [
-    {
-      "jid": "root",
-      "active": true,
-      "idleWaiting": false,
-      "pendingMessages": 0,
-      "pendingTasks": 0,
-      "failures": 0
-    }
-  ],
-  "tasks": [
-    {
-      "id": 1,
-      "group_folder": "root",
-      "schedule": "0 9 * * *",
-      "status": "active"
-    }
-  ],
-  "chats": 42
-}
+[
+  {
+    "timestamp": "2026-03-17T10:34:00Z",
+    "group": "root",
+    "source": "task",
+    "task_id": "daily-digest",
+    "error": "Container timeout with no output",
+    "duration_ms": 300000
+  }
+]
 ```
 
-## Implementation
+## DashboardContext Dependencies
 
-### Handler routing
+- `GroupQueue.getStatus()` -- queue state per JID
+- `getAllGroupConfigs()` -- group list with tiers
+- `getAllTasks()` -- task list
+- `getAllChats()` -- chat count
+- `docker ps` -- container list (cached 5s)
+- `task_run_logs` table -- recent errors (new query needed)
+- `process.uptime()`, `process.memoryUsage()` -- gateway stats
+- Channel connected state (new: channels need a `connected` accessor)
+- Package version from `package.json`
 
-```typescript
-function statusHandler(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  path: string,
-  ctx: DashboardContext,
-): void {
-  if (path === '/api/state') {
-    serveJson(res, ctx);
-    return;
-  }
-  if (path.startsWith('/x/')) {
-    serveFragment(res, path.slice(3), ctx);
-    return;
-  }
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(SHELL_HTML);
-}
-```
+## Not in Scope
 
-### Container list
-
-`docker ps --filter ancestor=<image> --format`, cached 5s.
-Uses existing `CONTAINER_IMAGE` config.
-
-### State builder
-
-`buildState(ctx)` collects all sections into a single object.
-Fragment endpoints call `buildState` and render only their section
-to HTML. The `/api/state` endpoint returns the full object as JSON.
-
-## Dependencies
-
-- Dashboard portal system (4/4-dashboards.md)
-- Auth middleware (existing)
-- GroupQueue state accessor (`getStatus()`)
-- Docker ps parsing (inline in dashboards/index.ts)
-
-## Not in scope
-
-- Mutations (kill, restart, clear)
-- Historical metrics or graphs
-- Per-message inspection
-- SSE streaming (HTMX polling is sufficient)
+- Mutations (kill container, restart channel, clear queue)
+- Historical metrics or time-series graphs
+- Per-message inspection (see activity dashboard)
+- SSE streaming
