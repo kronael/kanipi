@@ -1,0 +1,4 @@
+CREATE TABLE grants (
+  folder TEXT NOT NULL PRIMARY KEY,
+  rules  TEXT NOT NULL
+);
