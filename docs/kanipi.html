@@ -284,7 +284,30 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
         groups (<code>delegate_group</code>, <code>set_routing_rules</code>, <code>add_route</code>,
         <code>delete_route</code>), session (<code>reset_session</code>).
         Plus 22 social actions (see Channels). Each action is a single source of truth for IPC dispatch,
-        MCP tools, and commands. Authorization enforced per action and per tier.
+        MCP tools, and commands. Authorization enforced via the grants system.
+      </p>
+
+      <h3>Action grants</h3>
+      <p>
+        Tier-based permission system for agent actions. Replaces the old <code>assertAuthorized</code> /
+        <code>maxTier</code> checks with a single grants enforcement point. Rules use glob syntax
+        with optional parameter matching:
+      </p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Rule syntax</th><th>Meaning</th></tr>
+          <tr><td><code>*</code></td><td>allow all actions (tier 0 gets this)</td></tr>
+          <tr><td><code>send_reply</code></td><td>allow a specific action</td></tr>
+          <tr><td><code>post(jid=twitter:*)</code></td><td>allow with param glob match</td></tr>
+          <tr><td><code>!send_message</code></td><td>deny (overrides earlier allows)</td></tr>
+        </table>
+      </div>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Rules derived from tier: tier 0 = <code>*</code>, tier 1 = social + messaging + admin on world platforms,
+        tier 2 = social + messaging on own platforms, tier 3 = <code>send_reply</code> only.
+        Platform scoping uses route table lookups. DB-backed overrides per folder (<code>grants</code> table).
+        Parent rules narrow child grants via <code>narrowRules</code> (concatenation &mdash; last match wins).
+        Delegation injects parent grants into <code>start.json</code> for child enforcement.
       </p>
 
       <h3>4-tier permissions</h3>
@@ -324,6 +347,14 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
         on first spawn. <code>SOUL.md</code> defines agent personality per group. <code>CLAUDE.md</code> defines
         behavior and instructions. Migration system: <code>MIGRATION_VERSION</code> + numbered files in
         <code>container/skills/self/migrations/</code>; <code>/migrate</code> skill syncs groups when version advances.
+      </p>
+
+      <h3>SYSTEM.md</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Per-group custom system prompt. When <code>SYSTEM.md</code> exists in the group folder, its content
+        replaces the default Claude Code system prompt entirely. For user-facing bots where developer-style
+        output (tool calls, code blocks, agent reasoning) is unwanted. <code>SOUL.md</code> is auto-appended
+        when present. When absent, the agent gets the full Claude Code system prompt (default behavior).
       </p>
 
       <h3>Hot-patching and DinD</h3>
@@ -576,10 +607,12 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
 
       <h3>Status dashboard</h3>
       <p>
-        Built-in at <code>/dash/status/</code>. Shows gateway uptime, memory usage, connected channels,
-        registered groups (with active/idle state), running containers (cached 5s via <code>docker ps</code>),
-        queue state per group (pending messages, pending tasks, failure count), and scheduled tasks.
-        JSON API at <code>/dash/status/api/state</code>. HTML auto-refreshes every 10s.
+        Built-in at <code>/dash/status/</code>. HTMX-driven with fragment endpoints at <code>/dash/status/x/{section}</code>
+        (gateway, channels, groups, containers, queue, tasks, summary). Each section auto-refreshes every 10s.
+        Shows gateway uptime, memory usage, connected channels, registered groups (with active/idle state),
+        running containers (cached 5s via <code>docker ps</code>), queue state per group (pending messages,
+        pending tasks, failure count), and scheduled tasks.
+        JSON API at <code>/dash/status/api/state</code>. 22 Playwright e2e tests cover the dashboard.
       </p>
     </section>
 
@@ -759,12 +792,12 @@ sudo systemctl enable --now kanipi_foo</pre>
       <div class="table-wrap">
         <table>
           <tr><th>Metric</th><th>Value</th></tr>
-          <tr><td>Source files</td><td><span class="metric">65 TypeScript</span></td></tr>
-          <tr><td>Source LOC</td><td><span class="metric">13,980</span></td></tr>
-          <tr><td>Test files</td><td>43 files &middot; 13,170 LOC</td></tr>
-          <tr><td>Test:code ratio</td><td>0.94:1</td></tr>
-          <tr><td>Spec files</td><td>97 specification documents</td></tr>
-          <tr><td>Tests</td><td><span class="metric">798</span></td></tr>
+          <tr><td>Source files</td><td><span class="metric">69 TypeScript</span></td></tr>
+          <tr><td>Source LOC</td><td><span class="metric">15,389</span></td></tr>
+          <tr><td>Test files</td><td>58 files &middot; 17,419 LOC</td></tr>
+          <tr><td>Test:code ratio</td><td>1.13:1</td></tr>
+          <tr><td>Spec files</td><td>102 specification documents</td></tr>
+          <tr><td>Tests</td><td><span class="metric">926</span></td></tr>
           <tr><td>Chat channels</td><td>Telegram, WhatsApp, Discord, Email, Web (Slink)</td></tr>
           <tr><td>Social channels</td><td>Twitter/X, Reddit, Mastodon, Bluesky, Facebook</td></tr>
           <tr><td>Social actions</td><td>22 (post, reply, react, repost, follow, ban, pin...)</td></tr>
@@ -773,7 +806,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
           <tr><td>Deploy</td><td>systemd per instance, <code>kanipi create</code> CLI</td></tr>
           <tr><td>Base</td><td>NanoClaw fork (upstream v1.1.3)</td></tr>
-          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.8.0)</span></td></tr>
+          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.9.0)</span></td></tr>
         </table>
       </div>
     </section>
