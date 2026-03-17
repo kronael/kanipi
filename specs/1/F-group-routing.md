@@ -112,7 +112,8 @@ depth: `atlas` = 1, `atlas/support` = 2, `atlas/support/web` = 3
 
 Tier 0 can modify any routes. Tier 1 can modify routes
 targeting folders in its own subtree. Tier 2+ cannot
-modify routes.
+modify routes (unless overridden by grants — see
+`specs/3/V-action-grants.md`).
 
 ### Delegation (agent-level)
 

@@ -70,7 +70,9 @@ all user-defined routes (which start at seq 0).
 | 3    | not created  | not created  | leaf — add via IPC/CLI         |
 
 Tier 3 can opt in by adding route entries explicitly via
-`add_route` IPC action or CLI.
+CLI or `add_route` IPC action (requires a grant override
+since tier 2+ cannot modify routes by default — see
+`specs/3/V-action-grants.md`).
 
 ## Evaluation order
 
@@ -370,6 +372,15 @@ Template routing (`{sender}`) creates child groups per user.
 - Both use `delegateToChild` for dispatch
 - A group can have both: `{sender}` as default, `@agent`
   for explicit routing to named children
+
+## Interaction with chat-bound sessions (L-chat-bound-sessions)
+
+One container per folder, serial. Since `#topic` routes to
+the same folder with different sessions, multiple topics for
+the same group are serialized — you cannot run `#deploy` and
+`#staging` simultaneously. The container queue key is the
+folder, not the topic. This is acceptable for v1 since topics
+are lightweight session switches, not parallel workloads.
 
 ## Not in scope
 
