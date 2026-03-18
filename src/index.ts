@@ -68,6 +68,7 @@ import {
   getJidsForFolder,
   getMessagesSince,
   getRoutedJids,
+  getUnroutedChatJids,
   getNewMessages,
   getRecentSessions,
   getRouterState,
@@ -901,6 +902,9 @@ async function startMessageLoop(): Promise<void> {
       refreshGroups();
 
       const jids = getRoutedJids();
+      if (ONBOARDING_ENABLED) {
+        jids.push(...getUnroutedChatJids(lastTimestamp));
+      }
       const { messages, newTimestamp } = getNewMessages(
         jids,
         lastTimestamp,

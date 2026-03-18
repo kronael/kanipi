@@ -807,6 +807,17 @@ export function getRoutedJids(): string[] {
   return rows.map((r) => r.jid);
 }
 
+export function getUnroutedChatJids(since: string): string[] {
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT chat_jid FROM messages
+       WHERE timestamp > ? AND is_bot_message = 0
+         AND chat_jid NOT IN (SELECT DISTINCT jid FROM routes)`,
+    )
+    .all(since) as { chat_jid: string }[];
+  return rows.map((r) => r.chat_jid);
+}
+
 export function setRoutesForJid(
   jid: string,
   routes: (Omit<Route, 'id' | 'jid' | 'command'> & {

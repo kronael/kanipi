@@ -40,6 +40,7 @@ import {
   getRecentSessions,
   getRouteById,
   getRoutedJids,
+  getUnroutedChatJids,
   getRouteTargetsForJid,
   getRoutesForJid,
   getRouterState,
@@ -1356,5 +1357,70 @@ describe('storeMessage with forwarding/reply fields', () => {
     expect(m!.reply_to_text).toBe('original text');
     expect(m!.reply_to_sender).toBe('Bob');
     expect(m!.reply_to_id).toBe('msg-orig');
+  });
+});
+
+// --- getUnroutedChatJids ---
+
+describe('getUnroutedChatJids', () => {
+  it('returns JID with messages and no routes', () => {
+    storeChatMetadata('new@g.us', '2024-05-01T00:00:00.000Z');
+    storeMessage({
+      id: 'u1',
+      chat_jid: 'new@g.us',
+      sender: 'u@s',
+      content: 'hello',
+      timestamp: '2024-05-01T00:01:00.000Z',
+    });
+    const jids = getUnroutedChatJids('2024-01-01T00:00:00.000Z');
+    expect(jids).toContain('new@g.us');
+  });
+
+  it('excludes JID that has a route', () => {
+    storeChatMetadata('routed@g.us', '2024-05-01T00:00:00.000Z');
+    storeMessage({
+      id: 'r1',
+      chat_jid: 'routed@g.us',
+      sender: 'u@s',
+      content: 'hello',
+      timestamp: '2024-05-01T00:01:00.000Z',
+    });
+    setRoutesForJid('routed@g.us', [
+      { seq: 0, type: 'default', match: null, target: 'somegroup' },
+    ]);
+    const jids = getUnroutedChatJids('2024-01-01T00:00:00.000Z');
+    expect(jids).not.toContain('routed@g.us');
+  });
+
+  it('excludes messages older than since', () => {
+    storeChatMetadata('old@g.us', '2024-05-01T00:00:00.000Z');
+    storeMessage({
+      id: 'o1',
+      chat_jid: 'old@g.us',
+      sender: 'u@s',
+      content: 'stale',
+      timestamp: '2024-01-01T00:00:00.000Z',
+    });
+    const jids = getUnroutedChatJids('2024-06-01T00:00:00.000Z');
+    expect(jids).not.toContain('old@g.us');
+  });
+
+  it('excludes bot messages', () => {
+    storeChatMetadata('bot@g.us', '2024-05-01T00:00:00.000Z');
+    storeMessage({
+      id: 'b1',
+      chat_jid: 'bot@g.us',
+      sender: 'u@s',
+      content: 'bot reply',
+      timestamp: '2024-05-01T00:01:00.000Z',
+      is_bot_message: true,
+    });
+    const jids = getUnroutedChatJids('2024-01-01T00:00:00.000Z');
+    expect(jids).not.toContain('bot@g.us');
+  });
+
+  it('returns empty when no unrouted messages exist', () => {
+    const jids = getUnroutedChatJids('2024-01-01T00:00:00.000Z');
+    expect(jids).toHaveLength(0);
   });
 });

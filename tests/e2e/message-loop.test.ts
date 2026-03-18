@@ -151,6 +151,9 @@ import {
   getHubForJid,
   getGroupByFolder,
   getMessagesSince,
+  getNewMessages,
+  getRoutedJids,
+  getUnroutedChatJids,
   setRoutesForJid,
   storeMessage,
   storeChatMetadata,
@@ -722,5 +725,65 @@ describe('flat routing — delegation failure rollback', () => {
     await Promise.resolve();
     // Cursor advances - message dropped, not retried
     expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
+  });
+});
+
+// ── Onboarding — unrouted JID fetch path ─────────────────────────────────────
+//
+// Regression: getNewMessages(getRoutedJids(), ...) silently excluded unrouted
+// JIDs — new users never got their messages fetched, so handleOnboarding was
+// never called. Fix: append getUnroutedChatJids(since) to the jids list.
+//
+// These tests verify the full fetch path for unrouted JIDs using real DB calls.
+
+describe('onboarding — unrouted JID message fetching', () => {
+  const SINCE = '2024-06-01T00:00:00.000Z';
+  const NEW_USER_JID = 'newuser@s.whatsapp.net';
+  const MSG_TS = '2024-06-01T00:01:00.000Z';
+
+  beforeEach(() => {
+    storeChatMetadata(NEW_USER_JID, SINCE, 'New User', 'whatsapp', false);
+    storeMessage({
+      id: 'new-u-msg-1',
+      chat_jid: NEW_USER_JID,
+      sender: NEW_USER_JID,
+      sender_name: 'New User',
+      content: 'hello',
+      timestamp: MSG_TS,
+    });
+  });
+
+  it('getRoutedJids does NOT include unrouted JID', () => {
+    const jids = getRoutedJids();
+    expect(jids).not.toContain(NEW_USER_JID);
+  });
+
+  it('getUnroutedChatJids returns unrouted JID with recent message', () => {
+    const jids = getUnroutedChatJids(SINCE);
+    expect(jids).toContain(NEW_USER_JID);
+  });
+
+  it('getNewMessages with unrouted JID included fetches the message', () => {
+    const jids = [...getRoutedJids(), ...getUnroutedChatJids(SINCE)];
+    const { messages } = getNewMessages(jids, SINCE, 'Andy');
+    const found = messages.find((m) => m.chat_jid === NEW_USER_JID);
+    expect(found).toBeDefined();
+    expect(found!.content).toBe('hello');
+  });
+
+  it('getNewMessages WITHOUT unrouted JID does NOT fetch the message', () => {
+    // Regression: before the fix, only getRoutedJids() was passed → new user messages lost
+    const jids = getRoutedJids();
+    const { messages } = getNewMessages(jids, SINCE, 'Andy');
+    const found = messages.find((m) => m.chat_jid === NEW_USER_JID);
+    expect(found).toBeUndefined();
+  });
+
+  it('excludes unrouted JID after a route is added for it', () => {
+    setRoutesForJid(NEW_USER_JID, [
+      { seq: 0, type: 'default', match: null, target: 'someworld' },
+    ]);
+    const jids = getUnroutedChatJids(SINCE);
+    expect(jids).not.toContain(NEW_USER_JID);
   });
 });
