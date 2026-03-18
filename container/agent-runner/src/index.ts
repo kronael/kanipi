@@ -343,7 +343,6 @@ async function runQuery(
         additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
         resume: sessionId,
         resumeSessionAt: resumeAt,
-        ...(containerInput.channelName && { outputStyle: containerInput.channelName }),
         systemPrompt: (() => {
           const systemMdPath = '/home/node/SYSTEM.md';
           const soulMdPath = '/home/node/SOUL.md';
