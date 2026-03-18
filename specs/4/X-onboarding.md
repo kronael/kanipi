@@ -29,7 +29,6 @@ container, no group until approval. State machine in
    — `/approve telegram:-12345`"
 3. `/approve telegram:-12345` — creates world, routes JID
 4. `/reject telegram:-12345` — suppresses forever
-5. Dashboard shows pending requests in status page
 
 Root is LLM-driven — the root agent sees the notification
 and can act on it. Configure via root's CLAUDE.md:
@@ -151,18 +150,6 @@ On approve, gateway enqueues for the new group:
   </instructions>
 </system>
 ```
-
-## Dashboard
-
-Status page (P-dash-status) shows pending requests:
-
-```
-Pending onboarding (2)
-  telegram:-12345  alice      2m ago   /approve telegram:-12345
-  discord:98765    bob        15m ago  /approve discord:98765
-```
-
-API: `GET /dash/api/onboarding`
 
 ## Permissions
 
