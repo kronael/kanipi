@@ -1151,7 +1151,7 @@ function initCommands(): void {
   registerCommand(approveCommand);
   registerCommand(rejectCommand);
   setStopDeps({ closeStdin: (jid) => queue.closeStdin(jid) });
-  setApproveDeps({ registerGroup });
+  setApproveDeps({ registerGroup, getGroup: (folder) => groups[folder] });
 }
 
 async function main(): Promise<void> {

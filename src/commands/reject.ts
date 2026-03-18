@@ -15,8 +15,8 @@ const rejectCommand: CommandHandler = {
   async handle(ctx) {
     const { group, groupJid, channel, args } = ctx;
 
-    if (permissionTier(group.folder) !== 0) {
-      await channel.sendMessage(groupJid, 'reject: root-only command');
+    if (permissionTier(group.folder) > 1) {
+      await channel.sendMessage(groupJid, 'reject: world admin or root only');
       return;
     }
 

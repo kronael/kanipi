@@ -63,7 +63,11 @@ vi.mock('../group-folder.js', async () => {
 });
 
 vi.mock('../config.js', () => ({
-  permissionTier: (folder: string) => (folder === 'root' ? 0 : 1),
+  permissionTier: (folder: string) => {
+    if (folder === 'root') return 0;
+    if (!folder.includes('/')) return 1;
+    return 2;
+  },
   GROUPS_DIR: '/tmp/groups',
 }));
 
@@ -115,7 +119,7 @@ function defaultExistsSync(p: string): boolean {
 
 beforeEach(() => {
   _initTestDatabase();
-  setApproveDeps({ registerGroup: vi.fn() });
+  setApproveDeps({ registerGroup: vi.fn(), getGroup: vi.fn(() => undefined) });
   // Reset fs.existsSync to default behaviour before each test
   vi.mocked(fs.existsSync).mockImplementation((p) => {
     const s = String(p);
@@ -127,10 +131,10 @@ beforeEach(() => {
 // ── /approve ─────────────────────────────────────────────────────────────────
 
 describe('/approve', () => {
-  it('rejects non-root callers', async () => {
+  it('rejects tier-2 callers', async () => {
     const ch = makeChannel();
-    await approveCommand.handle(makeCtx('telegram:123', ch, 'atlas'));
-    expect(ch.sent[0]).toMatch(/root-only/i);
+    await approveCommand.handle(makeCtx('telegram:123', ch, 'atlas/support'));
+    expect(ch.sent[0]).toMatch(/world admin or root only/i);
   });
 
   it('with no args and no pending: reports none', async () => {
@@ -147,7 +151,7 @@ describe('/approve', () => {
     });
     const ch = makeChannel();
     const registerGroup = vi.fn();
-    setApproveDeps({ registerGroup });
+    setApproveDeps({ registerGroup, getGroup: vi.fn(() => undefined) });
     await approveCommand.handle(makeCtx('', ch));
     expect(ch.sent[0]).toMatch(/approved/i);
     expect(getOnboardingEntry('telegram:123')?.status).toBe('approved');
@@ -184,7 +188,7 @@ describe('/approve', () => {
     });
     const ch = makeChannel();
     const registerGroup = vi.fn();
-    setApproveDeps({ registerGroup });
+    setApproveDeps({ registerGroup, getGroup: vi.fn(() => undefined) });
     await approveCommand.handle(makeCtx('1', ch));
     expect(ch.sent[0]).toMatch(/approved/i);
   });
@@ -214,7 +218,7 @@ describe('/approve', () => {
     });
     const ch = makeChannel();
     const registerGroup = vi.fn();
-    setApproveDeps({ registerGroup });
+    setApproveDeps({ registerGroup, getGroup: vi.fn(() => undefined) });
 
     await approveCommand.handle(makeCtx('telegram:123', ch));
 
@@ -238,7 +242,7 @@ describe('/approve', () => {
     });
     const ch = makeChannel();
     const registerGroup = vi.fn();
-    setApproveDeps({ registerGroup });
+    setApproveDeps({ registerGroup, getGroup: vi.fn(() => undefined) });
 
     await approveCommand.handle(makeCtx('telegram:123', ch));
 
@@ -260,7 +264,7 @@ describe('/approve', () => {
 
     const ch = makeChannel();
     const registerGroup = vi.fn();
-    setApproveDeps({ registerGroup });
+    setApproveDeps({ registerGroup, getGroup: vi.fn(() => undefined) });
     await approveCommand.handle(makeCtx('telegram:123', ch));
 
     expect(ch.sent[0]).toMatch(/approved/i);
@@ -311,7 +315,7 @@ describe('/approve', () => {
     });
     const ch = makeChannel();
     const registerGroup = vi.fn();
-    setApproveDeps({ registerGroup });
+    setApproveDeps({ registerGroup, getGroup: vi.fn(() => undefined) });
 
     const ctx = makeCtx('telegram:123', ch);
     (ctx.message as Record<string, unknown>).sender = undefined;
@@ -334,7 +338,10 @@ describe('/approve', () => {
       sender: 'Alice',
     });
     const ch = makeChannel();
-    setApproveDeps({ registerGroup: vi.fn() });
+    setApproveDeps({
+      registerGroup: vi.fn(),
+      getGroup: vi.fn(() => undefined),
+    });
     await approveCommand.handle(makeCtx('telegram:123', ch));
 
     expect(enqueueSpy).toHaveBeenCalledWith(
@@ -373,6 +380,7 @@ describe('/approve', () => {
       registerGroup: (_jid, group) => {
         capturedConfig = group as typeof capturedConfig;
       },
+      getGroup: vi.fn(() => undefined),
     });
 
     await approveCommand.handle(makeCtx('telegram:123', ch));
@@ -381,13 +389,42 @@ describe('/approve', () => {
   });
 });
 
+it('world admin: admits into own world without target', async () => {
+  upsertOnboarding('telegram:123', {
+    status: 'pending',
+    sender: 'Alice',
+  });
+  const ch = makeChannel();
+  const registerGroup = vi.fn();
+  const existingGroup = {
+    name: 'atlas',
+    folder: 'atlas',
+    added_at: '',
+    parent: undefined,
+  };
+  setApproveDeps({ registerGroup, getGroup: vi.fn(() => existingGroup) });
+  await approveCommand.handle(makeCtx('telegram:123', ch, 'atlas'));
+  expect(ch.sent[0]).toMatch(/approved.*atlas/i);
+  expect(registerGroup).toHaveBeenCalledWith('telegram:123', existingGroup);
+});
+
+it('world admin: cannot approve into another world', async () => {
+  upsertOnboarding('telegram:123', { status: 'pending', sender: 'Alice' });
+  const ch = makeChannel();
+  setApproveDeps({ registerGroup: vi.fn(), getGroup: vi.fn(() => undefined) });
+  await approveCommand.handle(makeCtx('telegram:123 otherworld', ch, 'atlas'));
+  expect(ch.sent[0]).toMatch(/own world/i);
+});
+
 // ── /reject ───────────────────────────────────────────────────────────────────
 
 describe('/reject', () => {
-  it('rejects non-root callers', async () => {
+  it('rejects tier-2 callers', async () => {
     const ch = makeChannel();
-    await rejectCommand.handle({ ...makeCtx('telegram:123', ch, 'atlas') });
-    expect(ch.sent[0]).toMatch(/root-only/i);
+    await rejectCommand.handle({
+      ...makeCtx('telegram:123', ch, 'atlas/support'),
+    });
+    expect(ch.sent[0]).toMatch(/world admin or root only/i);
   });
 
   it('with no args and no pending: reports none', async () => {

@@ -11,11 +11,13 @@ import {
 import { logger } from '../logger.js';
 import { resolveGroupFolderPath } from '../group-folder.js';
 import { permissionTier } from '../config.js';
+import { worldOf } from '../permissions.js';
 import { notify } from './notify.js';
 import { CommandHandler } from './index.js';
 
 export interface ApproveDeps {
   registerGroup: (jid: string, group: GroupConfig) => void;
+  getGroup: (folder: string) => GroupConfig | undefined;
 }
 
 let deps: ApproveDeps | null = null;
@@ -40,19 +42,23 @@ function copyDirRecursive(src: string, dst: string): void {
 const approveCommand: CommandHandler = {
   name: 'approve',
   description: 'Approve an onboarding request',
-  usage: '/approve <jid>',
+  usage: '/approve [jid|#] [target-group]',
   async handle(ctx) {
     const { group, groupJid, channel, args, message } = ctx;
 
-    if (permissionTier(group.folder) !== 0) {
-      await channel.sendMessage(groupJid, 'approve: root-only command');
+    const tier = permissionTier(group.folder);
+    if (tier > 1) {
+      await channel.sendMessage(groupJid, 'approve: world admin or root only');
       return;
     }
 
     const pending = getPendingOnboarding();
-    const raw = args.trim();
+    const parts = args.trim().split(/\s+/);
+    const jidArg = parts[0] ?? '';
+    const targetArg = parts[1] ?? '';
+
     let jid: string | undefined;
-    if (!raw) {
+    if (!jidArg) {
       if (pending.length === 0) {
         await channel.sendMessage(groupJid, 'No pending requests.');
         return;
@@ -68,14 +74,14 @@ const approveCommand: CommandHandler = {
         return;
       }
       jid = pending[0].jid;
-    } else if (/^\d+$/.test(raw)) {
-      jid = pending[Number(raw) - 1]?.jid;
+    } else if (/^\d+$/.test(jidArg)) {
+      jid = pending[Number(jidArg) - 1]?.jid;
       if (!jid) {
-        await channel.sendMessage(groupJid, `No pending request #${raw}.`);
+        await channel.sendMessage(groupJid, `No pending request #${jidArg}.`);
         return;
       }
     } else {
-      jid = raw;
+      jid = jidArg;
     }
     if (!jid) {
       await channel.sendMessage(groupJid, 'No pending requests.');
@@ -87,55 +93,80 @@ const approveCommand: CommandHandler = {
       await channel.sendMessage(groupJid, `No onboarding entry for ${jid}`);
       return;
     }
-    if (!entry.world_name) {
-      await channel.sendMessage(groupJid, `No world name for ${jid}`);
-      return;
+
+    // Determine target group folder
+    let targetFolder: string;
+    if (targetArg) {
+      targetFolder = targetArg;
+      // Tier 1 world admins can only approve into their own world
+      if (tier === 1 && worldOf(targetFolder) !== worldOf(group.folder)) {
+        await channel.sendMessage(
+          groupJid,
+          `approve: can only admit into your own world (${worldOf(group.folder)})`,
+        );
+        return;
+      }
+    } else if (tier === 0) {
+      // Root: create new world from onboarding request
+      if (!entry.world_name) {
+        await channel.sendMessage(groupJid, `No world name for ${jid}`);
+        return;
+      }
+      targetFolder = entry.world_name;
+    } else {
+      // World admin: admit into own world
+      targetFolder = worldOf(group.folder);
     }
 
-    const worldName = entry.world_name;
+    const existingGroup = deps?.getGroup(targetFolder);
 
-    // Copy root's prototype/ → groups/<world_name>/
-    const rootPath = resolveGroupFolderPath('root');
-    const prototypePath = path.join(rootPath, 'prototype');
-    if (!fs.existsSync(prototypePath)) {
-      await channel.sendMessage(
-        groupJid,
-        `No prototype dir at groups/root/prototype — cannot approve`,
-      );
-      logger.warn({ worldName }, 'approve: no root prototype dir');
-      return;
+    if (!existingGroup) {
+      // New world — copy prototype and register
+      const rootPath = resolveGroupFolderPath('root');
+      const prototypePath = path.join(rootPath, 'prototype');
+      if (!fs.existsSync(prototypePath)) {
+        await channel.sendMessage(
+          groupJid,
+          `No prototype dir at groups/root/prototype — cannot approve`,
+        );
+        logger.warn({ targetFolder }, 'approve: no root prototype dir');
+        return;
+      }
+
+      const worldPath = resolveGroupFolderPath(targetFolder);
+      if (!fs.existsSync(worldPath)) {
+        copyDirRecursive(prototypePath, worldPath);
+        fs.mkdirSync(path.join(worldPath, 'logs'), { recursive: true });
+      }
+
+      const newGroup: GroupConfig = {
+        name: targetFolder,
+        folder: targetFolder,
+        added_at: new Date().toISOString(),
+        parent: undefined,
+      };
+
+      deps?.registerGroup(jid, newGroup);
+    } else {
+      // Existing group — just add the route
+      deps?.registerGroup(jid, existingGroup);
     }
-
-    const worldPath = resolveGroupFolderPath(worldName);
-    if (!fs.existsSync(worldPath)) {
-      copyDirRecursive(prototypePath, worldPath);
-      fs.mkdirSync(path.join(worldPath, 'logs'), { recursive: true });
-    }
-
-    const newGroup: GroupConfig = {
-      name: worldName,
-      folder: worldName,
-      added_at: new Date().toISOString(),
-      parent: undefined,
-    };
-
-    deps?.registerGroup(jid, newGroup);
 
     // Welcome system message
     const userId = message.sender ?? jid;
     const userName = entry.sender ?? userId;
-    enqueueSystemMessage(worldName, {
+    enqueueSystemMessage(targetFolder, {
       origin: 'gateway',
       event: 'onboarding',
-      body: `<user id="${userId}" jid="${jid}" name="${userName}" />\n<group folder="${worldName}" tier="1" />\n<instructions>\nThis is a new user's first interaction.\n1. Run /hello to welcome the user.\n2. Run /howto to build a getting-started web page for them.\n</instructions>`,
+      body: `<user id="${userId}" jid="${jid}" name="${userName}" />\n<group folder="${targetFolder}" tier="${tier === 0 && !existingGroup ? '1' : '2'}" />\n<instructions>\nThis is a new user's first interaction.\n1. Run /hello to welcome the user.\n2. Run /howto to build a getting-started web page for them.\n</instructions>`,
     });
 
     upsertOnboarding(jid, { status: 'approved' });
 
-    await notify(`Approved: ${userName} → ${worldName}/`);
-    await channel.sendMessage(groupJid, `Approved: ${jid} → ${worldName}/`);
+    await notify(`Approved: ${userName} → ${targetFolder}/`);
+    await channel.sendMessage(groupJid, `Approved: ${jid} → ${targetFolder}/`);
 
-    logger.info({ jid, worldName }, 'Onboarding approved');
+    logger.info({ jid, targetFolder }, 'Onboarding approved');
   },
 };
 
