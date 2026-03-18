@@ -39,7 +39,7 @@ Requires architectural changes or new instance setup. Do not ship to marinade.
 - [ ] detached containers: file-based IPC replaces docker stdin/stdout, enables reclaim (4/W)
 - [ ] dash-memory: diary/memory editor (read-only view shipped in Phase 3)
 - [ ] evangelist: community engagement agent (4/R)
-- [ ] gmail channel: Gmail API + Pub/Sub (4/8)
+- [x] gmail channel: dropped — generic IMAP email channel handles Gmail fine
 - [ ] instance-repos: git-based config deployment (4/G)
 - [ ] agent-pipeline: multi-hop routing, continuation payloads (5/2)
 - [ ] ipc-mcp-proxy: unix socket replaces file IPC (5/A)
