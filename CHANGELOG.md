@@ -11,6 +11,16 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.10.1] — 2026-03-18
+
+### Changed
+
+- **Approve override**: `/approve` now allows re-approval of already-approved
+  entries (override). World folder already existing on filesystem is no longer
+  an error — routes to the existing folder instead of failing.
+
+---
+
 ## [v1.10.0] — 2026-03-18
 
 ### Added
