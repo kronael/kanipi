@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { _initTestDatabase, storeChatMetadata, setRoutesForJid } from './db.js';
+import {
+  _initTestDatabase,
+  storeChatMetadata,
+  setRoutesForJid,
+  getSession,
+  setSession,
+  deleteSession,
+} from './db.js';
 import { getAvailableGroups, _setGroups } from './index.js';
 import {
   isAuthorizedRoutingTarget,
@@ -779,5 +786,137 @@ describe('resolveRoute — flat routing table', () => {
       },
     ];
     expect(resolveRoute(mkMsg('hello'), routes)).toBeNull();
+  });
+
+  it('prefix type matches @agent message', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: -2,
+        type: 'prefix',
+        match: '@',
+        target: 'atlas',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'default',
+        match: null,
+        target: 'atlas',
+      },
+    ];
+    const result = resolveRoute(mkMsg('@support hello'), routes);
+    expect(result?.target).toBe('atlas');
+    expect(result?.match).toBe('@');
+  });
+
+  it('prefix type matches #topic message', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: -1,
+        type: 'prefix',
+        match: '#',
+        target: 'atlas',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'default',
+        match: null,
+        target: 'atlas',
+      },
+    ];
+    const result = resolveRoute(mkMsg('#deploy review'), routes);
+    expect(result?.target).toBe('atlas');
+    expect(result?.match).toBe('#');
+  });
+
+  it('prefix type does not match plain message without @ or #', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: -2,
+        type: 'prefix',
+        match: '@',
+        target: 'atlas',
+      },
+      {
+        id: 2,
+        jid: 'tg:1',
+        seq: -1,
+        type: 'prefix',
+        match: '#',
+        target: 'atlas',
+      },
+      {
+        id: 3,
+        jid: 'tg:1',
+        seq: 0,
+        type: 'default',
+        match: null,
+        target: 'atlas',
+      },
+    ];
+    const result = resolveRoute(mkMsg('hello world'), routes);
+    expect(result?.match).toBeUndefined();
+    expect(result?.target).toBe('atlas');
+  });
+
+  it('prefix route returns match field in resolved route', () => {
+    const routes: Route[] = [
+      {
+        id: 1,
+        jid: 'tg:1',
+        seq: -1,
+        type: 'prefix',
+        match: '#',
+        target: 'root',
+      },
+    ];
+    expect(resolveRoute(mkMsg('#work stuff'), routes)).toEqual({
+      target: 'root',
+      command: null,
+      match: '#',
+    });
+  });
+});
+
+// --- topic sessions ---
+
+describe('topic sessions', () => {
+  it('getSession with topic returns topic-scoped session', () => {
+    setSession('atlas', 'base-session-id');
+    setSession('atlas', 'topic-session-id', 'deploy');
+    expect(getSession('atlas')).toBe('base-session-id');
+    expect(getSession('atlas', 'deploy')).toBe('topic-session-id');
+  });
+
+  it('setSession with topic stores separately from default', () => {
+    setSession('root', 'main-session');
+    setSession('root', 'work-session', 'work');
+    expect(getSession('root')).toBe('main-session');
+    expect(getSession('root', 'work')).toBe('work-session');
+  });
+
+  it('deleteSession with topic only removes that topic', () => {
+    setSession('atlas', 'base-session');
+    setSession('atlas', 'deploy-session', 'deploy');
+    deleteSession('atlas', 'deploy');
+    expect(getSession('atlas')).toBe('base-session');
+    expect(getSession('atlas', 'deploy')).toBeUndefined();
+  });
+
+  it('deleteSession without topic only removes default', () => {
+    setSession('atlas', 'base-session');
+    setSession('atlas', 'work-session', 'work');
+    deleteSession('atlas');
+    expect(getSession('atlas')).toBeUndefined();
+    expect(getSession('atlas', 'work')).toBe('work-session');
   });
 });

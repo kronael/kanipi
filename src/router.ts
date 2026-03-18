@@ -142,6 +142,8 @@ function routeMatches(r: Route, msg: InboundEvent): boolean {
       } catch {
         return false;
       }
+    case 'prefix':
+      return !!(r.match && msg.content.trim().startsWith(r.match));
     case 'default':
       return true;
     default:
@@ -152,6 +154,7 @@ function routeMatches(r: Route, msg: InboundEvent): boolean {
 export interface ResolvedRoute {
   target: string;
   command: string | null;
+  match?: string;
 }
 
 export function resolveRoute(
@@ -161,7 +164,11 @@ export function resolveRoute(
   for (const r of routes) {
     if (!routeMatches(r, msg)) continue;
     const t = expandTarget(r.target, msg);
-    if (t) return { target: t, command: r.command ?? null };
+    if (t) {
+      const result: ResolvedRoute = { target: t, command: r.command ?? null };
+      if (r.type === 'prefix') result.match = r.match ?? undefined;
+      return result;
+    }
   }
   return null;
 }

@@ -412,26 +412,38 @@ export function setRouterState(key: string, value: string): void {
   ).run(key, value);
 }
 
-export function getSession(groupFolder: string): string | undefined {
+export function getSession(
+  groupFolder: string,
+  topic = '',
+): string | undefined {
   const row = db
-    .prepare('SELECT session_id FROM sessions WHERE group_folder = ?')
-    .get(groupFolder) as { session_id: string } | undefined;
+    .prepare(
+      'SELECT session_id FROM sessions WHERE group_folder = ? AND topic = ?',
+    )
+    .get(groupFolder, topic) as { session_id: string } | undefined;
   return row?.session_id;
 }
 
-export function setSession(groupFolder: string, sessionId: string): void {
+export function setSession(
+  groupFolder: string,
+  sessionId: string,
+  topic = '',
+): void {
   db.prepare(
-    'INSERT OR REPLACE INTO sessions (group_folder, session_id) VALUES (?, ?)',
-  ).run(groupFolder, sessionId);
+    'INSERT OR REPLACE INTO sessions (group_folder, topic, session_id) VALUES (?, ?, ?)',
+  ).run(groupFolder, topic, sessionId);
 }
 
-export function deleteSession(groupFolder: string): void {
-  db.prepare('DELETE FROM sessions WHERE group_folder = ?').run(groupFolder);
+export function deleteSession(groupFolder: string, topic = ''): void {
+  db.prepare('DELETE FROM sessions WHERE group_folder = ? AND topic = ?').run(
+    groupFolder,
+    topic,
+  );
 }
 
 export function getAllSessions(): Record<string, string> {
   const rows = db
-    .prepare('SELECT group_folder, session_id FROM sessions')
+    .prepare("SELECT group_folder, session_id FROM sessions WHERE topic = ''")
     .all() as Array<{ group_folder: string; session_id: string }>;
   const result: Record<string, string> = {};
   for (const row of rows) {

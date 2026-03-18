@@ -29,6 +29,7 @@ import {
   ONBOARDING_ENABLED,
   TIMEZONE,
   whatsappEnabled,
+  permissionTier,
 } from './config.js';
 import { BlueskyChannel } from './channels/bluesky/index.js';
 import { DiscordChannel } from './channels/discord.js';
@@ -56,6 +57,7 @@ import {
   addRoute,
   clearChatErrored,
   deleteSession,
+  getSession,
   enqueueSystemMessage,
   flushSystemMessages,
   getAllChats,
@@ -251,6 +253,27 @@ function registerGroup(jid: string, group: GroupConfig): void {
     match: null,
     target: group.folder,
   });
+
+  const tier = permissionTier(group.folder);
+  if (tier <= 2) {
+    const existing = getRoutesForJid(jid).map((r) => r.match);
+    if (!existing.includes('@')) {
+      addRoute(jid, {
+        seq: -2,
+        type: 'prefix',
+        match: '@',
+        target: group.folder,
+      });
+    }
+    if (!existing.includes('#')) {
+      addRoute(jid, {
+        seq: -1,
+        type: 'prefix',
+        match: '#',
+        target: group.folder,
+      });
+    }
+  }
 
   const localJid = `local:${group.folder}`;
   const existingLocal = getRoutesForJid(localJid);
@@ -759,6 +782,86 @@ function delegateToParent(
   );
 }
 
+async function runTopicAgent(
+  group: GroupConfig,
+  prompt: string,
+  chatJid: string,
+  topicName: string,
+  messageId?: string,
+  channel?: Channel,
+): Promise<void> {
+  const topicSessionId = getSession(group.folder, topicName);
+  const taskId = `topic-${topicName}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  if (channel) startTyping(channel, chatJid);
+
+  queue.enqueueTask(group.folder, taskId, async () => {
+    let lastSentId = messageId;
+    try {
+      const onResult = async (result: ContainerOutput) => {
+        if (result.newSessionId) {
+          setSession(group.folder, result.newSessionId, topicName);
+        }
+        if (result.result) {
+          const raw =
+            typeof result.result === 'string'
+              ? result.result
+              : JSON.stringify(result.result);
+          const text = raw.trim();
+          if (text && channel) {
+            const sentId = await channel.sendMessage(
+              chatJid,
+              text,
+              lastSentId ? { replyTo: lastSentId } : undefined,
+            );
+            storeOutbound({
+              chatJid,
+              content: text,
+              source: 'agent',
+              groupFolder: group.folder,
+              replyToId: lastSentId,
+              platformMsgId: sentId,
+            });
+            if (sentId) lastSentId = sentId;
+          }
+        }
+      };
+
+      const output = await runContainerCommand(
+        group,
+        {
+          prompt,
+          sessionId: topicSessionId,
+          groupFolder: group.folder,
+          chatJid,
+          messageCount: 1,
+          messageId,
+        },
+        (proc, containerName) =>
+          queue.registerProcess(
+            group.folder,
+            proc,
+            containerName,
+            group.folder,
+          ),
+        onResult,
+      );
+
+      if (output.newSessionId) {
+        setSession(group.folder, output.newSessionId, topicName);
+      }
+      if (output.status === 'error') {
+        logger.warn(
+          { folder: group.folder, topicName, error: output.error },
+          'topic agent error',
+        );
+      }
+    } finally {
+      if (channel) stopTypingFor(chatJid);
+    }
+  });
+}
+
 function delegatePerSender(
   messages: InboundEvent[],
   target: string,
@@ -1041,6 +1144,76 @@ async function startMessageLoop(): Promise<void> {
                 { group: group.name, commands: deferredCmds.length },
                 'All messages were commands, skip agent',
               );
+              continue;
+            }
+
+            // Handle @agent and #topic prefix routing
+            if (resolved?.match === '@') {
+              const m = lastMsg.content
+                .trim()
+                .match(/^@(\w[\w-]*)(?:\s+([\s\S]*))?$/);
+              if (m) {
+                const childFolder = `${resolved.target}/${m[1]}`;
+                const childGroup = groups[childFolder];
+                if (childGroup) {
+                  const stripped = (m[2] ?? '').trim();
+                  lastAgentTimestamp[chatJid] = lastMsg.timestamp;
+                  saveState();
+                  await waitForEnrichments(
+                    nonCommandMessages.map((msg) => msg.id),
+                  );
+                  delegateToChild(
+                    childFolder,
+                    stripped,
+                    chatJid,
+                    0,
+                    lastMsg.id,
+                  ).catch((err) => {
+                    logger.error(
+                      { chatJid, childFolder, err: String(err) },
+                      '@agent routing failed',
+                    );
+                  });
+                  continue;
+                }
+                // child not found — fall through to normal self-processing
+                logger.debug(
+                  { group: group.name, childFolder },
+                  '@agent child not found, routing to self',
+                );
+              }
+              // unparseable @prefix or missing child — fall through
+            }
+
+            if (resolved?.match === '#') {
+              const m = lastMsg.content
+                .trim()
+                .match(/^#(\w[\w-]*)(?:\s+([\s\S]*))?$/);
+              if (m) {
+                const topicName = m[1];
+                const stripped = (m[2] ?? '').trim();
+                lastAgentTimestamp[chatJid] = lastMsg.timestamp;
+                saveState();
+                await waitForEnrichments(
+                  nonCommandMessages.map((msg) => msg.id),
+                );
+                queue.enqueueMessageCheck(chatJid);
+                // Run with topic session — handled in processGroupMessages via topic arg
+                // Delegate to self with topic via runTopicAgent
+                runTopicAgent(
+                  group,
+                  stripped,
+                  chatJid,
+                  topicName,
+                  lastMsg.id,
+                  channel,
+                ).catch((err) => {
+                  logger.error(
+                    { chatJid, topicName, err: String(err) },
+                    '#topic routing failed',
+                  );
+                });
+              }
               continue;
             }
 
