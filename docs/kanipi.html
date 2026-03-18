@@ -11,7 +11,7 @@
   <button class="theme-toggle" aria-label="Toggle theme"></button>
 
   <div class="hub-container">
-    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.9.0</span></h1>
+    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.10.0</span></h1>
     <p class="hub-subtitle">multi-channel agent gateway</p>
 
     <div class="tldr-box">
@@ -166,7 +166,7 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
           <tr>
             <td>WhatsApp</td><td>baileys</td>
             <td><code>store/auth/creds.json</code></td><td>(native)</td>
-            <td>QR pairing, read receipts, markdown conversion</td>
+            <td>QR pairing, read receipts, markdown conversion; reconnect failure uses exponential backoff (no crash)</td>
           </tr>
           <tr>
             <td>Email</td><td>imapflow + nodemailer</td>
@@ -232,10 +232,12 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
 
       <h3>Impulse gate</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
-        Social channels produce high-volume events (joins, edits, deletes) that shouldn't each trigger an agent.
-        The impulse gate accumulates event weights per JID and flushes to the agent when the threshold is reached
-        (default 100) or a max hold timer expires (default 5 min). Configurable per-verb weights &mdash; joins,
-        edits, and deletes default to weight 0 (dropped). Direct messages default to weight 100 (immediate flush).
+        Social channels (Twitter, Mastodon, Bluesky, Reddit, Facebook) produce high-volume events (joins, edits,
+        deletes) that shouldn't each trigger an agent. The impulse gate accumulates event weights per JID and
+        flushes to the agent when the threshold is reached (default 100) or a max hold timer expires (default 5 min).
+        Configurable per-verb weights &mdash; joins, edits, and deletes default to weight 0 (dropped).
+        Direct messages default to weight 100 (immediate flush).
+        Chat channels (Telegram, WhatsApp, Discord, Email, Web) always pass through immediately &mdash; no accumulation.
       </p>
 
       <p style="font-size: 0.9em; color: var(--dim);">
@@ -529,6 +531,15 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
         Cross-channel preemption: if a different JID needs the same folder, idle containers are closed.
       </p>
 
+      <h3>Onboarding</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Gateway-level onboarding flow (no LLM, enabled via <code>ONBOARDING_ENABLED=1</code>).
+        New users issue <code>/request &lt;name&gt;</code> to enter the pending state.
+        Root operators run <code>/approve &lt;jid&gt;</code> or <code>/reject &lt;jid&gt;</code>.
+        On approval, the root group's <code>prototype/</code> folder is copied to a new world folder for the user.
+        States: new &rarr; pending &rarr; approved / rejected.
+      </p>
+
       <h3>CLI</h3>
 <pre style="font-size: 0.8em; padding: 0.8em; background: var(--surface, #1a1a2e); border-radius: 6px; color: var(--text, #e0e0e0); overflow-x: auto;">
 kanipi config &lt;instance&gt; group list         # registered + discovered
@@ -769,6 +780,11 @@ sudo systemctl enable --now kanipi_foo</pre>
             <td>Phase 3</td>
             <td><span style="color: var(--green, #4caf50);">shipped</span></td>
             <td>4-tier permissions, action grants, recall v2, episodes, SYSTEM.md, auto-threading, reply routing, chat-bound sessions, dashboard portal</td>
+          </tr>
+          <tr>
+            <td>v1.10</td>
+            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
+            <td>gateway onboarding state machine (/request, /approve, /reject), WhatsApp crash-loop fix (exponential backoff), impulse gate social-only (chat channels bypass), command double-processing fix</td>
           </tr>
           <tr>
             <td>Phase 4</td>
