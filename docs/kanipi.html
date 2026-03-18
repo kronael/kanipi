@@ -11,7 +11,7 @@
   <button class="theme-toggle" aria-label="Toggle theme"></button>
 
   <div class="hub-container">
-    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.10.0</span></h1>
+    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.10.8</span></h1>
     <p class="hub-subtitle">multi-channel agent gateway</p>
 
     <div class="tldr-box">
@@ -516,6 +516,26 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
         patterns where each person gets their own agent context, diary, and memory.
       </p>
 
+      <h3>Topic routing and child delegation</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Two built-in prefix route types inserted at seq 9998/9999 (user routes are evaluated first and can override):
+      </p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Prefix</th><th>Behavior</th></tr>
+          <tr>
+            <td><code>#topic</code></td>
+            <td>Named session within the same group. Messages with <code>#topic</code> prefix run in an
+            isolated, persistent session for that topic name. Context separate from the main session.</td>
+          </tr>
+          <tr>
+            <td><code>@agent</code></td>
+            <td>Delegate to a matching child group. <code>@support hello</code> routes to the
+            <code>support</code> child group. Unknown child falls through to self (not dropped).</td>
+          </tr>
+        </table>
+      </div>
+
       <h3>Reply routing</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
         <code>delegatePerSender</code> batches messages by sender before forwarding to child groups. Reply
@@ -612,21 +632,52 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
       <h2>Dashboard Portal</h2>
 
       <p>
-        Self-registering dashboard system at <code>/dash/</code>. Each dashboard calls
-        <code>registerDashboard()</code> with name, title, description, and handler.
-        The portal index lists all registered dashboards. Dashboards receive a
-        <code>DashboardContext</code> with access to the group queue and connected channels.
-        Requires auth (<code>/dash/</code> is behind the auth boundary).
+        Tile-based operator portal at <code>/dash/</code>. Each dashboard registers via
+        <code>registerDashboard()</code> with name, title, description, handler, and optional
+        <code>health()</code> function. The portal renders a 2-column tile grid; each tile shows
+        a health dot (green/yellow/red/grey) and a one-line summary. Tiles load via HTMX and
+        auto-refresh every 30s. Requires auth (same JWT cookie as web proxy).
       </p>
+
+      <div class="table-wrap">
+        <table>
+          <tr><th>Dashboard</th><th>Route</th><th>Description</th></tr>
+          <tr><td>Status &amp; Health</td><td><code>/dash/status/</code></td><td>gateway uptime, channels, containers, queue, tasks</td></tr>
+          <tr><td>Tasks</td><td><code>/dash/tasks/</code></td><td>scheduled tasks with run history, filters, detail view</td></tr>
+          <tr><td>Memory &amp; Knowledge</td><td><code>/dash/memory/</code></td><td>facts, episodes, MEMORY.md per group</td></tr>
+          <tr><td>Messages &amp; Activity</td><td><code>/dash/activity/</code></td><td>recent messages, chat activity, message flow by group, routes</td></tr>
+          <tr><td>Groups &amp; Routing</td><td><code>/dash/groups/</code></td><td>group tree, world map, routing table, per-group detail</td></tr>
+        </table>
+      </div>
 
       <h3>Status dashboard</h3>
       <p>
-        Built-in at <code>/dash/status/</code>. HTMX-driven with fragment endpoints at <code>/dash/status/x/{section}</code>
+        HTMX-driven with fragment endpoints at <code>/dash/status/x/{section}</code>
         (gateway, channels, groups, containers, queue, tasks, summary). Each section auto-refreshes every 10s.
-        Shows gateway uptime, memory usage, connected channels, registered groups (with active/idle state),
-        running containers (cached 5s via <code>docker ps</code>), queue state per group (pending messages,
-        pending tasks, failure count), and scheduled tasks.
-        JSON API at <code>/dash/status/api/state</code>. 22 Playwright e2e tests cover the dashboard.
+        Shows gateway uptime, memory usage, connected channels, registered groups (active/idle state),
+        running containers (cached 5s via <code>docker ps</code>), queue state per group, and scheduled tasks.
+        JSON API at <code>/dash/status/api/state</code>.
+      </p>
+
+      <h3>Tasks dashboard</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Group and status filters with HTMX-driven list. Detail panel shows task config, schedule,
+        and last 20 run log entries with duration and result. Health dot goes red if 3+ consecutive
+        failures or 3+ failures in 24h.
+      </p>
+
+      <h3>Activity dashboard</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        24h message summary (count, unique chats, unique senders), per-group breakdown bar chart,
+        recent message feed (50 messages), active chats ranked by volume, and full route table
+        with type color-coding and template annotation.
+      </p>
+
+      <h3>Groups dashboard</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        Clickable group tree with tier badges and active dots. World summary table.
+        Per-group detail panel shows config, knowledge counts (facts/episodes/diary/users/MEMORY.md),
+        and routes targeting that group.
       </p>
     </section>
 
@@ -669,6 +720,16 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
             builds knowledge pages, maps connections. Vite serves results live.</p>
           <p style="font-size: 0.9em; color: var(--dim);">
             Channels: Telegram, Web &middot; <span style="color: var(--green, #4caf50);">shipped</span>
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Support template</div>
+          <p>Tier-2 user-facing support bot. Deployed as <code>&lt;world&gt;/support/</code> inside an existing
+            world. Customized <code>hello</code> and <code>howto</code> skills (no developer content).
+            Web skill disabled by default (set <code>disabled: true</code> in SKILL.md). SYSTEM.md
+            replaces the Claude Code system prompt for clean user-facing output.</p>
+          <p style="font-size: 0.9em; color: var(--dim);">
+            Template: <code>templates/support/</code> &middot; <span style="color: var(--green, #4caf50);">shipped v1.10.7</span>
           </p>
         </div>
       </div>
