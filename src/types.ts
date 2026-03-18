@@ -72,7 +72,14 @@ export interface Route {
   id: number;
   jid: string;
   seq: number;
-  type: 'command' | 'verb' | 'pattern' | 'keyword' | 'sender' | 'default';
+  type:
+    | 'command'
+    | 'verb'
+    | 'pattern'
+    | 'keyword'
+    | 'sender'
+    | 'default'
+    | 'prefix';
   match: string | null;
   target: string;
   command?: string | null;
