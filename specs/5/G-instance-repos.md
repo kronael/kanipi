@@ -1,50 +1,55 @@
 ---
-status: planned
+status: spec
 ---
 
-# Instance Config as Git Repos
+# Group Git Repos
 
-Kanipi instance configs should ship as bare git repos with a known structure.
-Like Helm charts for agent deployments.
+Each group folder is an independent git repository. Parent repos are blind
+to child group directories (child appears as untracked, gitignored in parent).
 
-## Repo structure
+## Layout
 
 ```
-kanipi-<name>/
-├── .env.example          # config template (tokens replaced with placeholders)
-├── character.json        # agent identity (bio, topics, style)
-├── groups/
-│   └── main/
-│       ├── CLAUDE.md     # agent instructions
-│       ├── character.json  # per-group override (optional)
-│       └── facts/        # knowledge files (YAML markdown)
-└── README.md             # what this agent does, how to deploy
+groups/root/           ← git repo (.gitignore includes: atlas/)
+groups/atlas/          ← git repo (.gitignore includes: support/)
+groups/atlas/support/  ← git repo
 ```
+
+Nested git repos work without submodules — each repo manages its own
+versioned files, and parent repos simply gitignore child group dirs.
+
+## What is versioned (per group repo)
+
+- `CLAUDE.md`, `SOUL.md`, `SYSTEM.md`
+- `facts/*.md`
+- Any config files the agent creates
+
+## What is NOT versioned (gitignored per group repo)
+
+- `diary/`, `episodes/`, `users/`, `logs/`, `media/`, `tmp/`
+- `*.jl` session transcripts
 
 ## CLI
 
 ```bash
-# Create from repo
-kanipi create <name> --from <repo-url>
-kanipi create <name> --from /path/to/local/repo
+# Initialize a group folder as a git repo
+kanipi git-init <folder>
+# Resolves group folder under GROUPS_DIR, runs git init,
+# writes .gitignore with runtime exclusions and child group dirs.
 
-# What it does:
-# 1. Clone repo to tmp
-# 2. mkdir /srv/data/kanipi_<name>/
-# 3. Copy .env.example → .env (user fills secrets)
-# 4. Copy groups/ → groups/
-# 5. Copy character.json → groups/main/character.json (if not per-group)
-# 6. Generate systemd unit
-# 7. Register groups from repo structure
-
-# Update from repo (pull new facts, CLAUDE.md changes)
-kanipi update <name> --from <repo-url>
-# Merges groups/ content, preserves .env and local state
+# Clone a group config from a remote repo
+kanipi create --from <repo-url> <name>
+# Clones into the group folder instead of copying from template.
+# Still registers group in DB and generates systemd unit.
 ```
+
+## Agent awareness
+
+The agent is informed about the git layout via the `git-repo` skill in
+`~/.claude/skills/git-repo/SKILL.md`. The skill documents what to version,
+what to ignore, and common git operations using `~/` paths.
 
 ## Scope
 
-This is a v2 feature. For now, instance setup is manual.
-The repo structure is the target format — we can extract
-kanipi-marinade as the first instance repo once the CLI
-supports `--from`.
+Each group manages its own repo independently. No cross-group git operations.
+Remote configuration (push/pull) is left to the operator or agent after init.
