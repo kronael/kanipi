@@ -24,7 +24,7 @@
 - [x] dashboards: memory+facts dashboard at /dash/memory/ (facts, episodes, MEMORY.md)
 - [x] researcher: shipped as /facts skill (research + verify cycle); background cron below
 - [x] support: shipped as Marinade Atlas (specs/3/3-code-research.md)
-- [ ] codebase-trim: dead code removal ~900 lines (3/G)
+- [x] codebase-trim: dead code removal ~900 lines (3/G)
 - [x] dashboards: long-running web services for operator tools (4/4)
 
 ## On-demand
