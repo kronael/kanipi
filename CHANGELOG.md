@@ -11,6 +11,38 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.10.0] — 2026-03-18
+
+### Added
+
+- **Onboarding state machine**: gateway-level self-service onboarding, no LLM
+  required. New users send `/request <name>` → pending approval → root admin
+  runs `/approve <jid>` or `/reject <jid>`. On approval: copies
+  `groups/root/prototype/` to new world folder, registers group and route,
+  enqueues welcome system message. Enable via `ONBOARDING_ENABLED=1`.
+
+### Fixed
+
+- **WhatsApp crash loop**: replaced `process.exit()` on reconnect failure
+  with exponential backoff `scheduleReconnect()`. LoggedOut case also
+  schedules a slow reconnect rather than exiting (systemd restart loop fixed).
+- **Command double-processing race**: `processGroupMessages` (queue path)
+  now skips gateway commands, preventing a race where the message loop and
+  queue both process the same `/approve`-style command.
+- **Onboarding duplicate routes**: removed redundant `addRoute`/`setGroupConfig`
+  calls in approve.ts — `registerGroup` handles both (plus the `local:` route).
+- **Onboarding world_name collision**: checks `getGroupByFolder` before
+  filesystem check; rejected users now receive a message instead of silence.
+
+### Changed
+
+- **Impulse gate: social platforms only** — messaging platforms (Telegram,
+  WhatsApp, Discord, Email, Web) always pass through immediately. Impulse
+  accumulation retained only for social platforms (Twitter, Mastodon, Bluesky,
+  Reddit, Facebook, Instagram, Threads, LinkedIn, Twitch, YouTube).
+
+---
+
 ## [v1.9.0] — 2026-03-17
 
 ### Added
