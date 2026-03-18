@@ -11,6 +11,22 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.10.2] — 2026-03-18
+
+### Fixed
+
+- **`@root /cmd` routing**: strip `@word` prefix before gateway command detection
+  so commands like `@root /approve` are dispatched correctly instead of being
+  forwarded to the agent as plain text.
+
+### Changed
+
+- **`/approve` / `/reject`**: no JID required — defaults to oldest pending when
+  only one exists; shows numbered list when multiple pending; accepts number
+  (`/approve 1`) or explicit JID.
+
+---
+
 ## [v1.10.1] — 2026-03-18
 
 ### Changed
