@@ -3,7 +3,6 @@ import path from 'path';
 
 import {
   enqueueSystemMessage,
-  getGroupByFolder,
   getOnboardingEntry,
   GroupConfig,
   upsertOnboarding,
@@ -60,10 +59,6 @@ const approveCommand: CommandHandler = {
       await channel.sendMessage(groupJid, `No onboarding entry for ${jid}`);
       return;
     }
-    if (entry.status === 'approved') {
-      await channel.sendMessage(groupJid, `Already approved: ${jid}`);
-      return;
-    }
     if (!entry.world_name) {
       await channel.sendMessage(groupJid, `No world name for ${jid}`);
       return;
@@ -83,25 +78,11 @@ const approveCommand: CommandHandler = {
       return;
     }
 
-    if (getGroupByFolder(worldName)) {
-      await channel.sendMessage(
-        groupJid,
-        `World name already in use: ${worldName}`,
-      );
-      return;
-    }
-
     const worldPath = resolveGroupFolderPath(worldName);
-    if (fs.existsSync(worldPath)) {
-      await channel.sendMessage(
-        groupJid,
-        `World folder already exists: ${worldName}`,
-      );
-      return;
+    if (!fs.existsSync(worldPath)) {
+      copyDirRecursive(prototypePath, worldPath);
+      fs.mkdirSync(path.join(worldPath, 'logs'), { recursive: true });
     }
-
-    copyDirRecursive(prototypePath, worldPath);
-    fs.mkdirSync(path.join(worldPath, 'logs'), { recursive: true });
 
     const newGroup: GroupConfig = {
       name: worldName,

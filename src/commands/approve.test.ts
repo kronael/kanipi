@@ -12,9 +12,6 @@ import {
   enqueueSystemMessage,
   getOnboardingEntry,
   upsertOnboarding,
-  getRoutesForJid,
-  getGroupByFolder,
-  setGroupConfig,
 } from '../db.js';
 import approveCommand, { setApproveDeps } from './approve.js';
 import rejectCommand from './reject.js';
@@ -148,14 +145,21 @@ describe('/approve', () => {
     expect(ch.sent[0]).toMatch(/no onboarding/i);
   });
 
-  it('rejects already-approved jid', async () => {
+  it('re-approves an already-approved jid (override)', async () => {
     upsertOnboarding('telegram:123', {
       status: 'approved',
       world_name: 'myworld',
+      sender: 'Alice',
     });
     const ch = makeChannel();
+    const registerGroup = vi.fn();
+    setApproveDeps({ registerGroup });
+
     await approveCommand.handle(makeCtx('telegram:123', ch));
-    expect(ch.sent[0]).toMatch(/already approved/i);
+
+    expect(getOnboardingEntry('telegram:123')?.status).toBe('approved');
+    expect(registerGroup).toHaveBeenCalled();
+    expect(ch.sent[0]).toMatch(/approved/i);
   });
 
   it('rejects pending entry with no world_name', async () => {
@@ -185,23 +189,27 @@ describe('/approve', () => {
     expect(ch.sent[0]).toMatch(/approved/i);
   });
 
-  it('rejects if world_name is already in groups table', async () => {
+  it('reuses existing world folder when already on filesystem', async () => {
     upsertOnboarding('telegram:123', {
       status: 'pending',
-      world_name: 'taken',
+      world_name: 'existing',
+      sender: 'Alice',
     });
-    setGroupConfig({
-      name: 'taken',
-      folder: 'taken',
-      added_at: '',
-      parent: undefined,
-    });
+    vi.mocked(fs.existsSync).mockImplementation(() => true); // prototype + world both exist
 
     const ch = makeChannel();
+    const registerGroup = vi.fn();
+    setApproveDeps({ registerGroup });
     await approveCommand.handle(makeCtx('telegram:123', ch));
 
-    expect(ch.sent[0]).toMatch(/already in use/i);
-    expect(getOnboardingEntry('telegram:123')?.status).toBe('pending');
+    expect(ch.sent[0]).toMatch(/approved/i);
+    expect(getOnboardingEntry('telegram:123')?.status).toBe('approved');
+    expect(registerGroup).toHaveBeenCalled();
+    // copyDirRecursive should NOT have been called (world folder already exists)
+    expect(fs.mkdirSync).not.toHaveBeenCalledWith(
+      expect.stringContaining('existing'),
+      expect.anything(),
+    );
   });
 
   it('rejects when prototype directory is missing', async () => {
@@ -215,23 +223,6 @@ describe('/approve', () => {
     await approveCommand.handle(makeCtx('telegram:123', ch));
 
     expect(ch.sent[0]).toMatch(/no prototype/i);
-    expect(getOnboardingEntry('telegram:123')?.status).toBe('pending');
-  });
-
-  it('rejects when world folder already exists on filesystem', async () => {
-    upsertOnboarding('telegram:123', {
-      status: 'pending',
-      world_name: 'existing',
-    });
-    vi.mocked(fs.existsSync).mockImplementation((p) => {
-      // Both prototype and the world folder "exist"
-      return true;
-    });
-
-    const ch = makeChannel();
-    await approveCommand.handle(makeCtx('telegram:123', ch));
-
-    expect(ch.sent[0]).toMatch(/already exists/i);
     expect(getOnboardingEntry('telegram:123')?.status).toBe('pending');
   });
 
