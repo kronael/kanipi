@@ -27,8 +27,8 @@ for session in ~/groups/*/; do
   for skill in "$src"/*/; do
     name=$(basename "$skill")
     dest="$skills_dir/$name"
-    # Skip locally disabled skills (disabled: true in frontmatter)
-    if grep -q "^disabled: true" "$dest/SKILL.md" 2>/dev/null; then continue; fi
+    # Skip locally managed skills (disabled: true or managed: local in frontmatter)
+    if grep -qE "^(disabled: true|managed: local)" "$dest/SKILL.md" 2>/dev/null; then continue; fi
     # Compare SKILL.md; copy if missing or changed
     if ! diff -q "$skill/SKILL.md" "$dest/SKILL.md" >/dev/null 2>&1; then
       cp -r "$skill" "$dest"
