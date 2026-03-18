@@ -7,15 +7,20 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [Unreleased]
+## [v1.10.3] — 2026-03-18
 
 ### Fixed
 
-- **`outputStyle` not injected**: agent-runner now passes `channelName` as
-  `outputStyle` explicitly to the SDK query options. Previously it was only
-  written to `settings.json` and the SDK did not pick it up from
-  `settingSources`, so channel-specific formatting rules (telegram.md etc.)
-  were silently ignored — agents used tables in Telegram despite the ban.
+- **`outputStyle` not injected**: `settings.json` is the correct place for
+  `outputStyle`; passing it in SDK query options breaks the async iterator
+  for new sessions. agent-runner now writes `channelName` to `settings.json`
+  only and omits it from query options, so channel-specific formatting rules
+  (telegram.md etc.) are applied correctly.
+
+- **New groups produce zero messages**: agent-runner now seeds `.claude.json`
+  (with `{}`contents) before spawning the SDK for new groups. Without it the
+  Claude Code SDK silently returns 0 messages on the first run, leaving new
+  groups permanently broken.
 
 - **Onboarding never triggered**: `getNewMessages` was called with only
   `getRoutedJids()`, so new users with no routes never had their messages

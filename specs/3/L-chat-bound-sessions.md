@@ -40,7 +40,7 @@ atlas-v2       → /data/ipc/atlas--v2/
   groupFolder: string;
   chatJid: string;
   assistantName: string;
-  channelName?: string;  // maps to outputStyle in SDK options (e.g. "telegram")
+  channelName?: string;  // written to settings.json as outputStyle (e.g. "telegram"); NOT passed in SDK query options
   annotations?: string[];
 }
 ```

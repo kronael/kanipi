@@ -290,18 +290,14 @@ function buildVolumeMounts(
       .digest('hex');
     fs.writeFileSync(
       claudeJsonPath,
-      JSON.stringify(
-        {
-          firstStartTime: new Date().toISOString(),
-          userID,
-          thinkingMigrationComplete: true,
-          sonnet45MigrationComplete: true,
-          opus45MigrationComplete: true,
-          opusProMigrationComplete: true,
-        },
-        null,
-        2,
-      ) + '\n',
+      JSON.stringify({
+        firstStartTime: new Date().toISOString(),
+        userID,
+        thinkingMigrationComplete: true,
+        sonnet45MigrationComplete: true,
+        opus45MigrationComplete: true,
+        opusProMigrationComplete: true,
+      }) + '\n',
     );
     chownRecursive(claudeJsonPath, 1000, 1000);
   }
