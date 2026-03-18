@@ -548,6 +548,15 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   return true;
 }
 
+function copyDirRecursive(src: string, dst: string): void {
+  fs.mkdirSync(dst, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, entry.name);
+    const d = path.join(dst, entry.name);
+    entry.isDirectory() ? copyDirRecursive(s, d) : fs.copyFileSync(s, d);
+  }
+}
+
 function spawnGroupFromPrototype(
   targetFolder: string,
 ): (GroupConfig & { jid: string }) | undefined {
@@ -577,13 +586,7 @@ function spawnGroupFromPrototype(
     return undefined;
   }
   const childPath = resolveGroupFolderPath(targetFolder);
-  fs.mkdirSync(childPath, { recursive: true });
-  for (const entry of fs.readdirSync(prototypePath)) {
-    fs.copyFileSync(
-      path.join(prototypePath, entry),
-      path.join(childPath, entry),
-    );
-  }
+  copyDirRecursive(prototypePath, childPath);
 
   const jid = `spawn:${targetFolder}`;
   const group: GroupConfig = {
