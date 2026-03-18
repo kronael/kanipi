@@ -27,6 +27,7 @@ Finish these. Small, bounded, no new architecture.
 - [ ] platform-permissions: per-group platform action grants (from 4/V)
 - [ ] researcher: background research subagent, writes to facts/ (from 4/H)
 - [ ] support: codebase Q&A agent product config (4/3)
+- [x] dashboards: memory+facts dashboard shipped (/dash/memory/ — facts, episodes, MEMORY.md)
 - [ ] dashboards: long-running web services for operator tools (4/4)
 
 ## Arizuko — deferred to new instance
@@ -35,7 +36,7 @@ Requires architectural changes or new instance setup. Do not ship to marinade.
 
 - [ ] unified home dir: groups/{folder} → /home/node, remove /workspace/group (plan: indexed-hatching-stream.md)
 - [ ] detached containers: file-based IPC replaces docker stdin/stdout, enables reclaim (4/W)
-- [ ] dash-memory: memory/diary viewer and editor (4/Q)
+- [ ] dash-memory: diary viewer and editor (4/Q) — read-only memory view shipped in Phase 3
 - [ ] evangelist: community engagement agent (4/R)
 - [ ] gmail channel: Gmail API + Pub/Sub (4/8)
 - [ ] instance-repos: git-based config deployment (4/G)
