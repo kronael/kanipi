@@ -235,23 +235,26 @@ Weight 0 = drop. Operator configures `weights` and
 index.ts startMessageLoop()
   getNewMessages()           // poll DB for new messages
   → for each group:
-    → impulse.accumulate()   // <-- new, per-group state
-    → if flush:
-        resolveRoutingTarget()
-        queue.enqueueMessageCheck()
-  → impulse.checkTimeout()   // <-- new, end of loop tick
+    → if social platform JID (twitter/mastodon/bluesky/reddit/etc):
+        → impulse.accumulate()   // per-group state
+        → if not flush: hold, continue
+        → impulse.delete(jid)
+    → (messaging platforms: telegram/whatsapp/discord/email pass through)
+    → resolveRoutingTarget()
+    → queue.enqueueMessageCheck()
+  → impulse.checkTimeout()   // end of loop tick, social only
 ```
 
 The impulse state lives in a `Map<string, ImpulseState>`
-keyed by group JID, alongside the existing message loop
-state. Existing chat channels have weight 100 for Message,
-so every message flushes immediately — zero behavior change.
+keyed by chat JID. Social platforms (Twitter, Mastodon,
+Bluesky, Reddit, Facebook, Instagram, Threads, LinkedIn,
+Twitch, YouTube) are gated; messaging platforms
+(Telegram, WhatsApp, Discord, Email, Web) always pass
+through immediately — no accumulation delay.
 
-**Wired**: impulse sits in the message loop (`src/index.ts`),
-between DB poll and group processing. One `Map<string, ImpulseState>`
-for all channels. `accumulate()` gates each group's messages;
-`checkTimeout()` flushes stale state at end of tick. Channels
-are oblivious — they store messages in DB normally.
+**Wired**: `isSocialJid(jid)` checks the JID prefix against
+a fixed set of social platform names. `accumulate()` gates
+per-group; `checkTimeout()` flushes stale state at end of tick.
 
 ### Flush delivery
 
