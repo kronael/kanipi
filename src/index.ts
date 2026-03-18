@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 
 import {
   ASSISTANT_NAME,
@@ -130,6 +131,46 @@ import { handleOnboarding } from './onboarding.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, InboundEvent } from './types.js';
 import { logger } from './logger.js';
+
+const GITIGNORE_RUNTIME_DIRS = new Set([
+  'diary',
+  'episodes',
+  'users',
+  'logs',
+  'media',
+  'tmp',
+]);
+
+function ensureGroupGitRepo(groupDir: string): void {
+  if (fs.existsSync(path.join(groupDir, '.git'))) return;
+  try {
+    execFileSync('git', ['init', groupDir], { stdio: 'pipe' });
+  } catch {
+    return; // git may not be available; non-fatal
+  }
+  const gitignorePath = path.join(groupDir, '.gitignore');
+  if (!fs.existsSync(gitignorePath)) {
+    const lines = [
+      'diary/',
+      'episodes/',
+      'users/',
+      'logs/',
+      'media/',
+      'tmp/',
+      '*.jl',
+    ];
+    try {
+      for (const entry of fs.readdirSync(groupDir, { withFileTypes: true })) {
+        if (entry.isDirectory() && !GITIGNORE_RUNTIME_DIRS.has(entry.name)) {
+          lines.push(`${entry.name}/`);
+        }
+      }
+    } catch {
+      // ignore
+    }
+    fs.writeFileSync(gitignorePath, lines.join('\n') + '\n');
+  }
+}
 
 let lastTimestamp = '';
 let sessions: Record<string, string> = {};
@@ -287,6 +328,7 @@ function registerGroup(jid: string, group: GroupConfig): void {
   }
 
   fs.mkdirSync(path.join(groupDir, 'logs'), { recursive: true });
+  ensureGroupGitRepo(groupDir);
 
   logger.info(
     { jid, name: group.name, folder: group.folder },

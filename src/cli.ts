@@ -181,6 +181,10 @@ function groupAdd(instance: string, folder?: string): void {
     recursive: true,
   });
 
+  const groupsDir = path.join(dataDir, 'groups');
+  ensureGroupGitRepo(path.join(groupsDir, finalFolder));
+  addChildToParentGitignore(groupsDir, finalFolder);
+
   console.log(`added: ${finalFolder}`);
 }
 
@@ -567,6 +571,77 @@ function resolveTemplateDir(
   return path.join(base, 'prototype');
 }
 
+const GITIGNORE_RUNTIME = [
+  'diary/',
+  'episodes/',
+  'users/',
+  'logs/',
+  'media/',
+  'tmp/',
+  '*.jl',
+];
+const GITIGNORE_RUNTIME_DIRS = new Set([
+  'diary',
+  'episodes',
+  'users',
+  'logs',
+  'media',
+  'tmp',
+]);
+
+// Ensure groupDir is a git repo with a standard .gitignore. Idempotent.
+function ensureGroupGitRepo(groupDir: string): void {
+  if (!fs.existsSync(path.join(groupDir, '.git'))) {
+    try {
+      execFileSync('git', ['init', groupDir], { stdio: 'pipe' });
+    } catch (err) {
+      console.error(`git init failed: ${err}`);
+      return;
+    }
+  }
+
+  const gitignorePath = path.join(groupDir, '.gitignore');
+  if (!fs.existsSync(gitignorePath)) {
+    const lines = [...GITIGNORE_RUNTIME];
+    try {
+      for (const entry of fs.readdirSync(groupDir, { withFileTypes: true })) {
+        if (entry.isDirectory() && !GITIGNORE_RUNTIME_DIRS.has(entry.name)) {
+          lines.push(`${entry.name}/`);
+        }
+      }
+    } catch {
+      // ignore read errors
+    }
+    fs.writeFileSync(gitignorePath, lines.join('\n') + '\n');
+  }
+}
+
+// If folder is a child (e.g. atlas/support), add child dir to parent .gitignore.
+function addChildToParentGitignore(groupsDir: string, folder: string): void {
+  const slashIdx = folder.lastIndexOf('/');
+  if (slashIdx === -1) return; // top-level group, no parent
+  const parentFolder = folder.slice(0, slashIdx);
+  const childName = folder.slice(slashIdx + 1);
+  const parentDir = path.join(groupsDir, parentFolder);
+  if (!fs.existsSync(path.join(parentDir, '.git'))) return;
+  const gitignorePath = path.join(parentDir, '.gitignore');
+  const entry = `${childName}/`;
+  let content = '';
+  try {
+    content = fs.readFileSync(gitignorePath, 'utf-8');
+  } catch {
+    // file may not exist yet
+  }
+  const lines = content ? content.split('\n') : [];
+  if (!lines.includes(entry)) {
+    const newContent =
+      content.endsWith('\n') || content === ''
+        ? content + entry + '\n'
+        : content + '\n' + entry + '\n';
+    fs.writeFileSync(gitignorePath, newContent);
+  }
+}
+
 function gitInit(instance: string, folder: string): void {
   if (!folder) {
     console.error('usage: kanipi git-init <instance> <folder>');
@@ -589,50 +664,7 @@ function gitInit(instance: string, folder: string): void {
     process.exit(1);
   }
 
-  try {
-    execFileSync('git', ['init', groupDir], { stdio: 'pipe' });
-  } catch (err) {
-    console.error(`git init failed: ${err}`);
-    process.exit(1);
-  }
-
-  // Runtime state exclusions
-  const gitignoreLines = [
-    'diary/',
-    'episodes/',
-    'users/',
-    'logs/',
-    'media/',
-    'tmp/',
-    '*.jl',
-  ];
-
-  // Add existing child group dirs
-  try {
-    for (const entry of fs.readdirSync(groupDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        const childGitignore = path.join(groupDir, entry.name, '.git');
-        // Only gitignore dirs that are themselves group repos or look like child groups
-        // We add all subdirs that aren't already in the runtime list
-        const runtimeDirs = new Set([
-          'diary',
-          'episodes',
-          'users',
-          'logs',
-          'media',
-          'tmp',
-        ]);
-        if (!runtimeDirs.has(entry.name)) {
-          gitignoreLines.push(`${entry.name}/`);
-        }
-      }
-    }
-  } catch {
-    // ignore read errors
-  }
-
-  const gitignorePath = path.join(groupDir, '.gitignore');
-  fs.writeFileSync(gitignorePath, gitignoreLines.join('\n') + '\n');
+  ensureGroupGitRepo(groupDir);
 
   console.log(`Initialized git repo in groups/${folder}`);
 }
