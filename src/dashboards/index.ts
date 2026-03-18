@@ -29,6 +29,10 @@ interface DashboardEntry {
     path: string,
     ctx: DashboardContext,
   ) => void;
+  health?: (ctx: DashboardContext) => {
+    status: 'ok' | 'warn' | 'error';
+    summary: string;
+  };
 }
 
 const dashboards: DashboardEntry[] = [];
@@ -49,6 +53,16 @@ export function handleDashRequest(
     return;
   }
 
+  // Tile fragment endpoint for portal auto-refresh
+  const tileMatch = url.match(/^\/dash\/portal\/tile\/([^/?]+)$/);
+  if (tileMatch) {
+    const name = tileMatch[1];
+    const d = dashboards.find((x) => x.name === name);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderTile(d, ctx));
+    return;
+  }
+
   for (const d of dashboards) {
     const prefix = `/dash/${d.name}`;
     if (url === prefix || url.startsWith(prefix + '/')) {
@@ -61,19 +75,74 @@ export function handleDashRequest(
   res.end('Not found');
 }
 
+function renderTile(
+  d: DashboardEntry | undefined,
+  ctx: DashboardContext,
+): string {
+  if (!d) return '<div class="tile"><span>Not found</span></div>';
+  let dot = 'dot-none';
+  let summary = esc(d.description);
+  if (d.health) {
+    try {
+      const h = d.health(ctx);
+      dot =
+        h.status === 'ok'
+          ? 'dot-ok'
+          : h.status === 'warn'
+            ? 'dot-warn'
+            : 'dot-err';
+      summary = esc(h.summary);
+    } catch {
+      dot = 'dot-err';
+      summary = 'health check failed';
+    }
+  }
+  return (
+    `<a class="tile" href="/dash/${esc(d.name)}/">` +
+    `<div class="tile-header"><span class="dot ${dot}"></span>` +
+    `<span class="tile-title">${esc(d.title)}</span></div>` +
+    `<div class="tile-summary">${summary}</div>` +
+    `</a>`
+  );
+}
+
+const PORTAL_CSS = `
+body { font-family: monospace; max-width: 900px; margin: 20px auto; padding: 0 20px; }
+h1 { margin-bottom: 12px; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile { display: block; border: 1px solid #ccc; padding: 12px 16px; text-decoration: none; color: inherit; border-radius: 4px; }
+.tile:hover { border-color: #999; background: #fafafa; }
+.tile-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.dot-ok { background: #22c55e; }
+.dot-warn { background: #f59e0b; }
+.dot-err { background: #ef4444; }
+.dot-none { background: #9ca3af; }
+.tile-title { font-weight: bold; font-size: 15px; }
+.tile-summary { color: #555; font-size: 13px; }
+`.trim();
+
 function servePortal(res: http.ServerResponse): void {
-  const items = dashboards
+  const tileDivs = dashboards
     .map(
       (d) =>
-        `<li><a href="/dash/${d.name}/">${d.title}</a> &mdash; ${d.description}</li>`,
+        `<div hx-get="/dash/portal/tile/${d.name}" hx-trigger="load, every 30s" hx-swap="outerHTML">` +
+        `<a class="tile" href="/dash/${esc(d.name)}/">` +
+        `<div class="tile-header"><span class="dot dot-none"></span>` +
+        `<span class="tile-title">${esc(d.title)}</span></div>` +
+        `<div class="tile-summary">${esc(d.description)}</div>` +
+        `</a></div>`,
     )
     .join('\n');
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`<!DOCTYPE html>
 <html><head><title>Dashboards</title>
-<style>body{font-family:monospace;max-width:600px;margin:40px auto;padding:0 20px}
-a{color:#0066cc}</style></head>
-<body><h1>Dashboards</h1><ul>${items}</ul></body></html>`);
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<style>${PORTAL_CSS}</style></head>
+<body>
+<h1>Dashboards</h1>
+<div class="tiles">${tileDivs}</div>
+</body></html>`);
 }
 
 // --- container cache ---

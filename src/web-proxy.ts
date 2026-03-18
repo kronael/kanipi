@@ -20,6 +20,9 @@ import { logger } from './logger.js';
 import { handleSlinkPost } from './slink.js';
 import { addSseListener, removeSseListener } from './channels/web.js';
 import { handleDashRequest, DashboardContext } from './dashboards/index.js';
+import './dashboards/tasks.js';
+import './dashboards/activity.js';
+import './dashboards/groups.js';
 import type { OnInboundMessage } from './types.js';
 
 const PUB_SLOTH_JS = `(function(){

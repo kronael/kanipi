@@ -1054,3 +1054,45 @@ export function getPendingOnboarding(): OnboardingEntry[] {
     )
     .all() as OnboardingEntry[];
 }
+
+// Returns last N task run logs for a task (for dashboard)
+export function getTaskRunLogsForTask(
+  taskId: string,
+  limit: number,
+): TaskRunLog[] {
+  return db
+    .prepare(
+      'SELECT * FROM task_run_logs WHERE task_id = ? ORDER BY run_at DESC LIMIT ?',
+    )
+    .all(taskId, limit) as TaskRunLog[];
+}
+
+// Returns last N messages across all chats (for activity dashboard)
+export interface RecentMessage {
+  id: string;
+  chat_jid: string;
+  sender: string | null;
+  sender_name: string | null;
+  content: string | null;
+  timestamp: string;
+  is_bot_message: number;
+  group_folder: string | null;
+}
+
+export function getRecentMessages(limit: number): RecentMessage[] {
+  return db
+    .prepare(
+      `SELECT id, chat_jid, sender, sender_name, content, timestamp, is_bot_message, group_folder
+       FROM messages
+       WHERE is_bot_message = 0 AND content != '' AND content IS NOT NULL
+       ORDER BY timestamp DESC LIMIT ?`,
+    )
+    .all(limit) as RecentMessage[];
+}
+
+// Returns all onboarding entries (for groups dashboard)
+export function getAllOnboarding(): OnboardingEntry[] {
+  return db
+    .prepare('SELECT * FROM onboarding ORDER BY created_at DESC')
+    .all() as OnboardingEntry[];
+}
