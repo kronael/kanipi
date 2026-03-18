@@ -25,6 +25,7 @@ import './dashboards/activity.js';
 import './dashboards/groups.js';
 import './dashboards/memory.js';
 import './dashboards/onboarding.js';
+import './dashboards/evangelist.js';
 import type { OnInboundMessage } from './types.js';
 
 const PUB_SLOTH_JS = `(function(){

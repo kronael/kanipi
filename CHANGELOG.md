@@ -12,6 +12,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 ### Added
 
 - **Group git repos**: each group folder is an independent git repo. `kanipi git-init <instance> <folder>` initializes a group, `kanipi create --from <repo>` clones a config. Agent informed via git-repo skill.
+- **Evangelist template**: community engagement agent. Posts are markdown files with YAML frontmatter in `posts/`. Agent browses web for relevant content, drafts responses, human approves via dashboard before posting via social actions.
 
 ---
 
