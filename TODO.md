@@ -39,7 +39,7 @@ Requires architectural changes or new instance setup. Do not ship to marinade.
 - [x] dash-memory: diary/memory editor
 - [ ] evangelist: community engagement agent (4/R)
 - [x] gmail channel: dropped — generic IMAP email channel handles Gmail fine
-- [ ] instance-repos: git-based config deployment (4/G)
+- [ ] instance-repos: git-based config deployment (5/G)
 - [ ] agent-pipeline: multi-hop routing, continuation payloads (5/2)
 - [ ] ipc-mcp-proxy: unix socket replaces file IPC (5/A)
 - [ ] workflows: multi-step workflow primitives (5/N)
