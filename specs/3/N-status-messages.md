@@ -4,9 +4,10 @@ status: shipped
 
 # Agent-Initiated Status Updates
 
-Agent emits `<status>` blocks before and during any tool use. The
-agent-runner extracts them, sends each as an interim message, and strips
-them from the final text.
+Agent emits `<status>` blocks for long or complex tasks to acknowledge
+the work and set time expectations. The agent-runner extracts them, sends
+each as an interim message, and strips them from the final text. Not for
+simple one-step replies.
 
 ## Problem
 

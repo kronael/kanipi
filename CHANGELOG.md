@@ -24,9 +24,9 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ### Changed
 
-- **Status message prompt**: `container/CLAUDE.md` now says ALWAYS emit
-  `<status>` before and during any tool use, not just "for long-running tasks".
-  Pattern documented: `status → tools → status → final answer`.
+- **Status message prompt**: `container/CLAUDE.md` clarified — emit
+  `<status>` for long/complex tasks to acknowledge work and set time
+  expectations; not for simple one-step replies.
 
 ---
 

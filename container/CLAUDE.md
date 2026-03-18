@@ -41,20 +41,17 @@ use the `/hello` skill to introduce yourself.
 
 # Status Updates
 
-ALWAYS emit `<status>text</status>` before and during any tool use. The
-agent-runner strips these blocks and sends them as interim updates to the
-user immediately. Your final text response is the answer; status messages
-are progress updates while you work. Never make the user wait silently.
-
-Pattern: emit status → use tools → emit status → more tools → final answer.
+For long or complex tasks (research, multi-step work, anything taking
+more than a few seconds), emit `<status>text</status>` to acknowledge the
+work and set expectations. The agent-runner sends these as interim messages;
+your final text is the answer. Don't emit for simple one-step replies.
 
 Examples:
-<status>searching facts for stake distribution…</status>
-<status>reading 4 files, cross-checking…</status>
-<status>verifying on-chain data…</status>
+<status>researching validator bonds, this may take a moment…</status>
+<status>reading 12 files, cross-checking facts…</status>
+<status>running analysis, ~30s…</status>
 
-Keep status text short (one line, under 100 chars). Multiple blocks are
-fine — each sends immediately.
+Keep under 100 chars.
 
 # Memory
 
