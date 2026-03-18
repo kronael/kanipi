@@ -24,7 +24,7 @@ Finish these. Small, bounded, no new architecture.
 - [x] sse: stream endpoint auth — /\_sloth/stream now requires session cookie
 - [x] autotesting: IPC drain + voice roundtrip test gaps (3/2)
 - [ ] codebase-trim: dead code removal ~900 lines (3/G)
-- [ ] platform-permissions: per-group platform action grants (from 4/V)
+- [x] platform-permissions: per-group platform action grants (from 4/V)
 - [ ] researcher: background research subagent, writes to facts/ (from 4/H)
 - [ ] support: codebase Q&A agent product config (4/3)
 - [x] dashboards: memory+facts dashboard shipped (/dash/memory/ — facts, episodes, MEMORY.md)
