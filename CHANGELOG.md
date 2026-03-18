@@ -7,6 +7,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Group git repos**: each group folder is an independent git repo. `kanipi git-init <instance> <folder>` initializes a group, `kanipi create --from <repo>` clones a config. Agent informed via git-repo skill.
+
+---
+
 ## [v1.10.8] — 2026-03-18
 
 ### Added

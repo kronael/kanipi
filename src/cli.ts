@@ -567,9 +567,81 @@ function resolveTemplateDir(
   return path.join(base, 'prototype');
 }
 
-function create(name: string, tmpl = 'default'): void {
+function gitInit(instance: string, folder: string): void {
+  if (!folder) {
+    console.error('usage: kanipi git-init <instance> <folder>');
+    process.exit(1);
+  }
+
+  const dataDir = getDataDir(instance);
+  const groupsDir = path.join(dataDir, 'groups');
+  const groupDir = path.resolve(groupsDir, folder);
+
+  // Safety: must stay within groups dir
+  const rel = path.relative(groupsDir, groupDir);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    console.error(`Invalid folder: ${folder}`);
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(groupDir)) {
+    console.error(`group folder not found: ${groupDir}`);
+    process.exit(1);
+  }
+
+  try {
+    execFileSync('git', ['init', groupDir], { stdio: 'pipe' });
+  } catch (err) {
+    console.error(`git init failed: ${err}`);
+    process.exit(1);
+  }
+
+  // Runtime state exclusions
+  const gitignoreLines = [
+    'diary/',
+    'episodes/',
+    'users/',
+    'logs/',
+    'media/',
+    'tmp/',
+    '*.jl',
+  ];
+
+  // Add existing child group dirs
+  try {
+    for (const entry of fs.readdirSync(groupDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const childGitignore = path.join(groupDir, entry.name, '.git');
+        // Only gitignore dirs that are themselves group repos or look like child groups
+        // We add all subdirs that aren't already in the runtime list
+        const runtimeDirs = new Set([
+          'diary',
+          'episodes',
+          'users',
+          'logs',
+          'media',
+          'tmp',
+        ]);
+        if (!runtimeDirs.has(entry.name)) {
+          gitignoreLines.push(`${entry.name}/`);
+        }
+      }
+    }
+  } catch {
+    // ignore read errors
+  }
+
+  const gitignorePath = path.join(groupDir, '.gitignore');
+  fs.writeFileSync(gitignorePath, gitignoreLines.join('\n') + '\n');
+
+  console.log(`Initialized git repo in groups/${folder}`);
+}
+
+function create(name: string, tmpl = 'default', fromUrl?: string): void {
   if (!name) {
-    console.error('usage: kanipi create [--template <name>] <name>');
+    console.error(
+      'usage: kanipi create [--template <name>] [--from <url>] <name>',
+    );
     process.exit(1);
   }
 
@@ -579,17 +651,31 @@ function create(name: string, tmpl = 'default'): void {
     process.exit(1);
   }
 
-  fs.mkdirSync(path.join(dataDir, 'groups', 'root', 'logs'), {
-    recursive: true,
-  });
+  fs.mkdirSync(path.join(dataDir, 'groups'), { recursive: true });
   fs.mkdirSync(path.join(dataDir, 'store'), { recursive: true });
   fs.mkdirSync(path.join(dataDir, 'data'), { recursive: true });
   fs.mkdirSync(path.join(dataDir, 'web'), { recursive: true });
   fs.mkdirSync(`${PREFIX}/run/kanipi_${name}`, { recursive: true });
 
+  const rootGroupDir = path.join(dataDir, 'groups', 'root');
+
+  if (fromUrl) {
+    try {
+      execFileSync('git', ['clone', fromUrl, rootGroupDir], {
+        stdio: 'inherit',
+      });
+    } catch (err) {
+      console.error(`git clone failed: ${err}`);
+      process.exit(1);
+    }
+    fs.mkdirSync(path.join(rootGroupDir, 'logs'), { recursive: true });
+  } else {
+    fs.mkdirSync(path.join(rootGroupDir, 'logs'), { recursive: true });
+  }
+
   fs.chownSync(path.join(dataDir, 'groups'), 1000, 1000);
-  fs.chownSync(path.join(dataDir, 'groups', 'root'), 1000, 1000);
-  fs.chownSync(path.join(dataDir, 'groups', 'root', 'logs'), 1000, 1000);
+  fs.chownSync(rootGroupDir, 1000, 1000);
+  fs.chownSync(path.join(rootGroupDir, 'logs'), 1000, 1000);
   fs.chownSync(path.join(dataDir, 'data'), 1000, 1000);
 
   const appDir = process.env.APP_DIR || '';
@@ -789,7 +875,8 @@ function startServices(
 
 function printUsage(): void {
   console.log('usage: kanipi <instance>');
-  console.log('       kanipi create <name>');
+  console.log('       kanipi create [--from <repo-url>] <name>');
+  console.log('       kanipi git-init <instance> <folder>');
   console.log('       kanipi config <instance> group list');
   console.log('       kanipi config <instance> user {list|add|rm|passwd} ...');
   console.log('       kanipi config <instance> mount {list|add|rm} ...');
@@ -907,16 +994,27 @@ function main(): void {
     case 'config':
       handleConfig(args.slice(1));
       break;
+    case 'git-init':
+      gitInit(args[1], args[2]);
+      break;
     case 'create': {
       let tmpl = 'default';
-      let createName = args[1];
-      if (args[1] === '--template' && args[2] && args[3]) {
-        tmpl = args[2];
-        createName = args[3];
-      } else if (args[1] === '--template' && args[2]) {
-        tmpl = args[2];
+      let fromUrl: string | undefined;
+      const rest = args.slice(1);
+      const filtered: string[] = [];
+      for (let i = 0; i < rest.length; i++) {
+        if (rest[i] === '--template' && rest[i + 1]) {
+          tmpl = rest[i + 1];
+          i++;
+        } else if (rest[i] === '--from' && rest[i + 1]) {
+          fromUrl = rest[i + 1];
+          i++;
+        } else {
+          filtered.push(rest[i]);
+        }
       }
-      create(createName, tmpl);
+      const createName = filtered[0];
+      create(createName, tmpl, fromUrl);
       break;
     }
     default:
