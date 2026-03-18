@@ -46,15 +46,15 @@ export async function handleOnboarding(
   switch (entry.status) {
     case 'new': {
       const text = lastMsg.content.trim();
-      const m = text.match(/^\/request\s+(\S+)/i);
+      const m = text.match(/^\/request(?:\s+(\S+))?/i);
       if (!m) {
         await channel.sendMessage(
           chatJid,
-          'To request a workspace: /request <name>',
+          'To request a workspace: /request [name]',
         );
         return;
       }
-      const name = m[1].toLowerCase();
+      const name = (m[1] ?? sender.replace(/^@/, '')).toLowerCase();
       if (!isValidWorldName(name)) {
         await channel.sendMessage(
           chatJid,
