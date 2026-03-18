@@ -7,6 +7,18 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.10.6] — 2026-03-18
+
+### Fixed
+
+- **Onboarding message delivery**: all channels now pass messages from
+  unregistered JIDs to the gateway. Previously the channel layer silently
+  dropped them, so `/request` never reached the onboarding handler.
+- **`/request` without name**: defaults to sender's username (stripped of
+  leading `@`, lowercased) instead of requiring an explicit name.
+
+---
+
 ## [v1.10.5] — 2026-03-18
 
 ### Added
