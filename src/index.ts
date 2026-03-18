@@ -105,6 +105,13 @@ import {
   registerCommand,
   writeCommandsXml,
 } from './commands/index.js';
+import {
+  accumulate,
+  checkTimeout,
+  defaultConfig,
+  emptyState,
+  ImpulseState,
+} from './impulse.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
@@ -128,7 +135,27 @@ let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
 
+const SOCIAL_PLATFORMS = new Set([
+  'twitter',
+  'mastodon',
+  'bluesky',
+  'reddit',
+  'facebook',
+  'instagram',
+  'threads',
+  'linkedin',
+  'twitch',
+  'youtube',
+]);
+
+function isSocialJid(jid: string): boolean {
+  const prefix = jid.split(':')[0];
+  return SOCIAL_PLATFORMS.has(prefix);
+}
+
 const channels: Channel[] = [];
+const impulseStates = new Map<string, ImpulseState>();
+const impulseConfig = defaultConfig();
 const queue = new GroupQueue();
 
 const typingState: Record<
@@ -283,6 +310,7 @@ export function _clearTestState(): void {
   for (const k of Object.keys(lastMessageDate)) delete lastMessageDate[k];
   for (const k of Object.keys(lastAgentTimestamp)) delete lastAgentTimestamp[k];
   channels.splice(0);
+  impulseStates.clear();
 }
 
 async function processGroupMessages(chatJid: string): Promise<boolean> {
@@ -917,6 +945,26 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
+          // impulse gate: social platforms accumulate; messaging passes through
+          if (isSocialJid(chatJid)) {
+            let iState = impulseStates.get(chatJid) ?? emptyState();
+            let shouldFlush = false;
+            for (const m of groupMessages) {
+              const r = accumulate(iState, m, impulseConfig);
+              iState = r.state;
+              if (r.flush) shouldFlush = true;
+            }
+            impulseStates.set(chatJid, iState);
+            if (!shouldFlush) {
+              logger.info(
+                { group: group.name, impulse: iState.impulse },
+                'Impulse held',
+              );
+              continue;
+            }
+            impulseStates.delete(chatJid);
+          }
+
           type DeferredCmd = { msg: InboundEvent; word: string; args: string };
           const deferredCmds: DeferredCmd[] = [];
           const nonCommandMessages: InboundEvent[] = [];
@@ -1051,6 +1099,12 @@ async function startMessageLoop(): Promise<void> {
       }
     } catch (err) {
       logger.error({ err, chatJid: 'loop' }, 'Error in message loop');
+    }
+    for (const [jid, state] of impulseStates) {
+      if (checkTimeout(state, impulseConfig)) {
+        impulseStates.delete(jid);
+        queue.enqueueMessageCheck(jid);
+      }
     }
 
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
