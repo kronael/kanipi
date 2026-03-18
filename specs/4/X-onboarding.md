@@ -175,6 +175,20 @@ export function rejectOnboarding(jid: string): void;
 export function getPendingOnboarding(): OnboardingEntry[];
 ```
 
+## Dashboard
+
+Operator view at `/dash/onboarding/`. Read-only — approve/reject via chat command.
+
+- **Summary bar** — total / pending / approved / rejected counts (auto-refresh 30s)
+- **Pending requests** — table with JID, sender, world name, time ago, and
+  `/approve <jid>` as copyable `<code>` text (auto-refresh 15s)
+- **Recent history** — last 20 approved/rejected entries with timestamp (auto-refresh 60s)
+- **Health** — `warn` if any pending request is older than 1h, `ok` otherwise;
+  summary shows pending count
+- JSON API: `GET /dash/onboarding/api/pending` and `/dash/onboarding/api/all`
+
+Implemented in `src/dashboards/onboarding.ts`, registered in `src/web-proxy.ts`.
+
 ## Not in scope
 
 - Auto-approve (allowlist, rate limit)
