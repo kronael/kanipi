@@ -85,19 +85,19 @@ RUN uv pip install --system --break-system-packages \
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY agent-runner/package*.json ./
+COPY container/agent-runner/package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy source code
-COPY agent-runner/ ./
+COPY container/agent-runner/ ./
 
 # Bake per-channel output styles into agent image
-COPY output-styles/ /home/node/.claude/output-styles/
+COPY prototype/.claude/output-styles/ /home/node/.claude/output-styles/
 
 # Seed recall config for knowledge search
-COPY .recallrc /home/node/.recallrc
+COPY container/.recallrc /home/node/.recallrc
 
 # Validate TypeScript compiles (catches errors at build time)
 RUN npm run build && rm -rf dist

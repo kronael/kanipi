@@ -18,7 +18,7 @@ image:
 	sudo docker build -t kanipi .
 
 agent-image:
-	cd container && sudo docker build -t kanipi-agent .
+	sudo docker build -t kanipi-agent -f container/Dockerfile .
 
 integration: agent-image
 	bunx vitest run tests/integration --testTimeout=120000
