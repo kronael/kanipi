@@ -330,7 +330,27 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     return true;
   }
 
-  const lastMsg = missedMessages[missedMessages.length - 1];
+  // Skip command messages — they are handled by the message loop.
+  // Advance the cursor past any leading commands to avoid double-processing.
+  const nonCmdMessages = missedMessages.filter((msg) => {
+    const m = msg.content.trim();
+    const cmdText = m.startsWith('[') ? m.replace(/^\[[^\]]*\]\s*/, '') : m;
+    if (!cmdText.startsWith('/')) return true;
+    const [word] = cmdText.slice(1).split(/\s+/);
+    return !findCommand(word.toLowerCase());
+  });
+  if (nonCmdMessages.length === 0) {
+    // All pending messages are gateway commands; advance cursor.
+    const last = missedMessages[missedMessages.length - 1];
+    if (last.timestamp > (lastAgentTimestamp[chatJid] || '')) {
+      lastAgentTimestamp[chatJid] = last.timestamp;
+      saveState();
+    }
+    logger.info({ group: group.name }, 'All pending are commands, skip agent');
+    return true;
+  }
+
+  const lastMsg = nonCmdMessages[nonCmdMessages.length - 1];
   const routes = getRoutesForJid(chatJid);
   const resolved = resolveRoute(lastMsg, routes);
   if (resolved && resolved.target !== group.folder) {
@@ -345,7 +365,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
     saveState();
     delegatePerSender(
-      missedMessages,
+      nonCmdMessages,
       resolved.target,
       chatJid,
       resolved.command,

@@ -283,11 +283,7 @@ describe('WhatsAppChannel', () => {
       // The channel should attempt to reconnect (calls connectInternal again)
     });
 
-    it('exits on loggedOut disconnect', async () => {
-      const mockExit = vi
-        .spyOn(process, 'exit')
-        .mockImplementation(() => undefined as never);
-
+    it('schedules reconnect on loggedOut disconnect', async () => {
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
 
@@ -296,9 +292,8 @@ describe('WhatsAppChannel', () => {
       // Disconnect with loggedOut reason (401)
       triggerDisconnect(401);
 
+      // Channel should be disconnected but not exited — it schedules a slow reconnect
       expect(channel.isConnected()).toBe(false);
-      expect(mockExit).toHaveBeenCalledWith(0);
-      mockExit.mockRestore();
     });
   });
 
