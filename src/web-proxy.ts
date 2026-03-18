@@ -23,6 +23,7 @@ import { handleDashRequest, DashboardContext } from './dashboards/index.js';
 import './dashboards/tasks.js';
 import './dashboards/activity.js';
 import './dashboards/groups.js';
+import './dashboards/memory.js';
 import type { OnInboundMessage } from './types.js';
 
 const PUB_SLOTH_JS = `(function(){
