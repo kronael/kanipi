@@ -366,6 +366,145 @@ registerDashboard({
   handler: statusHandler,
 });
 
+// --- memory state (exported for tests and memory dashboard) ---
+
+interface FactEntry {
+  group: string;
+  filename: string;
+  verified_at: string;
+  question: string;
+  answer: string;
+}
+
+interface EpisodeDashEntry {
+  group: string;
+  type: string;
+  key: string;
+  summary: string;
+}
+
+interface MemoryEntry {
+  group: string;
+  content: string;
+}
+
+function parseFrontmatterMemory(content: string): Record<string, string> {
+  const m = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return {};
+  try {
+    const fm = parseYaml(m[1]);
+    const out: Record<string, string> = {};
+    for (const k of Object.keys(fm ?? {})) {
+      const v = fm[k];
+      if (typeof v === 'string') out[k] = v;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function readMemoryState(): {
+  facts: FactEntry[];
+  episodes: EpisodeDashEntry[];
+  memories: MemoryEntry[];
+} {
+  const groups = getAllGroupConfigs();
+  const facts: FactEntry[] = [];
+  const episodes: EpisodeDashEntry[] = [];
+  const memories: MemoryEntry[] = [];
+
+  for (const [folder, cfg] of Object.entries(groups)) {
+    const groupDir = path.join(GROUPS_DIR, folder);
+
+    // facts
+    const factsDir = path.join(groupDir, 'facts');
+    if (fs.existsSync(factsDir)) {
+      let files: string[] = [];
+      try {
+        files = fs.readdirSync(factsDir).filter((f) => f.endsWith('.md'));
+      } catch {
+        // skip
+      }
+      for (const file of files) {
+        try {
+          const content = fs.readFileSync(path.join(factsDir, file), 'utf-8');
+          const fm = parseFrontmatterMemory(content);
+          const body = content.replace(/^---\n[\s\S]*?\n---\n?/, '');
+          const firstAnswerLine =
+            (fm.answer || body).split('\n').find((l) => l.trim()) || '';
+          facts.push({
+            group: cfg.name,
+            filename: file,
+            verified_at: fm.verified_at || '',
+            question: fm.question || fm.topic || file.replace(/\.md$/, ''),
+            answer: firstAnswerLine.slice(0, 120),
+          });
+        } catch {
+          // skip
+        }
+      }
+    }
+
+    // episodes
+    const episodesDir = path.join(groupDir, 'episodes');
+    if (fs.existsSync(episodesDir)) {
+      let files: string[] = [];
+      try {
+        files = fs.readdirSync(episodesDir).filter((f) => f.endsWith('.md'));
+      } catch {
+        // skip
+      }
+      const EPISODE_PATTERNS: [RegExp, string][] = [
+        [/^\d{8}\.md$/, 'day'],
+        [/^\d{4}-W\d{2}\.md$/, 'week'],
+        [/^\d{4}-\d{2}\.md$/, 'month'],
+      ];
+      for (const file of files) {
+        let type = '';
+        for (const [re, t] of EPISODE_PATTERNS) {
+          if (re.test(file)) {
+            type = t;
+            break;
+          }
+        }
+        if (!type) continue;
+        try {
+          const content = fs.readFileSync(
+            path.join(episodesDir, file),
+            'utf-8',
+          );
+          const fm = parseFrontmatterMemory(content);
+          if (fm.summary) {
+            episodes.push({
+              group: cfg.name,
+              type: fm.type || type,
+              key: file.replace(/\.md$/, ''),
+              summary: fm.summary,
+            });
+          }
+        } catch {
+          // skip
+        }
+      }
+    }
+
+    // MEMORY.md
+    const memPath = path.join(groupDir, 'MEMORY.md');
+    if (fs.existsSync(memPath)) {
+      try {
+        const content = fs.readFileSync(memPath, 'utf-8');
+        memories.push({ group: cfg.name, content });
+      } catch {
+        // skip
+      }
+    }
+  }
+
+  facts.sort((a, b) => b.verified_at.localeCompare(a.verified_at));
+  return { facts, episodes, memories };
+}
+
 // --- shell html ---
 
 const SECTIONS = [

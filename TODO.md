@@ -37,7 +37,7 @@ Requires architectural changes or new instance setup. Do not ship to marinade.
 
 - [ ] unified home dir: groups/{folder} → /home/node, remove /workspace/group
 - [ ] detached containers: file-based IPC replaces docker stdin/stdout, enables reclaim (4/W)
-- [ ] dash-memory: diary/memory editor (read-only view shipped in Phase 3)
+- [x] dash-memory: diary/memory editor
 - [ ] evangelist: community engagement agent (4/R)
 - [x] gmail channel: dropped — generic IMAP email channel handles Gmail fine
 - [ ] instance-repos: git-based config deployment (4/G)
