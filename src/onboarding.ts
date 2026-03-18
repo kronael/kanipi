@@ -77,6 +77,7 @@ export async function handleOnboarding(
       await channel.sendMessage(chatJid, 'Still waiting for approval.');
       return;
     case 'rejected':
+      await channel.sendMessage(chatJid, 'Your request was not approved.');
       return;
     case 'approved':
       return;

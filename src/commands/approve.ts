@@ -2,11 +2,10 @@ import fs from 'fs';
 import path from 'path';
 
 import {
-  addRoute,
   enqueueSystemMessage,
+  getGroupByFolder,
   getOnboardingEntry,
   GroupConfig,
-  setGroupConfig,
   upsertOnboarding,
 } from '../db.js';
 import { logger } from '../logger.js';
@@ -84,6 +83,14 @@ const approveCommand: CommandHandler = {
       return;
     }
 
+    if (getGroupByFolder(worldName)) {
+      await channel.sendMessage(
+        groupJid,
+        `World name already in use: ${worldName}`,
+      );
+      return;
+    }
+
     const worldPath = resolveGroupFolderPath(worldName);
     if (fs.existsSync(worldPath)) {
       await channel.sendMessage(
@@ -103,8 +110,6 @@ const approveCommand: CommandHandler = {
       parent: undefined,
     };
 
-    setGroupConfig(newGroup);
-    addRoute(jid, { seq: 0, type: 'default', match: null, target: worldName });
     deps?.registerGroup(jid, newGroup);
 
     // Welcome system message
