@@ -14,6 +14,32 @@ researches issues, and maintains a verified knowledge base for the product.
 - `.claude/skills/hello/SKILL.md` — support-specific greeting (use cases, not features)
 - `.claude/skills/howto/SKILL.md` — support-specific howto page generator
 
+## Deployment model
+
+Support bots run best as **tier 2 groups** nested inside a world. This gives:
+
+- World admin manages users and routing
+- Support group handles product questions
+- Root group handles meta-operations and routing
+
+Recommended structure:
+
+```
+root/                   [tier 0] gateway admin
+  <world>/              [tier 1] world admin
+    <world>/support/    [tier 2] support bot ← this template
+```
+
+Tier 2 groups receive user messages from the world parent. Users in
+`<world>/support/` are routed there by the parent group's routing rules.
+
+To add a support group to an existing world:
+
+```bash
+kanipi group add --parent <world> <world>/support
+kanipi group route add <jid> default <world>/support
+```
+
 ## Setup
 
 ### 1. Create instance
