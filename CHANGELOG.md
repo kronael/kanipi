@@ -7,12 +7,17 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [Unreleased]
+## [v1.11.0] — 2026-03-18
 
 ### Added
 
-- **Group git repos**: each group folder is an independent git repo. `kanipi git-init <instance> <folder>` initializes a group, `kanipi create --from <repo>` clones a config. Agent informed via git-repo skill.
-- **Evangelist template**: community engagement agent. Posts are markdown files with YAML frontmatter in `posts/`. Agent browses web for relevant content, drafts responses, human approves via dashboard before posting via social actions.
+- **Evangelist template**: community engagement agent. File-based post pipeline (`posts/drafts/approved/scheduled/posted/rejected/`). Agent browses web, drafts from narratives+ideas+facts, human approves via dashboard. Directory IS the status — no frontmatter `status:` field.
+- **Evangelist dashboard** (`/dash/evangelist/`): marker-based discovery (`.evangelist` file), calendar view, tweet/post card modes, narratives tab, knowledge tab, approve/reject via file moves.
+- **Narratives + ideas**: `narratives/` (story angles, voice, consulted first when drafting), `ideas/` (ephemeral operator inputs, depleted after drafting).
+- **Group git repos**: every group folder auto-initialized as a git repo on creation. Parent gitignores children. `kanipi git-init`, `kanipi create --from <repo>`. Agent git-repo skill with commit discipline.
+- **Dash-memory**: full read-only knowledge browser at `/dash/memory/` (MEMORY.md, CLAUDE.md, diary, episodes, users, facts, search).
+- **Dash-onboarding**: pending requests and approval history at `/dash/onboarding/`.
+- **Migration 039**: git-repo skill. **Migration 040**: evangelist skills.
 
 ---
 
