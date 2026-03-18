@@ -281,6 +281,31 @@ function buildVolumeMounts(
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
 
+  // Seed .claude.json if missing — SDK silently returns 0 messages without it
+  const claudeJsonPath = path.join(groupDir, '.claude.json');
+  if (!fs.existsSync(claudeJsonPath)) {
+    const userID = crypto
+      .createHash('sha256')
+      .update(`kanipi:${group.folder}`)
+      .digest('hex');
+    fs.writeFileSync(
+      claudeJsonPath,
+      JSON.stringify(
+        {
+          firstStartTime: new Date().toISOString(),
+          userID,
+          thinkingMigrationComplete: true,
+          sonnet45MigrationComplete: true,
+          opus45MigrationComplete: true,
+          opusProMigrationComplete: true,
+        },
+        null,
+        2,
+      ) + '\n',
+    );
+    chownRecursive(claudeJsonPath, 1000, 1000);
+  }
+
   const stylesSrc = path.join(appDir, 'container', 'output-styles');
   const stylesDst = path.join(claudeStateDir, 'output-styles');
   if (fs.existsSync(stylesSrc)) {
