@@ -9,6 +9,25 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Fixed
+
+- **`outputStyle` not injected**: agent-runner now passes `channelName` as
+  `outputStyle` explicitly to the SDK query options. Previously it was only
+  written to `settings.json` and the SDK did not pick it up from
+  `settingSources`, so channel-specific formatting rules (telegram.md etc.)
+  were silently ignored — agents used tables in Telegram despite the ban.
+
+- **Onboarding never triggered**: `getNewMessages` was called with only
+  `getRoutedJids()`, so new users with no routes never had their messages
+  fetched and `handleOnboarding` was never reached. Fixed by appending
+  `getUnroutedChatJids(since)` to the JID list when `ONBOARDING_ENABLED`.
+
+### Changed
+
+- **Status message prompt**: `container/CLAUDE.md` now says ALWAYS emit
+  `<status>` before and during any tool use, not just "for long-running tasks".
+  Pattern documented: `status → tools → status → final answer`.
+
 ---
 
 ## [v1.10.2] — 2026-03-18
