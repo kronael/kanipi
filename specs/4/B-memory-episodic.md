@@ -95,7 +95,7 @@ purely mechanical compression.
 /compact-memories diary month     → 0 4 1 * *     1st of month
 ```
 
-See `container/skills/compact-memories/SKILL.md` for protocol and
+See `prototype/.claude/skills/compact-memories/SKILL.md` for protocol and
 compression rules.
 
 ## Gateway injection

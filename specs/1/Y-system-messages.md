@@ -113,7 +113,7 @@ CREATE TABLE system_messages (
 
 ## Agent awareness
 
-Documented in `container/skills/self/SKILL.md`. Agent
+Documented in `prototype/.claude/skills/self/SKILL.md`. Agent
 should know system messages exist, what each origin means,
 that they come from gateway not user, and never quote
 them back to user verbatim.

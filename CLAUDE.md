@@ -137,16 +137,12 @@ kanipi_<name>.service        systemd unit per instance
 **Upgrade workflow** (selective per instance):
 
 ```bash
-make agent-image                                    # build kanipi-agent:latest
-sudo docker tag kanipi-agent:latest kanipi-agent-<name>:latest  # tag for instance
-sudo systemctl restart kanipi_<name>                # restart only upgraded instances
+make agent-image && sudo docker tag kanipi-agent:latest kanipi-agent-<name>:latest
+make image && sudo docker tag kanipi:latest kanipi-<name>:latest
+sudo systemctl restart kanipi_<name>
 ```
 
-Set `CONTAINER_IMAGE=kanipi-agent-<name>:latest` in each instance's
-`.env`. Default is `nanoclaw-agent:latest` (config.ts fallback).
-
-Gateway image follows the same pattern: `kanipi:latest` →
-`kanipi-<name>:latest` per instance.
+Set `CONTAINER_IMAGE=kanipi-agent-<name>:latest` in each instance's `.env`.
 
 ## Operational check (post-deploy)
 
@@ -154,7 +150,7 @@ Gateway image follows the same pattern: `kanipi:latest` →
 sudo systemctl status kanipi_<instance>
 sudo journalctl -u kanipi_<instance> --since "5 min ago" --no-pager | head -30
 sudo journalctl -u kanipi_<instance> --since "5 min ago" | grep -iE 'error|fatal'
-sudo docker ps --filter "name=nanoclaw-" --format "{{.Names}} {{.Status}}"
+sudo docker ps --filter "name=kanipi-agent-" --format "{{.Names}} {{.Status}}"
 ```
 
 Red flags: `"Error in message loop"`, `"Container timeout with no output"`,

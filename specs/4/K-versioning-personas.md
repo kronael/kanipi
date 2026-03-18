@@ -27,8 +27,8 @@ should work at scale. Currently ad-hoc — needs a coherent model.
 
 ### Persona files
 
-- `container/CLAUDE.md` → seeded once to `~/.claude/CLAUDE.md`
-- `container/skills/` → seeded once to `~/.claude/skills/`
+- `prototype/.claude/CLAUDE.md` → seeded once to `~/.claude/CLAUDE.md`
+- `prototype/.claude/skills/` → seeded once to `~/.claude/skills/`
 - Group folder: `SOUL.md`, `CLAUDE.md` (group-level), `facts/`
 - Tier 2/3: RO mounts over inherited files
 
@@ -153,7 +153,7 @@ Before building the full plugin system, the smallest useful change:
 
 1. **Skill selection per group** — `container-runner.ts` reads a
    `skills` list from group config, only seeds listed skills
-   instead of all `container/skills/*`
+   instead of all `prototype/.claude/skills/*`
 2. **Group-level migration awareness** — world admins (tier 1) can
    run `/migrate` for their own world, not just root
 

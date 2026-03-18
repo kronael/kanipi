@@ -84,7 +84,7 @@ export function permissionTier(folder: string): PermissionTier {
 export const CONTAINER_IMAGE =
   process.env.CONTAINER_IMAGE ||
   envConfig.CONTAINER_IMAGE ||
-  'nanoclaw-agent:latest';
+  'kanipi-agent:latest';
 export const CONTAINER_TIMEOUT = parseInt(
   process.env.CONTAINER_TIMEOUT || '1800000',
   10,

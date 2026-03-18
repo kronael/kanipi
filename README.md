@@ -244,7 +244,7 @@ web/priv/               private web files (auth required)
 
 The `/pub/` URL prefix is the auth boundary: files under `web/pub/`
 are served without authentication, `web/priv/` requires auth.
-Agent skills are seeded from `container/skills/` to
+Agent skills are seeded from `prototype/.claude/skills/` to
 `~/.claude/skills/` inside each container on first spawn.
 
 Current shipped auth is local-account session auth plus slink JWT

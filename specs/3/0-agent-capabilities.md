@@ -51,7 +51,7 @@ episodes, etc.) without going through gateway IPC.
 
 ## Skill: acquire
 
-`container/skills/acquire/SKILL.md` — teaches agents the
+`prototype/.claude/skills/acquire/SKILL.md` — teaches agents the
 multimedia acquisition strategy:
 
 1. Prefer transcripts over raw media
@@ -62,5 +62,5 @@ multimedia acquisition strategy:
 ## Content presentation
 
 Decision: short → chat message, rich → web page,
-raw data → send_file. Documented in container/CLAUDE.md
+raw data → send_file. Documented in prototype/.claude/CLAUDE.md
 (tools section).

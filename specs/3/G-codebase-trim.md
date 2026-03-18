@@ -13,7 +13,7 @@ Identify and remove dead code, duplicates, and over-abstraction.
 `drainLegacyMessages()` and `drainLegacyTasks()` deleted.
 All IPC goes through `requests/` since v0.5.0.
 
-## 2. container/CLAUDE.md duplication — DONE
+## 2. prototype/.claude/CLAUDE.md duplication — DONE
 
 Dev wisdom sections were already removed. File now contains
 only agent-specific content: group chat behavior, soul,

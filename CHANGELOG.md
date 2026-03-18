@@ -7,6 +7,24 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.10.4] — 2026-03-18
+
+### Changed
+
+- **Agent content moved to `prototype/.claude/`**: skills, CLAUDE.md, and
+  output-styles are now seeded from `prototype/.claude/` instead of `container/`.
+  Prototype is the single source of truth for what new agent containers receive.
+  `container/` now contains only build artifacts (Dockerfile, agent-runner).
+
+- **Agent image build context**: Makefile now builds agent image from repo root
+  (`-f container/Dockerfile .`) so `prototype/.claude/output-styles/` is
+  accessible during the Docker build.
+
+- **`CONTAINER_IMAGE` default**: changed from `nanoclaw-agent:latest` to
+  `kanipi-agent:latest` in config.ts.
+
+---
+
 ## [v1.10.3] — 2026-03-18
 
 ### Fixed

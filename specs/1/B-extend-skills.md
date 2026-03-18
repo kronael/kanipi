@@ -9,7 +9,7 @@ Markdown instruction sets loaded into every agent container.
 ## Layout
 
 ```
-container/skills/
+prototype/.claude/skills/
   self/         -- identity, memory, system messages
   migrate/      -- skill sync + migration (main group only)
   whisper/      -- voice transcription
@@ -22,11 +22,11 @@ container/skills/
 ## Seeding -- shipped
 
 On first container spawn per group, gateway copies
-`container/skills/` to `sessions/<group>/.claude/skills/`.
+`prototype/.claude/skills/` to `sessions/<group>/.claude/skills/`.
 Only runs if destination doesn't exist. Agent can modify
 its copy — changes persist across restarts.
 
-Canonical definitions at `/workspace/self/container/skills/`
+Canonical definitions at `/workspace/self/prototype/.claude/skills/`
 (read-only mount).
 
 ## Updates via /migrate -- shipped
@@ -37,7 +37,7 @@ Canonical definitions at `/workspace/self/container/skills/`
    for every group session
 2. Copies entire skill dir if missing or changed
 3. Runs pending migrations from
-   `container/skills/self/migrations/` (numbered, tracked
+   `prototype/.claude/skills/self/migrations/` (numbered, tracked
    by `MIGRATION_VERSION`)
 
 ## SKILL.md format
