@@ -7,6 +7,35 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.10.5] — 2026-03-18
+
+### Added
+
+- **Product templates**: `prototype/` renamed to `templates/default/`; new
+  `templates/support/` and `templates/researcher/` product templates with
+  SYSTEM.md, SOUL.md, CLAUDE.md for their respective agent roles.
+- **`kanipi create --template <name>`**: create an instance from a named
+  product template (`default`, `support`, `researcher`). Agent skills always
+  seed from `templates/default/.claude/` regardless of template chosen.
+- **Memory & Knowledge dashboard**: `/dash/memory/` shows facts, episodes,
+  and MEMORY.md per group.
+- **Platform permissions**: `set_grants`/`get_grants` IPC actions; removed
+  `maxTier` dual enforcement from action-registry (grants.ts is the single source).
+- **SSE stream auth**: `/_sloth/stream` now requires a valid session cookie
+  for private groups (`!webPublic && authSecret`). `/_sloth/message` stays
+  public for embedded widget use.
+- **Episodic memory**: `compact-memories` skill + `episode.ts` gateway
+  injection documented in CLAUDE.md and `self/SKILL.md`.
+- **Voice roundtrip tests**: integration tests for processAttachments +
+  voiceHandler pipeline.
+
+### Fixed
+
+- **`spawn_group` recursive copy**: replaced flat file loop with
+  `copyDirRecursive` — prototype subdirectories (e.g. `.claude/`) now copied.
+
+---
+
 ## [v1.10.4] — 2026-03-18
 
 ### Changed
