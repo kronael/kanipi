@@ -52,6 +52,7 @@ strategy: helpful_reply | feature_mention | experience_share
 source: https://...
 relevance: 8
 created: 2026-03-18T22:00:00Z
+content_id: optional-shared-id # optional: links related cross-platform posts
 ---
 ```
 
@@ -117,12 +118,60 @@ The agent's CLAUDE.md encodes engagement principles:
 - Disclose affiliation when directly asked
 - No astroturfing — one account per platform, transparent identity
 
+## Discovery
+
+The dashboard discovers evangelist groups by scanning GROUPS_DIR recursively
+for a `.evangelist` marker file (single line: `evangelist`).
+
+`findEvangelistGroups(groupsDir)` in `src/dashboards/evangelist.ts`:
+
+- Returns `{folder: 'atlas/evangelist', dir: '/srv/.../groups/atlas/evangelist'}[]`
+- Shell page shows a group selector dropdown when multiple groups are found
+
+Template includes `templates/evangelist/.evangelist` so seeded groups are
+auto-discovered.
+
+## Content pieces
+
+Posts in the same pipeline directories may share a `content_id:` frontmatter
+field. Same idea, multiple platform posts (e.g. one thread → twitter thread +
+reddit reply + bluesky post).
+
+```yaml
+content_id: launch-v2-march # optional — agent sets on related posts
+```
+
+The dashboard groups posts with the same `content_id` visually in the drafts
+view (shown as a labelled cluster row, not separate rows).
+
+## Calendar view
+
+Fragment: `GET /dash/evangelist/x/calendar?group=<folder>` (60s refresh)
+
+Shows posts from `approved/` and `scheduled/`. Grouped by date:
+
+- ISO date in `schedule:` field → shown under that date (sorted ascending)
+- Natural-language schedule → shown under "Unscheduled"
+
+Rendered as `<dl>` (date = `<dt>`, each post = `<dd>` with platform badge,
+target, first line of body). No visual grid.
+
+Tab: "Calendar" in dashboard shell alongside Drafts/Approved/Posted/Knowledge.
+
+## Knowledge tab
+
+Fragment: `GET /dash/evangelist/x/knowledge?group=<folder>` (120s refresh)
+
+Shows `facts/sources.md` and `facts/product.md` in `<pre>` blocks.
+Read-only. Tab: "Knowledge".
+
 ## Template
 
 `templates/evangelist/` seeds a new evangelist group:
 
 ```
 templates/evangelist/
+  .evangelist             — marker file for auto-discovery
   CLAUDE.md               — routing note, persona, engagement rules
   SOUL.md                 — professional community member persona
   facts/sources.md        — monitored sources (fill in per deployment)
@@ -142,10 +191,16 @@ URL: `/dash/evangelist/?group=<folder>` (default: first group named `evangelist`
 ### Sections
 
 1. **Summary bar** — counts by directory (drafts/approved/posted/rejected)
-2. **Drafts queue** — files in `posts/drafts/`: source URL, relevance, strategy, schedule,
-   draft text preview. Approve/Reject buttons (move files to approved/ or rejected/).
-3. **Scheduled** — files in `posts/approved/` with schedule
-4. **Posted history** — last 20 files in `posts/posted/`
+2. **Drafts** tab — files in `posts/drafts/`. Two card modes:
+   - **Tweet mode**: platforms is only `twitter` OR body < 300 chars → compact inline card
+     (platform badge + 120-char preview + approve/reject)
+   - **Post mode**: everything else → full table row (source, relevance, strategy, schedule,
+     200-char body excerpt, approve/reject)
+   - Posts sharing `content_id` shown as a labelled cluster
+3. **Approved** tab — files in `posts/approved/` with schedule
+4. **Calendar** tab — `approved/` + `scheduled/` posts grouped by date
+5. **Posted** tab — last 20 files in `posts/posted/`
+6. **Knowledge** tab — `facts/sources.md` and `facts/product.md` in `<pre>` blocks
 
 ### API endpoints
 
