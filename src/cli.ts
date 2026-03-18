@@ -552,9 +552,24 @@ function handleChannel(instance: string, action: string, rest: string[]): void {
   });
 }
 
-function create(name: string): void {
+function resolveTemplateDir(
+  tmpl: string,
+  appDir: string,
+  srcDir: string,
+): string {
+  const base = appDir || path.resolve(srcDir, '..');
+  const explicit = path.join(base, 'templates', tmpl);
+  if (fs.existsSync(explicit)) return explicit;
+  // fallback: default template
+  const def = path.join(base, 'templates', 'default');
+  if (fs.existsSync(def)) return def;
+  // legacy fallback
+  return path.join(base, 'prototype');
+}
+
+function create(name: string, tmpl = 'default'): void {
   if (!name) {
-    console.error('usage: kanipi create <name>');
+    console.error('usage: kanipi create [--template <name>] <name>');
     process.exit(1);
   }
 
@@ -579,15 +594,7 @@ function create(name: string): void {
 
   const appDir = process.env.APP_DIR || '';
   const srcDir = path.dirname(new URL(import.meta.url).pathname);
-  let templateDir =
-    (appDir && fs.existsSync(path.join(appDir, 'prototype'))
-      ? path.join(appDir, 'prototype')
-      : appDir && fs.existsSync(path.join(appDir, 'template'))
-        ? path.join(appDir, 'template')
-        : '') ||
-    (fs.existsSync(path.resolve(srcDir, '..', 'prototype'))
-      ? path.resolve(srcDir, '..', 'prototype')
-      : path.resolve(srcDir, '..', 'template'));
+  const templateDir = resolveTemplateDir(tmpl, appDir, srcDir);
 
   const envSrc = path.join(templateDir, 'env.example');
   const envDst = path.join(dataDir, '.env');
@@ -606,10 +613,10 @@ function create(name: string): void {
     console.log(`created: ${envDst}`);
   }
 
-  const webTemplateSrc = path.resolve(
-    templateDir,
-    '..',
-    'container',
+  const defaultDir = resolveTemplateDir('default', appDir, srcDir);
+  const webTemplateSrc = path.join(
+    defaultDir,
+    '.claude',
     'skills',
     'web',
     'template',
@@ -691,9 +698,9 @@ function runInstance(instance: string): void {
     '/srv/app/container',
     path.join(dataDir, 'self', 'container'),
   );
-  const protoSrc = fs.existsSync('/srv/app/prototype')
-    ? '/srv/app/prototype'
-    : '/srv/app/template';
+  const protoSrc = fs.existsSync('/srv/app/templates/default')
+    ? '/srv/app/templates/default'
+    : '/srv/app/prototype';
   copyDirRecursive(protoSrc, path.join(dataDir, 'self', 'prototype'));
 
   process.env.DATA_DIR = dataDir;
@@ -900,9 +907,18 @@ function main(): void {
     case 'config':
       handleConfig(args.slice(1));
       break;
-    case 'create':
-      create(args[1]);
+    case 'create': {
+      let tmpl = 'default';
+      let createName = args[1];
+      if (args[1] === '--template' && args[2] && args[3]) {
+        tmpl = args[2];
+        createName = args[3];
+      } else if (args[1] === '--template' && args[2]) {
+        tmpl = args[2];
+      }
+      create(createName, tmpl);
       break;
+    }
     default:
       if (args[1] === 'group') {
         const instance = args[0];

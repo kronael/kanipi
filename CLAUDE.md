@@ -83,10 +83,10 @@ src/                  gateway source (TypeScript)
   dashboards/         dashboard portal (/dash/ with self-registration)
 container/            agent container build
   agent-runner/       in-container agent entrypoint
-prototype/            seeds groups/root/prototype/ on `kanipi create`
-  .claude/CLAUDE.md   agent CLAUDE.md (seeded to ~/.claude/CLAUDE.md in container)
-  .claude/skills/     agent-side skills (seeded to ~/.claude/skills/ in container)
-  .claude/output-styles/  agent output styles (seeded to ~/.claude/output-styles/)
+templates/            product templates for `kanipi create [--template <name>]`
+  default/            default world template (agent skills, CLAUDE.md, output-styles)
+  support/            support-bot template (SYSTEM.md, SOUL.md, CLAUDE.md)
+  researcher/         research-agent template (SYSTEM.md, SOUL.md, CLAUDE.md)
 kanipi                bash entrypoint (legacy, for docker deployments)
 specs/                design specs (see below)
 ```
@@ -173,16 +173,16 @@ Agent produces summaries via `/compact-memories` skill:
 /compact-memories diary month     # diary/week/ → diary/month/YYYY-MM.md
 ```
 
-Enable via `schedule_task` cron (see `prototype/.claude/skills/compact-memories/SKILL.md`).
+Enable via `schedule_task` cron (see `templates/default/.claude/skills/compact-memories/SKILL.md`).
 
 ## Shipping changes (agent skills / web convention)
 
 When making notable kanipi changes:
 
 1. Add entry to `CHANGELOG.md`
-2. Add migration file `prototype/.claude/skills/self/migrations/NNN-desc.md`
-3. Update `prototype/.claude/skills/self/MIGRATION_VERSION` to match highest N
-4. Update "Latest migration version" in `prototype/.claude/skills/self/SKILL.md`
+2. Add migration file `templates/default/.claude/skills/self/migrations/NNN-desc.md`
+3. Update `templates/default/.claude/skills/self/MIGRATION_VERSION` to match highest N
+4. Update "Latest migration version" in `templates/default/.claude/skills/self/SKILL.md`
 5. Rebuild agent image
 
 ## Docs

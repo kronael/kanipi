@@ -94,7 +94,7 @@ RUN npm install
 COPY container/agent-runner/ ./
 
 # Bake per-channel output styles into agent image
-COPY prototype/.claude/output-styles/ /home/node/.claude/output-styles/
+COPY templates/default/.claude/output-styles/ /home/node/.claude/output-styles/
 
 # Seed recall config for knowledge search
 COPY container/.recallrc /home/node/.recallrc

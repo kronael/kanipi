@@ -270,7 +270,7 @@ flushed from DB as XML, then user messages.
 (`type:'reset_session'`). The gateway evicts the current session
 and the next invocation starts fresh.
 
-**Skills seeding**: on first spawn for a group, `prototype/.claude/skills/`
+**Skills seeding**: on first spawn for a group, `templates/default/.claude/skills/`
 is seeded to `~/.claude/skills/` inside the container. Includes
 kanipi-specific skills plus development skills bundled from
 kronael/tools (bash, go, python, typescript, etc.). A `CLAUDE.md`
@@ -285,8 +285,8 @@ Claude Code default system prompt (`systemPrompt` string instead of
 `claude_code` preset). SOUL.md is auto-appended when both present.
 Used for user-facing groups where developer-style output is unwanted.
 
-**Migration system**: `prototype/.claude/skills/self/MIGRATION_VERSION`
-tracks the applied version number. `prototype/.claude/skills/self/migrations/`
+**Migration system**: `templates/default/.claude/skills/self/MIGRATION_VERSION`
+tracks the applied version number. `templates/default/.claude/skills/self/migrations/`
 contains numbered migration files (`NNN-desc.md`). The `/migrate`
 skill syncs all groups from the canonical source when the version
 changes.
