@@ -35,6 +35,7 @@ import {
   refreshGroups,
   registerGroup,
 } from './actions/groups.js';
+import { getGrants, setGrants } from './actions/grants-actions.js';
 import { allSocialActions } from './actions/social.js';
 import {
   DATA_DIR,
@@ -108,6 +109,8 @@ const allActions: Action[] = [
   delegateGroup,
   escalateGroup,
   resetSession,
+  getGrants,
+  setGrants,
   ...allSocialActions,
 ];
 for (const a of allActions) registerAction(a);

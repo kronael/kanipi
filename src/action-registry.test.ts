@@ -252,18 +252,6 @@ describe('grants filtering in manifest', () => {
     ]);
   });
 
-  it('grants interact correctly with maxTier filter', () => {
-    const name = uid();
-    registerAction(makeAction(name, { maxTier: 0 }));
-    // maxTier=0 + tier=1 → excluded before grants check
-    const manifest = getManifest('root', {
-      tier: 1,
-      platforms: [],
-      grants: ['*'],
-    });
-    expect(manifest.find((m) => m.name === name)).toBeUndefined();
-  });
-
   it('grants interact correctly with platform filter', () => {
     const name = uid();
     registerAction(makeAction(name, { platforms: ['reddit'] }));
@@ -299,42 +287,5 @@ describe('grants filtering in manifest', () => {
     expect(entry).toBeDefined();
     // matchingRules collects allow rules: '*' and the specific one
     expect(entry!.grants).toEqual(['*', `${name}(jid=reddit:*)`]);
-  });
-});
-
-describe('maxTier filtering', () => {
-  it('action with maxTier 0 excluded at tier 1', () => {
-    const name = uid();
-    registerAction(makeAction(name, { maxTier: 0 }));
-    const manifest = getManifest('root', { tier: 1, platforms: [] });
-    expect(manifest.find((m) => m.name === name)).toBeUndefined();
-  });
-
-  it('action with maxTier 0 included at tier 0', () => {
-    const name = uid();
-    registerAction(makeAction(name, { maxTier: 0 }));
-    const manifest = getManifest('root', { tier: 0, platforms: [] });
-    expect(manifest.find((m) => m.name === name)).toBeDefined();
-  });
-
-  it('action with maxTier 2 included at tier 2', () => {
-    const name = uid();
-    registerAction(makeAction(name, { maxTier: 2 }));
-    const manifest = getManifest('root', { tier: 2, platforms: [] });
-    expect(manifest.find((m) => m.name === name)).toBeDefined();
-  });
-
-  it('action with maxTier 2 excluded at tier 3', () => {
-    const name = uid();
-    registerAction(makeAction(name, { maxTier: 2 }));
-    const manifest = getManifest('root', { tier: 3, platforms: [] });
-    expect(manifest.find((m) => m.name === name)).toBeUndefined();
-  });
-
-  it('action with no maxTier included at any tier', () => {
-    const name = uid();
-    registerAction(makeAction(name));
-    const manifest = getManifest('root', { tier: 3, platforms: [] });
-    expect(manifest.find((m) => m.name === name)).toBeDefined();
   });
 });

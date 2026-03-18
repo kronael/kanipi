@@ -53,7 +53,6 @@ export interface Action {
   input: z.ZodType;
   handler(input: unknown, ctx: ActionContext): Promise<unknown>;
   mcp?: boolean;
-  maxTier?: number;
   platforms?: string[];
 }
 
@@ -97,7 +96,6 @@ export function getManifest(
 
   for (const a of actions.values()) {
     if (a.mcp === false) continue;
-    if (a.maxTier !== undefined && opts.tier > a.maxTier) continue;
     if (
       a.platforms?.length &&
       !a.platforms.some((p) => opts.platforms.includes(p))
