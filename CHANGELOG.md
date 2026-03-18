@@ -7,6 +7,32 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.10.7] — 2026-03-18
+
+### Added
+
+- **Dashboard panels**: tasks, activity, groups dashboards fully implemented.
+  Portal upgraded to 2-column tile grid with HTMX health dots (30s refresh).
+- **Skill disable/pin in templates**: `disabled: true` in a skill's SKILL.md
+  prevents `migrate` from overwriting it; `managed: local` pins a customized
+  skill. Support template uses this for `web` (disabled), `hello`, `howto`.
+- **templates/default/.claude tracked in git**: skills and migrations now in
+  version control (previously gitignored after prototype→templates rename).
+- **Support template skills**: `hello` and `howto` skills customized for
+  support bots — no web/developer content, focused on user-facing help.
+- **Template READMEs**: `templates/support/README.md` and
+  `templates/researcher/README.md` with setup, deployment model, and skill
+  behavior tables.
+- **Tier 2 deployment guidance**: support template documents recommended
+  `<world>/<world>/support/` tier-2 group structure.
+
+### Fixed
+
+- **DB functions**: added `getTaskRunLogsForTask`, `getRecentMessages`,
+  `getAllOnboarding` used by new dashboards.
+
+---
+
 ## [v1.10.6] — 2026-03-18
 
 ### Fixed
