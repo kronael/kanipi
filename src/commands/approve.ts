@@ -49,7 +49,34 @@ const approveCommand: CommandHandler = {
       return;
     }
 
-    const jid = args.trim() || getPendingOnboarding()[0]?.jid;
+    const pending = getPendingOnboarding();
+    const raw = args.trim();
+    let jid: string | undefined;
+    if (!raw) {
+      if (pending.length === 0) {
+        await channel.sendMessage(groupJid, 'No pending requests.');
+        return;
+      }
+      if (pending.length > 1) {
+        const list = pending
+          .map((e, i) => `${i + 1}. ${e.sender ?? e.jid} → ${e.world_name}`)
+          .join('\n');
+        await channel.sendMessage(
+          groupJid,
+          `Pending (${pending.length}):\n${list}`,
+        );
+        return;
+      }
+      jid = pending[0].jid;
+    } else if (/^\d+$/.test(raw)) {
+      jid = pending[Number(raw) - 1]?.jid;
+      if (!jid) {
+        await channel.sendMessage(groupJid, `No pending request #${raw}.`);
+        return;
+      }
+    } else {
+      jid = raw;
+    }
     if (!jid) {
       await channel.sendMessage(groupJid, 'No pending requests.');
       return;

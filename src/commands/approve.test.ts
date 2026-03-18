@@ -139,7 +139,7 @@ describe('/approve', () => {
     expect(ch.sent[0]).toMatch(/no pending/i);
   });
 
-  it('with no args auto-selects oldest pending', async () => {
+  it('with no args and one pending: auto-approves', async () => {
     upsertOnboarding('telegram:123', {
       status: 'pending',
       world_name: 'myworld',
@@ -151,6 +151,53 @@ describe('/approve', () => {
     await approveCommand.handle(makeCtx('', ch));
     expect(ch.sent[0]).toMatch(/approved/i);
     expect(getOnboardingEntry('telegram:123')?.status).toBe('approved');
+  });
+
+  it('with no args and multiple pending: lists them', async () => {
+    upsertOnboarding('telegram:1', {
+      status: 'pending',
+      world_name: 'alpha',
+      sender: 'Alice',
+    });
+    upsertOnboarding('telegram:2', {
+      status: 'pending',
+      world_name: 'beta',
+      sender: 'Bob',
+    });
+    const ch = makeChannel();
+    await approveCommand.handle(makeCtx('', ch));
+    expect(ch.sent[0]).toMatch(/pending.*2/i);
+    expect(ch.sent[0]).toMatch(/1\./);
+    expect(ch.sent[0]).toMatch(/2\./);
+  });
+
+  it('approves by number', async () => {
+    upsertOnboarding('telegram:1', {
+      status: 'pending',
+      world_name: 'alpha',
+      sender: 'Alice',
+    });
+    upsertOnboarding('telegram:2', {
+      status: 'pending',
+      world_name: 'beta',
+      sender: 'Bob',
+    });
+    const ch = makeChannel();
+    const registerGroup = vi.fn();
+    setApproveDeps({ registerGroup });
+    await approveCommand.handle(makeCtx('1', ch));
+    expect(ch.sent[0]).toMatch(/approved/i);
+  });
+
+  it('rejects out-of-range number', async () => {
+    upsertOnboarding('telegram:1', {
+      status: 'pending',
+      world_name: 'alpha',
+      sender: 'Alice',
+    });
+    const ch = makeChannel();
+    await approveCommand.handle(makeCtx('9', ch));
+    expect(ch.sent[0]).toMatch(/no pending request #9/i);
   });
 
   it('rejects unknown jid', async () => {
