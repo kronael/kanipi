@@ -7,6 +7,29 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.10.8] — 2026-03-18
+
+### Added
+
+- **Topic routing (`#topic`)**: messages prefixed with `#topic` run in a
+  named session within the same group — persistent, isolated context per topic.
+- **Child delegation (`@agent`)**: messages prefixed with `@childname` are
+  delegated to a matching child group. Unknown child falls through to self
+  (not dropped).
+- **Prefix route type**: new `prefix` route type in router for `@`/`#`
+  pattern matching; auto-inserted at seq 9998/9999 (user routes can override).
+- **default SOUL.md**: personal soul distilled from user identity — builder,
+  boring code philosophy, anti-fluff.
+- **researcher template removed**: default template is the dev+research+assistant
+  profile; researcher was redundant.
+
+### Fixed
+
+- **`@`/`#` route priority**: prefix routes inserted at seq 9998/9999 so
+  user-defined routes are evaluated first and can override them.
+
+---
+
 ## [v1.10.7] — 2026-03-18
 
 ### Added
