@@ -9,10 +9,13 @@ Also run manually: `/draft` to trigger an immediate browse-and-draft cycle.
 
 ## Steps
 
-1. Read `~/facts/sources.md` — get the sources list and search terms
-2. Read `~/facts/product.md` — load product knowledge and talking points
-3. Read existing `~/posts/*/` frontmatter — collect `source:` URLs to dedup
-4. For each source/search term:
+1. Read all `~/narratives/*.md` — load story angles and voice guidance (consult FIRST)
+2. Read `~/facts/sources.md` — get the sources list and search terms
+3. Read `~/facts/product.md` — load product knowledge and talking points
+4. Read `~/ideas/*.md` (skip `depleted/`) — load operator ideas to draft from
+5. Read existing `~/posts/*/` frontmatter — collect `source:` URLs to dedup
+6. For ideas in `~/ideas/`: draft posts from them first, then move each to `~/ideas/depleted/` after creating its draft
+7. For each source/search term:
    a. Use WebSearch to find recent relevant discussions
    b. Use WebFetch to read promising threads
    c. Score relevance 1-10 based on:
@@ -21,7 +24,7 @@ Also run manually: `/draft` to trigger an immediate browse-and-draft cycle.
    - Community fit: tone and context appropriate for engagement
      d. Skip anything scoring below 6
      e. Skip URLs already in existing posts/ files
-5. For each qualifying thread, create `~/posts/drafts/YYYYMMDD-<slug>.md`:
+8. For each qualifying thread, create `~/posts/drafts/YYYYMMDD-<slug>.md`:
 
 ```markdown
 ---
@@ -31,13 +34,15 @@ schedule: tomorrow afternoon
 strategy: helpful_reply
 source: https://reddit.com/r/...
 relevance: 8
+narrative_id: optional-narrative-slug
+content_id: optional-grouping-id
 created: 2026-03-18T22:00:00Z
 ---
 
 Draft response text here...
 ```
 
-6. Report summary: N threads checked, M drafts created, K skipped
+9. Report summary: N ideas drafted, M threads checked, K drafts created, L skipped
 
 ## Filename convention
 

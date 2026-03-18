@@ -22,6 +22,8 @@ draft responses for human review, and post approved drafts on schedule.
 
 ## Context files
 
+- `narratives/` — story angles, voice, connective tissue (consult FIRST when drafting)
+- `ideas/` — operator-dropped ideas to draft from; move to `ideas/depleted/` after use
 - `facts/product.md` — product knowledge, features, talking points
 - `facts/sources.md` — monitored sources (subreddits, search terms, sites)
 - `posts/` — pipeline directories: drafts/, approved/, scheduled/, posted/, rejected/
