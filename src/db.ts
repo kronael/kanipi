@@ -102,6 +102,13 @@ export function getAllChats(): ChatInfo[] {
     .all() as ChatInfo[];
 }
 
+export function getChatIsGroup(jid: string): boolean {
+  const row = db
+    .prepare(`SELECT is_group FROM chats WHERE jid = ?`)
+    .get(jid) as { is_group: number } | undefined;
+  return row ? row.is_group === 1 : false;
+}
+
 export function getLastGroupSync(): string | null {
   const row = db
     .prepare(`SELECT last_message_time FROM chats WHERE jid = '__group_sync__'`)

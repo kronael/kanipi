@@ -60,6 +60,7 @@ import {
   flushSystemMessages,
   getAllChats,
   getAllGroupConfigs,
+  getChatIsGroup,
   getAllSessions,
   getAllTasks,
   getHubForJid,
@@ -921,9 +922,9 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          // impulse gate: accumulate per-group, skip if threshold not met
+          // impulse gate: DMs always flush; group chats accumulate
           let iState = impulseStates.get(chatJid) ?? emptyState();
-          let shouldFlush = false;
+          let shouldFlush = !getChatIsGroup(chatJid);
           for (const m of groupMessages) {
             const r = accumulate(iState, m, impulseConfig);
             iState = r.state;
