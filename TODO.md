@@ -11,20 +11,20 @@ Finish these. Small, bounded, no new architecture.
 - [x] legacy IPC removal: drainLegacyMessages / drainLegacyTasks gone
 - [x] nested IPC groups: scanGroupFolders recurse fix (atlas/support now watched)
 - [x] tier auth: send_message/send_file allow tier-2 agents in same world
-- [ ] autotesting: IPC drain + voice roundtrip test gaps (3/2)
-- [ ] sse: auth per group on stream endpoint (3/ gap)
-- [ ] permissions: close any remaining tier 0-3 gaps (3/5)
-- [ ] think-blocks: <think> stripping in agent-runner, update container/CLAUDE.md (3/M)
 - [x] chat-bound-sessions: IDLE_TIMEOUT=0, send_reply action, chatJid on ActionContext (3/L)
-- [ ] status-messages: <status> blocks in agent-runner, update container/CLAUDE.md (3/N)
-- [ ] escalation impl: local: JID routing, escalate_group return path (3/5-permissions) — pending confirmation
-- [ ] codebase-trim: dead code removal ~900 lines (3/G)
-- [ ] jid-format: compact JID URIs, sender IDs (3/H)
 - [x] orphan cleanup: kill nanoclaw-\* on gateway startup
 - [x] stream-stall timeout: canceled
+- [x] permissions: tier 0-3 gaps closed (grants.ts, send_message/send_file scoped)
+- [x] think-blocks: stripThinkBlocks() in agent-runner:137 (3/M)
+- [x] status-messages: extractStatusBlocks() in agent-runner:122 (3/N)
+- [x] escalation impl: escalateGroup in actions/groups.ts (3/5-permissions)
+- [x] jid-format: consistent platform:id URIs throughout (3/H)
+- [x] dash-status: dashboard portal with containers/queues/state (src/dashboards/)
+- [x] memory-episodic: compact-memories skill + episode.ts gateway injection (4/B)
+- [x] sse: stream endpoint auth — /\_sloth/stream now requires session cookie
+- [x] autotesting: IPC drain + voice roundtrip test gaps (3/2)
+- [ ] codebase-trim: dead code removal ~900 lines (3/G)
 - [ ] platform-permissions: per-group platform action grants (from 4/V)
-- [ ] dash-status: read-only health dashboard — containers, queues, errors (from 4/P)
-- [ ] memory-episodic: diary → weekly/monthly aggregation via cron subagent (from 4/B)
 - [ ] researcher: background research subagent, writes to facts/ (from 4/H)
 - [ ] support: codebase Q&A agent product config (4/3)
 - [ ] dashboards: long-running web services for operator tools (4/4)
