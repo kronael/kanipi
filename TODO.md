@@ -21,7 +21,7 @@ Finish these. Small, bounded, no new architecture.
 - [ ] codebase-trim: dead code removal ~900 lines (3/G)
 - [ ] jid-format: compact JID URIs, sender IDs (3/H)
 - [x] orphan cleanup: kill nanoclaw-\* on gateway startup
-- [ ] stream-stall timeout: agent-runner watchdog if no result in 5min
+- [x] stream-stall timeout: canceled
 - [ ] platform-permissions: per-group platform action grants (from 4/V)
 - [ ] dash-status: read-only health dashboard — containers, queues, errors (from 4/P)
 - [ ] memory-episodic: diary → weekly/monthly aggregation via cron subagent (from 4/B)
