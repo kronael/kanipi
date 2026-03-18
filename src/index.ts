@@ -60,7 +60,6 @@ import {
   flushSystemMessages,
   getAllChats,
   getAllGroupConfigs,
-  getChatIsGroup,
   getAllSessions,
   getAllTasks,
   getHubForJid,
@@ -106,13 +105,6 @@ import {
   registerCommand,
   writeCommandsXml,
 } from './commands/index.js';
-import {
-  accumulate,
-  checkTimeout,
-  defaultConfig,
-  emptyState,
-  ImpulseState,
-} from './impulse.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
@@ -137,8 +129,6 @@ let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
 
 const channels: Channel[] = [];
-const impulseStates = new Map<string, ImpulseState>();
-const impulseConfig = defaultConfig();
 const queue = new GroupQueue();
 
 const typingState: Record<
@@ -293,7 +283,6 @@ export function _clearTestState(): void {
   for (const k of Object.keys(lastMessageDate)) delete lastMessageDate[k];
   for (const k of Object.keys(lastAgentTimestamp)) delete lastAgentTimestamp[k];
   channels.splice(0);
-  impulseStates.clear();
 }
 
 async function processGroupMessages(chatJid: string): Promise<boolean> {
@@ -922,24 +911,6 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          // impulse gate: DMs always flush; group chats accumulate
-          let iState = impulseStates.get(chatJid) ?? emptyState();
-          let shouldFlush = !getChatIsGroup(chatJid);
-          for (const m of groupMessages) {
-            const r = accumulate(iState, m, impulseConfig);
-            iState = r.state;
-            if (r.flush) shouldFlush = true;
-          }
-          impulseStates.set(chatJid, iState);
-          if (!shouldFlush) {
-            logger.info(
-              { group: group.name, impulse: iState.impulse },
-              'Impulse held',
-            );
-            continue;
-          }
-          impulseStates.delete(chatJid);
-
           const channel = findChannel(channels, chatJid);
           if (!channel) {
             logger.warn({ chatJid }, 'no channel owns JID, skipping messages');
@@ -1081,12 +1052,7 @@ async function startMessageLoop(): Promise<void> {
     } catch (err) {
       logger.error({ err, chatJid: 'loop' }, 'Error in message loop');
     }
-    for (const [jid, state] of impulseStates) {
-      if (checkTimeout(state, impulseConfig)) {
-        impulseStates.delete(jid);
-        queue.enqueueMessageCheck(jid);
-      }
-    }
+
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
   }
 }
