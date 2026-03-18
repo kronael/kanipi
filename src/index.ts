@@ -259,7 +259,7 @@ function registerGroup(jid: string, group: GroupConfig): void {
     const existing = getRoutesForJid(jid).map((r) => r.match);
     if (!existing.includes('@')) {
       addRoute(jid, {
-        seq: -2,
+        seq: 9998,
         type: 'prefix',
         match: '@',
         target: group.folder,
@@ -267,7 +267,7 @@ function registerGroup(jid: string, group: GroupConfig): void {
     }
     if (!existing.includes('#')) {
       addRoute(jid, {
-        seq: -1,
+        seq: 9999,
         type: 'prefix',
         match: '#',
         target: group.folder,
