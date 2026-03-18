@@ -4,6 +4,7 @@ import path from 'path';
 import {
   enqueueSystemMessage,
   getOnboardingEntry,
+  getPendingOnboarding,
   GroupConfig,
   upsertOnboarding,
 } from '../db.js';
@@ -48,9 +49,9 @@ const approveCommand: CommandHandler = {
       return;
     }
 
-    const jid = args.trim();
+    const jid = args.trim() || getPendingOnboarding()[0]?.jid;
     if (!jid) {
-      await channel.sendMessage(groupJid, 'Usage: /approve <jid>');
+      await channel.sendMessage(groupJid, 'No pending requests.');
       return;
     }
 

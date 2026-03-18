@@ -133,10 +133,24 @@ describe('/approve', () => {
     expect(ch.sent[0]).toMatch(/root-only/i);
   });
 
-  it('requires a jid argument', async () => {
+  it('with no args and no pending: reports none', async () => {
     const ch = makeChannel();
     await approveCommand.handle(makeCtx('', ch));
-    expect(ch.sent[0]).toMatch(/usage/i);
+    expect(ch.sent[0]).toMatch(/no pending/i);
+  });
+
+  it('with no args auto-selects oldest pending', async () => {
+    upsertOnboarding('telegram:123', {
+      status: 'pending',
+      world_name: 'myworld',
+      sender: 'Alice',
+    });
+    const ch = makeChannel();
+    const registerGroup = vi.fn();
+    setApproveDeps({ registerGroup });
+    await approveCommand.handle(makeCtx('', ch));
+    expect(ch.sent[0]).toMatch(/approved/i);
+    expect(getOnboardingEntry('telegram:123')?.status).toBe('approved');
   });
 
   it('rejects unknown jid', async () => {
@@ -329,10 +343,10 @@ describe('/reject', () => {
     expect(ch.sent[0]).toMatch(/root-only/i);
   });
 
-  it('requires a jid argument', async () => {
+  it('with no args and no pending: reports none', async () => {
     const ch = makeChannel();
     await rejectCommand.handle(makeCtx('', ch));
-    expect(ch.sent[0]).toMatch(/usage/i);
+    expect(ch.sent[0]).toMatch(/no pending/i);
   });
 
   it('rejects unknown jid', async () => {

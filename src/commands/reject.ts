@@ -1,4 +1,8 @@
-import { getOnboardingEntry, upsertOnboarding } from '../db.js';
+import {
+  getOnboardingEntry,
+  getPendingOnboarding,
+  upsertOnboarding,
+} from '../db.js';
 import { logger } from '../logger.js';
 import { permissionTier } from '../config.js';
 import { notify } from './notify.js';
@@ -16,9 +20,9 @@ const rejectCommand: CommandHandler = {
       return;
     }
 
-    const jid = args.trim();
+    const jid = args.trim() || getPendingOnboarding()[0]?.jid;
     if (!jid) {
-      await channel.sendMessage(groupJid, 'Usage: /reject <jid>');
+      await channel.sendMessage(groupJid, 'No pending requests.');
       return;
     }
 
