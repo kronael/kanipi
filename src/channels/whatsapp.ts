@@ -231,9 +231,8 @@ export class WhatsAppChannel implements Channel {
           continue;
         }
 
-        // Only deliver full message for registered groups
-        if (this.opts.isRoutedJid(chatJid)) {
-          const m = msg.message;
+        const m = msg.message;
+        {
           const content =
             m?.conversation ||
             m?.extendedTextMessage?.text ||

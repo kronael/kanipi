@@ -108,15 +108,6 @@ export class TelegramChannel implements Channel {
         return;
       }
 
-      // Only deliver full message for registered groups
-      if (!this.opts.isRoutedJid(chatJid)) {
-        logger.debug(
-          { chatJid, chatName },
-          'Message from unregistered Telegram chat',
-        );
-        return;
-      }
-
       // Extract forward metadata
       let forwarded_from: string | undefined;
       let forwarded_from_id: string | undefined;
@@ -201,7 +192,6 @@ export class TelegramChannel implements Channel {
       attachments: RawAttachment[],
     ) => {
       const chatJid = `telegram:${ctx.chat.id}`;
-      if (!this.opts.isRoutedJid(chatJid)) return;
 
       const timestamp = new Date(ctx.message.date * 1000).toISOString();
       const senderName =

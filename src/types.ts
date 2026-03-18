@@ -191,5 +191,4 @@ export type OnChatMetadata = (
 export interface ChannelOpts {
   onMessage: OnInboundMessage;
   onChatMetadata: OnChatMetadata;
-  isRoutedJid: (jid: string) => boolean;
 }

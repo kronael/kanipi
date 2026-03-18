@@ -107,11 +107,9 @@ import { getLastGroupSync, updateChatName, setLastGroupSync } from '../db.js';
 function createTestOpts(
   overrides?: Partial<WhatsAppChannelOpts>,
 ): WhatsAppChannelOpts {
-  const registeredJids = new Set(['whatsapp:registered@g.us']);
   return {
     onMessage: vi.fn(),
     onChatMetadata: vi.fn(),
-    isRoutedJid: vi.fn((jid) => registeredJids.has(jid)),
     ...overrides,
   };
 }
@@ -340,7 +338,7 @@ describe('WhatsAppChannel', () => {
       );
     });
 
-    it('only emits metadata for unregistered groups', async () => {
+    it('emits message and metadata for unregistered groups', async () => {
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
 
@@ -367,7 +365,12 @@ describe('WhatsAppChannel', () => {
         'whatsapp',
         true,
       );
-      expect(opts.onMessage).not.toHaveBeenCalled();
+      expect(opts.onMessage).toHaveBeenCalledWith(
+        'whatsapp:unregistered@g.us',
+        expect.objectContaining({ content: 'Hello' }),
+        undefined,
+        undefined,
+      );
     });
 
     it('ignores status@broadcast messages', async () => {
@@ -570,11 +573,7 @@ describe('WhatsAppChannel', () => {
 
   describe('LID to JID translation', () => {
     it('translates known LID to phone JID', async () => {
-      const opts = createTestOpts({
-        isRoutedJid: vi.fn(
-          (jid) => jid === 'whatsapp:1234567890@s.whatsapp.net',
-        ),
-      });
+      const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
 
       await connectChannel(channel);
