@@ -898,7 +898,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. SYSTEM.md for custom system prompt. Migration system.
           Products are configurations: Atlas (code support, shipped), Yonder (research, shipped).
           Deploy: systemd per instance, multi-instance with independent image tags.
-          Roadmap: phase 1-2 shipped, phase 3 almost done, phase 4-5 future, Go rewrite planned.
+          Roadmap: phase 1-3 shipped, v1.10 shipped (onboarding, WhatsApp backoff, impulse gate social-only, command dedup), phase 4-5 future, Go rewrite planned.
         </p>
       </details>
     </footer>
@@ -909,14 +909,16 @@ type: product
 name: kanipi
 repo: github.com/kronael/kanipi
 base: nanoclaw (v1.1.3)
-status: v1.9.0
+status: v1.10.0
 lang: typescript (esm, nodenext)
 chat-channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
 social-channels: twitter (agent-twitter-client), reddit (snoowrap), mastodon (masto.js), bluesky (@atproto/api), facebook (graph api)
 social-events: unified InboundEvent with verbs (message, reply, post, react, repost, follow, join, edit, delete, close)
 social-actions: 22 actions (post, reply, react, repost, follow, unfollow, set_profile, delete_post, edit_post, ban, unban, timeout, mute, block, pin, unpin, lock, unlock, hide, approve, set_flair, kick)
 dynamic-registration: channels register PlatformClient at connect, actions available only while connected
-impulse-gate: per-jid weight accumulation (threshold 100, max-hold 5min, configurable per-verb weights, 0=drop)
+impulse-gate: social channels only (twitter, mastodon, bluesky, reddit, facebook); per-jid weight accumulation (threshold 100, max-hold 5min, configurable per-verb weights, 0=drop); chat channels (telegram, whatsapp, discord, email, web) bypass gate entirely
+onboarding: gateway-level state machine (ONBOARDING_ENABLED=1); states: new->pending->approved/rejected; /request <name> (user), /approve <jid> /reject <jid> (root); on approve copies root prototype/ to new world folder
+whatsapp-reconnect: exponential backoff scheduleReconnect() replaces process.exit() on reconnect failure or LoggedOut
 config: .env + env vars, sqlite group state
 source: 69 files 15389 LOC, 58 test files 17419 LOC, 926 tests, 102 specs
 architecture: channel -> impulse-gate -> sqlite -> group-queue -> router ({sender} template expansion) -> container (docker, unified home /home/node) -> claude-code-sdk -> ipc (sigusr1+files) -> action-registry (core+social) -> reply-router (delegatePerSender, chunk-chaining) -> channel
@@ -945,9 +947,9 @@ hot-patching: agent-runner TS mounted, bunx tsc at runtime
 groups: cli registration (folder-only), world-scoped auth, hierarchical delegation (5 rule types: command/pattern/keyword/sender/default, max chain depth 2), multi-jid per folder via routes
 web: vite dev server, /pub/ public vs /priv/ auth, argon2+jwt, sloth.js widget
 products: atlas (code support, shipped), yonder (research, shipped)
-roadmap: phase-1 shipped (5 chat channels), phase-2 shipped (5 social channels), phase-3 shipped (permissions, grants, recall-v2, episodes, system.md, auto-threading, dashboard), phase-4 deferred (gmail, instance-repos, memory-viewer), phase-5 future (agent-messaging, ipc-mcp-proxy, identities, workflows), go-rewrite planned
+roadmap: phase-1 shipped (5 chat channels), phase-2 shipped (5 social channels), phase-3 shipped (permissions, grants, recall-v2, episodes, system.md, auto-threading, dashboard), v1.10 shipped (onboarding state machine, whatsapp crash-loop fix, impulse-gate social-only, command double-processing fix), phase-4 deferred (gmail, instance-repos, memory-viewer), phase-5 future (agent-messaging, ipc-mcp-proxy, identities, workflows), go-rewrite planned
 deploy: systemd per instance, multi-instance independent image tags
-updated: 2026-03-17
+updated: 2026-03-18
 -->
 
   <script src="/assets/hub.js"></script>

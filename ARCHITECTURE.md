@@ -11,7 +11,8 @@ TypeScript (ESM, NodeNext), SQLite (better-sqlite3), Docker.
 ## Message Flow
 
 ```
-Channel (telegram/whatsapp/discord/email)
+Channel (telegram/whatsapp/discord/email/web)
+  -> [Impulse Gate] (social channels only; chat channels bypass)
   -> DB (store message + chat metadata)
   -> message loop (poll getNewMessages)
   -> routing rules (resolveRoute: delegate to child group if matched)
@@ -63,6 +64,15 @@ JWT verification (HMAC-SHA256), `media_url` attachments. Returns
 Pluggable command registry. Commands intercepted before agent queue.
 Built-in: `/new` (clear session), `/ping`, `/chatid`.
 
+### onboarding.ts
+
+Gateway-level onboarding state machine (no LLM). Enabled via
+`ONBOARDING_ENABLED=1`. States: new → pending → approved → rejected.
+User command: `/request <name>`. Root commands: `/approve <jid>`,
+`/reject <jid>`. On approve, copies root group's `prototype/` to a
+new world folder and registers the group. Rejected users receive a
+notification message. State stored in DB.
+
 ### channels/
 
 One file per channel. Each implements `Channel` interface:
@@ -71,6 +81,12 @@ One file per channel. Each implements `Channel` interface:
 - `whatsapp.ts` — baileys client, event-driven
 - `discord.ts` — discord.js client, event-driven
 - `email.ts` — IMAP IDLE + SMTP reply threading
+
+Social channels (Twitter, Mastodon, Bluesky, Reddit, Facebook) pass
+through an impulse gate (`impulse.ts`) before storage: per-JID event
+weights accumulate until a threshold (default 100) or hold timer
+(default 5 min) triggers a flush. Chat channels (Telegram, WhatsApp,
+Discord, Email, Web) bypass the gate and pass through immediately.
 
 Each channel stores incoming messages via `storeMessage` and
 provides `sendMessage(jid, text)` for outbound delivery.
