@@ -826,7 +826,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
           <tr><td>Deploy</td><td>systemd per instance, <code>kanipi create</code> CLI</td></tr>
           <tr><td>Base</td><td>NanoClaw fork (upstream v1.1.3)</td></tr>
-          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.9.0)</span></td></tr>
+          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.10.0)</span></td></tr>
         </table>
       </div>
     </section>
@@ -836,12 +836,12 @@ sudo systemctl enable --now kanipi_foo</pre>
       <a href="https://github.com/kronael/kanipi">github.com/kronael/kanipi</a> &middot;
       <a href="https://github.com/kronael">kronael</a>
       <br>
-      <span style="color: var(--green, #4caf50);">v1.9.0 &middot; 10 channels &middot; 926 tests &middot; 102 specs</span>
+      <span style="color: var(--green, #4caf50);">v1.10.0 &middot; 10 channels &middot; 926 tests &middot; 102 specs</span>
 
       <details class="llm-info">
         <summary>Agent context</summary>
         <p>
-          Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.9.0.
+          Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.10.0.
           TypeScript (ESM, NodeNext). Routes messages from 10 channels to containerized Claude Code agents.
           69 source files, 15,389 LOC + 58 test files, 17,419 LOC. 926 tests. 102 spec files.
           Chat channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
@@ -851,7 +851,9 @@ sudo systemctl enable --now kanipi_foo</pre>
           Social outbound: 22 actions (post, reply, react, repost, follow, unfollow, set_profile, delete_post, edit_post,
           ban, unban, timeout, mute, block, pin, unpin, lock, unlock, hide, approve, set_flair, kick).
           Dynamic action registration: channels register PlatformClient at connect time; actions available only while channel is connected.
-          Impulse gate: per-JID event weight accumulation (configurable per-verb weights, threshold 100, max hold 5min) before agent flush.
+          Impulse gate: social channels only (Twitter, Mastodon, Bluesky, Reddit, Facebook); per-JID event weight accumulation (configurable per-verb weights, threshold 100, max hold 5min) before agent flush. Chat channels (Telegram, WhatsApp, Discord, Email, Web) bypass gate entirely.
+          Onboarding: gateway-level state machine (ONBOARDING_ENABLED=1). States: new -> pending -> approved/rejected. Commands: /request <name> (user), /approve <jid> /reject <jid> (root). On approve, copies root prototype/ to new world folder.
+          WhatsApp reconnect: exponential backoff scheduleReconnect() replaces process.exit() on reconnect failure.
           Architecture: Channel &rarr; Impulse Gate &rarr; SQLite DB &rarr; GroupQueue (per-group FIFO) &rarr; Router (JID &rarr; group, prompt assembly, {sender} template expansion)
           &rarr; Container (docker run, IPC file pipe, unified home mount at /home/node) &rarr; Claude Code SDK (tools, subagents, skills, MCP)
           &rarr; IPC (SIGUSR1 signal + file-based request/response) &rarr; Action Registry (Zod-validated, grants-enforced, core + social actions)
