@@ -352,7 +352,8 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   // Advance the cursor past any leading commands to avoid double-processing.
   const nonCmdMessages = missedMessages.filter((msg) => {
     const m = msg.content.trim();
-    const cmdText = m.startsWith('[') ? m.replace(/^\[[^\]]*\]\s*/, '') : m;
+    let cmdText = m.startsWith('[') ? m.replace(/^\[[^\]]*\]\s*/, '') : m;
+    cmdText = cmdText.replace(/^@\S+\s+/, '');
     if (!cmdText.startsWith('/')) return true;
     const [word] = cmdText.slice(1).split(/\s+/);
     return !findCommand(word.toLowerCase());
@@ -971,9 +972,11 @@ async function startMessageLoop(): Promise<void> {
           for (const msg of groupMessages) {
             const m = msg.content.trim();
             // Strip leading media placeholder (e.g. "[Document: file.txt] /put")
-            const cmdText = m.startsWith('[')
+            // then strip routing prefix (e.g. "@root /approve" → "/approve")
+            let cmdText = m.startsWith('[')
               ? m.replace(/^\[[^\]]*\]\s*/, '')
               : m;
+            cmdText = cmdText.replace(/^@\S+\s+/, '');
             if (cmdText.startsWith('/')) {
               const [word, ...rest] = cmdText.slice(1).split(/\s+/);
               if (findCommand(word.toLowerCase())) {
