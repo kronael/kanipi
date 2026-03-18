@@ -62,6 +62,7 @@ interface PostMeta {
   created: string;
   posted: string | null;
   body: string;
+  content_id: string;
 }
 
 function listDir(folder: string, dir: PipelineDir): PostMeta[] {
@@ -98,6 +99,7 @@ function listDir(folder: string, dir: PipelineDir): PostMeta[] {
       posted:
         fm.posted != null && fm.posted !== 'null' ? String(fm.posted) : null,
       body,
+      content_id: String(fm.content_id ?? ''),
     });
   }
 
@@ -144,6 +146,50 @@ function movePost(
   }
 }
 
+// --- Marker-based discovery ---
+
+export function findEvangelistGroups(
+  groupsDir: string,
+): { folder: string; dir: string }[] {
+  const results: { folder: string; dir: string }[] = [];
+
+  function scan(base: string, prefix: string): void {
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(base);
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(base, entry);
+      let stat: fs.Stats;
+      try {
+        stat = fs.statSync(full);
+      } catch {
+        continue;
+      }
+      if (!stat.isDirectory()) continue;
+      const folder = prefix ? `${prefix}/${entry}` : entry;
+      const marker = path.join(full, '.evangelist');
+      if (fs.existsSync(marker)) {
+        results.push({ folder, dir: full });
+      }
+      scan(full, folder);
+    }
+  }
+
+  scan(groupsDir, '');
+  return results;
+}
+
+// --- Tweet vs post card mode ---
+
+export function isTweetMode(p: PostMeta): boolean {
+  const onlyTwitter =
+    p.platforms.length > 0 && p.platforms.every((pl) => pl === 'twitter');
+  return onlyTwitter || p.body.length < 300;
+}
+
 // --- Summary bar ---
 
 interface Counts {
@@ -180,6 +226,39 @@ function renderSummary(c: Counts): string {
 }
 
 // --- Post row helpers ---
+
+function platformBadge(platforms: string[]): string {
+  const colors: Record<string, string> = {
+    twitter: '#1da1f2',
+    bluesky: '#0085ff',
+    reddit: '#ff4500',
+    linkedin: '#0a66c2',
+    mastodon: '#6364ff',
+  };
+  return platforms
+    .map((pl) => {
+      const col = colors[pl.toLowerCase()] ?? '#888';
+      return `<span style="background:${col};color:#fff;padding:1px 5px;border-radius:3px;font-size:11px">${esc(pl)}</span>`;
+    })
+    .join(' ');
+}
+
+function renderTweetCard(p: PostMeta, group: string): string {
+  const preview = esc(p.body.slice(0, 120)) + (p.body.length > 120 ? '…' : '');
+  const badge = platformBadge(p.platforms);
+  const actions =
+    `<button onclick="approve('${esc(group)}','${esc(p.filename)}')" ` +
+    `style="color:#22c55e;cursor:pointer">Approve</button> ` +
+    `<button onclick="reject('${esc(group)}','${esc(p.filename)}')" ` +
+    `style="color:#9ca3af;cursor:pointer">Reject</button>`;
+  return (
+    `<div class="tweet-card">` +
+    `<span class="badges">${badge}</span> ` +
+    `<span class="tweet-preview">${preview}</span> ` +
+    `<span class="tweet-actions">${actions}</span>` +
+    `</div>`
+  );
+}
 
 function renderPostRow(
   p: PostMeta,
@@ -220,21 +299,82 @@ function renderPostRow(
   );
 }
 
+// Group posts by content_id for cluster display
+function groupByContentId(posts: PostMeta[]): Array<PostMeta | PostMeta[]> {
+  const idGroups = new Map<string, PostMeta[]>();
+  const standalone: PostMeta[] = [];
+
+  for (const p of posts) {
+    if (p.content_id) {
+      const g = idGroups.get(p.content_id) ?? [];
+      g.push(p);
+      idGroups.set(p.content_id, g);
+    } else {
+      standalone.push(p);
+    }
+  }
+
+  const result: Array<PostMeta | PostMeta[]> = [];
+  for (const p of posts) {
+    if (!p.content_id) {
+      result.push(p);
+    } else if (idGroups.has(p.content_id)) {
+      const grp = idGroups.get(p.content_id)!;
+      result.push(grp);
+      idGroups.delete(p.content_id);
+    }
+  }
+
+  return result;
+}
+
 // --- Section renderers ---
 
 function renderDrafts(folder: string, group: string): string {
   const drafts = listDir(folder, 'drafts');
   if (drafts.length === 0) return '<p><em>No pending drafts.</em></p>';
-  let h =
+
+  const grouped = groupByContentId(drafts);
+  const tableHeader =
     '<table><tr>' +
     '<th>File</th><th>Source</th><th>Rel</th><th>Strategy</th>' +
     '<th>Platforms</th><th>Targets</th><th>Schedule</th>' +
     '<th>Preview</th><th>Created</th><th>Actions</th>' +
     '</tr>';
-  for (const p of drafts) {
-    h += renderPostRow(p, group, true);
+
+  let tableRows = '';
+  let tweetCards = '';
+  let hasTable = false;
+
+  for (const item of grouped) {
+    const posts = Array.isArray(item) ? item : [item];
+
+    if (Array.isArray(item)) {
+      // content_id cluster — wrap in a visual group
+      const clusterRows = posts
+        .map((p) => renderPostRow(p, group, true))
+        .join('');
+      tableRows += `<tr><td colspan="10" style="background:#f9f9f9;font-size:11px;color:#888;padding:2px 8px">content cluster: ${esc(posts[0].content_id)}</td></tr>${clusterRows}`;
+      hasTable = true;
+    } else {
+      const p = item;
+      if (isTweetMode(p)) {
+        tweetCards += renderTweetCard(p, group);
+      } else {
+        tableRows += renderPostRow(p, group, true);
+        hasTable = true;
+      }
+    }
   }
-  return h + '</table>';
+
+  let out = '';
+  if (tweetCards) {
+    out += `<div class="tweet-list">${tweetCards}</div>`;
+  }
+  if (hasTable) {
+    out += tableHeader + tableRows + '</table>';
+  }
+  return out;
 }
 
 function renderScheduled(folder: string): string {
@@ -278,6 +418,83 @@ function renderHistory(folder: string): string {
   return h + '</table>';
 }
 
+// --- Calendar view ---
+
+// Returns 'YYYY-MM-DD' if iso-like, else null
+function parseIsoDate(s: string): string | null {
+  if (!s) return null;
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
+
+export function groupByScheduleDate(
+  posts: PostMeta[],
+): Map<string, PostMeta[]> {
+  const dated = new Map<string, PostMeta[]>();
+  const unscheduled: PostMeta[] = [];
+
+  for (const p of posts) {
+    const d = parseIsoDate(p.schedule);
+    if (d) {
+      const g = dated.get(d) ?? [];
+      g.push(p);
+      dated.set(d, g);
+    } else {
+      unscheduled.push(p);
+    }
+  }
+
+  const result = new Map<string, PostMeta[]>(
+    [...dated.entries()].sort(([a], [b]) => a.localeCompare(b)),
+  );
+  if (unscheduled.length > 0) result.set('Unscheduled', unscheduled);
+  return result;
+}
+
+function renderCalendar(folder: string): string {
+  const posts = [
+    ...listDir(folder, 'approved'),
+    ...listDir(folder, 'scheduled'),
+  ];
+  if (posts.length === 0)
+    return '<p><em>No approved or scheduled posts.</em></p>';
+
+  const grouped = groupByScheduleDate(posts);
+  let h = '<dl>';
+  for (const [date, datePosts] of grouped) {
+    h += `<dt style="font-weight:bold;margin-top:12px">${esc(date)}</dt>`;
+    for (const p of datePosts) {
+      const badge = platformBadge(p.platforms);
+      const target = p.targets[0] ? ` → ${esc(p.targets[0])}` : '';
+      const first = esc(p.body.split('\n').find((l) => l.trim()) ?? '');
+      h += `<dd style="margin:4px 0 4px 16px">${badge}${target} — ${first}</dd>`;
+    }
+  }
+  return h + '</dl>';
+}
+
+// --- Knowledge tab ---
+
+function renderKnowledge(folder: string): string {
+  const factsDir = path.join(GROUPS_DIR, folder, 'facts');
+  const files = ['sources.md', 'product.md'];
+  let h = '';
+  for (const file of files) {
+    const fp = path.join(factsDir, file);
+    let content: string;
+    try {
+      content = fs.readFileSync(fp, 'utf-8');
+    } catch {
+      content = '(not found)';
+    }
+    h +=
+      `<h3>${esc(file)}</h3>` +
+      `<pre style="background:#f9f9f9;border:1px solid #ddd;padding:8px;` +
+      `white-space:pre-wrap;font-size:12px;max-width:860px">${esc(content)}</pre>`;
+  }
+  return h || '<p><em>No facts files found.</em></p>';
+}
+
 // --- API ---
 
 function apiPosts(folder: string): string {
@@ -295,11 +512,47 @@ a { color: #0066cc; }
 h2 { margin-top: 24px; }
 button { background: none; border: 1px solid currentColor; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; }
 button:hover { opacity: 0.7; }
+.tweet-list { margin: 10px 0; }
+.tweet-card { display: flex; align-items: baseline; gap: 8px; padding: 5px 8px; border: 1px solid #e5e7eb; border-radius: 4px; margin: 4px 0; flex-wrap: wrap; }
+.tweet-preview { flex: 1; min-width: 200px; }
+.tweet-actions { white-space: nowrap; }
+.badges { white-space: nowrap; }
+.tabs { display: flex; gap: 0; margin: 16px 0 0; border-bottom: 2px solid #ccc; }
+.tab { padding: 6px 16px; cursor: pointer; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; font-family: monospace; font-size: 13px; }
+.tab.active { background: #fff; border-bottom: 2px solid #fff; margin-bottom: -2px; }
+.tab-panel { display: none; padding: 12px 0; }
+.tab-panel.active { display: block; }
 `.trim();
+
+// --- Group selector ---
+
+function buildGroupSelector(
+  groups: { folder: string }[],
+  selected: string,
+): string {
+  if (groups.length <= 1) return '';
+  let opts = groups
+    .map(
+      (g) =>
+        `<option value="${esc(g.folder)}"${g.folder === selected ? ' selected' : ''}>${esc(g.folder)}</option>`,
+    )
+    .join('');
+  return (
+    `<form style="margin:8px 0">` +
+    `<label>Group: <select name="group" onchange="window.location.search='?group='+encodeURIComponent(this.value)">${opts}</select></label>` +
+    `</form>`
+  );
+}
 
 // --- Shell HTML ---
 
-const SHELL_HTML = `<!DOCTYPE html>
+function buildShell(
+  groups: { folder: string }[],
+  selectedGroup: string,
+): string {
+  const selector = buildGroupSelector(groups, selectedGroup);
+  const q = `?group=${encodeURIComponent(selectedGroup)}`;
+  return `<!DOCTYPE html>
 <html><head><title>Evangelist</title>
 <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 <style>${CSS}</style>
@@ -323,20 +576,44 @@ function reject(group, filename) {
   fetch('/dash/evangelist/api/posts/' + encodeURIComponent(filename) + '/reject?group=' + encodeURIComponent(group), {method: 'POST'})
     .then(function(r) { if (r.ok) reloadAll(); else alert('Failed to reject'); });
 }
-document.addEventListener('DOMContentLoaded', function() { reloadAll(); });
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('tab-btn-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+document.addEventListener('DOMContentLoaded', function() { reloadAll(); showTab('drafts'); });
 </script>
 </head>
 <body>
 <p><a href="/dash/">&larr; Dashboards</a></p>
 <h1>Evangelist</h1>
+${selector}
 <div id="summary-content">Loading...</div>
-<h2>Drafts queue</h2>
-<div id="drafts-content">Loading...</div>
-<h2>Scheduled</h2>
-<div id="scheduled-content">Loading...</div>
-<h2>Posted history</h2>
-<div id="history-content">Loading...</div>
+<div class="tabs">
+  <button class="tab" id="tab-btn-drafts" onclick="showTab('drafts')">Drafts</button>
+  <button class="tab" id="tab-btn-scheduled" onclick="showTab('scheduled')">Approved</button>
+  <button class="tab" id="tab-btn-calendar" onclick="showTab('calendar');htmx.ajax('GET','/dash/evangelist/x/calendar${q}','#calendar-content')">Calendar</button>
+  <button class="tab" id="tab-btn-history" onclick="showTab('history')">Posted</button>
+  <button class="tab" id="tab-btn-knowledge" onclick="showTab('knowledge');htmx.ajax('GET','/dash/evangelist/x/knowledge${q}','#knowledge-content')">Knowledge</button>
+</div>
+<div id="tab-drafts" class="tab-panel">
+  <div id="drafts-content">Loading...</div>
+</div>
+<div id="tab-scheduled" class="tab-panel">
+  <div id="scheduled-content">Loading...</div>
+</div>
+<div id="tab-calendar" class="tab-panel">
+  <div id="calendar-content">Loading...</div>
+</div>
+<div id="tab-history" class="tab-panel">
+  <div id="history-content">Loading...</div>
+</div>
+<div id="tab-knowledge" class="tab-panel">
+  <div id="knowledge-content">Loading...</div>
+</div>
 </body></html>`;
+}
 
 // --- Read body helper ---
 
@@ -411,31 +688,64 @@ async function evangelistHandler(
     return;
   }
 
-  // Shell
+  if (sub === '/x/calendar') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderCalendar(group));
+    return;
+  }
+
+  if (sub === '/x/knowledge') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderKnowledge(group));
+    return;
+  }
+
+  // Shell — discover groups with .evangelist marker
+  const discovered = findEvangelistGroups(GROUPS_DIR);
+  const shell = buildShell(discovered, group);
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(SHELL_HTML);
+  res.end(shell);
 }
 
 function evangelistHealth(_ctx: DashboardContext): {
   status: 'ok' | 'warn' | 'error';
   summary: string;
 } {
-  // Check all groups for posts/drafts/ dirs
+  // Check evangelist-marked groups for posts/drafts/ dirs
   let totalDrafts = 0;
   let staleDrafts = 0;
   const cutoff = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
 
-  let groupsDir: string[];
+  let discovered: { folder: string }[];
   try {
-    groupsDir = fs.readdirSync(GROUPS_DIR);
+    discovered = findEvangelistGroups(GROUPS_DIR);
   } catch {
     return { status: 'ok', summary: 'no groups' };
   }
 
-  for (const folder of groupsDir) {
-    const drafts = listDir(folder, 'drafts');
-    totalDrafts += drafts.length;
-    staleDrafts += drafts.filter((p) => p.created && p.created < cutoff).length;
+  if (discovered.length === 0) {
+    // Fall back to all groups if none marked
+    let groupsDir: string[];
+    try {
+      groupsDir = fs.readdirSync(GROUPS_DIR);
+    } catch {
+      return { status: 'ok', summary: 'no groups' };
+    }
+    for (const folder of groupsDir) {
+      const drafts = listDir(folder, 'drafts');
+      totalDrafts += drafts.length;
+      staleDrafts += drafts.filter(
+        (p) => p.created && p.created < cutoff,
+      ).length;
+    }
+  } else {
+    for (const { folder } of discovered) {
+      const drafts = listDir(folder, 'drafts');
+      totalDrafts += drafts.length;
+      staleDrafts += drafts.filter(
+        (p) => p.created && p.created < cutoff,
+      ).length;
+    }
   }
 
   if (totalDrafts > 10 || staleDrafts > 0) {
