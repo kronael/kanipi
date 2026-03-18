@@ -19,6 +19,8 @@ package-lock.json
 .claude/
 !prototype/.claude/
 !prototype/.claude/**
+!templates/**/.claude/
+!templates/**/.claude/**
 HEAD
 config
 hooks
