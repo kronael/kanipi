@@ -27,14 +27,9 @@
 - [ ] codebase-trim: dead code removal ~900 lines (3/G)
 - [ ] dashboards: long-running web services for operator tools (4/4)
 
-## Atlas features
+## On-demand
 
-- [ ] gateway fact injection: inject top-N relevant fact summaries per spawn (like episode.ts)
-- [ ] scheduled research: /refresh-facts skill + nightly cron to re-research stale facts (verified_at > 14d)
-- [ ] knowledge gap detection: auto-trigger /facts when agent answers without a matching fact
-- [ ] user context: per-user memory, gateway injection (3/7)
-- [ ] semantic search: embeddings MCP server
-- [ ] v2 sandboxed support: frontend/backend split
+- [ ] semantic search: embeddings MCP server (on demand)
 
 ## Arizuko — deferred to new instance
 
