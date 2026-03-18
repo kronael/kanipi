@@ -23,7 +23,6 @@ import { registerDashboard } from './index.js';
 
 const mockFrontmatter = (overrides: Record<string, unknown> = {}): string => {
   const fm = {
-    status: 'draft',
     platforms: ['reddit'],
     targets: ['r/claudeai'],
     schedule: 'tomorrow afternoon',
@@ -31,14 +30,12 @@ const mockFrontmatter = (overrides: Record<string, unknown> = {}): string => {
     source: 'https://reddit.com/r/claudeai/comments/abc123',
     relevance: 8,
     created: '2026-03-18T10:00:00Z',
-    posted: null,
     ...overrides,
   };
   const lines = Object.entries(fm)
     .map(([k, v]) => {
       if (Array.isArray(v))
         return `${k}: [${v.map((x) => JSON.stringify(x)).join(', ')}]`;
-      if (v === null) return `${k}: null`;
       return `${k}: ${JSON.stringify(v)}`;
     })
     .join('\n');
@@ -56,7 +53,7 @@ describe('evangelist dashboard', () => {
     // If it throws, registration failed
   });
 
-  it('handles missing posts/ dir gracefully', async () => {
+  it('handles missing posts/drafts/ dir gracefully', async () => {
     vi.spyOn(fs, 'readdirSync').mockImplementation(() => {
       throw new Error('ENOENT');
     });
@@ -69,39 +66,27 @@ describe('evangelist dashboard', () => {
     expect(true).toBe(true);
   });
 
-  it('parses post files with valid frontmatter', () => {
-    const content = mockFrontmatter({ status: 'draft', relevance: 8 });
-    expect(content).toContain('status: "draft"');
+  it('parses post files without status field', () => {
+    const content = mockFrontmatter({ relevance: 8 });
+    expect(content).not.toContain('status:');
     expect(content).toContain('relevance: 8');
     expect(content).toContain('Draft response text here.');
   });
 
-  it('counts posts by status correctly', () => {
-    const posts = [
-      { status: 'draft' },
-      { status: 'draft' },
-      { status: 'approved' },
-      { status: 'posted' },
-      { status: 'rejected' },
-    ];
+  it('counts posts by directory correctly', () => {
+    // Directory IS the status — simulate counts per dir
     const counts = {
-      draft: 0,
-      approved: 0,
-      posted: 0,
-      rejected: 0,
-      total: posts.length,
+      drafts: 2,
+      approved: 1,
+      scheduled: 0,
+      posted: 1,
+      rejected: 1,
     };
-    for (const p of posts) {
-      if (p.status === 'draft') counts.draft++;
-      else if (p.status === 'approved') counts.approved++;
-      else if (p.status === 'posted') counts.posted++;
-      else if (p.status === 'rejected') counts.rejected++;
-    }
-    expect(counts.draft).toBe(2);
+    expect(counts.drafts).toBe(2);
     expect(counts.approved).toBe(1);
+    expect(counts.scheduled).toBe(0);
     expect(counts.posted).toBe(1);
     expect(counts.rejected).toBe(1);
-    expect(counts.total).toBe(5);
   });
 
   it('validates post filenames to prevent path traversal', () => {
@@ -115,9 +100,7 @@ describe('evangelist dashboard', () => {
 
   it('GET /api/posts returns JSON array', async () => {
     vi.spyOn(fs, 'readdirSync').mockReturnValue(['20260318-test.md' as any]);
-    vi.spyOn(fs, 'readFileSync').mockReturnValue(
-      mockFrontmatter({ status: 'draft' }) as any,
-    );
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(mockFrontmatter() as any);
 
     const chunks: string[] = [];
     const res = {
@@ -138,7 +121,7 @@ describe('evangelist dashboard', () => {
     const jsonStr = JSON.stringify([
       {
         filename: '20260318-test.md',
-        status: 'draft',
+        dir: 'drafts',
         platforms: ['reddit'],
         relevance: 8,
       },
@@ -146,16 +129,44 @@ describe('evangelist dashboard', () => {
     expect(() => JSON.parse(jsonStr)).not.toThrow();
     const parsed = JSON.parse(jsonStr);
     expect(Array.isArray(parsed)).toBe(true);
-    expect(parsed[0].status).toBe('draft');
+    expect(parsed[0].dir).toBe('drafts');
   });
 
-  it('frontmatter contains status field', () => {
-    const content = mockFrontmatter({ status: 'draft' });
+  it('frontmatter has no status field', () => {
+    const content = mockFrontmatter();
     const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n?/);
     expect(fmMatch).not.toBeNull();
-    // YAML serializes as `status: "draft"` (key unquoted, value quoted)
-    expect(content).toContain('status: "draft"');
+    expect(content).not.toContain('status:');
     expect(content).toContain('---');
+  });
+
+  it('approve moves file from drafts/ to approved/', () => {
+    const renameSpy = vi
+      .spyOn(fs, 'renameSync')
+      .mockImplementation(() => undefined);
+    vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined as any);
+
+    // Simulate what movePost does internally
+    const src = '/fake/groups/evangelist/posts/drafts/20260318-test.md';
+    const dst = '/fake/groups/evangelist/posts/approved/20260318-test.md';
+    fs.mkdirSync('/fake/groups/evangelist/posts/approved', { recursive: true });
+    fs.renameSync(src, dst);
+
+    expect(renameSpy).toHaveBeenCalledWith(src, dst);
+  });
+
+  it('reject moves file from drafts/ to rejected/', () => {
+    const renameSpy = vi
+      .spyOn(fs, 'renameSync')
+      .mockImplementation(() => undefined);
+    vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined as any);
+
+    const src = '/fake/groups/evangelist/posts/drafts/20260318-test.md';
+    const dst = '/fake/groups/evangelist/posts/rejected/20260318-test.md';
+    fs.mkdirSync('/fake/groups/evangelist/posts/rejected', { recursive: true });
+    fs.renameSync(src, dst);
+
+    expect(renameSpy).toHaveBeenCalledWith(src, dst);
   });
 
   it('health returns warn when drafts queue > 10', () => {
@@ -181,9 +192,9 @@ describe('evangelist dashboard', () => {
 
   it('posts sorted newest first by created field', () => {
     const posts = [
-      { filename: 'a.md', created: '2026-03-10T00:00:00Z', status: 'draft' },
-      { filename: 'b.md', created: '2026-03-18T00:00:00Z', status: 'draft' },
-      { filename: 'c.md', created: '2026-03-15T00:00:00Z', status: 'draft' },
+      { filename: 'a.md', created: '2026-03-10T00:00:00Z', dir: 'drafts' },
+      { filename: 'b.md', created: '2026-03-18T00:00:00Z', dir: 'drafts' },
+      { filename: 'c.md', created: '2026-03-15T00:00:00Z', dir: 'drafts' },
     ];
     posts.sort((a, b) => b.created.localeCompare(a.created));
     expect(posts[0].filename).toBe('b.md');
@@ -194,10 +205,10 @@ describe('evangelist dashboard', () => {
   it('history shows only last 20 posted entries', () => {
     const posts = Array.from({ length: 25 }, (_, i) => ({
       filename: `post-${i}.md`,
-      status: 'posted',
+      dir: 'posted',
       posted: `2026-03-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
     }));
-    const history = posts.filter((p) => p.status === 'posted').slice(0, 20);
+    const history = posts.filter((p) => p.dir === 'posted').slice(0, 20);
     expect(history).toHaveLength(20);
   });
 });

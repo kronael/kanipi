@@ -11,7 +11,7 @@ Also run manually: `/draft` to trigger an immediate browse-and-draft cycle.
 
 1. Read `~/facts/sources.md` — get the sources list and search terms
 2. Read `~/facts/product.md` — load product knowledge and talking points
-3. Read existing `~/posts/*.md` frontmatter — collect `source:` URLs to dedup
+3. Read existing `~/posts/*/` frontmatter — collect `source:` URLs to dedup
 4. For each source/search term:
    a. Use WebSearch to find recent relevant discussions
    b. Use WebFetch to read promising threads
@@ -21,11 +21,10 @@ Also run manually: `/draft` to trigger an immediate browse-and-draft cycle.
    - Community fit: tone and context appropriate for engagement
      d. Skip anything scoring below 6
      e. Skip URLs already in existing posts/ files
-5. For each qualifying thread, create `~/posts/YYYYMMDD-<slug>.md`:
+5. For each qualifying thread, create `~/posts/drafts/YYYYMMDD-<slug>.md`:
 
 ```markdown
 ---
-status: draft
 platforms: [reddit]
 targets: [r/example]
 schedule: tomorrow afternoon
@@ -33,7 +32,6 @@ strategy: helpful_reply
 source: https://reddit.com/r/...
 relevance: 8
 created: 2026-03-18T22:00:00Z
-posted: null
 ---
 
 Draft response text here...
@@ -56,6 +54,8 @@ Choose strategy based on what would genuinely help the conversation.
 
 ## Notes
 
+- Write to `posts/drafts/` ONLY — never write to other pipeline directories
+- Never set a `status:` frontmatter field — the directory is the status
 - Never fabricate quotes or claims about the product
 - If unsure whether engagement is appropriate, set relevance low and add a note in the draft
 - The draft is for human review — err on the side of drafting; reviewer will reject if needed

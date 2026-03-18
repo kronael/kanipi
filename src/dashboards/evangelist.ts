@@ -2,7 +2,7 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseYaml } from 'yaml';
 
 import { GROUPS_DIR } from '../config.js';
 import { registerDashboard, DashboardContext } from './index.js';
@@ -32,18 +32,27 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-// Path safety: only allow posts/*.md patterns
+// Path safety: only allow simple *.md filenames
 function isPostFile(filename: string): boolean {
   return /^[\w-]+\.md$/.test(filename) && !filename.includes('..');
 }
 
-function postsDir(folder: string): string {
-  return path.join(GROUPS_DIR, folder, 'posts');
+type PipelineDir = 'drafts' | 'approved' | 'scheduled' | 'posted' | 'rejected';
+const PIPELINE_DIRS: PipelineDir[] = [
+  'drafts',
+  'approved',
+  'scheduled',
+  'posted',
+  'rejected',
+];
+
+function postsSubDir(folder: string, dir: PipelineDir): string {
+  return path.join(GROUPS_DIR, folder, 'posts', dir);
 }
 
 interface PostMeta {
   filename: string;
-  status: string;
+  dir: PipelineDir;
   platforms: string[];
   targets: string[];
   schedule: string;
@@ -55,11 +64,11 @@ interface PostMeta {
   body: string;
 }
 
-function listPosts(folder: string): PostMeta[] {
-  const dir = postsDir(folder);
+function listDir(folder: string, dir: PipelineDir): PostMeta[] {
+  const dirPath = postsSubDir(folder, dir);
   let files: string[] = [];
   try {
-    files = fs.readdirSync(dir).filter((f) => f.endsWith('.md'));
+    files = fs.readdirSync(dirPath).filter((f) => f.endsWith('.md'));
   } catch {
     return [];
   }
@@ -67,7 +76,7 @@ function listPosts(folder: string): PostMeta[] {
   const posts: PostMeta[] = [];
   for (const file of files) {
     if (!isPostFile(file)) continue;
-    const fp = path.join(dir, file);
+    const fp = path.join(dirPath, file);
     let raw: string;
     try {
       raw = fs.readFileSync(fp, 'utf-8');
@@ -78,7 +87,7 @@ function listPosts(folder: string): PostMeta[] {
     const body = raw.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
     posts.push({
       filename: file,
-      status: String(fm.status ?? 'draft'),
+      dir,
       platforms: arrayField(fm.platforms),
       targets: arrayField(fm.targets),
       schedule: String(fm.schedule ?? ''),
@@ -97,6 +106,10 @@ function listPosts(folder: string): PostMeta[] {
   return posts;
 }
 
+function listPosts(folder: string): PostMeta[] {
+  return PIPELINE_DIRS.flatMap((dir) => listDir(folder, dir));
+}
+
 function parseFrontmatter(content: string): Record<string, unknown> {
   const m = content.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return {};
@@ -113,39 +126,18 @@ function arrayField(v: unknown): string[] {
   return [];
 }
 
-function setPostStatus(
+function movePost(
   folder: string,
   filename: string,
-  status: string,
+  from: PipelineDir,
+  to: PipelineDir,
 ): boolean {
   if (!isPostFile(filename)) return false;
-  const fp = path.join(postsDir(folder), filename);
-  let raw: string;
+  const src = path.join(postsSubDir(folder, from), filename);
+  const dst = path.join(postsSubDir(folder, to), filename);
   try {
-    raw = fs.readFileSync(fp, 'utf-8');
-  } catch {
-    return false;
-  }
-
-  const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!fmMatch) return false;
-
-  let fm: Record<string, unknown>;
-  try {
-    fm = (parseYaml(fmMatch[1]) as Record<string, unknown>) ?? {};
-  } catch {
-    return false;
-  }
-
-  fm.status = status;
-  if (status === 'posted') {
-    fm.posted = new Date().toISOString();
-  }
-
-  const body = raw.slice(fmMatch[0].length);
-  const newContent = `---\n${stringifyYaml(fm).trimEnd()}\n---\n${body}`;
-  try {
-    fs.writeFileSync(fp, newContent, 'utf-8');
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.renameSync(src, dst);
     return true;
   } catch {
     return false;
@@ -155,39 +147,32 @@ function setPostStatus(
 // --- Summary bar ---
 
 interface Counts {
-  draft: number;
+  drafts: number;
   approved: number;
+  scheduled: number;
   posted: number;
   rejected: number;
-  total: number;
 }
 
-function countPosts(posts: PostMeta[]): Counts {
-  const c: Counts = {
-    draft: 0,
-    approved: 0,
-    posted: 0,
-    rejected: 0,
-    total: posts.length,
+function countPosts(folder: string): Counts {
+  return {
+    drafts: listDir(folder, 'drafts').length,
+    approved: listDir(folder, 'approved').length,
+    scheduled: listDir(folder, 'scheduled').length,
+    posted: listDir(folder, 'posted').length,
+    rejected: listDir(folder, 'rejected').length,
   };
-  for (const p of posts) {
-    if (p.status === 'draft') c.draft++;
-    else if (p.status === 'approved') c.approved++;
-    else if (p.status === 'posted') c.posted++;
-    else if (p.status === 'rejected') c.rejected++;
-  }
-  return c;
 }
 
 function renderSummary(c: Counts): string {
-  const draftStyle = c.draft > 0 ? ' style="color:#f59e0b"' : '';
+  const draftStyle = c.drafts > 0 ? ' style="color:#f59e0b"' : '';
   return (
     `<table><tr>` +
-    `<th>Total</th><th>Drafts</th><th>Approved</th><th>Posted</th><th>Rejected</th>` +
+    `<th>Drafts</th><th>Approved</th><th>Scheduled</th><th>Posted</th><th>Rejected</th>` +
     `</tr><tr>` +
-    `<td>${c.total}</td>` +
-    `<td${draftStyle}>${c.draft}</td>` +
+    `<td${draftStyle}>${c.drafts}</td>` +
     `<td style="color:#0066cc">${c.approved}</td>` +
+    `<td style="color:#a855f7">${c.scheduled}</td>` +
     `<td style="color:#22c55e">${c.posted}</td>` +
     `<td style="color:#9ca3af">${c.rejected}</td>` +
     `</tr></table>`
@@ -237,8 +222,8 @@ function renderPostRow(
 
 // --- Section renderers ---
 
-function renderDrafts(posts: PostMeta[], group: string): string {
-  const drafts = posts.filter((p) => p.status === 'draft');
+function renderDrafts(folder: string, group: string): string {
+  const drafts = listDir(folder, 'drafts');
   if (drafts.length === 0) return '<p><em>No pending drafts.</em></p>';
   let h =
     '<table><tr>' +
@@ -252,8 +237,8 @@ function renderDrafts(posts: PostMeta[], group: string): string {
   return h + '</table>';
 }
 
-function renderScheduled(posts: PostMeta[], group: string): string {
-  const approved = posts.filter((p) => p.status === 'approved');
+function renderScheduled(folder: string): string {
+  const approved = listDir(folder, 'approved');
   if (approved.length === 0)
     return '<p><em>No approved posts scheduled.</em></p>';
   let h =
@@ -263,13 +248,13 @@ function renderScheduled(posts: PostMeta[], group: string): string {
     '<th>Preview</th><th>Approved</th>' +
     '</tr>';
   for (const p of approved) {
-    h += renderPostRow(p, group, false);
+    h += renderPostRow(p, '', false);
   }
   return h + '</table>';
 }
 
-function renderHistory(posts: PostMeta[]): string {
-  const posted = posts.filter((p) => p.status === 'posted').slice(0, 20);
+function renderHistory(folder: string): string {
+  const posted = listDir(folder, 'posted').slice(0, 20);
   if (posted.length === 0) return '<p><em>No posted entries yet.</em></p>';
   let h =
     '<table><tr>' +
@@ -383,14 +368,14 @@ async function evangelistHandler(
     return;
   }
 
-  // API: approve / reject
+  // API: approve / reject (move from drafts/ to approved/ or rejected/)
   const actionMatch = sub.match(/^\/api\/posts\/([^/]+)\/(approve|reject)$/);
   if (actionMatch && req.method === 'POST') {
     await readBody(req);
     const filename = decodeURIComponent(actionMatch[1]);
     const action = actionMatch[2] as 'approve' | 'reject';
-    const newStatus = action === 'approve' ? 'approved' : 'rejected';
-    const ok = setPostStatus(group, filename, newStatus);
+    const to: PipelineDir = action === 'approve' ? 'approved' : 'rejected';
+    const ok = movePost(group, filename, 'drafts', to);
     if (ok) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end('{"ok":true}');
@@ -403,30 +388,26 @@ async function evangelistHandler(
 
   // HTMX fragments
   if (sub === '/x/summary') {
-    const posts = listPosts(group);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(renderSummary(countPosts(posts)));
+    res.end(renderSummary(countPosts(group)));
     return;
   }
 
   if (sub === '/x/drafts') {
-    const posts = listPosts(group);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(renderDrafts(posts, group));
+    res.end(renderDrafts(group, group));
     return;
   }
 
   if (sub === '/x/scheduled') {
-    const posts = listPosts(group);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(renderScheduled(posts, group));
+    res.end(renderScheduled(group));
     return;
   }
 
   if (sub === '/x/history') {
-    const posts = listPosts(group);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(renderHistory(posts));
+    res.end(renderHistory(group));
     return;
   }
 
@@ -439,7 +420,7 @@ function evangelistHealth(_ctx: DashboardContext): {
   status: 'ok' | 'warn' | 'error';
   summary: string;
 } {
-  // Check all groups for posts/ dirs
+  // Check all groups for posts/drafts/ dirs
   let totalDrafts = 0;
   let staleDrafts = 0;
   const cutoff = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
@@ -452,8 +433,7 @@ function evangelistHealth(_ctx: DashboardContext): {
   }
 
   for (const folder of groupsDir) {
-    const posts = listPosts(folder);
-    const drafts = posts.filter((p) => p.status === 'draft');
+    const drafts = listDir(folder, 'drafts');
     totalDrafts += drafts.length;
     staleDrafts += drafts.filter((p) => p.created && p.created < cutoff).length;
   }

@@ -24,15 +24,27 @@ draft responses for human review, and post approved drafts on schedule.
 
 - `facts/product.md` — product knowledge, features, talking points
 - `facts/sources.md` — monitored sources (subreddits, search terms, sites)
-- `posts/` — draft and posted files with YAML frontmatter
+- `posts/` — pipeline directories: drafts/, approved/, scheduled/, posted/, rejected/
+
+## Post pipeline directories
+
+Posts move between directories — the directory IS the status:
+
+```
+posts/drafts/     ← agent writes here ONLY
+posts/approved/   ← operator moves files here (dashboard)
+posts/scheduled/  ← agent moves here after interpreting schedule
+posts/posted/     ← agent moves here after posting
+posts/rejected/   ← operator moves files here (dashboard)
+```
 
 ## Post file format
 
 ```
-posts/YYYYMMDD-<slug>.md
+posts/drafts/YYYYMMDD-<slug>.md
 ```
 
-Frontmatter fields: `status`, `platforms`, `targets`, `schedule`, `strategy`,
-`source`, `relevance`, `created`, `posted`.
+Frontmatter fields: `platforms`, `targets`, `schedule`, `strategy`,
+`source`, `relevance`, `created`.
 
-Status values: `draft` → `approved` → `posted` (or `rejected`).
+Never set a `status:` field — the directory is the status.

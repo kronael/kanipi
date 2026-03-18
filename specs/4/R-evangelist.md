@@ -15,24 +15,36 @@ a file-based approach: posts are markdown files with YAML frontmatter in
 
 1. **Browse** — agent uses WebSearch/WebFetch to find relevant threads on
    configured sources (subreddits, search terms, sites from `facts/sources.md`)
-2. **Draft** — writes `posts/YYYYMMDD-<slug>.md` with frontmatter + draft text
-3. **Review** — human approves or rejects via the Evangelist dashboard
-4. **Post** — agent scans approved posts, interprets schedule, posts via social
-   actions (Skill tool calling `post`/`reply`), marks file `status: posted`
+2. **Draft** — writes `posts/drafts/YYYYMMDD-<slug>.md` with frontmatter + draft text
+3. **Review** — human approves or rejects via the Evangelist dashboard (moves files)
+4. **Post** — agent scans `posts/approved/`, interprets schedule, posts via social
+   actions (Skill tool calling `post`/`reply`), moves file to `posts/posted/`
+
+## Pipeline directories
+
+Posts move between directories — the directory IS the status:
+
+```
+posts/
+  drafts/     ← agent writes here ONLY
+  approved/   ← operator moves files here (dashboard)
+  scheduled/  ← agent moves here after interpreting schedule
+  posted/     ← agent moves here after posting
+  rejected/   ← operator moves files here (dashboard)
+```
 
 ## Post file format
 
-Files live in `posts/` inside the group folder:
+Files live in `posts/<dir>/` inside the group folder:
 
 ```
-posts/YYYYMMDD-<slug>.md
+posts/drafts/YYYYMMDD-<slug>.md
 ```
 
 Frontmatter:
 
 ```yaml
 ---
-status: draft | approved | posted | rejected
 platforms: [reddit, twitter, bluesky]
 targets: [r/claudeai, r/LocalLLaMA]
 schedule: tomorrow afternoon
@@ -40,7 +52,6 @@ strategy: helpful_reply | feature_mention | experience_share
 source: https://...
 relevance: 8
 created: 2026-03-18T22:00:00Z
-posted: null
 ---
 ```
 
@@ -59,13 +70,13 @@ Strategy types:
 ```
 web (WebSearch/WebFetch) → agent browses sources
         ↓ cron: draft skill
-posts/*.md (status: draft)
-        ↓ human approves via /dash/evangelist/
-posts/*.md (status: approved)
-        ↓ cron: post skill
-social actions (post/reply)
-        ↓
-posts/*.md (status: posted, posted: <timestamp>)
+posts/drafts/
+        ↓ human approves via /dash/evangelist/ (file move)
+posts/approved/
+        ↓ cron: post skill (schedule check)
+posts/scheduled/
+        ↓ cron: post skill (posts via social actions)
+posts/posted/
 ```
 
 ## Agent skills
@@ -78,19 +89,19 @@ Browses configured sources from `facts/sources.md`. Uses WebSearch/WebFetch
 to find relevant conversations. For each relevant thread:
 
 - Scores relevance 1-10
-- Writes `posts/YYYYMMDD-<slug>.md` with frontmatter + draft text
-- Skips threads already present in `posts/` (dedup by source URL)
+- Writes `posts/drafts/YYYYMMDD-<slug>.md` with frontmatter + draft text
+- Skips threads already present in any `posts/` subdirectory (dedup by source URL)
 
 Reads `facts/product.md` for product knowledge and talking points.
 Runs on cron (e.g. every few hours).
 
 ### `post/SKILL.md`
 
-Scans `posts/*.md` for `status: approved`. For each:
+Scans `posts/approved/` for files ready to post. For each:
 
 - Checks schedule against current time
 - If due, posts via social actions (Skill tool: `post` or `reply`)
-- Updates file: `status: posted`, `posted: <ISO timestamp>`
+- Moves file to `posts/posted/` on success
 
 Runs on cron (e.g. hourly).
 
@@ -124,23 +135,23 @@ templates/evangelist/
 
 ## Dashboard (`/dash/evangelist/`)
 
-File browser over the group's `posts/` directory.
+File browser over the group's `posts/` directories.
 
 URL: `/dash/evangelist/?group=<folder>` (default: first group named `evangelist`)
 
 ### Sections
 
-1. **Summary bar** — counts by status (draft/approved/posted/rejected)
-2. **Drafts queue** — pending drafts: source URL, relevance, strategy, schedule,
-   draft text preview. Approve/Reject buttons.
-3. **Scheduled** — approved posts with schedule, can edit schedule
-4. **Posted history** — last 20 posted entries
+1. **Summary bar** — counts by directory (drafts/approved/posted/rejected)
+2. **Drafts queue** — files in `posts/drafts/`: source URL, relevance, strategy, schedule,
+   draft text preview. Approve/Reject buttons (move files to approved/ or rejected/).
+3. **Scheduled** — files in `posts/approved/` with schedule
+4. **Posted history** — last 20 files in `posts/posted/`
 
 ### API endpoints
 
 - `GET  /dash/evangelist/api/posts?group=<folder>` — JSON list of all posts
-- `POST /dash/evangelist/api/posts/:filename/approve` — sets status: approved
-- `POST /dash/evangelist/api/posts/:filename/reject` — sets status: rejected
+- `POST /dash/evangelist/api/posts/:filename/approve` — moves file from drafts/ to approved/
+- `POST /dash/evangelist/api/posts/:filename/reject` — moves file from drafts/ to rejected/
 
 Dashboard health: warn if drafts queue > 10 or any draft > 3 days old.
 
