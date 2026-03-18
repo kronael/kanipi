@@ -1105,6 +1105,6 @@ export function getRecentMessages(limit: number): RecentMessage[] {
 // Returns all onboarding entries (for groups dashboard)
 export function getAllOnboarding(): OnboardingEntry[] {
   return db
-    .prepare('SELECT * FROM onboarding ORDER BY created_at DESC')
+    .prepare('SELECT * FROM onboarding ORDER BY created DESC')
     .all() as OnboardingEntry[];
 }
