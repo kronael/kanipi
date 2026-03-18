@@ -163,4 +163,67 @@ describe('handleOnboarding', () => {
 
     expect(getOnboardingEntry(jid)?.status).toBe('pending');
   });
+
+  it('returns early and sends nothing on empty messages array', async () => {
+    const ch = makeChannel();
+    await handleOnboarding(jid, [], ch);
+
+    expect(ch.sent).toHaveLength(0);
+    expect(getOnboardingEntry(jid)).toBeUndefined();
+  });
+
+  it('stores unknown as sender fallback when both sender fields are null/undefined', async () => {
+    const msg = {
+      id: 'msg-x',
+      chat_jid: jid,
+      sender: undefined as unknown as string,
+      sender_name: undefined,
+      content: 'hello',
+      timestamp: new Date().toISOString(),
+    } as InboundEvent;
+    const ch = makeChannel();
+    await handleOnboarding(jid, [msg], ch);
+
+    expect(getOnboardingEntry(jid)?.sender).toBe('unknown');
+  });
+
+  it('/request with multiple spaces still extracts first token', async () => {
+    upsertOnboarding(jid, { status: 'new' });
+    const ch = makeChannel();
+    await handleOnboarding(jid, [makeMsg('/request  myworld', jid)], ch);
+
+    expect(getOnboardingEntry(jid)?.world_name).toBe('myworld');
+    expect(getOnboardingEntry(jid)?.status).toBe('pending');
+  });
+
+  it('/request stops at first space — only first word used as name', async () => {
+    upsertOnboarding(jid, { status: 'new' });
+    const ch = makeChannel();
+    // "my" is a valid name; only "my" is extracted, "world" is ignored
+    await handleOnboarding(jid, [makeMsg('/request my world', jid)], ch);
+
+    const entry = getOnboardingEntry(jid);
+    expect(entry?.world_name).toBe('my');
+    expect(entry?.status).toBe('pending');
+  });
+
+  it('logs warning for unknown onboarding status', async () => {
+    const { logger } = await import('./logger.js');
+    // Directly set an invalid status in DB via raw upsert then override
+    upsertOnboarding(jid, { status: 'new' });
+    // Force an unexpected status by upserting a non-standard value
+    const { getDatabase } = await import('./db.js');
+    getDatabase()
+      .prepare("UPDATE onboarding SET status = 'bogus' WHERE jid = ?")
+      .run(jid);
+
+    const ch = makeChannel();
+    await handleOnboarding(jid, [makeMsg('hello', jid)], ch);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'bogus' }),
+      'Unknown onboarding status',
+    );
+    expect(ch.sent).toHaveLength(0);
+  });
 });
