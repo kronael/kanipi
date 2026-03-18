@@ -312,3 +312,21 @@ ls /workspace/self/
 cat /workspace/self/CHANGELOG.md
 git -C /workspace/self log --oneline -10
 ```
+
+## Episodic memory
+
+Gateway injects episode summaries from `~/episodes/` as `<episodes>` XML into
+every session. The `/compact-memories` skill produces these summaries.
+
+**Enable episodic compression** — set up cron tasks via `schedule_task`:
+
+| Store    | Level | Prompt                             | Cron        |
+| -------- | ----- | ---------------------------------- | ----------- |
+| episodes | day   | `/compact-memories episodes day`   | `0 2 * * *` |
+| episodes | week  | `/compact-memories episodes week`  | `0 3 * * 1` |
+| episodes | month | `/compact-memories episodes month` | `0 4 1 * *` |
+| diary    | week  | `/compact-memories diary week`     | `0 3 * * 1` |
+| diary    | month | `/compact-memories diary month`    | `0 4 1 * *` |
+
+Use `context_mode: 'isolated'` and `targetFolder` = this group's folder.
+See `~/.claude/skills/compact-memories/SKILL.md` for full protocol.

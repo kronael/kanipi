@@ -158,6 +158,23 @@ Red flags: `"Error in message loop"`, `"Container timeout with no output"`,
 activity >30s. Key error emitters: `index.ts`, `group-queue.ts`,
 `container-runner.ts`, `ipc.ts`.
 
+## Episodic Memory
+
+Gateway injects episode summaries from `groups/<folder>/episodes/` as
+`<episodes>` XML into every container spawn (`src/episode.ts`).
+
+Agent produces summaries via `/compact-memories` skill:
+
+```
+/compact-memories episodes day    # yesterday's sessions → episodes/YYYYMMDD.md
+/compact-memories episodes week   # daily → episodes/YYYY-WNN.md
+/compact-memories episodes month  # weekly → episodes/YYYY-MM.md
+/compact-memories diary week      # diary/ → diary/week/YYYY-WNN.md
+/compact-memories diary month     # diary/week/ → diary/month/YYYY-MM.md
+```
+
+Enable via `schedule_task` cron (see `prototype/.claude/skills/compact-memories/SKILL.md`).
+
 ## Shipping changes (agent skills / web convention)
 
 When making notable kanipi changes:

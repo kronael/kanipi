@@ -44,7 +44,10 @@ function makeGroup(token: string): GroupConfig & { jid: string } {
 }
 
 // Helper: start proxy on a random port, return { port, onMessage, close }
-function startProxy(opts?: { authSecret?: string }): Promise<{
+function startProxy(opts?: {
+  authSecret?: string;
+  webPublic?: boolean;
+}): Promise<{
   port: number;
   onMessage: ReturnType<typeof vi.fn>;
   close: () => Promise<void>;
@@ -56,6 +59,7 @@ function startProxy(opts?: { authSecret?: string }): Promise<{
       vitePort: 9999,
       onMessage,
       authSecret: opts?.authSecret,
+      webPublic: opts?.webPublic,
     });
     server.once('error', reject);
     server.once('listening', () => {
@@ -293,6 +297,49 @@ describe('GET /_sloth/stream', () => {
         'testgroup',
         expect.anything(),
       );
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe('GET /_sloth/stream — auth', () => {
+  it('returns 401 for stream without session when authSecret set and not webPublic', async () => {
+    const { port, close } = await startProxy({ authSecret: 'testsecret' });
+    try {
+      const result = await new Promise<number>((resolve) => {
+        const req = http.get(
+          { host: 'localhost', port, path: '/_sloth/stream?group=x' },
+          (res) => {
+            resolve(res.statusCode ?? 0);
+            req.destroy();
+          },
+        );
+        req.on('error', () => {});
+      });
+      expect(result).toBe(401);
+    } finally {
+      await close();
+    }
+  });
+
+  it('allows stream without session when webPublic is true', async () => {
+    const { port, close } = await startProxy({
+      authSecret: 'testsecret',
+      webPublic: true,
+    });
+    try {
+      const result = await new Promise<number>((resolve) => {
+        const req = http.get(
+          { host: 'localhost', port, path: '/_sloth/stream?group=x' },
+          (res) => {
+            resolve(res.statusCode ?? 0);
+            req.destroy();
+          },
+        );
+        req.on('error', () => {});
+      });
+      expect(result).toBe(200);
     } finally {
       await close();
     }

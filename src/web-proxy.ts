@@ -320,6 +320,15 @@ export function startWebProxy(opts: {
     }
 
     if (url.startsWith('/_sloth/stream')) {
+      if (
+        !webPublic &&
+        authSecret &&
+        !checkSessionCookie(req.headers.cookie || '')
+      ) {
+        res.writeHead(401, { 'Content-Type': 'text/plain' });
+        res.end('Unauthorized');
+        return;
+      }
       const group =
         new URL(url, 'http://localhost').searchParams.get('group') || 'root';
       res.writeHead(200, {
