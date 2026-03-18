@@ -29,12 +29,22 @@ versioned files, and parent repos simply gitignore child group dirs.
 - `diary/`, `episodes/`, `users/`, `logs/`, `media/`, `tmp/`
 - `*.jl` session transcripts
 
+## Auto-initialization
+
+Group folders are automatically initialized as git repos — no manual step required.
+
+- `kanipi config <instance> group add <folder>` runs `git init` + writes `.gitignore` after creating the folder.
+- `registerGroup()` in the gateway runs `git init` on the folder if `.git/` is absent (idempotent — safe to call on existing repos).
+- When a child group is created (e.g. `atlas/support`), `support/` is appended to `groups/atlas/.gitignore` if the parent repo exists.
+
+`kanipi git-init` still works but is now a no-op if the repo is already initialized.
+
 ## CLI
 
 ```bash
-# Initialize a group folder as a git repo
+# Initialize a group folder as a git repo (now a no-op if already done)
 kanipi git-init <folder>
-# Resolves group folder under GROUPS_DIR, runs git init,
+# Resolves group folder under GROUPS_DIR, runs git init if needed,
 # writes .gitignore with runtime exclusions and child group dirs.
 
 # Clone a group config from a remote repo
