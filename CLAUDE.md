@@ -83,10 +83,10 @@ src/                  gateway source (TypeScript)
   dashboards/         dashboard portal (/dash/ with self-registration)
 container/            agent container build
   agent-runner/       in-container agent entrypoint
-  build.sh            agent image builder
-  skills/             agent-side skills
 prototype/            seeds groups/root/prototype/ on `kanipi create`
-  .claude/CLAUDE.md   default group CLAUDE.md (group-chat behavior instructions)
+  .claude/CLAUDE.md   agent CLAUDE.md (seeded to ~/.claude/CLAUDE.md in container)
+  .claude/skills/     agent-side skills (seeded to ~/.claude/skills/ in container)
+  .claude/output-styles/  agent output styles (seeded to ~/.claude/output-styles/)
 kanipi                bash entrypoint (legacy, for docker deployments)
 specs/                design specs (see below)
 ```
@@ -167,9 +167,9 @@ activity >30s. Key error emitters: `index.ts`, `group-queue.ts`,
 When making notable kanipi changes:
 
 1. Add entry to `CHANGELOG.md`
-2. Add migration file `container/skills/self/migrations/NNN-desc.md`
-3. Update `container/skills/self/MIGRATION_VERSION` to match highest N
-4. Update "Latest migration version" in `container/skills/self/SKILL.md`
+2. Add migration file `prototype/.claude/skills/self/migrations/NNN-desc.md`
+3. Update `prototype/.claude/skills/self/MIGRATION_VERSION` to match highest N
+4. Update "Latest migration version" in `prototype/.claude/skills/self/SKILL.md`
 5. Rebuild agent image
 
 ## Docs

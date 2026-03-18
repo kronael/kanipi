@@ -258,7 +258,7 @@ function buildVolumeMounts(
   });
 
   const appDir = process.cwd();
-  const skillsSrc = path.join(appDir, 'container', 'skills');
+  const skillsSrc = path.join(appDir, 'prototype', '.claude', 'skills');
   const skillsDst = path.join(claudeStateDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
     for (const skillDir of fs.readdirSync(skillsSrc)) {
@@ -275,7 +275,7 @@ function buildVolumeMounts(
     }
     chownRecursive(skillsDst, 1000, 1000);
   }
-  const claudeMdSrc = path.join(appDir, 'container', 'CLAUDE.md');
+  const claudeMdSrc = path.join(appDir, 'prototype', '.claude', 'CLAUDE.md');
   const claudeMdDst = path.join(claudeStateDir, 'CLAUDE.md');
   if (fs.existsSync(claudeMdSrc) && !fs.existsSync(claudeMdDst)) {
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
@@ -302,7 +302,7 @@ function buildVolumeMounts(
     chownRecursive(claudeJsonPath, 1000, 1000);
   }
 
-  const stylesSrc = path.join(appDir, 'container', 'output-styles');
+  const stylesSrc = path.join(appDir, 'prototype', '.claude', 'output-styles');
   const stylesDst = path.join(claudeStateDir, 'output-styles');
   if (fs.existsSync(stylesSrc)) {
     fs.cpSync(stylesSrc, stylesDst, { recursive: true });
