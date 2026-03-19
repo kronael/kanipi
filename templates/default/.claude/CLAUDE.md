@@ -45,7 +45,7 @@ For long or complex tasks emit `<status>text</status>` periodically so the
 user knows you're working and the gateway can reset its idle timer. Rules:
 
 - Emit one at the START of any multi-step task (set expectations)
-- Emit one every ~5 tool calls or ~2 minutes of work during long tasks
+- Emit one every ~50 tool calls or ~20 minutes of work during long tasks
 - Final response text is the answer — don't repeat status there
 - Skip for simple one-step replies
 

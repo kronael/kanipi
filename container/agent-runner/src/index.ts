@@ -315,6 +315,7 @@ async function runQuery(
   let newSessionId: string | undefined;
   let lastAssistantUuid: string | undefined;
   let lastAssistantText: string | undefined;
+  const lastAssistantEmittedStatuses = new Set<string>();
   let messageCount = 0;
   let resultCount = 0;
   let maxTurnsHit = false;
@@ -407,8 +408,10 @@ async function runQuery(
         if (text) {
           lastAssistantText = text;
           // Emit <status> blocks immediately — resets idle timeout and sends interim updates.
+          // Track emitted statuses to avoid duplicate emission in the result handler below.
           const { statuses } = extractStatusBlocks(text);
           for (const s of statuses) {
+            lastAssistantEmittedStatuses.add(s);
             writeOutput({ status: 'success', result: `⏳ ${s}`, newSessionId });
           }
         }
@@ -436,7 +439,10 @@ async function runQuery(
           const noInternal = noThink.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
           const { cleaned, statuses } = extractStatusBlocks(noInternal);
           for (const s of statuses) {
-            writeOutput({ status: 'success', result: `⏳ ${s}`, newSessionId });
+            // Skip statuses already sent from an intermediate assistant message.
+            if (!lastAssistantEmittedStatuses.has(s)) {
+              writeOutput({ status: 'success', result: `⏳ ${s}`, newSessionId });
+            }
           }
           writeOutput({ status: 'success', result: cleaned || null, newSessionId });
           // Stop IPC polling before closing query to prevent race
