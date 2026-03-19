@@ -86,6 +86,7 @@ import {
   storeChatMetadata,
   storeMessage,
   storeOutbound,
+  updateMessageChatJid,
 } from './db.js';
 import { AttachmentDownloader, RawAttachment } from './mime.js';
 import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
@@ -131,6 +132,11 @@ import { handleOnboarding } from './onboarding.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, InboundEvent } from './types.js';
 import { logger } from './logger.js';
+
+function baseJid(jid: string): string {
+  const i = jid.indexOf('#');
+  return i === -1 ? jid : jid.slice(0, i);
+}
 
 const GITIGNORE_RUNTIME_DIRS = new Set([
   'diary',
@@ -824,86 +830,6 @@ function delegateToParent(
   );
 }
 
-async function runTopicAgent(
-  group: GroupConfig,
-  prompt: string,
-  chatJid: string,
-  topicName: string,
-  messageId?: string,
-  channel?: Channel,
-): Promise<void> {
-  const topicSessionId = getSession(group.folder, topicName);
-  const taskId = `topic-${topicName}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-
-  if (channel) startTyping(channel, chatJid);
-
-  queue.enqueueTask(group.folder, taskId, async () => {
-    let lastSentId = messageId;
-    try {
-      const onResult = async (result: ContainerOutput) => {
-        if (result.newSessionId) {
-          setSession(group.folder, result.newSessionId, topicName);
-        }
-        if (result.result) {
-          const raw =
-            typeof result.result === 'string'
-              ? result.result
-              : JSON.stringify(result.result);
-          const text = raw.trim();
-          if (text && channel) {
-            const sentId = await channel.sendMessage(
-              chatJid,
-              text,
-              lastSentId ? { replyTo: lastSentId } : undefined,
-            );
-            storeOutbound({
-              chatJid,
-              content: text,
-              source: 'agent',
-              groupFolder: group.folder,
-              replyToId: lastSentId,
-              platformMsgId: sentId,
-            });
-            if (sentId) lastSentId = sentId;
-          }
-        }
-      };
-
-      const output = await runContainerCommand(
-        group,
-        {
-          prompt,
-          sessionId: topicSessionId,
-          groupFolder: group.folder,
-          chatJid,
-          messageCount: 1,
-          messageId,
-        },
-        (proc, containerName) =>
-          queue.registerProcess(
-            group.folder,
-            proc,
-            containerName,
-            group.folder,
-          ),
-        onResult,
-      );
-
-      if (output.newSessionId) {
-        setSession(group.folder, output.newSessionId, topicName);
-      }
-      if (output.status === 'error') {
-        logger.warn(
-          { folder: group.folder, topicName, error: output.error },
-          'topic agent error',
-        );
-      }
-    } finally {
-      if (channel) stopTypingFor(chatJid);
-    }
-  });
-}
-
 function delegatePerSender(
   messages: InboundEvent[],
   target: string,
@@ -939,7 +865,12 @@ async function runAgent(
   messageId?: string,
   onOutput?: (output: ContainerOutput) => Promise<void>,
 ): Promise<'success' | 'error'> {
-  const sessionId = sessions[group.folder];
+  const topic = chatJid.includes('#')
+    ? chatJid.slice(chatJid.indexOf('#') + 1)
+    : '';
+  const sessionId = topic
+    ? getSession(group.folder, topic)
+    : sessions[group.folder];
 
   const tasks = getAllTasks();
   writeTasksSnapshot(
@@ -984,7 +915,7 @@ async function runAgent(
         prompt,
         sessionId,
         groupFolder: group.folder,
-        chatJid,
+        chatJid: baseJid(chatJid),
         assistantName: ASSISTANT_NAME,
         messageCount,
         channelName,
@@ -1009,22 +940,34 @@ async function runAgent(
         !outputDelivered &&
         (!output.newSessionId || output.newSessionId === sessionId)
       ) {
-        delete sessions[group.folder];
-        deleteSession(group.folder);
+        if (topic) {
+          deleteSession(group.folder, topic);
+        } else {
+          delete sessions[group.folder];
+          deleteSession(group.folder);
+        }
         logger.warn(
           { group: group.name, sessionId },
           'Evicted corrupted session',
         );
       } else {
-        sessions[group.folder] = output.newSessionId ?? sessionId;
-        setSession(group.folder, output.newSessionId ?? sessionId);
+        if (topic) {
+          setSession(group.folder, output.newSessionId ?? sessionId!, topic);
+        } else {
+          sessions[group.folder] = output.newSessionId ?? sessionId!;
+          setSession(group.folder, output.newSessionId ?? sessionId!);
+        }
       }
       return 'error';
     }
 
     if (output.newSessionId) {
-      sessions[group.folder] = output.newSessionId;
-      setSession(group.folder, output.newSessionId);
+      if (topic) {
+        setSession(group.folder, output.newSessionId, topic);
+      } else {
+        sessions[group.folder] = output.newSessionId;
+        setSession(group.folder, output.newSessionId);
+      }
     }
 
     return 'success';
@@ -1234,26 +1177,55 @@ async function startMessageLoop(): Promise<void> {
               if (m) {
                 const topicName = m[1];
                 const stripped = (m[2] ?? '').trim();
+                const topicJid = `${chatJid}#${topicName}`;
+                updateMessageChatJid(lastMsg.id, topicJid);
                 lastAgentTimestamp[chatJid] = lastMsg.timestamp;
                 saveState();
                 await waitForEnrichments(
                   nonCommandMessages.map((msg) => msg.id),
                 );
                 queue.enqueueMessageCheck(chatJid);
-                // Run with topic session — handled in processGroupMessages via topic arg
-                // Delegate to self with topic via runTopicAgent
-                runTopicAgent(
-                  group,
-                  stripped,
-                  chatJid,
-                  topicName,
-                  lastMsg.id,
-                  channel,
-                ).catch((err) => {
-                  logger.error(
-                    { chatJid, topicName, err: String(err) },
-                    '#topic routing failed',
-                  );
+                if (channel) startTyping(channel, chatJid);
+                const taskId = `topic-${topicName}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                queue.enqueueTask(group.folder, taskId, async () => {
+                  let lastSentId: string | undefined = lastMsg.id;
+                  try {
+                    await runAgent(
+                      group,
+                      stripped,
+                      topicJid,
+                      1,
+                      channel?.name,
+                      lastMsg.id,
+                      async (result) => {
+                        if (result.result) {
+                          const raw =
+                            typeof result.result === 'string'
+                              ? result.result
+                              : JSON.stringify(result.result);
+                          const text = raw.trim();
+                          if (text && channel) {
+                            const sentId = await channel.sendMessage(
+                              chatJid,
+                              text,
+                              lastSentId ? { replyTo: lastSentId } : undefined,
+                            );
+                            storeOutbound({
+                              chatJid: topicJid,
+                              content: text,
+                              source: 'agent',
+                              groupFolder: group.folder,
+                              replyToId: lastSentId,
+                              platformMsgId: sentId,
+                            });
+                            if (sentId) lastSentId = sentId;
+                          }
+                        }
+                      },
+                    );
+                  } finally {
+                    if (channel) stopTypingFor(chatJid);
+                  }
                 });
               }
               continue;

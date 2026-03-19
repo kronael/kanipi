@@ -170,6 +170,13 @@ export function storeMessage(msg: InboundEvent): void {
   );
 }
 
+export function updateMessageChatJid(messageId: string, chatJid: string): void {
+  db.prepare('UPDATE messages SET chat_jid = ? WHERE id = ?').run(
+    chatJid,
+    messageId,
+  );
+}
+
 export function storeOutbound(entry: {
   chatJid: string;
   content: string;
