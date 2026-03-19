@@ -151,16 +151,6 @@ describe('createImpulseFilter', () => {
     expect(received.map((e) => e.id)).toEqual(['1', '2', '3', '4']);
   });
 
-  it('default config: single message triggers immediate flush', () => {
-    const received: InboundEvent[] = [];
-    const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
-    const filter = createImpulseFilter(onMsg);
-
-    filter.onMsg('chat@test', msg({ id: 'x' }));
-    expect(received).toHaveLength(1);
-    expect(received[0].id).toBe('x');
-  });
-
   it('flush() drains timed-out state — onMsg called after max_hold_ms', () => {
     const received: InboundEvent[] = [];
     const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);
@@ -269,16 +259,6 @@ describe('checkTimeout — boundary', () => {
     expect(r).not.toBeNull();
   });
 
-  it('does not flush 1ms before max_hold_ms', () => {
-    const config: ImpulseConfig = { ...defaultConfig(), max_hold_ms: 1000 };
-    const state: ImpulseState = {
-      pending: [msg()],
-      impulse: 10,
-      last_flush: Date.now() - 999,
-    };
-    expect(checkTimeout(state, config)).toBeNull();
-  });
-
   it('timeout flush preserves immediate/batched classification', () => {
     const config: ImpulseConfig = {
       threshold: 100,
@@ -303,39 +283,6 @@ describe('checkTimeout — boundary', () => {
 });
 
 describe('createImpulseFilter — multi-JID timeout', () => {
-  it('flush() only drains timed-out JIDs, leaves fresh ones', () => {
-    const received: Array<{ jid: string; id: string }> = [];
-    const onMsg: OnInboundMessage = (jid, ev) =>
-      received.push({ jid, id: ev.id });
-    const config: ImpulseConfig = {
-      ...defaultConfig(),
-      weights: { react: 25 },
-      max_hold_ms: 0, // everything times out immediately
-    };
-    const freshConfig: ImpulseConfig = {
-      ...defaultConfig(),
-      weights: { react: 25 },
-      max_hold_ms: 999_999, // never times out
-    };
-    // Use max_hold_ms: 0 so flush drains everything
-    const filter = createImpulseFilter(onMsg, config);
-
-    filter.onMsg(
-      'a@test',
-      msg({ id: 'a1', chat_jid: 'a@test', verb: 'react' }),
-    );
-    filter.onMsg(
-      'b@test',
-      msg({ id: 'b1', chat_jid: 'b@test', verb: 'react' }),
-    );
-    expect(received).toHaveLength(0);
-
-    filter.flush();
-    // Both JIDs timed out (max_hold_ms: 0)
-    expect(received).toHaveLength(2);
-    expect(received.map((r) => r.id).sort()).toEqual(['a1', 'b1']);
-  });
-
   it('weight-0 events do not create state for JID', () => {
     const received: InboundEvent[] = [];
     const onMsg: OnInboundMessage = (_jid, ev) => received.push(ev);

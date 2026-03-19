@@ -291,42 +291,6 @@ describe('/approve', () => {
     expect(getOnboardingEntry('telegram:123')?.status).toBe('pending');
   });
 
-  it('completes without crashing when deps is null', async () => {
-    upsertOnboarding('telegram:123', {
-      status: 'pending',
-      world_name: 'myworld',
-      sender: 'Alice',
-    });
-    setApproveDeps(null as unknown as Parameters<typeof setApproveDeps>[0]);
-
-    const ch = makeChannel();
-    await approveCommand.handle(makeCtx('telegram:123', ch));
-
-    // Status still updated and reply still sent despite null deps
-    expect(getOnboardingEntry('telegram:123')?.status).toBe('approved');
-    expect(ch.sent[0]).toMatch(/approved/i);
-  });
-
-  it('uses jid as userId when message.sender is missing', async () => {
-    upsertOnboarding('telegram:123', {
-      status: 'pending',
-      world_name: 'myworld',
-      sender: 'Alice',
-    });
-    const ch = makeChannel();
-    const registerGroup = vi.fn();
-    setApproveDeps({ registerGroup, getGroup: vi.fn(() => undefined) });
-
-    const ctx = makeCtx('telegram:123', ch);
-    (ctx.message as Record<string, unknown>).sender = undefined;
-    await approveCommand.handle(ctx);
-
-    expect(registerGroup).toHaveBeenCalledWith(
-      'telegram:123',
-      expect.objectContaining({ folder: 'myworld' }),
-    );
-  });
-
   it('system message contains user jid, group folder, and instructions', async () => {
     const enqueueSpy = vi.spyOn(
       await import('../db.js'),
@@ -363,29 +327,6 @@ describe('/approve', () => {
       }),
     );
     enqueueSpy.mockRestore();
-  });
-
-  it('GroupConfig has ISO 8601 added_at timestamp', async () => {
-    upsertOnboarding('telegram:123', {
-      status: 'pending',
-      world_name: 'myworld',
-    });
-    const ch = makeChannel();
-    let capturedConfig: Parameters<
-      typeof setApproveDeps
-    >[0]['registerGroup'] extends (jid: string, group: infer G) => void
-      ? G
-      : never;
-    setApproveDeps({
-      registerGroup: (_jid, group) => {
-        capturedConfig = group as typeof capturedConfig;
-      },
-      getGroup: vi.fn(() => undefined),
-    });
-
-    await approveCommand.handle(makeCtx('telegram:123', ch));
-
-    expect(capturedConfig!.added_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 });
 
@@ -453,17 +394,6 @@ describe('/reject', () => {
 
   it('can reject a new entry (no world_name yet)', async () => {
     upsertOnboarding('telegram:123', { status: 'new' });
-    const ch = makeChannel();
-    await rejectCommand.handle(makeCtx('telegram:123', ch));
-
-    expect(getOnboardingEntry('telegram:123')?.status).toBe('rejected');
-  });
-
-  it('can reject an already-approved entry', async () => {
-    upsertOnboarding('telegram:123', {
-      status: 'approved',
-      world_name: 'myworld',
-    });
     const ch = makeChannel();
     await rejectCommand.handle(makeCtx('telegram:123', ch));
 

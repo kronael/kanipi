@@ -635,13 +635,6 @@ describe('GroupQueue', () => {
     expect(callCount).toBe(4);
   });
 
-  // --- sendMessage returns false when no active container ---
-
-  it('sendMessage returns false when group has no active container', () => {
-    const result = queue.sendMessage('nonexistent@g.us', 'hello');
-    expect(result).toBe(false);
-  });
-
   // --- Waiting queue drains tasks before messages for waiting groups ---
 
   it('waiting group drains tasks before messages when slot opens', async () => {

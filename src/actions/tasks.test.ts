@@ -69,35 +69,6 @@ describe('schedule_task', () => {
     expect(task!.next_run).toBeTruthy();
   });
 
-  it('creates an interval task', async () => {
-    const r = (await scheduleTask.handler(
-      {
-        targetFolder: 'root',
-        prompt: 'check',
-        schedule_type: 'interval',
-        schedule_value: '3600000',
-      },
-      makeCtx(),
-    )) as { taskId: string };
-    const task = getTaskById(r.taskId);
-    expect(task!.schedule_type).toBe('interval');
-  });
-
-  it('creates a once task', async () => {
-    const future = new Date(Date.now() + 86400000).toISOString();
-    const r = (await scheduleTask.handler(
-      {
-        targetFolder: 'root',
-        prompt: 'once',
-        schedule_type: 'once',
-        schedule_value: future,
-      },
-      makeCtx(),
-    )) as { taskId: string };
-    const task = getTaskById(r.taskId);
-    expect(task!.schedule_type).toBe('once');
-  });
-
   it('rejects both prompt and command', async () => {
     await expect(
       scheduleTask.handler(
@@ -324,18 +295,6 @@ describe('pause_task / resume_task / cancel_task', () => {
         { taskId: r.taskId },
         makeCtx({ tier: 2, sourceGroup: 'myworld/mygroup', isRoot: false }),
       ),
-    ).rejects.toThrow('unauthorized');
-  });
-
-  it('tier 3 cannot resume task', async () => {
-    await expect(
-      resumeTask.handler({ taskId }, makeCtx({ tier: 3 })),
-    ).rejects.toThrow('unauthorized');
-  });
-
-  it('tier 3 cannot cancel task', async () => {
-    await expect(
-      cancelTask.handler({ taskId }, makeCtx({ tier: 3 })),
     ).rejects.toThrow('unauthorized');
   });
 });

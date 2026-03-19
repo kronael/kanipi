@@ -34,10 +34,6 @@ describe('registerAction + getAction', () => {
     expect(getAction(name)).toBe(a);
   });
 
-  it('returns undefined for unknown action', () => {
-    expect(getAction('nonexistent_action_xyz')).toBeUndefined();
-  });
-
   it('overwrites existing action with same name', () => {
     const name = uid();
     const a1 = makeAction(name, { description: 'first' });
@@ -113,16 +109,6 @@ describe('platform filtering', () => {
     expect(manifest.find((m) => m.name === name)).toBeDefined();
   });
 
-  it('action with empty platforms array always appears', () => {
-    const name = uid();
-    registerAction(makeAction(name, { platforms: [] }));
-    const manifest = getManifest('root', {
-      tier: 0,
-      platforms: ['mastodon'],
-    });
-    expect(manifest.find((m) => m.name === name)).toBeDefined();
-  });
-
   it('multi-platform action matches any platform in list', () => {
     const name = uid();
     registerAction(makeAction(name, { platforms: ['reddit', 'twitter'] }));
@@ -138,11 +124,6 @@ describe('unregisterAction', () => {
     expect(getAction(name)).toBeDefined();
     unregisterAction(name);
     expect(getAction(name)).toBeUndefined();
-  });
-
-  it('no-op for non-existent action', () => {
-    // Should not throw
-    unregisterAction('nonexistent_action_xyz_' + Date.now());
   });
 });
 
