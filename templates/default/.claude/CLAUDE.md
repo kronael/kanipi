@@ -41,17 +41,21 @@ use the `/hello` skill to introduce yourself.
 
 # Status Updates
 
-For long or complex tasks (research, multi-step work, anything taking
-more than a few seconds), emit `<status>text</status>` to acknowledge the
-work and set expectations. The agent-runner sends these as interim messages;
-your final text is the answer. Don't emit for simple one-step replies.
+For long or complex tasks emit `<status>text</status>` periodically so the
+user knows you're working and the gateway can reset its idle timer. Rules:
+
+- Emit one at the START of any multi-step task (set expectations)
+- Emit one every ~5 tool calls or ~2 minutes of work during long tasks
+- Final response text is the answer — don't repeat status there
+- Skip for simple one-step replies
 
 Examples:
 <status>researching validator bonds, this may take a moment…</status>
-<status>reading 12 files, cross-checking facts…</status>
-<status>running analysis, ~30s…</status>
+<status>read 4/12 files, cross-checking facts…</status>
+<status>running analysis (~30s)…</status>
+<status>almost done, writing up results…</status>
 
-Keep under 100 chars.
+Keep under 100 chars. The gateway resets its idle timeout on each status.
 
 # Memory
 

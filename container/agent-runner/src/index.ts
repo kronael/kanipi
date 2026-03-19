@@ -404,7 +404,14 @@ async function runQuery(
       if (message.type === 'assistant') {
         const m = message as { message?: { content?: { type: string; text?: string }[] }; uuid?: string };
         const text = m.message?.content?.filter(c => c.type === 'text').map(c => c.text || '').join('').trim();
-        if (text) lastAssistantText = text;
+        if (text) {
+          lastAssistantText = text;
+          // Emit <status> blocks immediately — resets idle timeout and sends interim updates.
+          const { statuses } = extractStatusBlocks(text);
+          for (const s of statuses) {
+            writeOutput({ status: 'success', result: `⏳ ${s}`, newSessionId });
+          }
+        }
         if (m.uuid) lastAssistantUuid = m.uuid;
       }
 
