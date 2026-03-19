@@ -942,7 +942,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           /compact-memories: cron-scheduled progressive compression (sessions&rarr;daily&rarr;weekly&rarr;monthly).
           Auto-threading: route targets support {sender} template expansion, creating per-sender child folders at routing time.
           Reply routing: delegatePerSender batches messages by sender, chunk chaining tracks lastSentId for reply threading.
-          Chat-bound sessions: IDLE_TIMEOUT=0 keeps containers alive indefinitely.
+          Chat-bound sessions: CONTAINER_TIMEOUT=0 keeps containers alive indefinitely.
           Container commands: dual mode (agent ceremony vs raw bash).
           Agent output: &lt;think&gt; blocks stripped (silent reasoning), &lt;status&gt; blocks sent as interim updates, &lt;internal&gt; stripped entirely.
           Action grants: tier-based permission system with glob syntax rules, param matching, DB-backed overrides, delegation scoping.

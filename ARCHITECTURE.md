@@ -231,8 +231,10 @@ Allowlist stored outside project root to prevent tampering.
 ## Container Model
 
 Each agent invocation runs in a docker container. Containers
-persist between messages (idle timeout) -- follow-up messages
-arrive via IPC files, not new containers.
+persist between messages (idle timeout, default 60min via
+`CONTAINER_TIMEOUT`) -- follow-up messages arrive via IPC files,
+not new containers. `<status>` blocks emitted by the agent reset
+the idle timer.
 
 ```
 docker run
@@ -245,7 +247,7 @@ docker run
   -v GROUPS_DIR:/home/node/groups        # tier 0 only: cross-group access
   -v kanipi/:/workspace/self             # kanipi source (ro, tier 0 only)
   -v share/:/workspace/share             # cross-group shared state (ro tier 2+3)
-  -v web/:/workspace/web                 # web output (rw, tier 0/1 only)
+  -v web/<world>/:/workspace/web         # web output (rw, tier 0/1/2; world subdir for tier 1+2)
   -v data/ipc/<folder>:/workspace/ipc    # IPC directory (rw)
   -v <additional>:/workspace/extra/...   # allowlisted mounts (ro)
   -v app/container/agent-runner/src:/app/src  # agent-runner source (live)
@@ -258,11 +260,12 @@ live inside it. Workspace mounts (`self`, `share`, `web`, `ipc`,
 
 **Tier-based mount permissions**: tier 0 (root) gets full RW
 everywhere plus `~/groups` for cross-group sync. Tier 1 (world
-admin) gets RW home and share. Tier 2 gets RW home but setup
-files (CLAUDE.md, SOUL.md, `.claude/skills`, `settings.json`,
-`output-styles`) are locked RO via more-specific overlays. Tier 3
-gets RO home with explicit RW overlays for `.claude/projects`,
-`media`, and `tmp` only.
+admin) gets RW home, share, and web. Tier 2 gets RW home and
+web (world subdir `web/<world>/`) but setup files (CLAUDE.md,
+SOUL.md, `.claude/skills`, `settings.json`, `output-styles`) are
+locked RO via more-specific overlays. Tier 3 gets RO home with
+explicit RW overlays for `.claude/projects`, `media`, and `tmp`
+only; web is not mounted.
 
 **Agent I/O**: gateway writes `start.json` to the IPC directory
 before spawn (contains prompt, session ID, secrets). Container
@@ -287,10 +290,11 @@ flushed from DB as XML, then user messages.
 and the next invocation starts fresh.
 
 **Skills seeding**: on first spawn for a group, `templates/default/.claude/skills/`
-is seeded to `~/.claude/skills/` inside the container. Includes
-kanipi-specific skills plus development skills bundled from
+is seeded to `~/.claude/skills/` inside the container (one-time per skill directory).
+Includes kanipi-specific skills plus development skills bundled from
 kronael/tools (bash, go, python, typescript, etc.). A `CLAUDE.md`
-is also seeded alongside.
+is also seeded alongside. The gateway image includes `templates/` via
+`COPY templates/` in the Dockerfile so seeding works in production.
 
 **Soul**: agent personality is defined by `SOUL.md` in the group
 folder (which IS `/home/node/`). The agent-runner checks
@@ -302,7 +306,7 @@ Claude Code default system prompt (`systemPrompt` string instead of
 Used for user-facing groups where developer-style output is unwanted.
 
 **Migration system**: `templates/default/.claude/skills/self/MIGRATION_VERSION`
-tracks the applied version number. `templates/default/.claude/skills/self/migrations/`
+tracks the applied version number (currently 42). `templates/default/.claude/skills/self/migrations/`
 contains numbered migration files (`NNN-desc.md`). The `/migrate`
 skill syncs all groups from the canonical source when the version
 changes.

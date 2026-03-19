@@ -138,9 +138,10 @@ back to the originating channel.
 
 Messages are queued per group — each group processes one message at
 a time. `MAX_CONCURRENT_CONTAINERS` limits total parallel agents
-across all groups (default 5). `IDLE_TIMEOUT` controls how long a
-container stays alive between messages (default 30min) — longer
+across all groups (default 5). `CONTAINER_TIMEOUT` controls how long a
+container stays alive between messages (default 60min) — longer
 keeps context but uses more memory, shorter saves resources.
+`<status>` blocks from the agent reset the idle timer.
 When the gateway itself runs in docker, `HOST_DATA_DIR` must be
 set so child agent containers get correct host-side mount paths.
 
@@ -261,7 +262,7 @@ All via `.env` (seeded from `template/env.example`):
 | DISCORD_BOT_TOKEN         | enables discord channel                                   |
 | CONTAINER_IMAGE           | agent docker image                                        |
 | CLAUDE_CODE_OAUTH_TOKEN   | passed to agent containers                                |
-| IDLE_TIMEOUT              | container idle shutdown (ms)                              |
+| CONTAINER_TIMEOUT         | container idle shutdown (ms, default 3600000)             |
 | MAX_CONCURRENT_CONTAINERS | concurrent agent limit                                    |
 | VITE_PORT                 | enables vite web serving                                  |
 | WEB_HOST                  | vite host binding                                         |
