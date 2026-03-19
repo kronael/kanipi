@@ -15,6 +15,8 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ### Fixed
 
+- **Reply target**: bot always reply-quotes the triggering user message across all channels. Previously `lastSentId` was updated to the bot's own message ID after each chunk, causing multi-chunk responses to chain-reply to themselves instead of the user.
+- **WhatsApp reply-quoting**: `sendMessage` now passes `contextInfo: { stanzaId }` to Baileys so WhatsApp shows the reply bubble. Previously the `replyTo` parameter was silently ignored (`_opts`).
 - **Agent heartbeat**: agent-runner emits a null-result heartbeat every 30s during long queries to reset the gateway idle timeout. Prevents containers being killed mid-response on slow LLM calls.
 - **Agent silent-fail**: if SDK returns no result message and no exception, user now gets a visible error and a retry prompt instead of silence.
 - **WhatsApp JID routing**: route matching now works with full JIDs including `@s.whatsapp.net` domain suffix (Baileys delivers messages with full JID; bare phone numbers in routes were silently dropped).
