@@ -933,29 +933,12 @@ function evangelistHealth(_ctx: DashboardContext): {
     return { status: 'ok', summary: 'no groups' };
   }
 
-  if (discovered.length === 0) {
-    // Fall back to all groups if none marked
-    let groupsDir: string[];
-    try {
-      groupsDir = fs.readdirSync(GROUPS_DIR);
-    } catch {
-      return { status: 'ok', summary: 'no groups' };
-    }
-    for (const folder of groupsDir) {
-      const drafts = listDir(folder, 'drafts');
-      totalDrafts += drafts.length;
-      staleDrafts += drafts.filter(
-        (p) => p.created && p.created < cutoff,
-      ).length;
-    }
-  } else {
-    for (const { folder } of discovered) {
-      const drafts = listDir(folder, 'drafts');
-      totalDrafts += drafts.length;
-      staleDrafts += drafts.filter(
-        (p) => p.created && p.created < cutoff,
-      ).length;
-    }
+  if (discovered.length === 0) return { status: 'ok', summary: 'no groups' };
+
+  for (const { folder } of discovered) {
+    const drafts = listDir(folder, 'drafts');
+    totalDrafts += drafts.length;
+    staleDrafts += drafts.filter((p) => p.created && p.created < cutoff).length;
   }
 
   if (totalDrafts > 10 || staleDrafts > 0) {

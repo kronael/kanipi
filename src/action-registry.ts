@@ -24,11 +24,7 @@ export interface ActionContext {
   registerGroup(jid: string, group: GroupConfig): void;
   syncGroupMetadata(force: boolean): Promise<void>;
   getAvailableGroups(): AvailableGroup[];
-  writeGroupsSnapshot(
-    folder: string,
-    groups: AvailableGroup[],
-    jids: Set<string>,
-  ): void;
+  writeGroupsSnapshot(folder: string, groups: AvailableGroup[]): void;
   clearSession(folder: string): void;
   delegateToChild(
     childFolder: string,

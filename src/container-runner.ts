@@ -311,7 +311,7 @@ function buildVolumeMounts(
         opusProMigrationComplete: true,
       }) + '\n',
     );
-    chownRecursive(claudeJsonPath, 1000, 1000);
+    fs.chownSync(claudeJsonPath, 1000, 1000);
   }
 
   const stylesSrc = path.join(
@@ -359,7 +359,7 @@ function buildVolumeMounts(
       containerPath: '/workspace/web',
       readonly: false,
     });
-  } else if (fs.existsSync(WEB_DIR) && tier === 1) {
+  } else if (fs.existsSync(WEB_DIR) && (tier === 1 || tier === 2)) {
     const world = worldOf(group.folder);
     const worldDir = path.join(WEB_DIR, world);
     fs.mkdirSync(worldDir, { recursive: true });
@@ -656,17 +656,8 @@ async function runAgentMode(
     {
       group: group.name,
       containerName,
-      mounts: mounts.map(formatMount),
-    },
-    'Container mount configuration',
-  );
-
-  logger.info(
-    {
-      group: group.name,
-      containerName,
-      mountCount: mounts.length,
       root: isRoot(group.folder),
+      mounts: mounts.map(formatMount),
     },
     'Spawning container agent',
   );
@@ -1111,7 +1102,6 @@ export interface AvailableGroup {
 export function writeGroupsSnapshot(
   groupFolder: string,
   groups: AvailableGroup[],
-  registeredJids: Set<string>,
 ): void {
   const root = isRoot(groupFolder);
   const groupIpcDir = resolveGroupIpcPath(groupFolder);

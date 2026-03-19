@@ -314,10 +314,9 @@ async function runQuery(
 
   let newSessionId: string | undefined;
   let lastAssistantUuid: string | undefined;
-  let lastAssistantText: string | undefined;
   const lastAssistantEmittedStatuses = new Set<string>();
   let messageCount = 0;
-  let resultCount = 0;
+  let hadResult = false;
   let maxTurnsHit = false;
 
   // Track the query so we can close it after getting the result
@@ -406,7 +405,6 @@ async function runQuery(
         const m = message as { message?: { content?: { type: string; text?: string }[] }; uuid?: string };
         const text = m.message?.content?.filter(c => c.type === 'text').map(c => c.text || '').join('').trim();
         if (text) {
-          lastAssistantText = text;
           // Emit <status> blocks immediately — resets idle timeout and sends interim updates.
           // Track emitted statuses to avoid duplicate emission in the result handler below.
           const { statuses } = extractStatusBlocks(text);
@@ -429,9 +427,9 @@ async function runQuery(
       }
 
       if (message.type === 'result') {
-        resultCount++;
+        hadResult = true;
         const rawResult = 'result' in message ? (message as { result?: string }).result : null;
-        log(`Result #${resultCount}: subtype=${message.subtype}${rawResult ? ` text=${rawResult.slice(0, 200)}` : ''}`);
+        log(`Result: subtype=${message.subtype}${rawResult ? ` text=${rawResult.slice(0, 200)}` : ''}`);
         if (message.subtype === 'error_max_turns') {
           maxTurnsHit = true;
         } else {
@@ -462,7 +460,7 @@ async function runQuery(
     // exited with code 1 after a stale-session resume that recovered).
     // If we already got a result, the success output is already written —
     // swallow the throw and return normally with the captured newSessionId.
-    if (resultCount > 0) {
+    if (hadResult) {
       log(`SDK threw after result (ignored): ${err instanceof Error ? err.message : String(err)}`);
     } else {
       throw err;
@@ -471,7 +469,7 @@ async function runQuery(
 
   ipcPolling = false;
   wakeup = null;
-  log(`Query done. Messages: ${messageCount}, results: ${resultCount}, lastAssistantUuid: ${lastAssistantUuid || 'none'}, closedDuringQuery: ${closedDuringQuery}`);
+  log(`Query done. Messages: ${messageCount}, hadResult: ${hadResult}, lastAssistantUuid: ${lastAssistantUuid || 'none'}, closedDuringQuery: ${closedDuringQuery}`);
 
   if (maxTurnsHit && newSessionId) {
     log('Max turns hit — requesting summary + resumption nudge');

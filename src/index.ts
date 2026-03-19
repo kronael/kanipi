@@ -881,7 +881,7 @@ async function runAgent(
   );
 
   const availableGroups = getAvailableGroups();
-  writeGroupsSnapshot(group.folder, availableGroups, new Set(getRoutedJids()));
+  writeGroupsSnapshot(group.folder, availableGroups);
 
   const annotations: string[] = [];
   if (!sessionId) {

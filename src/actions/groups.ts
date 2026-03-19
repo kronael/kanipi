@@ -31,11 +31,7 @@ export const refreshGroups: Action = {
     );
     await ctx.syncGroupMetadata(true);
     const groups = ctx.getAvailableGroups();
-    ctx.writeGroupsSnapshot(
-      ctx.sourceGroup,
-      groups,
-      new Set(ctx.getRoutedJids()),
-    );
+    ctx.writeGroupsSnapshot(ctx.sourceGroup, groups);
     return { refreshed: true };
   },
 };

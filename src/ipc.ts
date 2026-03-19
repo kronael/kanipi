@@ -72,7 +72,6 @@ export interface IpcDeps {
   writeGroupsSnapshot: (
     groupFolder: string,
     availableGroups: AvailableGroup[],
-    registeredJids: Set<string>,
   ) => void;
   clearSession: (groupFolder: string) => void;
   delegateToChild: (
