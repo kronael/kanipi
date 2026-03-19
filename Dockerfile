@@ -28,6 +28,7 @@ COPY --from=build /srv/app/dist ./dist
 COPY --from=deps /srv/app/node_modules ./node_modules
 COPY --from=deps /srv/app/package.json ./package.json
 COPY container/ ./container/
+COPY templates/ ./templates/
 COPY prototype/ /srv/app/prototype/
 
 RUN mkdir -p /cfg
