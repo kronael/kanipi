@@ -548,7 +548,7 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
 
       <h3>Chat-bound sessions</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
-        Setting <code>IDLE_TIMEOUT=0</code> keeps containers alive indefinitely, binding them to the chat.
+        Setting <code>CONTAINER_TIMEOUT=0</code> keeps containers alive indefinitely, binding them to the chat.
         Useful for persistent agents that maintain conversational state across arbitrarily spaced messages.
         Cross-channel preemption: if a different JID needs the same folder, idle containers are closed.
       </p>
@@ -1000,15 +1000,15 @@ source: 78 files 18833 LOC, 62 test files 15602 LOC, 952 tests, 102 specs
 architecture: channel -> impulse-gate -> sqlite -> group-queue -> router ({sender} template expansion) -> container (docker, unified home /home/node) -> claude-code-sdk -> ipc (sigusr1+files) -> action-registry (core+social) -> reply-router (delegatePerSender, chunk-chaining) -> channel
 unified-home: groups/{folder}/ mounted as /home/node (cwd+HOME), .claude/ inside group folder, media paths ~/media/...
 permissions: 4-tier (root 0=no /, world 1={world}, agent 2={world}/{name}, worker 3=deeper), tier from / count, overlay mounts tier 2+
-mounts: home(/home/node rw/ro), groups(~/groups root-only), share(~/share rw/ro), web(~/web rw root/world), ipc(~/ipc rw), self(~/self ro root), agent-runner(~/agent-runner ro hot-patch)
-skills: container/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; SYSTEM.md for custom system prompt; migration system
+mounts: home(/home/node rw/ro), groups(~/groups root-only), share(~/share rw/ro), web(/workspace/web rw tier 0/1/2, world-subdir for tier 1+2, not mounted tier 3), ipc(~/ipc rw), self(~/self ro root), agent-runner(~/agent-runner ro hot-patch)
+skills: templates/default/.claude/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; SYSTEM.md for custom system prompt; migration system (version 42); templates/ bundled in gateway image
 ipc: signal-driven (SIGUSR1), 500ms fallback, file-based request/response
 memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (14 recent), user-context (per-sender pointer), facts (/recall search), episodes (day/week/month compression via /compact-memories)
 recall: v1 (explore grep on summary: frontmatter) + v2 (FTS5+sqlite-vec hybrid, RRF fusion 0.7vec/0.3bm25, ollama nomic-embed-text, .recallrc config, per-store sqlite dbs)
 compact-memories: cron-scheduled progressive compression (sessions->daily->weekly->monthly episodes, diary->weekly->monthly summaries)
 auto-threading: route targets support {sender} template, per-sender child folders created at routing time
 reply-routing: delegatePerSender batches by sender, chunk chaining tracks lastSentId for reply threading, escalation origin attribution
-chat-bound-sessions: IDLE_TIMEOUT=0 keeps containers alive indefinitely
+chat-bound-sessions: CONTAINER_TIMEOUT=0 keeps containers alive indefinitely; <status> blocks reset idle timer
 container-commands: dual mode (agent ceremony vs raw bash)
 agent-output: <think> stripped (silent reasoning), <status> sent as interim updates, <internal> stripped entirely
 action-grants: tier-based permission system, glob syntax rules with param matching, DB-backed overrides, delegation scoping, replaces assertAuthorized/maxTier
