@@ -483,6 +483,79 @@ function userRm(instance: string, username: string): void {
   }
 }
 
+function userWebdavToken(instance: string, username: string): void {
+  if (!username) {
+    console.error(
+      'usage: kanipi config <instance> user webdav-token <username>',
+    );
+    process.exit(1);
+  }
+
+  const dbPath = getDbPath(instance);
+  if (!fs.existsSync(dbPath)) {
+    console.error(`error: db not found: ${dbPath}`);
+    process.exit(1);
+  }
+
+  const db = new Database(dbPath);
+  try {
+    const user = db
+      .prepare('SELECT sub FROM auth_users WHERE username = ?')
+      .get(username) as { sub: string } | undefined;
+    if (!user) {
+      console.error(`not found: ${username}`);
+      process.exit(1);
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    db.prepare(
+      'UPDATE auth_users SET webdav_token_hash = ? WHERE username = ?',
+    ).run(tokenHash, username);
+    console.log(`webdav token for ${username} (shown once):`);
+    console.log(token);
+  } finally {
+    db.close();
+  }
+}
+
+function userWebdavGroups(
+  instance: string,
+  username: string,
+  groups: string[],
+): void {
+  if (!username || groups.length === 0) {
+    console.error(
+      'usage: kanipi config <instance> user webdav-groups <username> <group1> [group2...]',
+    );
+    process.exit(1);
+  }
+
+  const dbPath = getDbPath(instance);
+  if (!fs.existsSync(dbPath)) {
+    console.error(`error: db not found: ${dbPath}`);
+    process.exit(1);
+  }
+
+  const db = new Database(dbPath);
+  try {
+    const user = db
+      .prepare('SELECT sub FROM auth_users WHERE username = ?')
+      .get(username) as { sub: string } | undefined;
+    if (!user) {
+      console.error(`not found: ${username}`);
+      process.exit(1);
+    }
+
+    db.prepare(
+      'UPDATE auth_users SET webdav_groups = ? WHERE username = ?',
+    ).run(JSON.stringify(groups), username);
+    console.log(`webdav groups for ${username}: ${groups.join(', ')}`);
+  } finally {
+    db.close();
+  }
+}
+
 function userPasswd(
   instance: string,
   username: string,
@@ -933,9 +1006,15 @@ function handleConfig(args: string[]): void {
         case 'passwd':
           userPasswd(instance, args[3], args[4]);
           break;
+        case 'webdav-token':
+          userWebdavToken(instance, args[3]);
+          break;
+        case 'webdav-groups':
+          userWebdavGroups(instance, args[3], args.slice(4));
+          break;
         default:
           console.error(
-            'usage: kanipi config <instance> user {list|add|rm|passwd} ...',
+            'usage: kanipi config <instance> user {list|add|rm|passwd|webdav-token|webdav-groups} ...',
           );
           process.exit(1);
       }

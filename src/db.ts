@@ -1108,3 +1108,37 @@ export function getAllOnboarding(): OnboardingEntry[] {
     .prepare('SELECT * FROM onboarding ORDER BY created DESC')
     .all() as OnboardingEntry[];
 }
+
+// --- WebDAV ---
+
+export interface WebdavUser {
+  id: number;
+  sub: string;
+  username: string;
+  webdav_token_hash: string | null;
+  webdav_groups: string;
+}
+
+export function getWebdavUser(username: string): WebdavUser | null {
+  return (
+    db
+      .prepare<[string], WebdavUser>(
+        `SELECT id, sub, username, webdav_token_hash, webdav_groups
+         FROM auth_users WHERE username = ?`,
+      )
+      .get(username) ?? null
+  );
+}
+
+export function setWebdavToken(username: string, tokenHash: string): void {
+  db.prepare(
+    `UPDATE auth_users SET webdav_token_hash = ? WHERE username = ?`,
+  ).run(tokenHash, username);
+}
+
+export function setWebdavGroups(username: string, groups: string[]): void {
+  db.prepare(`UPDATE auth_users SET webdav_groups = ? WHERE username = ?`).run(
+    JSON.stringify(groups),
+    username,
+  );
+}

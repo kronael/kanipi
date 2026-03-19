@@ -1,8 +1,9 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
 
-import { WEB_DIR } from './config.js';
+import { WEB_DIR, WEBDAV_ENABLED, WEBDAV_URL } from './config.js';
 import {
   checkSessionCookie,
   handleDiscordAuth,
@@ -17,7 +18,7 @@ import {
   handleTelegramAuth,
   loginPageHtml,
 } from './auth.js';
-import { getGroupBySlink } from './db.js';
+import { getGroupBySlink, getWebdavUser } from './db.js';
 import { logger } from './logger.js';
 import { handleSlinkPost } from './slink.js';
 import { addSseListener, removeSseListener } from './channels/web.js';
@@ -169,6 +170,138 @@ function checkAuth(req: http.IncomingMessage, authSecret?: string): boolean {
   if (url.startsWith('/auth/')) return true;
   if (authSecret) return checkSessionCookie(req.headers.cookie || '');
   return true;
+}
+
+// --- WebDAV proxy ---
+
+const WEBDAV_WRITE_METHODS = new Set([
+  'PUT',
+  'POST',
+  'DELETE',
+  'MKCOL',
+  'COPY',
+  'MOVE',
+  'LOCK',
+  'UNLOCK',
+  'PATCH',
+  'PROPPATCH',
+]);
+
+// Sensitive file patterns — block writes on these regardless of path.
+const WEBDAV_DENY_WRITE_GLOBS = ['.env', '.envrc', '**/*.pem', '.git/**'];
+
+function matchesDenyGlob(filePath: string): boolean {
+  const p = filePath.replace(/^\/+/, '');
+  for (const glob of WEBDAV_DENY_WRITE_GLOBS) {
+    if (glob.startsWith('**/')) {
+      const suffix = glob.slice(3);
+      if (p === suffix || p.endsWith('/' + suffix)) return true;
+    } else if (glob.endsWith('/**')) {
+      const prefix = glob.slice(0, -3);
+      if (p === prefix || p.startsWith(prefix + '/')) return true;
+    } else {
+      const parts = p.split('/');
+      if (parts[parts.length - 1] === glob) return true;
+    }
+  }
+  return false;
+}
+
+function handleWebdavRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  group: string,
+  rest: string,
+): void {
+  const authHeader = req.headers['authorization'] || '';
+  if (!authHeader.toLowerCase().startsWith('basic ')) {
+    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="kanipi"' });
+    res.end('Unauthorized');
+    return;
+  }
+
+  let username: string;
+  let token: string;
+  try {
+    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString(
+      'utf-8',
+    );
+    const colon = decoded.indexOf(':');
+    if (colon === -1) throw new Error('bad format');
+    username = decoded.slice(0, colon);
+    token = decoded.slice(colon + 1);
+  } catch {
+    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="kanipi"' });
+    res.end('Unauthorized');
+    return;
+  }
+
+  const user = getWebdavUser(username);
+  if (!user || !user.webdav_token_hash) {
+    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="kanipi"' });
+    res.end('Unauthorized');
+    return;
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  if (tokenHash !== user.webdav_token_hash) {
+    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="kanipi"' });
+    res.end('Unauthorized');
+    return;
+  }
+
+  let allowedGroups: string[];
+  try {
+    allowedGroups = JSON.parse(user.webdav_groups) as string[];
+  } catch {
+    allowedGroups = ['root'];
+  }
+  if (!allowedGroups.includes(group)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  const method = (req.method || 'GET').toUpperCase();
+  const isWrite = WEBDAV_WRITE_METHODS.has(method);
+
+  if (isWrite && rest.replace(/^\/+/, '').startsWith('logs/')) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  if (isWrite && matchesDenyGlob(rest)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  const targetPath = `/${group}${rest}`;
+  const upstream = new URL(WEBDAV_URL);
+  const upstreamHeaders = { ...req.headers };
+  delete upstreamHeaders['authorization'];
+  upstreamHeaders['host'] = upstream.host;
+
+  const proxyReq = http.request(
+    {
+      host: upstream.hostname,
+      port: parseInt(upstream.port || '80', 10),
+      path: targetPath,
+      method: req.method,
+      headers: upstreamHeaders,
+    },
+    (proxyRes) => {
+      res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+      proxyRes.pipe(res);
+    },
+  );
+  proxyReq.on('error', (err) => {
+    logger.warn({ err, group }, 'webdav proxy error');
+    res.writeHead(502);
+    res.end('Bad Gateway');
+  });
+  req.pipe(proxyReq);
 }
 
 export function startWebProxy(opts: {
@@ -391,6 +524,12 @@ export function startWebProxy(opts: {
 
     if (dashCtx && url.startsWith('/dash')) {
       handleDashRequest(req, res, dashCtx);
+      return;
+    }
+
+    const davMatch = url.match(/^\/dav\/([^/]+)(\/.*)?$/);
+    if (davMatch && WEBDAV_ENABLED) {
+      handleWebdavRequest(req, res, davMatch[1], davMatch[2] || '/');
       return;
     }
 
