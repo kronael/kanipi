@@ -64,3 +64,13 @@ Observed issues from log/conversation audit 2026-03-19. Review and fix.
 **Context:** When a route bug caused messages to be unrouted, fixing the route required manually rolling back `router_state.last_timestamp` and `last_agent_timestamp`. If this happens again (e.g. new group added with wrong JID format), there's no tooling to replay missed messages.
 **Fix:** Add a `kanipi replay-messages --jid <jid> --since <timestamp>` CLI command that sets the per-JID agent timestamp back and triggers reprocessing.
 **File:** `src/cli.ts`
+
+---
+
+## B8 — WhatsApp `AwaitingInitialSync` timeout loop on every restart [rhias]
+
+**Evidence:** Every restart shows: `History sync is enabled, awaiting notification with a 20s timeout.` then `Timeout in AwaitingInitialSync, forcing state to Online and flushing buffer`
+**Context:** WhatsApp Baileys enters a 20s sync wait on connect. The notification never arrives (WA Web sessions have degraded history sync). Service is forced Online but this may leave message state inconsistent.
+**Impact:** All rhias restarts (5 today) go through this degraded path. Unclear if messages received during the 20s window are buffered correctly.
+**Fix:** Either increase the timeout to 60s, or explicitly handle the forced-Online case by flushing the buffer and confirming no messages are dropped. Investigate whether WA multi-device history sync is expected to work on this account.
+**File:** `src/channels/whatsapp.ts` (Baileys config, `syncTimeout` option)
