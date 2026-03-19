@@ -156,6 +156,14 @@ function buildVolumeMounts(
   const groupDir = resolveGroupFolderPath(group.folder);
   const hostGroupDir = path.join(HOST_GROUPS_DIR, group.folder);
 
+  // Ensure groupDir is writable by the container user (uid 1000).
+  // Defensively correct ownership in case the dir was created as root manually.
+  try {
+    fs.chownSync(groupDir, 1000, 1000);
+  } catch {
+    // best-effort; fails harmlessly if already correct or gateway lacks perms
+  }
+
   mounts.push({
     hostPath: hostGroupDir,
     containerPath: '/home/node',
