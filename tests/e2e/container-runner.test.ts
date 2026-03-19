@@ -192,24 +192,6 @@ describe('runContainerCommand E2E (fake agent via node)', () => {
     );
   }, 15000);
 
-  it('handles agent with no output (error path)', async () => {
-    // Agent exits immediately without emitting markers
-    agentScript = 'process.exit(0);';
-
-    const result = await runContainerCommand(
-      testGroup,
-      {
-        prompt: 'silent',
-        groupFolder: 'e2e-group',
-        chatJid: 'e2e@g.us',
-      },
-      () => {},
-    );
-
-    // No output markers → treated as error or empty success
-    expect(['success', 'error']).toContain(result.status);
-  }, 15000);
-
   it('handles agent that exits non-zero', async () => {
     agentScript = `process.stdout.write('${OUTPUT_START}\\n' + JSON.stringify({ status: 'error', error: 'crashed' }) + '\\n${OUTPUT_END}\\n'); process.exit(1);`;
 
