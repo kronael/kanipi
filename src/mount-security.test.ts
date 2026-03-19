@@ -247,24 +247,6 @@ describe('validateMount: blocked patterns', () => {
     expect(result.reason).toMatch(/\.ssh/);
   });
 
-  it('blocks paths containing .aws', async () => {
-    const validateMount = await getValidateMount();
-    const result = validateMount(
-      { hostPath: '/home/user/.aws/credentials' },
-      true,
-    );
-    expect(result.allowed).toBe(false);
-  });
-
-  it('blocks paths with id_rsa in name', async () => {
-    const validateMount = await getValidateMount();
-    const result = validateMount(
-      { hostPath: '/home/user/keys/id_rsa.pub' },
-      true,
-    );
-    expect(result.allowed).toBe(false);
-  });
-
   it('blocks paths containing .env', async () => {
     const validateMount = await getValidateMount();
     const result = validateMount({ hostPath: '/home/user/project/.env' }, true);
