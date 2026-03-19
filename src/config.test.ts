@@ -5,7 +5,6 @@ import {
   _overrideConfig,
   _resetConfig,
   permissionTier,
-  isRoot,
 } from './config.js';
 
 describe('_overrideConfig', () => {
@@ -82,17 +81,5 @@ describe('permissionTier', () => {
   it('depth 4+ is clamped to tier 3', () => {
     expect(permissionTier('a/b/c/d')).toBe(3);
     expect(permissionTier('a/b/c/d/e')).toBe(3);
-  });
-});
-
-describe('isRoot', () => {
-  it('root returns true', () => {
-    expect(isRoot('root')).toBe(true);
-  });
-
-  it('non-root returns false', () => {
-    expect(isRoot('atlas')).toBe(false);
-    expect(isRoot('root/child')).toBe(false);
-    expect(isRoot('')).toBe(false);
   });
 });

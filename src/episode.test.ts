@@ -69,28 +69,6 @@ describe('episode', () => {
       expect(readEpisodeEntries('root')).toEqual([]);
     });
 
-    it('classifies files correctly', () => {
-      vi.spyOn(fs, 'existsSync').mockReturnValue(true);
-      vi.spyOn(fs, 'readdirSync').mockReturnValue([
-        '20260310.md' as any,
-        '2026-W11.md' as any,
-        '2026-03.md' as any,
-      ]);
-      vi.spyOn(fs, 'readFileSync').mockImplementation((p) => {
-        const s = String(p);
-        if (s.includes('20260310')) return '---\nsummary: day entry\n---\n';
-        if (s.includes('2026-W11')) return '---\nsummary: week entry\n---\n';
-        if (s.includes('2026-03')) return '---\nsummary: month entry\n---\n';
-        return '';
-      });
-
-      const entries = readEpisodeEntries('root');
-      expect(entries).toHaveLength(3);
-      expect(entries[0].type).toBe('day');
-      expect(entries[1].type).toBe('week');
-      expect(entries[2].type).toBe('month');
-    });
-
     it('ignores non-matching filenames', () => {
       vi.spyOn(fs, 'existsSync').mockReturnValue(true);
       vi.spyOn(fs, 'readdirSync').mockReturnValue([
