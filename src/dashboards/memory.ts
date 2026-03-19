@@ -6,6 +6,15 @@ import { getAllGroupConfigs } from '../db.js';
 import { GROUPS_DIR } from '../config.js';
 import { registerDashboard, DashboardContext } from './index.js';
 
+function readBody(req: http.IncomingMessage): Promise<string> {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => resolve(body));
+    req.on('error', () => resolve(''));
+  });
+}
+
 function esc(s: string): string {
   return String(s)
     .replace(/&/g, '&amp;')
@@ -60,6 +69,19 @@ function statFileSafe(folder: string, rel: string): fs.Stats | null {
     return fs.statSync(fp);
   } catch {
     return null;
+  }
+}
+
+function writeFileSafe(folder: string, rel: string, content: string): boolean {
+  const fp = resolveGroupFolderPath(folder, rel);
+  if (!fp) return false;
+  // Path safety: resolved path must stay inside GROUPS_DIR
+  if (!fp.startsWith(path.join(GROUPS_DIR, folder) + path.sep)) return false;
+  try {
+    fs.writeFileSync(fp, content, 'utf-8');
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -130,7 +152,27 @@ function renderMemory(folder: string): string {
   const meta = stat
     ? `<span style="color:#888">${fmtSize(stat.size)}, modified ${fmtMtime(stat.mtime)}</span>`
     : '';
-  return `<p>${meta}</p><pre style="background:#f8f8f8;padding:12px;overflow-x:auto;white-space:pre-wrap;max-height:400px;overflow-y:auto">${esc(content)}</pre>`;
+  const q = `?group=${encodeURIComponent(folder)}`;
+  return (
+    `<p>${meta}</p>` +
+    `<pre style="background:#f8f8f8;padding:12px;overflow-x:auto;white-space:pre-wrap;max-height:400px;overflow-y:auto">${esc(content)}</pre>` +
+    `<button hx-get="/dash/memory/x/edit-memory${q}" hx-target="#memory-content" hx-swap="innerHTML">Edit</button>`
+  );
+}
+
+function renderEditMemory(folder: string): string {
+  const content = readFileSafe(folder, 'MEMORY.md') ?? '';
+  const q = `?group=${encodeURIComponent(folder)}`;
+  return (
+    `<form hx-post="/dash/memory/api/save-memory" hx-target="#memory-content" hx-swap="innerHTML">` +
+    `<input type="hidden" name="group" value="${esc(folder)}">` +
+    `<textarea name="content" style="width:100%;height:500px;font-family:monospace;box-sizing:border-box">${esc(content)}</textarea>` +
+    `<div style="margin-top:8px;display:flex;gap:8px">` +
+    `<button type="submit" style="font-family:monospace">Save</button>` +
+    `<button type="button" style="font-family:monospace" hx-get="/dash/memory/x/memory${q}" hx-target="#memory-content" hx-swap="innerHTML">Cancel</button>` +
+    `</div>` +
+    `</form>`
+  );
 }
 
 // --- CLAUDE.md ---
@@ -142,10 +184,27 @@ function renderClaudeMd(folder: string): string {
   const meta = stat
     ? `<span style="color:#888">${fmtSize(stat.size)}, modified ${fmtMtime(stat.mtime)}</span>`
     : '';
+  const q = `?group=${encodeURIComponent(folder)}`;
   return (
     `<details><summary>CLAUDE.md ${meta}</summary>` +
     `<pre style="background:#f8f8f8;padding:12px;overflow-x:auto;white-space:pre-wrap;max-height:400px;overflow-y:auto">${esc(content)}</pre>` +
-    `</details>`
+    `</details>` +
+    `<button hx-get="/dash/memory/x/edit-claude${q}" hx-target="#claudemd-content" hx-swap="innerHTML">Edit</button>`
+  );
+}
+
+function renderEditClaude(folder: string): string {
+  const content = readFileSafe(folder, 'CLAUDE.md') ?? '';
+  const q = `?group=${encodeURIComponent(folder)}`;
+  return (
+    `<form hx-post="/dash/memory/api/save-claude" hx-target="#claudemd-content" hx-swap="innerHTML">` +
+    `<input type="hidden" name="group" value="${esc(folder)}">` +
+    `<textarea name="content" style="width:100%;height:500px;font-family:monospace;box-sizing:border-box">${esc(content)}</textarea>` +
+    `<div style="margin-top:8px;display:flex;gap:8px">` +
+    `<button type="submit" style="font-family:monospace">Save</button>` +
+    `<button type="button" style="font-family:monospace" hx-get="/dash/memory/x/claude-md${q}" hx-target="#claudemd-content" hx-swap="innerHTML">Cancel</button>` +
+    `</div>` +
+    `</form>`
   );
 }
 
@@ -497,12 +556,12 @@ function doSearch(e) {
 
 // --- Handler ---
 
-function memoryHandler(
+async function memoryHandler(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   p: string,
   _ctx: DashboardContext,
-): void {
+): Promise<void> {
   const urlObj = new URL(p, 'http://localhost');
   const sub = urlObj.pathname;
 
@@ -634,6 +693,52 @@ function memoryHandler(
     return;
   }
 
+  if (sub === '/x/edit-memory') {
+    const folder = urlObj.searchParams.get('group') ?? '';
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderEditMemory(folder));
+    return;
+  }
+
+  if (sub === '/x/edit-claude') {
+    const folder = urlObj.searchParams.get('group') ?? '';
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderEditClaude(folder));
+    return;
+  }
+
+  if (sub === '/api/save-memory' && req.method === 'POST') {
+    const body = await readBody(req);
+    const params = new URLSearchParams(body);
+    const folder = params.get('group') ?? '';
+    const content = params.get('content') ?? '';
+    const ok = writeFileSafe(folder, 'MEMORY.md', content);
+    if (!ok) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Write failed');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderMemory(folder));
+    return;
+  }
+
+  if (sub === '/api/save-claude' && req.method === 'POST') {
+    const body = await readBody(req);
+    const params = new URLSearchParams(body);
+    const folder = params.get('group') ?? '';
+    const content = params.get('content') ?? '';
+    const ok = writeFileSafe(folder, 'CLAUDE.md', content);
+    if (!ok) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Write failed');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderClaudeMd(folder));
+    return;
+  }
+
   // Shell
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(SHELL_HTML);
@@ -659,6 +764,8 @@ registerDashboard({
   name: 'memory',
   title: 'Memory & Knowledge',
   description: 'MEMORY.md, diary, episodes, facts, and user context per group',
-  handler: memoryHandler,
+  handler: (req, res, p, ctx) => {
+    void memoryHandler(req, res, p, ctx);
+  },
   health: memoryHealth,
 });
