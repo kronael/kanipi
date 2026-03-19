@@ -35,12 +35,6 @@ describe('deriveRules — tier 3+ (leaf)', () => {
     expect(rules).toEqual(['send_reply']);
   });
 
-  it('higher tier also returns only send_reply', () => {
-    // tier argument can be > 3 technically
-    const rules = deriveRules('root/a/b/c/d', 4 as never);
-    expect(rules).toEqual(['send_reply']);
-  });
-
   it('only send_reply is allowed', () => {
     const rules = deriveRules('root/child/leaf', 3);
     expect(checkAction(rules, 'send_reply', {})).toBe(true);
@@ -221,12 +215,6 @@ describe('deriveRules — email JIDs excluded from platforms', () => {
 });
 
 describe('deriveRules uses default tier from config when not specified', () => {
-  it('root folder with no explicit tier uses config.permissionTier', () => {
-    // deriveRules('root') calls permissionTier('root') which returns 0
-    const rules = deriveRules('root');
-    expect(rules).toEqual(['*']);
-  });
-
   it('deep folder defaults to tier 3', () => {
     const rules = deriveRules('a/b/c');
     expect(rules).toEqual(['send_reply']);

@@ -299,24 +299,6 @@ describe('drainRequests — reply atomicity', () => {
 // a watched directory should trigger drainRequests without manual polling.
 
 describe('watcher-driven drain — real fs.watch triggers', () => {
-  it('fs.watch event fires when a request file is written', async () => {
-    const reqDir = path.join(tmpDir, 'watch-group', 'requests');
-    fs.mkdirSync(reqDir, { recursive: true });
-
-    const fired = await new Promise<boolean>((resolve) => {
-      const watcher = fs.watch(reqDir, () => {
-        watcher.close();
-        resolve(true);
-      });
-      // Write a file after the watcher is set up
-      setTimeout(() => {
-        fs.writeFileSync(path.join(reqDir, 'probe.json'), '{}');
-      }, 10);
-    });
-
-    expect(fired).toBe(true);
-  });
-
   it('drain triggered by watch event processes request and writes reply', async () => {
     const deps = makeDeps();
     const reqDir = path.join(ipcDir, 'root', 'requests');

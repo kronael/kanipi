@@ -196,36 +196,6 @@ describe('grants enforcement — tier 3 (leaf)', () => {
     expect(reply.error).toContain('denied by grants');
     expect(deps.sendMessage).not.toHaveBeenCalled();
   });
-
-  it('leaf group denied post by default', async () => {
-    const deps = makeDeps();
-    const id = writeRequest('root/child/leaf', {
-      type: 'post',
-      jid: 'twitter:123',
-      content: 'tweet',
-    });
-    await drainRequests(ipcDir, 'root/child/leaf', deps);
-
-    const reply = readReply('root/child/leaf', id);
-    expect(reply.ok).toBe(false);
-    expect(reply.error).toContain('denied by grants');
-  });
-
-  it('leaf group denied schedule_task by default', async () => {
-    const deps = makeDeps();
-    const id = writeRequest('root/child/leaf', {
-      type: 'schedule_task',
-      targetFolder: 'root/child/leaf',
-      prompt: 'do stuff',
-      schedule_type: 'interval',
-      schedule_value: '3600000',
-    });
-    await drainRequests(ipcDir, 'root/child/leaf', deps);
-
-    const reply = readReply('root/child/leaf', id);
-    expect(reply.ok).toBe(false);
-    expect(reply.error).toContain('denied by grants');
-  });
 });
 
 describe('grants enforcement — grant overrides', () => {

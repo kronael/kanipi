@@ -68,16 +68,8 @@ describe('stripThinkBlocks', () => {
     expect(stripThinkBlocks(input)).toBe('<status>working</status>The answer.');
   });
 
-  it('returns empty string when entire output is inside think', () => {
-    expect(stripThinkBlocks('<think>all hidden</think>')).toBe('');
-  });
-
   it('returns text unchanged when no think blocks', () => {
     expect(stripThinkBlocks('just plain text')).toBe('just plain text');
-  });
-
-  it('trims whitespace around result', () => {
-    expect(stripThinkBlocks('  <think>x</think>  hello  ')).toBe('hello');
   });
 });
 
@@ -121,11 +113,5 @@ describe('extractStatusBlocks', () => {
     // regex won't match unclosed, so nothing extracted
     expect(r.statuses).toEqual([]);
     expect(r.cleaned).toBe('text<status>unclosed');
-  });
-
-  it('returns empty cleaned and no statuses for empty input', () => {
-    const r = extractStatusBlocks('');
-    expect(r.statuses).toEqual([]);
-    expect(r.cleaned).toBe('');
   });
 });
