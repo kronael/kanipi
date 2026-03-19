@@ -257,6 +257,27 @@ describe('getMessagesSince', () => {
     );
     expect(msgs).toHaveLength(0);
   });
+
+  it('filters by topic — only returns messages matching given topic', () => {
+    store({
+      id: 'm5',
+      chat_jid: 'group@g.us',
+      sender: 'Alice@s.whatsapp.net',
+      sender_name: 'Alice',
+      content: '#deploy restart the server',
+      timestamp: '2024-01-01T00:00:05.000Z',
+    });
+    setMessageTopic('m5', 'deploy');
+
+    // default topic ('') should not see the deploy-tagged message
+    const base = getMessagesSince('group@g.us', '', 'Andy');
+    expect(base.map((m) => m.id)).not.toContain('m5');
+
+    // deploy topic should only see the deploy-tagged message
+    const deploy = getMessagesSince('group@g.us', '', 'Andy', 'deploy');
+    expect(deploy).toHaveLength(1);
+    expect(deploy[0].id).toBe('m5');
+  });
 });
 
 // --- getNewMessages ---
