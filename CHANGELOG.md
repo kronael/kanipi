@@ -7,6 +7,20 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **OAuth domain/org restriction**: `GOOGLE_ALLOWED_EMAILS` (comma-separated glob patterns, e.g. `*@marinade.finance`) restricts Google OAuth. `GITHUB_ALLOWED_ORG` restricts GitHub OAuth to org members. Google Workspace `hd=` hint passed automatically when single domain detected.
+
+### Fixed
+
+- **Agent heartbeat**: agent-runner emits a null-result heartbeat every 30s during long queries to reset the gateway idle timeout. Prevents containers being killed mid-response on slow LLM calls.
+- **Agent silent-fail**: if SDK returns no result message and no exception, user now gets a visible error and a retry prompt instead of silence.
+- **WhatsApp JID routing**: route matching now works with full JIDs including `@s.whatsapp.net` domain suffix (Baileys delivers messages with full JID; bare phone numbers in routes were silently dropped).
+
+---
+
 ## [v1.0.0] — 2026-03-19
 
 ### Added
