@@ -10,17 +10,22 @@ description: Generate a comprehensive howto page for this group. Documents all
 ## Web directory
 
 ```bash
-GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
-if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
+GROUP_FOLDER=$NANOCLAW_GROUP_FOLDER
+# /workspace/web is always mounted at the world level.
+# Root: /workspace/web = web root
+# World (tier 1): /workspace/web = web/<world>/
+# Child (tier 2): /workspace/web = web/<world>/ — use basename only
+if [ "$NANOCLAW_IS_ROOT" = "1" ] || [ "$NANOCLAW_IS_WORLD_ADMIN" = "1" ]; then
   WEB_DIR="/workspace/web"
 else
-  WEB_DIR="/workspace/web/$GROUP_FOLDER"
+  WEB_SUB=$(basename "$GROUP_FOLDER")
+  WEB_DIR="/workspace/web/$WEB_SUB"
   mkdir -p "$WEB_DIR"
 fi
 ```
 
 Deploys to: `$WEB_DIR/howto/index.html`
-Public URL: `https://$WEB_HOST/[$GROUP_FOLDER/]howto/`
+Public URL: `https://$WEB_HOST/$GROUP_FOLDER/howto/`
 
 ## Starting point
 
