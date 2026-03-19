@@ -83,10 +83,10 @@ import {
   setGroupConfig,
   setRouterState,
   setSession,
+  setMessageTopic,
   storeChatMetadata,
   storeMessage,
   storeOutbound,
-  updateMessageChatJid,
 } from './db.js';
 import { AttachmentDownloader, RawAttachment } from './mime.js';
 import { enqueueEnrichment, waitForEnrichments } from './mime-enricher.js';
@@ -132,11 +132,6 @@ import { handleOnboarding } from './onboarding.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, InboundEvent } from './types.js';
 import { logger } from './logger.js';
-
-function baseJid(jid: string): string {
-  const i = jid.indexOf('#');
-  return i === -1 ? jid : jid.slice(0, i);
-}
 
 const GITIGNORE_RUNTIME_DIRS = new Set([
   'diary',
@@ -864,10 +859,8 @@ async function runAgent(
   channelName?: string,
   messageId?: string,
   onOutput?: (output: ContainerOutput) => Promise<void>,
+  topic = '',
 ): Promise<'success' | 'error'> {
-  const topic = chatJid.includes('#')
-    ? chatJid.slice(chatJid.indexOf('#') + 1)
-    : '';
   const sessionId = topic
     ? getSession(group.folder, topic)
     : sessions[group.folder];
@@ -915,7 +908,7 @@ async function runAgent(
         prompt,
         sessionId,
         groupFolder: group.folder,
-        chatJid: baseJid(chatJid),
+        chatJid,
         assistantName: ASSISTANT_NAME,
         messageCount,
         channelName,
@@ -1177,8 +1170,7 @@ async function startMessageLoop(): Promise<void> {
               if (m) {
                 const topicName = m[1];
                 const stripped = (m[2] ?? '').trim();
-                const topicJid = `${chatJid}#${topicName}`;
-                updateMessageChatJid(lastMsg.id, topicJid);
+                setMessageTopic(lastMsg.id, topicName);
                 lastAgentTimestamp[chatJid] = lastMsg.timestamp;
                 saveState();
                 await waitForEnrichments(
@@ -1193,7 +1185,7 @@ async function startMessageLoop(): Promise<void> {
                     await runAgent(
                       group,
                       stripped,
-                      topicJid,
+                      chatJid,
                       1,
                       channel?.name,
                       lastMsg.id,
@@ -1211,17 +1203,19 @@ async function startMessageLoop(): Promise<void> {
                               lastSentId ? { replyTo: lastSentId } : undefined,
                             );
                             storeOutbound({
-                              chatJid: topicJid,
+                              chatJid,
                               content: text,
                               source: 'agent',
                               groupFolder: group.folder,
                               replyToId: lastSentId,
                               platformMsgId: sentId,
+                              topic: topicName,
                             });
                             if (sentId) lastSentId = sentId;
                           }
                         }
                       },
+                      topicName,
                     );
                   } finally {
                     if (channel) stopTypingFor(chatJid);

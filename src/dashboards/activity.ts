@@ -50,10 +50,17 @@ function renderSummary(): string {
   return h;
 }
 
+function displayJid(chatJid: string, topic: string): string {
+  return topic ? `${chatJid}#${topic}` : chatJid;
+}
+
 function renderRecent(chatFilter: string): string {
   const msgs = getRecentMessages(50);
   const filtered = chatFilter
-    ? msgs.filter((m) => m.chat_jid === chatFilter)
+    ? msgs.filter((m) => {
+        const disp = displayJid(m.chat_jid, m.topic);
+        return m.chat_jid === chatFilter || disp === chatFilter;
+      })
     : msgs;
   if (filtered.length === 0) return '<p><em>No recent messages.</em></p>';
   let h =
@@ -63,7 +70,7 @@ function renderRecent(chatFilter: string): string {
     h +=
       `<tr>` +
       `<td>${ago(m.timestamp)}</td>` +
-      `<td>${esc(m.chat_jid)}</td>` +
+      `<td>${esc(displayJid(m.chat_jid, m.topic))}</td>` +
       `<td>${esc(m.sender_name ?? m.sender ?? '')}</td>` +
       `<td>${esc(text)}</td>` +
       `</tr>`;
@@ -75,25 +82,41 @@ function renderChats(): string {
   const chats = getAllChats();
   const msgs = getRecentMessages(1000);
   const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const countByChat: Record<string, number> = {};
+
+  // Count and track last message time by (chat_jid, topic) pair
+  const countByKey: Record<string, number> = {};
+  const lastByKey: Record<string, string> = {};
   for (const m of msgs) {
     if (m.timestamp >= cutoff) {
-      countByChat[m.chat_jid] = (countByChat[m.chat_jid] ?? 0) + 1;
+      const key = displayJid(m.chat_jid, m.topic);
+      countByKey[key] = (countByKey[key] ?? 0) + 1;
+      if (!lastByKey[key] || m.timestamp > lastByKey[key]) {
+        lastByKey[key] = m.timestamp;
+      }
     }
   }
-  const active = chats.filter((c) => countByChat[c.jid]);
-  if (active.length === 0)
+
+  // Build display rows: base chats from chats table, plus topic sub-conversations
+  const nameByJid: Record<string, string> = {};
+  for (const c of chats) nameByJid[c.jid] = c.name;
+
+  const activeKeys = Object.keys(countByKey).sort(
+    (a, b) => (countByKey[b] ?? 0) - (countByKey[a] ?? 0),
+  );
+  if (activeKeys.length === 0)
     return '<p><em>No active chats in last 24h.</em></p>';
-  active.sort((a, b) => (countByChat[b.jid] ?? 0) - (countByChat[a.jid] ?? 0));
+
   let h =
     '<table><tr><th>Chat</th><th>Name</th><th>Messages (24h)</th><th>Last message</th></tr>';
-  for (const c of active) {
+  for (const key of activeKeys) {
+    const baseJid = key.includes('#') ? key.slice(0, key.indexOf('#')) : key;
+    const name = nameByJid[baseJid] ?? baseJid;
     h +=
       `<tr>` +
-      `<td>${esc(c.jid)}</td>` +
-      `<td>${esc(c.name)}</td>` +
-      `<td>${countByChat[c.jid] ?? 0}</td>` +
-      `<td>${ago(c.last_message_time)}</td>` +
+      `<td>${esc(key)}</td>` +
+      `<td>${esc(name)}</td>` +
+      `<td>${countByKey[key] ?? 0}</td>` +
+      `<td>${ago(lastByKey[key])}</td>` +
       `</tr>`;
   }
   return h + '</table>';

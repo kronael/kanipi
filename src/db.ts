@@ -170,9 +170,9 @@ export function storeMessage(msg: InboundEvent): void {
   );
 }
 
-export function updateMessageChatJid(messageId: string, chatJid: string): void {
-  db.prepare('UPDATE messages SET chat_jid = ? WHERE id = ?').run(
-    chatJid,
+export function setMessageTopic(messageId: string, topic: string): void {
+  db.prepare('UPDATE messages SET topic = ? WHERE id = ?').run(
+    topic,
     messageId,
   );
 }
@@ -184,6 +184,7 @@ export function storeOutbound(entry: {
   groupFolder?: string;
   replyToId?: string;
   platformMsgId?: string;
+  topic?: string;
 }): void {
   try {
     const id = entry.platformMsgId
@@ -192,8 +193,8 @@ export function storeOutbound(entry: {
     db.prepare(
       `INSERT OR IGNORE INTO messages
          (id, chat_jid, sender, content, timestamp,
-          is_from_me, is_bot_message, reply_to_id, source, group_folder)
-       VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?)`,
+          is_from_me, is_bot_message, reply_to_id, source, group_folder, topic)
+       VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?)`,
     ).run(
       id,
       entry.chatJid,
@@ -203,6 +204,7 @@ export function storeOutbound(entry: {
       entry.replyToId ?? null,
       entry.source,
       entry.groupFolder ?? null,
+      entry.topic ?? '',
     );
   } catch (err) {
     logger.warn({ err, chatJid: entry.chatJid }, 'Failed to log outbound');
@@ -252,6 +254,7 @@ export function getMessagesSince(
   chatJid: string,
   sinceTimestamp: string,
   botPrefix: string,
+  topic = '',
 ): InboundEvent[] {
   const since = sinceTimestamp || '';
   const sql = `
@@ -261,7 +264,7 @@ export function getMessagesSince(
            CASE WHEN c.is_group = 1 THEN c.name ELSE NULL END AS group_name
     FROM messages m
     LEFT JOIN chats c ON c.jid = m.chat_jid
-    WHERE m.chat_jid = ? AND m.timestamp > ?
+    WHERE m.chat_jid = ? AND m.timestamp > ? AND m.topic = ?
       AND m.is_bot_message = 0 AND m.content NOT LIKE ?
       AND m.content != '' AND m.content IS NOT NULL
     ORDER BY m.timestamp DESC
@@ -269,7 +272,7 @@ export function getMessagesSince(
   `;
   const rows = db
     .prepare(sql)
-    .all(chatJid, since, `${botPrefix}:%`, MSG_LIMIT) as InboundEvent[];
+    .all(chatJid, since, topic, `${botPrefix}:%`, MSG_LIMIT) as InboundEvent[];
   return rows.reverse();
 }
 
@@ -1090,6 +1093,7 @@ export function getTaskRunLogsForTask(
 export interface RecentMessage {
   id: string;
   chat_jid: string;
+  topic: string;
   sender: string | null;
   sender_name: string | null;
   content: string | null;
@@ -1101,7 +1105,8 @@ export interface RecentMessage {
 export function getRecentMessages(limit: number): RecentMessage[] {
   return db
     .prepare(
-      `SELECT id, chat_jid, sender, sender_name, content, timestamp, is_bot_message, group_folder
+      `SELECT id, chat_jid, COALESCE(topic, '') AS topic, sender, sender_name, content,
+              timestamp, is_bot_message, group_folder
        FROM messages
        WHERE is_bot_message = 0 AND content != '' AND content IS NOT NULL
        ORDER BY timestamp DESC LIMIT ?`,
