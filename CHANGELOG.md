@@ -7,7 +7,27 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.11.0] — 2026-03-18
+## [v1.0.0] — 2026-03-19
+
+### Added
+
+- **Google OAuth**: `/auth/google` + `/auth/google/callback` — sign in with Google alongside GitHub, Discord, Telegram.
+- **WebDAV file access**: `/dav/:group/*` proxy with Basic Auth, SHA-256 token storage, group ACL, path safety. CLI: `kanipi user webdav-token`, `kanipi user webdav-groups`. Migration 0015.
+- **Dash-memory editors**: inline MEMORY.md + CLAUDE.md edit/save via HTMX in the knowledge browser.
+- **Evangelist narrative editor**: inline textarea edit/save/new for `narratives/` from the evangelist dashboard.
+- **Topic routing redesign**: `#topic` messages stored with `topic` attribute on message row; views display `(chat_jid, topic)` pairs as separate conversations. JID stays as the channel address.
+
+### Changed
+
+- **Version scheme**: all pre-v1.0.0 releases retroactively tagged as `v0.x.x`. v1.0.0 is the first production release with OAuth and multi-social support complete.
+
+### Removed
+
+- ~84 redundant tests trimmed (1036 → 952 tests across 62 test files).
+
+---
+
+## [v0.11.0] — 2026-03-18
 
 ### Added
 
@@ -21,7 +41,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.8] — 2026-03-18
+## [v0.10.8] — 2026-03-18
 
 ### Added
 
@@ -44,7 +64,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.7] — 2026-03-18
+## [v0.10.7] — 2026-03-18
 
 ### Added
 
@@ -70,7 +90,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.6] — 2026-03-18
+## [v0.10.6] — 2026-03-18
 
 ### Fixed
 
@@ -82,7 +102,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.5] — 2026-03-18
+## [v0.10.5] — 2026-03-18
 
 ### Added
 
@@ -111,7 +131,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.4] — 2026-03-18
+## [v0.10.4] — 2026-03-18
 
 ### Changed
 
@@ -129,7 +149,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.3] — 2026-03-18
+## [v0.10.3] — 2026-03-18
 
 ### Fixed
 
@@ -157,7 +177,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.2] — 2026-03-18
+## [v0.10.2] — 2026-03-18
 
 ### Fixed
 
@@ -173,7 +193,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.1] — 2026-03-18
+## [v0.10.1] — 2026-03-18
 
 ### Changed
 
@@ -183,7 +203,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.10.0] — 2026-03-18
+## [v0.10.0] — 2026-03-18
 
 ### Added
 
@@ -215,7 +235,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.9.0] — 2026-03-17
+## [v0.9.0] — 2026-03-17
 
 ### Added
 
@@ -279,7 +299,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.8.0] — 2026-03-14
+## [v0.8.0] — 2026-03-14
 
 ### Added
 
@@ -305,7 +325,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.7.0] — 2026-03-14
+## [v0.7.0] — 2026-03-14
 
 ### Added
 
@@ -346,7 +366,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.6.0] — 2026-03-13
+## [v0.6.0] — 2026-03-13
 
 ### Added
 
@@ -374,7 +394,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.5.0] — 2026-03-13
+## [v0.5.0] — 2026-03-13
 
 ### Added
 
@@ -427,7 +447,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [v1.3.5] — 2026-03-12
+## [v0.3.5] — 2026-03-12
 
 ### Fixed
 
@@ -448,7 +468,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.3.4] — 2026-03-12
+## [v0.3.4] — 2026-03-12
 
 ### Fixed
 
@@ -474,7 +494,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.3.3] — 2026-03-12
+## [v0.3.3] — 2026-03-12
 
 ### Tests
 
@@ -485,7 +505,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.3.2] — 2026-03-12
+## [v0.3.2] — 2026-03-12
 
 ### Fixed
 
@@ -496,7 +516,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.3.1] — 2026-03-12
+## [v0.3.1] — 2026-03-12
 
 ### Fixed
 
@@ -508,7 +528,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.3.0] — 2026-03-12
+## [v0.3.0] — 2026-03-12
 
 ### Removed
 
@@ -540,7 +560,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.2.2] — 2026-03-12
+## [v0.2.2] — 2026-03-12
 
 ### Removed
 
@@ -586,7 +606,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.2.1] — 2026-03-11
+## [v0.2.1] — 2026-03-11
 
 ### Fixed
 
@@ -605,7 +625,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.2.0] — 2026-03-11
+## [v0.2.0] — 2026-03-11
 
 ### Refactor
 
@@ -622,7 +642,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.1.1] — 2026-03-11
+## [v0.1.1] — 2026-03-11
 
 ### Removed
 
@@ -638,7 +658,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.1.0] — 2026-03-11
+## [v0.1.0] — 2026-03-11
 
 ### Breaking
 
@@ -680,7 +700,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.24] — 2026-03-11
+## [v0.0.24] — 2026-03-11
 
 ### Features
 
@@ -711,7 +731,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.23] — 2026-03-10
+## [v0.0.23] — 2026-03-10
 
 ### Features
 
@@ -739,7 +759,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.22] — 2026-03-10
+## [v0.0.22] — 2026-03-10
 
 ### Refactor
 
@@ -764,7 +784,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.21] — 2026-03-10
+## [v0.0.21] — 2026-03-10
 
 ### Features
 
@@ -791,7 +811,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.20] — 2026-03-09
+## [v0.0.20] — 2026-03-09
 
 ### Features
 
@@ -807,7 +827,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.19] — 2026-03-08
+## [v0.0.19] — 2026-03-08
 
 ### Features
 
@@ -817,7 +837,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.17] — 2026-03-08
+## [v0.0.17] — 2026-03-08
 
 ### Features
 
@@ -835,7 +855,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.16] — 2026-03-08
+## [v0.0.16] — 2026-03-08
 
 ### Changes
 
@@ -846,7 +866,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.15] — 2026-03-08
+## [v0.0.15] — 2026-03-08
 
 ### Changes
 
@@ -855,7 +875,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.14] — 2026-03-08
+## [v0.0.14] — 2026-03-08
 
 ### Tests
 
@@ -864,7 +884,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.13] — 2026-03-08
+## [v0.0.13] — 2026-03-08
 
 ### Changes
 
@@ -873,7 +893,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.12] — 2026-03-08
+## [v0.0.12] — 2026-03-08
 
 ### Changes
 
@@ -881,7 +901,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.11] — 2026-03-08
+## [v0.0.11] — 2026-03-08
 
 ### Changes
 
@@ -889,7 +909,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.10] — 2026-03-08
+## [v0.0.10] — 2026-03-08
 
 ### Features
 
@@ -912,7 +932,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.6] — 2026-03-07
+## [v0.0.6] — 2026-03-07
 
 ### Features
 
@@ -927,7 +947,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.5] — 2026-03-07
+## [v0.0.5] — 2026-03-07
 
 ### Changes
 
@@ -939,7 +959,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.4] — 2026-03-07
+## [v0.0.4] — 2026-03-07
 
 ### Changes
 
@@ -950,7 +970,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.3] — 2026-03-07
+## [v0.0.3] — 2026-03-07
 
 ### Changes
 
@@ -970,7 +990,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.2] — 2026-03-07
+## [v0.0.2] — 2026-03-07
 
 ### Changes
 
@@ -986,7 +1006,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.1] — 2026-03-06
+## [v0.0.1] — 2026-03-06
 
 ### Changes
 
@@ -1002,7 +1022,7 @@ to retry.` before aborting. Agent errors also now surface to the user.
 
 ---
 
-## [v1.0.0] — 2026-03-06
+## [v0.0.0] — 2026-03-06
 
 V1 release. All planned features shipped: 5 channels, group routing,
 action registry, MCP sidecars, diary memory, forward metadata, file
