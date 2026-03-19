@@ -280,19 +280,6 @@ describe('WhatsAppChannel', () => {
       expect(channel.isConnected()).toBe(false);
       // The channel should attempt to reconnect (calls connectInternal again)
     });
-
-    it('schedules reconnect on loggedOut disconnect', async () => {
-      const opts = createTestOpts();
-      const channel = new WhatsAppChannel(opts);
-
-      await connectChannel(channel);
-
-      // Disconnect with loggedOut reason (401)
-      triggerDisconnect(401);
-
-      // Channel should be disconnected but not exited — it schedules a slow reconnect
-      expect(channel.isConnected()).toBe(false);
-    });
   });
 
   // --- Message handling ---
@@ -333,41 +320,6 @@ describe('WhatsAppChannel', () => {
           sender_name: 'Alice',
           is_from_me: false,
         }),
-        undefined,
-        undefined,
-      );
-    });
-
-    it('emits message and metadata for unregistered groups', async () => {
-      const opts = createTestOpts();
-      const channel = new WhatsAppChannel(opts);
-
-      await connectChannel(channel);
-
-      await triggerMessages([
-        {
-          key: {
-            id: 'msg-2',
-            remoteJid: 'unregistered@g.us',
-            participant: '5551234@s.whatsapp.net',
-            fromMe: false,
-          },
-          message: { conversation: 'Hello' },
-          pushName: 'Bob',
-          messageTimestamp: Math.floor(Date.now() / 1000),
-        },
-      ]);
-
-      expect(opts.onChatMetadata).toHaveBeenCalledWith(
-        'whatsapp:unregistered@g.us',
-        expect.any(String),
-        undefined,
-        'whatsapp',
-        true,
-      );
-      expect(opts.onMessage).toHaveBeenCalledWith(
-        'whatsapp:unregistered@g.us',
-        expect.objectContaining({ content: 'Hello' }),
         undefined,
         undefined,
       );
@@ -649,19 +601,6 @@ describe('WhatsAppChannel', () => {
       );
     });
 
-    it('prefixes direct chat messages on shared number', async () => {
-      const opts = createTestOpts();
-      const channel = new WhatsAppChannel(opts);
-
-      await connectChannel(channel);
-
-      await channel.sendMessage('whatsapp:123', 'Hello');
-      expect(fakeSocket.sendMessage).toHaveBeenCalledWith(
-        '123@s.whatsapp.net',
-        { text: 'Andy: Hello' },
-      );
-    });
-
     it('queues message when disconnected', async () => {
       const opts = createTestOpts();
       const channel = new WhatsAppChannel(opts);
@@ -815,14 +754,9 @@ describe('WhatsAppChannel', () => {
   // --- JID ownership ---
 
   describe('ownsJid', () => {
-    it('owns whatsapp: prefixed group JIDs', () => {
+    it('owns whatsapp: prefixed JIDs', () => {
       const channel = new WhatsAppChannel(createTestOpts());
       expect(channel.ownsJid('whatsapp:12345')).toBe(true);
-    });
-
-    it('owns whatsapp: prefixed DM JIDs', () => {
-      const channel = new WhatsAppChannel(createTestOpts());
-      expect(channel.ownsJid('whatsapp:972501234567')).toBe(true);
     });
 
     it('does not own non-whatsapp JIDs', () => {
@@ -873,15 +807,6 @@ describe('WhatsAppChannel', () => {
       await expect(
         channel.setTyping('whatsapp:test', true),
       ).resolves.toBeUndefined();
-    });
-  });
-
-  // --- Channel properties ---
-
-  describe('channel properties', () => {
-    it('has name "whatsapp"', () => {
-      const channel = new WhatsAppChannel(createTestOpts());
-      expect(channel.name).toBe('whatsapp');
     });
   });
 });

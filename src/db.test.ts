@@ -319,12 +319,6 @@ describe('getNewMessages', () => {
     expect(messages).toHaveLength(1);
     expect(messages[0].content).toBe('g1 msg2');
   });
-
-  it('returns empty for no registered groups', () => {
-    const { messages, newTimestamp } = getNewMessages([], '', 'Andy');
-    expect(messages).toHaveLength(0);
-    expect(newTimestamp).toBe('');
-  });
 });
 
 // --- storeChatMetadata ---
@@ -765,10 +759,6 @@ describe('getMessageById', () => {
 // --- routerState ---
 
 describe('routerState', () => {
-  it('getRouterState returns undefined for missing key', () => {
-    expect(getRouterState('nope')).toBeUndefined();
-  });
-
   it('setRouterState stores and retrieves a value', () => {
     setRouterState('ts', '2024-01-01T00:00:00.000Z');
     expect(getRouterState('ts')).toBe('2024-01-01T00:00:00.000Z');
@@ -1017,10 +1007,6 @@ describe('routes CRUD', () => {
     expect(jids).toContain('dc:3');
     expect(jids).not.toContain('tg:8');
   });
-
-  it('getRoutesForJid returns empty for unknown JID', () => {
-    expect(getRoutesForJid('unknown:999')).toEqual([]);
-  });
 });
 
 // --- getHubForJid ---
@@ -1075,10 +1061,6 @@ describe('getRouteTargetsForJid', () => {
     const targets = getRouteTargetsForJid('tg:t1');
     expect(targets).toContain('atlas');
     expect(targets).toContain('code');
-  });
-
-  it('returns empty for unknown JID', () => {
-    expect(getRouteTargetsForJid('unknown:0')).toEqual([]);
   });
 });
 

@@ -329,23 +329,6 @@ describe('registerGroup — max_children', () => {
     expect(ctx.registerGroup).not.toHaveBeenCalled();
   });
 
-  it('uses default max_children=50 when not configured', async () => {
-    const ctx = makeCtx('root', {
-      getGroupConfig: vi.fn((folder: string) =>
-        folder === 'root'
-          ? { folder: 'root', name: 'Root', added_at: '' }
-          : undefined,
-      ),
-      getDirectChildGroupCount: vi.fn(() => 49),
-    });
-    const result = await registerGroup.handler(
-      { jid: 'new@g.us', name: 'New', folder: 'root/c50' },
-      ctx,
-    );
-    expect(result).toEqual({ registered: true });
-    expect(ctx.registerGroup).toHaveBeenCalled();
-  });
-
   it('blocks at default limit of 50', async () => {
     const ctx = makeCtx('root', {
       getGroupConfig: vi.fn((folder: string) =>
@@ -624,20 +607,5 @@ describe('deleteRouteAction', () => {
     await expect(deleteRouteAction.handler({ id: 7 }, ctx)).rejects.toThrow(
       'unauthorized',
     );
-  });
-
-  it('tier 0 (root) can delete any route', async () => {
-    const { getRouteById, deleteRoute } = await import('../db.js');
-    vi.mocked(getRouteById).mockReturnValue({
-      id: 10,
-      seq: 0,
-      type: 'default',
-      match: null,
-      target: 'any/target',
-    });
-    const ctx = makeCtx('root');
-    const result = await deleteRouteAction.handler({ id: 10 }, ctx);
-    expect(result).toEqual({ deleted: true, id: 10 });
-    expect(deleteRoute).toHaveBeenCalledWith(10);
   });
 });

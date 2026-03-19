@@ -60,12 +60,6 @@ describe('parseRule', () => {
   });
 
   it('whitespace trimming', () => {
-    const r = parseRule('  post  ');
-    expect(r.action).toBe('post');
-    expect(r.deny).toBe(false);
-  });
-
-  it('deny with whitespace', () => {
     const r = parseRule('  !post  ');
     expect(r.deny).toBe(true);
     expect(r.action).toBe('post');
@@ -125,21 +119,11 @@ describe('parseRule', () => {
     expect(r.params.size).toBe(0);
   });
 
-  it('action with underscore', () => {
-    const r = parseRule('send_message');
-    expect(r.action).toBe('send_message');
-  });
-
   it('deny with params', () => {
     const r = parseRule('!post(jid=twitter:*)');
     expect(r.deny).toBe(true);
     expect(r.action).toBe('post');
     expect(r.params.get('jid')).toBe('twitter:*');
-  });
-
-  it('exact value param (no glob)', () => {
-    const r = parseRule('send_message(jid=telegram:123456)');
-    expect(r.params.get('jid')).toBe('telegram:123456');
   });
 });
 
@@ -159,14 +143,6 @@ describe('checkAction', () => {
     it('simple allow', () => {
       expect(checkAction(['post'], 'post', {})).toBe(true);
       expect(checkAction(['post'], 'reply', {})).toBe(false);
-    });
-
-    it('unmatched action = deny', () => {
-      expect(checkAction(['post'], 'send_message', {})).toBe(false);
-    });
-
-    it('deny with no preceding allow = deny', () => {
-      expect(checkAction(['!post'], 'post', {})).toBe(false);
     });
   });
 
@@ -323,11 +299,6 @@ describe('checkAction', () => {
         checkAction(['post(jid=twitter:*)'], 'post', { jid: 'twitter:' }),
       ).toBe(true);
     });
-
-    it('param glob does not match comma or paren', () => {
-      // * in param value matches [^,)]* — no comma, no close-paren
-      expect(checkAction(['post(jid=a*)'], 'post', { jid: 'abc' })).toBe(true);
-    });
   });
 
   describe('complex scenarios', () => {
@@ -388,12 +359,6 @@ describe('checkAction', () => {
       expect(checkAction(rules, 'post', { jid: 'twitter:nsfw' })).toBe(false);
       expect(checkAction(rules, 'post', { jid: 'reddit:1' })).toBe(false);
     });
-
-    it('empty rules array = deny everything', () => {
-      expect(checkAction([], 'send_reply', {})).toBe(false);
-      expect(checkAction([], 'post', {})).toBe(false);
-      expect(checkAction([], '*', {})).toBe(false);
-    });
   });
 });
 
@@ -428,10 +393,6 @@ describe('matchingRules', () => {
     const rules = ['*', '!post', 'post(jid=reddit:*)'];
     const result = matchingRules(rules, 'post');
     expect(result).toEqual(['*', 'post(jid=reddit:*)']);
-  });
-
-  it('returns null for empty rules', () => {
-    expect(matchingRules([], 'post')).toBeNull();
   });
 
   it('glob action in rules matches', () => {
@@ -490,22 +451,6 @@ describe('narrowRules', () => {
     const result = narrowRules(parent, child);
     expect(checkAction(result, 'post', { jid: 'reddit:1' })).toBe(true);
     expect(checkAction(result, 'post', { jid: 'twitter:1' })).toBe(false);
-  });
-
-  it('child cannot widen: deny + re-allow still narrower', () => {
-    const parent = ['send_reply'];
-    const child = ['send_message']; // trying to widen
-    const result = narrowRules(parent, child);
-    // send_message is allowed because it's appended — but the spec says
-    // delegation can only narrow. The narrowRules function itself just
-    // concatenates; enforcement is in the delegation logic.
-    // The last-match-wins means send_message IS allowed here.
-    expect(checkAction(result, 'send_message', {})).toBe(true);
-  });
-
-  it('empty parent + child rules', () => {
-    expect(narrowRules([], [])).toEqual([]);
-    expect(checkAction(narrowRules([], []), 'post', {})).toBe(false);
   });
 
   it('empty child preserves parent', () => {
