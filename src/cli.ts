@@ -642,33 +642,6 @@ function addChildToParentGitignore(groupsDir: string, folder: string): void {
   }
 }
 
-function gitInit(instance: string, folder: string): void {
-  if (!folder) {
-    console.error('usage: kanipi git-init <instance> <folder>');
-    process.exit(1);
-  }
-
-  const dataDir = getDataDir(instance);
-  const groupsDir = path.join(dataDir, 'groups');
-  const groupDir = path.resolve(groupsDir, folder);
-
-  // Safety: must stay within groups dir
-  const rel = path.relative(groupsDir, groupDir);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    console.error(`Invalid folder: ${folder}`);
-    process.exit(1);
-  }
-
-  if (!fs.existsSync(groupDir)) {
-    console.error(`group folder not found: ${groupDir}`);
-    process.exit(1);
-  }
-
-  ensureGroupGitRepo(groupDir);
-
-  console.log(`Initialized git repo in groups/${folder}`);
-}
-
 function create(name: string, tmpl = 'default', fromUrl?: string): void {
   if (!name) {
     console.error(
@@ -908,7 +881,6 @@ function startServices(
 function printUsage(): void {
   console.log('usage: kanipi <instance>');
   console.log('       kanipi create [--from <repo-url>] <name>');
-  console.log('       kanipi git-init <instance> <folder>');
   console.log('       kanipi config <instance> group list');
   console.log('       kanipi config <instance> user {list|add|rm|passwd} ...');
   console.log('       kanipi config <instance> mount {list|add|rm} ...');
@@ -1025,9 +997,6 @@ function main(): void {
   switch (cmd) {
     case 'config':
       handleConfig(args.slice(1));
-      break;
-    case 'git-init':
-      gitInit(args[1], args[2]);
       break;
     case 'create': {
       let tmpl = 'default';
