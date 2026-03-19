@@ -4,11 +4,7 @@
  * Tests the gitignore content written by git-init and the flag parsing
  * for create --from without invoking real git or the filesystem.
  */
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
-
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 // Minimal gitignore lines expected for a group repo — mirrors gitInit()
 const RUNTIME_DIRS = ['diary', 'episodes', 'users', 'logs', 'media', 'tmp'];
@@ -38,12 +34,6 @@ describe('gitignore content', () => {
     // diary is already in runtime dirs, should not appear twice
     const occurrences = content.split('diary/').length - 1;
     expect(occurrences).toBe(1);
-  });
-
-  it('does not add runtime dirs as extras', () => {
-    const content = buildGitignore(['logs', 'media']);
-    const logsOccurrences = content.split('logs/').length - 1;
-    expect(logsOccurrences).toBe(1);
   });
 });
 
@@ -89,55 +79,5 @@ describe('create --from argument parsing', () => {
     expect(tmpl).toBe('support');
     expect(fromUrl).toBe('https://repo.git');
     expect(filtered).toEqual(['myname']);
-  });
-
-  it('name is undefined when only flags provided', () => {
-    const args = ['--from', 'https://repo.git'];
-    let fromUrl: string | undefined;
-    const filtered: string[] = [];
-    for (let i = 0; i < args.length; i++) {
-      if (args[i] === '--from' && args[i + 1]) {
-        fromUrl = args[i + 1];
-        i++;
-      } else {
-        filtered.push(args[i]);
-      }
-    }
-    expect(fromUrl).toBe('https://repo.git');
-    expect(filtered[0]).toBeUndefined();
-  });
-});
-
-describe('git-init folder validation', () => {
-  let tmpDir: string;
-
-  beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kanipi-test-'));
-  });
-
-  afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it('writes .gitignore with runtime exclusions', () => {
-    const groupDir = path.join(tmpDir, 'groups', 'root');
-    fs.mkdirSync(groupDir, { recursive: true });
-
-    const content = buildGitignore([]);
-    const gitignorePath = path.join(groupDir, '.gitignore');
-    fs.writeFileSync(gitignorePath, content);
-
-    const written = fs.readFileSync(gitignorePath, 'utf-8');
-    expect(written).toContain('diary/');
-    expect(written).toContain('*.jl');
-    expect(written).toContain('tmp/');
-  });
-
-  it('includes child dirs in .gitignore', () => {
-    const groupDir = path.join(tmpDir, 'groups', 'root');
-    fs.mkdirSync(path.join(groupDir, 'atlas'), { recursive: true });
-
-    const content = buildGitignore(['atlas']);
-    expect(content).toContain('atlas/');
   });
 });

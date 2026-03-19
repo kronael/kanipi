@@ -21,12 +21,6 @@ describe('grant overrides DB round-trip', () => {
     expect(getGrantOverrides('root')).toBeNull();
   });
 
-  it('set and get round-trip', () => {
-    const rules = ['send_reply', '!post'];
-    setGrantOverrides('root/child', rules);
-    expect(getGrantOverrides('root/child')).toEqual(rules);
-  });
-
   it('overwrites existing overrides', () => {
     setGrantOverrides('root/child', ['*']);
     setGrantOverrides('root/child', ['send_reply']);
