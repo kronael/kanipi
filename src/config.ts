@@ -16,6 +16,8 @@ const envConfig = readEnvFile([
   'AUTH_SECRET',
   'GITHUB_CLIENT_ID',
   'GITHUB_CLIENT_SECRET',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
   'DISCORD_CLIENT_ID',
   'DISCORD_CLIENT_SECRET',
   'ONBOARDING_ENABLED',
@@ -43,6 +45,8 @@ const envConfig = readEnvFile([
   'TWITTER_EMAIL',
   'FACEBOOK_PAGE_ID',
   'FACEBOOK_PAGE_ACCESS_TOKEN',
+  'WEBDAV_ENABLED',
+  'WEBDAV_URL',
 ]);
 
 export const ASSISTANT_NAME =
@@ -187,6 +191,10 @@ export const GITHUB_CLIENT_ID =
   process.env.GITHUB_CLIENT_ID || envConfig.GITHUB_CLIENT_ID || '';
 export const GITHUB_CLIENT_SECRET =
   process.env.GITHUB_CLIENT_SECRET || envConfig.GITHUB_CLIENT_SECRET || '';
+export const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID || envConfig.GOOGLE_CLIENT_ID || '';
+export const GOOGLE_CLIENT_SECRET =
+  process.env.GOOGLE_CLIENT_SECRET || envConfig.GOOGLE_CLIENT_SECRET || '';
 export const DISCORD_CLIENT_ID =
   process.env.DISCORD_CLIENT_ID || envConfig.DISCORD_CLIENT_ID || '';
 export const DISCORD_CLIENT_SECRET =
@@ -290,3 +298,9 @@ export const FILE_MAX_DOWNLOAD_BYTES = parseInt(
   process.env.FILE_MAX_DOWNLOAD_BYTES || '52428800',
   10,
 );
+
+export const WEBDAV_ENABLED =
+  (process.env.WEBDAV_ENABLED || envConfig.WEBDAV_ENABLED || 'false') ===
+  'true';
+export const WEBDAV_URL =
+  process.env.WEBDAV_URL || envConfig.WEBDAV_URL || 'http://localhost:8179';

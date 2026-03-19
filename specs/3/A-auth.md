@@ -11,6 +11,7 @@ status: shipped
 - refresh-token sessions in DB
 - login/refresh/logout routes
 - GitHub OAuth (code exchange + user info)
+- Google OAuth (code exchange + user info)
 - Discord OAuth (code exchange + user info)
 - Telegram Login Widget verification
 - user management CLI (`kanipi config <instance> user {add|rm|list|passwd}`)
@@ -31,6 +32,8 @@ POST /auth/logout             clear session
 
 GET  /auth/github             redirect to GitHub authorize
 GET  /auth/github/callback    exchange code, create session, redirect /
+GET  /auth/google             redirect to Google authorize
+GET  /auth/google/callback    exchange code, create session, redirect /
 GET  /auth/discord            redirect to Discord authorize
 GET  /auth/discord/callback   exchange code, create session, redirect /
 POST /auth/telegram           verify widget hash, create session
@@ -79,6 +82,16 @@ Env vars: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
 Flow: `/auth/github` redirects to GitHub with state cookie. Callback
 exchanges code for access token, fetches `/user`, creates local
 `auth_users` entry with `sub=github:<id>`, `username=gh_<login>`.
+
+### Google
+
+Env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+
+Flow: `/auth/google` redirects to Google with state cookie. Callback
+exchanges code for access token at `https://oauth2.googleapis.com/token`,
+fetches `https://www.googleapis.com/oauth2/v3/userinfo`, creates local
+`auth_users` entry with `sub=google:<sub>`, `username=gg_<email-local-part>`.
+Scopes: `openid email profile`.
 
 ### Discord
 

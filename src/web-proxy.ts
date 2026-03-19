@@ -9,6 +9,8 @@ import {
   handleDiscordCallback,
   handleGitHubAuth,
   handleGitHubCallback,
+  handleGoogleAuth,
+  handleGoogleCallback,
   handleLoginPost,
   handleLogout,
   handleRefresh,
@@ -267,6 +269,16 @@ export function startWebProxy(opts: {
 
     if (url.startsWith('/auth/github/callback') && req.method === 'GET') {
       handleGitHubCallback(req, res);
+      return;
+    }
+
+    if (url === '/auth/google' && req.method === 'GET') {
+      handleGoogleAuth(req, res);
+      return;
+    }
+
+    if (url.startsWith('/auth/google/callback') && req.method === 'GET') {
+      handleGoogleCallback(req, res);
       return;
     }
 

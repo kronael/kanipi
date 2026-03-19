@@ -6,6 +6,8 @@ import {
   checkSessionCookie,
   handleGitHubAuth,
   handleGitHubCallback,
+  handleGoogleAuth,
+  handleGoogleCallback,
   handleDiscordAuth,
   handleDiscordCallback,
   handleTelegramAuth,
@@ -20,6 +22,8 @@ vi.mock('./config.js', async (importOriginal) => {
     ...actual,
     GITHUB_CLIENT_ID: 'test-github-client-id',
     GITHUB_CLIENT_SECRET: 'test-github-client-secret',
+    GOOGLE_CLIENT_ID: 'test-google-client-id',
+    GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
     DISCORD_CLIENT_ID: 'test-discord-client-id',
     DISCORD_CLIENT_SECRET: 'test-discord-client-secret',
     TELEGRAM_BOT_TOKEN: 'test-telegram-bot-token',
@@ -195,6 +199,110 @@ describe('handleGitHubCallback', () => {
     mockFetch.mockResolvedValueOnce({ ok: false });
 
     await handleGitHubCallback(req, res);
+
+    expect(res._status).toBe(401);
+    expect(res._body).toContain('token exchange failed');
+  });
+});
+
+describe('handleGoogleAuth', () => {
+  it('redirects to Google OAuth authorize URL', () => {
+    const req = createMockReq({
+      url: '/auth/google',
+      headers: { host: 'localhost:3000' },
+    });
+    const res = createMockRes();
+
+    handleGoogleAuth(req, res);
+
+    expect(res._status).toBe(302);
+    expect(res._headers['location']).toContain(
+      'https://accounts.google.com/o/oauth2/v2/auth',
+    );
+    expect(res._headers['location']).toContain(
+      'client_id=test-google-client-id',
+    );
+    expect(res._headers['location']).toContain('redirect_uri=');
+    expect(res._headers['location']).toContain('state=');
+    expect(res._headers['set-cookie']).toContain('oauth_state=');
+  });
+});
+
+describe('handleGoogleCallback', () => {
+  beforeEach(() => {
+    _initTestDatabase();
+    mockFetch.mockReset();
+  });
+
+  it('rejects invalid state', async () => {
+    const req = createMockReq({
+      url: '/auth/google/callback?code=abc&state=wrong',
+      headers: { host: 'localhost:3000', cookie: 'oauth_state=correct' },
+    });
+    const res = createMockRes();
+
+    await handleGoogleCallback(req, res);
+
+    expect(res._status).toBe(400);
+    expect(res._body).toContain('invalid state');
+  });
+
+  it('exchanges code for token and creates session', async () => {
+    const state = 'test-state-123';
+    const req = createMockReq({
+      url: `/auth/google/callback?code=abc&state=${state}`,
+      headers: { host: 'localhost:3000', cookie: `oauth_state=${state}` },
+    });
+    const res = createMockRes();
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'gg-token-123' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: '1234567890',
+          email: 'testuser@gmail.com',
+          name: 'Test User',
+        }),
+      });
+
+    await handleGoogleCallback(req, res);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      'https://oauth2.googleapis.com/token',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      'https://www.googleapis.com/oauth2/v3/userinfo',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer gg-token-123',
+        }),
+      }),
+    );
+
+    expect(res._status).toBe(302);
+    expect(res._headers['location']).toBe('/');
+    expect(res._headers['set-cookie']).toContain('refresh=');
+  });
+
+  it('handles token exchange failure', async () => {
+    const state = 'test-state-123';
+    const req = createMockReq({
+      url: `/auth/google/callback?code=abc&state=${state}`,
+      headers: { host: 'localhost:3000', cookie: `oauth_state=${state}` },
+    });
+    const res = createMockRes();
+
+    mockFetch.mockResolvedValueOnce({ ok: false });
+
+    await handleGoogleCallback(req, res);
 
     expect(res._status).toBe(401);
     expect(res._body).toContain('token exchange failed');

@@ -17,6 +17,8 @@ import {
   DISCORD_CLIENT_SECRET,
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
   TELEGRAM_BOT_TOKEN,
   WEB_HOST,
 } from './config.js';
@@ -56,6 +58,11 @@ export function loginPageHtml(): string {
       '<a href="/auth/github" class="oauth-btn gh">Sign in with GitHub</a>',
     );
   }
+  if (GOOGLE_CLIENT_ID) {
+    oauthButtons.push(
+      '<a href="/auth/google" class="oauth-btn gg">Sign in with Google</a>',
+    );
+  }
   if (DISCORD_CLIENT_ID) {
     oauthButtons.push(
       '<a href="/auth/discord" class="oauth-btn dc">Sign in with Discord</a>',
@@ -79,6 +86,7 @@ input{padding:.5rem;border:1px solid #ccc;border-radius:4px;font-size:1rem}
 button{padding:.5rem;background:#333;color:#fff;border:none;border-radius:4px;font-size:1rem;cursor:pointer}
 .oauth-btn{display:block;text-align:center;padding:.5rem;border-radius:4px;font-size:1rem;text-decoration:none;color:#fff}
 .oauth-btn.gh{background:#24292e}
+.oauth-btn.gg{background:#4285f4}
 .oauth-btn.dc{background:#5865f2}
 .oauth-btn.tg{background:#0088cc}
 .divider{text-align:center;color:#999;font-size:.85rem;margin:.5rem 0}
@@ -333,6 +341,106 @@ export async function handleGitHubCallback(
   const sub = `github:${userData.id}`;
   const name = userData.name || userData.login;
   const username = `gh_${userData.login}`;
+
+  const result = createOAuthSession(sub, name, username);
+  res.writeHead(result.status, result.headers);
+  res.end(result.body);
+}
+
+export function handleGoogleAuth(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+): void {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    res.writeHead(404);
+    res.end();
+    return;
+  }
+
+  const state = crypto.randomBytes(16).toString('hex');
+  const baseUrl = getBaseUrl(req);
+  const redirectUri = encodeURIComponent(`${baseUrl}/auth/google/callback`);
+  const scope = encodeURIComponent('openid email profile');
+
+  res.writeHead(302, {
+    'Set-Cookie': `oauth_state=${state}; HttpOnly; Path=/auth; Max-Age=600; SameSite=Lax`,
+    Location: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`,
+  });
+  res.end();
+}
+
+export async function handleGoogleCallback(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+): Promise<void> {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    res.writeHead(404);
+    res.end();
+    return;
+  }
+
+  const url = new URL(req.url || '/', `http://${req.headers.host}`);
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const storedState = parseCookies(req.headers.cookie || '')['oauth_state'];
+
+  if (!code || !state || state !== storedState) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end('{"error":"invalid state"}');
+    return;
+  }
+
+  const baseUrl = getBaseUrl(req);
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: `${baseUrl}/auth/google/callback`,
+    }).toString(),
+  });
+
+  if (!tokenRes.ok) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end('{"error":"token exchange failed"}');
+    return;
+  }
+
+  const tokenData = (await tokenRes.json()) as {
+    access_token?: string;
+    error?: string;
+  };
+  if (!tokenData.access_token) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(`{"error":"${tokenData.error || 'no access token'}"}`);
+    return;
+  }
+
+  const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`,
+    },
+  });
+
+  if (!userRes.ok) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end('{"error":"failed to fetch user"}');
+    return;
+  }
+
+  const userData = (await userRes.json()) as {
+    sub: string;
+    email?: string;
+    name?: string;
+  };
+  const sub = `google:${userData.sub}`;
+  const name = userData.name || (userData.email?.split('@')[0] ?? sub);
+  const username = `gg_${userData.email?.split('@')[0] ?? userData.sub}`;
 
   const result = createOAuthSession(sub, name, username);
   res.writeHead(result.status, result.headers);
