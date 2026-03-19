@@ -254,7 +254,7 @@ function handleWebdavRequest(
   try {
     allowedGroups = JSON.parse(user.webdav_groups) as string[];
   } catch {
-    allowedGroups = ['root'];
+    allowedGroups = [];
   }
   if (!allowedGroups.includes(group)) {
     res.writeHead(403);
@@ -528,7 +528,12 @@ export function startWebProxy(opts: {
     }
 
     const davMatch = url.match(/^\/dav\/([^/]+)(\/.*)?$/);
-    if (davMatch && WEBDAV_ENABLED) {
+    if (davMatch) {
+      if (!WEBDAV_ENABLED) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
       handleWebdavRequest(req, res, davMatch[1], davMatch[2] || '/');
       return;
     }
