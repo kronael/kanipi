@@ -15,8 +15,10 @@ import {
   AUTH_SECRET,
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
+  GITHUB_ALLOWED_ORG,
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
+  GOOGLE_ALLOWED_DOMAIN,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   TELEGRAM_BOT_TOKEN,
@@ -338,6 +340,27 @@ export async function handleGitHubCallback(
     login: string;
     name?: string;
   };
+
+  if (GITHUB_ALLOWED_ORG) {
+    const memberRes = await fetch(
+      `https://api.github.com/orgs/${GITHUB_ALLOWED_ORG}/members/${userData.login}`,
+      {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          Accept: 'application/json',
+          'User-Agent': 'kanipi',
+        },
+      },
+    );
+    if (memberRes.status !== 204) {
+      res.writeHead(403, { 'Content-Type': 'text/html' });
+      res.end(
+        `<!doctype html><html><body><p>Access denied: must be a member of ${GITHUB_ALLOWED_ORG}.</p><a href="/auth/login">Back</a></body></html>`,
+      );
+      return;
+    }
+  }
+
   const sub = `github:${userData.id}`;
   const name = userData.name || userData.login;
   const username = `gh_${userData.login}`;
@@ -438,6 +461,18 @@ export async function handleGoogleCallback(
     email?: string;
     name?: string;
   };
+
+  if (
+    GOOGLE_ALLOWED_DOMAIN &&
+    !userData.email?.endsWith('@' + GOOGLE_ALLOWED_DOMAIN)
+  ) {
+    res.writeHead(403, { 'Content-Type': 'text/html' });
+    res.end(
+      `<!doctype html><html><body><p>Access denied: only @${GOOGLE_ALLOWED_DOMAIN} accounts are allowed.</p><a href="/auth/login">Back</a></body></html>`,
+    );
+    return;
+  }
+
   const sub = `google:${userData.sub}`;
   const name = userData.name || (userData.email?.split('@')[0] ?? sub);
   const username = `gg_${userData.email?.split('@')[0] ?? userData.sub}`;
