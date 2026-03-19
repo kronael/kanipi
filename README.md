@@ -248,7 +248,7 @@ Agent skills are seeded from `prototype/.claude/skills/` to
 `~/.claude/skills/` inside each container on first spawn.
 
 Current shipped auth is local-account session auth plus slink JWT
-verification. OAuth providers described in some specs are not implemented.
+verification, and Google OAuth (`/auth/google`).
 
 ## Config
 
@@ -268,8 +268,12 @@ All via `.env` (seeded from `template/env.example`):
 | AUTH_SECRET               | JWT secret for session auth (required for non-public web) |
 | GITHUB_CLIENT_ID          | GitHub OAuth app client ID                                |
 | GITHUB_CLIENT_SECRET      | GitHub OAuth app client secret                            |
+| GOOGLE_CLIENT_ID          | Google OAuth app client ID                                |
+| GOOGLE_CLIENT_SECRET      | Google OAuth app client secret                            |
 | DISCORD_CLIENT_ID         | Discord OAuth app client ID                               |
 | DISCORD_CLIENT_SECRET     | Discord OAuth app client secret                           |
+| WEBDAV_ENABLED            | enable WebDAV proxy (default false)                       |
+| WEBDAV_URL                | upstream WebDAV server URL                                |
 | WHISPER_BASE_URL          | whisper service URL for transcription                     |
 | EMAIL_IMAP_HOST           | enables email channel (IMAP IDLE)                         |
 | EMAIL_SMTP_HOST           | SMTP for reply threading (defaults from IMAP)             |

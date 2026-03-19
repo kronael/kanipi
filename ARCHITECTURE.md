@@ -43,11 +43,15 @@ auth dir (whatsapp), or `EMAIL_IMAP_HOST` (email).
 SQLite database. Stores messages, groups, routing table, chat
 metadata, sessions, and scheduled tasks. All access is
 synchronous (better-sqlite3). Key functions: `storeMessage`,
-`getNewMessages`, `getGroupByFolder`, `setSession`.
+`getNewMessages`, `getGroupByFolder`, `setSession`,
+`setMessageTopic`, `getWebdavUser`, `setWebdavToken`,
+`setWebdavGroups`.
 
 Tables: `messages`, `groups`, `routes`, `chats`, `session_history`,
 `system_messages`, `scheduled_tasks`, `task_run_logs`,
-`email_threads`, `auth_users`, `auth_sessions`.
+`email_threads`, `auth_users`, `auth_sessions`. `messages` and
+outbound records carry a `topic` column. `auth_users` has
+`webdav_token_hash` and `webdav_groups` columns (migration 0015).
 
 `routes` is a flat JID→target routing table. Targets may contain
 `{sender}` templates (expanded at routing time). `system_messages`
@@ -98,8 +102,12 @@ for reply threading. `ChannelOpts` supplies `isRoutedJid(jid)`
 
 HTTP server in front of Vite. Routes slink endpoints (`/pub/s/:token`,
 `/_sloth/stream`, `/_sloth/message`), dashboard requests (`/dash/*`),
+WebDAV proxy (`/dav/:group/*`, gated by `WEBDAV_ENABLED`),
+Google OAuth routes (`/auth/google`, `/auth/google/callback`),
 and proxies everything else to Vite. Auth boundary: `/pub/` and
-`/_sloth/` bypass basic auth; `/dash/` requires auth.
+`/_sloth/` bypass basic auth; `/dash/` requires auth. WebDAV
+access uses a per-user token hash + group ACL stored in DB;
+JSON parse errors on group ACL fail closed.
 
 ### dashboards/index.ts
 
@@ -108,10 +116,18 @@ of registered dashboards. Each dashboard calls `registerDashboard()`
 with name, title, description, and handler. Handler receives
 `DashboardContext` (queue + channels) and the sub-path.
 
-Built-in: status dashboard at `/dash/status/` -- shows gateway
-uptime, memory, channels, groups, containers (cached 5s via
-`docker ps`), queue state (`getStatus()`), scheduled tasks.
-JSON API at `/dash/status/api/state`, HTML auto-refreshes every 10s.
+Built-in dashboards:
+
+- `status` at `/dash/status/` — gateway uptime, memory, channels,
+  groups, containers (cached 5s via `docker ps`), queue state,
+  scheduled tasks. JSON API at `/dash/status/api/state`, HTML
+  auto-refreshes every 10s.
+- `memory` — inline editors for `MEMORY.md` and `CLAUDE.md`
+  per group.
+- `evangelist` — narrative editor with refinements for the
+  evangelist product.
+- `activity` — groups conversations by `(chat_jid, topic)` pairs;
+  uses a `displayJid` helper for readable chat labels.
 
 ### mime.ts + mime-enricher.ts + mime-handlers/
 
@@ -392,3 +408,5 @@ stores: filesystem (`facts/`, `diary/`, `users/`, `episodes/`).
 | Docker   | child_process | agent container runtime                    |
 | Claude   | claude-code   | agent (runs in container)                  |
 | Whisper  | fetch (HTTP)  | voice/video transcription (kanipi-whisper) |
+| Google   | OAuth 2.0     | web auth (`GOOGLE_CLIENT_ID/SECRET`)       |
+| WebDAV   | HTTP proxy    | file access per group (`WEBDAV_URL`)       |
