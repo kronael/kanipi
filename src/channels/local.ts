@@ -33,7 +33,7 @@ export class LocalChannel implements Channel {
       content: text,
       timestamp: ts,
       is_from_me: true,
-      is_bot_message: false,
+      is_bot_message: true,
     });
     return id;
   }
