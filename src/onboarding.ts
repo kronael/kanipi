@@ -46,7 +46,7 @@ export async function handleOnboarding(
   switch (entry.status) {
     case 'new': {
       const text = lastMsg.content.trim();
-      const m = text.match(/^\/request(?:\s+(\S+))?/i);
+      const m = text.match(/^\/request[\s\[\(]*([a-z0-9][a-z0-9-]*)?[\]\)]?/i);
       if (!m) {
         await channel.sendMessage(
           chatJid,
