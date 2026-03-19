@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockStoreMessage } = vi.hoisted(() => ({
+const { mockStoreMessage, mockStoreChatMetadata } = vi.hoisted(() => ({
   mockStoreMessage: vi.fn(),
+  mockStoreChatMetadata: vi.fn(),
 }));
 
 vi.mock('../config.js', () => ({
@@ -10,6 +11,7 @@ vi.mock('../config.js', () => ({
 
 vi.mock('../db.js', () => ({
   storeMessage: mockStoreMessage,
+  storeChatMetadata: mockStoreChatMetadata,
 }));
 
 import { LocalChannel } from './local.js';
@@ -51,7 +53,7 @@ describe('sendMessage', () => {
     expect(stored.sender_name).toBe('TestBot');
     expect(stored.content).toBe('hello world');
     expect(stored.is_from_me).toBe(true);
-    expect(stored.is_bot_message).toBe(false);
+    expect(stored.is_bot_message).toBe(true);
     expect(stored.timestamp).toBeTruthy();
   });
 

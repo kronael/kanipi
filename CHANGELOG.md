@@ -7,7 +7,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [Unreleased]
+## [v1.0.1] — 2026-03-19
 
 ### Added
 
@@ -20,6 +20,9 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 - **Agent heartbeat**: agent-runner emits a null-result heartbeat every 30s during long queries to reset the gateway idle timeout. Prevents containers being killed mid-response on slow LLM calls.
 - **Agent silent-fail**: if SDK returns no result message and no exception, user now gets a visible error and a retry prompt instead of silence.
 - **WhatsApp JID routing**: route matching now works with full JIDs including `@s.whatsapp.net` domain suffix (Baileys delivers messages with full JID; bare phone numbers in routes were silently dropped).
+- **Local channel FK**: `LocalChannel.sendMessage` now upserts the chat row before storing the message, satisfying the `messages → chats` FK constraint.
+- **Local channel loop**: agent responses on the local channel are marked `is_bot_message: true` so they are not re-ingested by the message loop and do not re-trigger the agent.
+- **Onboarding `/request` parsing**: regex now accepts `/requestname`, `/request[name]`, and `/request(name)` in addition to `/request name`.
 
 ---
 
