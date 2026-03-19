@@ -70,12 +70,15 @@ Adapt this list to what you actually know is available. For example:
 ## Web prefix
 
 ```bash
-GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
-if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
-  WEB_PREFIX=""
+GROUP_FOLDER=$NANOCLAW_GROUP_FOLDER
+if [ "$NANOCLAW_IS_ROOT" = "1" ] || [ "$NANOCLAW_IS_WORLD_ADMIN" = "1" ]; then
+  WEB_DIR="/workspace/web"
 else
-  WEB_PREFIX="$GROUP_FOLDER"
+  WEB_SUB=$(basename "$GROUP_FOLDER")
+  WEB_DIR="/workspace/web/$WEB_SUB"
 fi
+WEB_PREFIX="$GROUP_FOLDER"
+[ "$NANOCLAW_IS_ROOT" = "1" ] && WEB_PREFIX=""
 ```
 
 Howto URL: `https://$WEB_HOST/$WEB_PREFIX/howto/`
@@ -83,11 +86,7 @@ Howto URL: `https://$WEB_HOST/$WEB_PREFIX/howto/`
 Check it exists before linking:
 
 ```bash
-if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
-  ls /workspace/web/howto/index.html 2>/dev/null
-else
-  ls /workspace/web/$GROUP_FOLDER/howto/index.html 2>/dev/null
-fi
+ls "$WEB_DIR/howto/index.html" 2>/dev/null
 ```
 
 ## Formatting Rules

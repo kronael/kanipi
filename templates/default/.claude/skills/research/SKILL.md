@@ -59,16 +59,18 @@ Single-page HTML with all research organized into sections:
 Use the group web prefix (see `/web` skill for convention):
 
 ```bash
-GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
-if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
+GROUP_FOLDER=$NANOCLAW_GROUP_FOLDER
+if [ "$NANOCLAW_IS_ROOT" = "1" ] || [ "$NANOCLAW_IS_WORLD_ADMIN" = "1" ]; then
   WEB_DIR="/workspace/web"
 else
-  WEB_DIR="/workspace/web/$GROUP_FOLDER"
+  WEB_SUB=$(basename "$GROUP_FOLDER")
+  WEB_DIR="/workspace/web/$WEB_SUB"
+  mkdir -p "$WEB_DIR"
 fi
 ```
 
 Drop `index.html` into `$WEB_DIR/<name>/`.
-Available at `https://$WEB_HOST/[$GROUP_FOLDER/]<name>/`.
+Available at `https://$WEB_HOST/$GROUP_FOLDER/<name>/`.
 
 ## Page Design
 

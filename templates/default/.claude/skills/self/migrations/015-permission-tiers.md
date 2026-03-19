@@ -11,7 +11,7 @@ description: permission tiers, NANOCLAW_TIER env var
   ~/.claude/output-styles). ~/.claude/projects/ remains rw.
 - Tier 3 workers: home ro, same setup ro overlays, only ~/.claude/projects/ rw
 - `/workspace/self/` only mounted for tier 0 (root)
-- `/workspace/web/` only mounted for tier 0 and 1
+- `/workspace/web/` mounted for tier 0, 1, and 2 (world-level dir)
 
 ## Action required
 

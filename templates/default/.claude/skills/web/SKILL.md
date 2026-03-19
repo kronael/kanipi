@@ -27,19 +27,26 @@ Use send_file instead when:
 Every group has a web prefix within the shared `/workspace/web/`:
 
 ```bash
-GROUP_FOLDER=$(echo $NANOCLAW_GROUP_FOLDER)
-if [ "$NANOCLAW_IS_ROOT" = "1" ]; then
+GROUP_FOLDER=$NANOCLAW_GROUP_FOLDER
+# /workspace/web is always mounted at the world level.
+# Root: /workspace/web = web root
+# World (tier 1): /workspace/web = web/<world>/
+# Child (tier 2): /workspace/web = web/<world>/ — use basename only
+if [ "$NANOCLAW_IS_ROOT" = "1" ] || [ "$NANOCLAW_IS_WORLD_ADMIN" = "1" ]; then
   WEB_DIR="/workspace/web"
 else
-  WEB_DIR="/workspace/web/$GROUP_FOLDER"
+  WEB_SUB=$(basename "$GROUP_FOLDER")
+  WEB_DIR="/workspace/web/$WEB_SUB"
   mkdir -p "$WEB_DIR"
 fi
 ```
 
 - Root group: writes to `/workspace/web/<app>/`
   → `https://$WEB_HOST/<app>/`
-- Other groups: writes to `/workspace/web/$GROUP_FOLDER/<app>/`
-  → `https://$WEB_HOST/$GROUP_FOLDER/<app>/`
+- World admin (tier 1): writes to `/workspace/web/<app>/`
+  → `https://$WEB_HOST/<world>/<app>/`
+- Child group (tier 2): writes to `/workspace/web/<child>/<app>/`
+  → `https://$WEB_HOST/<world>/<child>/<app>/`
 
 ALWAYS use `$WEB_DIR` as base. NEVER write outside your prefix.
 

@@ -13,7 +13,7 @@ description: Introspect this agent — workspace layout, skills, channels,
 | `/workspace/self`         | kanipi source (canonical skills, changelog, migrations) | ro, tier 0 only                        |
 | `~` (`/home/node`)        | home + cwd — group files, .claude/, diary, media        | rw (tier 2 rw, tier 3 ro)              |
 | `/workspace/share`        | world-level shared memory                               | rw for tier 0/1, ro for tier 2/3       |
-| `/workspace/web`          | vite web app directory                                  | rw, tier 0/1 only                      |
+| `/workspace/web`          | vite web app directory                                  | rw, tier 0/1/2 (world-level mount)     |
 | `/workspace/ipc`          | gateway↔agent IPC (messages/, tasks/, input/)           | rw                                     |
 | `~/groups`                | all group folders (for migrate)                         | rw, tier 0 only                        |
 | `/workspace/extra/<name>` | operator-configured extra mounts                        | varies                                 |
@@ -186,7 +186,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **41**. If version < 41: migrations pending.
+Latest migration version: **42**. If version < 42: migrations pending.
 
 ## MCP tools
 
