@@ -104,8 +104,9 @@ ls /workspace/web/       # existing apps
 
 ## After deploying
 
-1. Update hub page (`$WEB_DIR/index.html`)
-2. Verify: `curl -sL -o /dev/null -w '%{http_code}' "https://$WEB_HOST/$WEB_PREFIX/howto/"`
+1. Ensure `$WEB_DIR/index.html` exists and links to `howto/`. If missing, create a
+   minimal one: `<a href="howto/">Getting Started →</a>`
+2. Verify: `curl -sL -o /dev/null -w '%{http_code}' "https://$WEB_HOST/$GROUP_FOLDER/howto/"`
 3. Tell the user the full URL
 
 ## Attribution
