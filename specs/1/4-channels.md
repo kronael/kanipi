@@ -123,12 +123,12 @@ Full email spec: `specs/1/8-email.md`.
 
 Channel-native handles:
 
-| Channel  | `replyTo` value     | outbound behaviour           |
-| -------- | ------------------- | ---------------------------- |
-| telegram | `message_id` string | `reply_to_message_id`        |
-| discord  | thread/message ID   | send into thread / reply     |
-| whatsapp | quoted message key  | `quoted` in Baileys          |
-| email    | root `Message-ID`   | `In-Reply-To` + `References` |
+| Channel  | `replyTo` value     | outbound behaviour                                     |
+| -------- | ------------------- | ------------------------------------------------------ |
+| telegram | `message_id` string | `reply_parameters: { message_id }`                     |
+| discord  | thread/message ID   | send into thread / reply                               |
+| whatsapp | Baileys message key | `contextInfo: { stanzaId }` — bubble shown, no preview |
+| email    | root `Message-ID`   | `In-Reply-To` + `References`                           |
 
 ### Prompt format
 
@@ -146,10 +146,13 @@ Reply context in `<messages>` block:
 `ago` computed at inject time. `in_reply_to` body truncated
 to 120 chars, looked up from DB.
 
-### WhatsApp raw storage
+### Reply target
 
-Store full `WAMessage` as JSON in `messages.raw` (nullable
-TEXT). Needed for `quoted` on outbound. Survives restarts.
+The gateway always replies to the **triggering user message** — the
+last non-command message in the batch that caused the container run.
+`lastSentId` is set once to that message's ID and never updated to
+subsequent bot-sent IDs. All bot output chunks for a single agent
+run are reply-quoted to the same user message.
 
 ### Forum topics and threads
 

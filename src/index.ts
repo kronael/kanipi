@@ -567,7 +567,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
               replyToId: lastSentId,
               platformMsgId: sentId,
             });
-            if (sentId) lastSentId = sentId;
             outputSentToUser = true;
           }
         }

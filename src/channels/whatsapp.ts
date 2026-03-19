@@ -385,7 +385,7 @@ export class WhatsAppChannel implements Channel {
   async sendMessage(
     jid: string,
     text: string,
-    _opts?: SendOpts,
+    opts?: SendOpts,
   ): Promise<string | undefined> {
     // Convert markdown to WhatsApp formatting
     const formatted = markdownToWhatsApp(text);
@@ -404,6 +404,7 @@ export class WhatsAppChannel implements Channel {
     try {
       const sent = await this.sock.sendMessage(this.toWaJid(jid), {
         text: prefixed,
+        ...(opts?.replyTo ? { contextInfo: { stanzaId: opts.replyTo } } : {}),
       });
       logger.info({ jid, length: prefixed.length }, 'Message sent');
       return sent?.key?.id ?? undefined;
