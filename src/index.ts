@@ -1221,8 +1221,13 @@ async function startMessageLoop(): Promise<void> {
                     if (channel) stopTypingFor(chatJid);
                   }
                 });
+                continue;
               }
-              continue;
+              // unparseable #prefix — fall through to normal self-processing
+              logger.debug(
+                { group: group.name, content: lastMsg.content.slice(0, 40) },
+                '#topic prefix not parseable, routing to self',
+              );
             }
 
             if (resolved && resolved.target !== group.folder) {
