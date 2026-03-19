@@ -156,12 +156,10 @@ function buildVolumeMounts(
   const groupDir = resolveGroupFolderPath(group.folder);
   const hostGroupDir = path.join(HOST_GROUPS_DIR, group.folder);
 
-  // Ensure groupDir is writable by the container user (uid 1000).
-  // Defensively correct ownership in case the dir was created as root manually.
   try {
     fs.chownSync(groupDir, 1000, 1000);
   } catch {
-    // best-effort; fails harmlessly if already correct or gateway lacks perms
+    /* best-effort */
   }
 
   mounts.push({
@@ -360,23 +358,25 @@ function buildVolumeMounts(
     mounts.push(...validatedMounts);
   }
 
-  if (fs.existsSync(WEB_DIR) && tier === 0) {
-    chownRecursive(WEB_DIR, 1000, 1000);
-    mounts.push({
-      hostPath: path.resolve(HOST_DATA_DIR, '../web'),
-      containerPath: '/workspace/web',
-      readonly: false,
-    });
-  } else if (fs.existsSync(WEB_DIR) && (tier === 1 || tier === 2)) {
-    const world = worldOf(group.folder);
-    const worldDir = path.join(WEB_DIR, world);
-    fs.mkdirSync(worldDir, { recursive: true });
-    chownRecursive(worldDir, 1000, 1000);
-    mounts.push({
-      hostPath: path.join(HOST_WEB_DIR, world),
-      containerPath: '/workspace/web',
-      readonly: false,
-    });
+  if (fs.existsSync(WEB_DIR) && tier <= 2) {
+    if (tier === 0) {
+      chownRecursive(WEB_DIR, 1000, 1000);
+      mounts.push({
+        hostPath: path.resolve(HOST_DATA_DIR, '../web'),
+        containerPath: '/workspace/web',
+        readonly: false,
+      });
+    } else {
+      const world = worldOf(group.folder);
+      const worldDir = path.join(WEB_DIR, world);
+      fs.mkdirSync(worldDir, { recursive: true });
+      chownRecursive(worldDir, 1000, 1000);
+      mounts.push({
+        hostPath: path.join(HOST_WEB_DIR, world),
+        containerPath: '/workspace/web',
+        readonly: false,
+      });
+    }
   }
 
   if (tier === 0) {

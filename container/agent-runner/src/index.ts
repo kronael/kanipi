@@ -421,14 +421,14 @@ async function runQuery(
         log(`Session initialized: ${newSessionId}`);
       }
 
-      if (message.type === 'system' && (message as { subtype?: string }).subtype === 'task_notification') {
+      if (message.type === 'system' && message.subtype === 'task_notification') {
         const tn = message as { task_id: string; status: string; summary: string };
         log(`Task notification: task=${tn.task_id} status=${tn.status} summary=${tn.summary}`);
       }
 
       if (message.type === 'result') {
         hadResult = true;
-        const rawResult = 'result' in message ? (message as { result?: string }).result : null;
+        const rawResult = (message as { result?: string }).result ?? null;
         log(`Result: subtype=${message.subtype}${rawResult ? ` text=${rawResult.slice(0, 200)}` : ''}`);
         if (message.subtype === 'error_max_turns') {
           maxTurnsHit = true;
