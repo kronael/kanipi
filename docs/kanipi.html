@@ -256,8 +256,9 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
         Each agent runs Claude Code inside a Docker container. The gateway writes <code>start.json</code> to IPC
         (prompt + secrets), agent reads it and runs the SDK query. Follow-up messages arrive as IPC files with
         SIGUSR1 wake signal (500ms fallback poll). <code>MAX_CONCURRENT_CONTAINERS</code> limits parallel agents
-        (default 5). <code>IDLE_TIMEOUT</code> controls container keepalive (default 30min; set to 0 for
-        chat-bound sessions that never idle out).
+        (default 5). <code>CONTAINER_TIMEOUT</code> controls container keepalive (default 60min; set to 0 for
+        chat-bound sessions that never idle out). Each <code>&lt;status&gt;</code> block emitted by the agent
+        resets the idle timer, so long-running tasks that emit periodic status updates stay alive.
       </p>
 
       <h3>Workspace mounts</h3>
@@ -271,7 +272,7 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
           <tr><td><code>home</code></td><td><code>/home/node</code></td><td>group workdir + .claude/ state (rw, ro setup files tier 2+, full ro tier 3)</td></tr>
           <tr><td><code>groups</code></td><td><code>~/groups</code></td><td>all groups (root tier 0 only, for skill sync)</td></tr>
           <tr><td><code>share</code></td><td><code>/workspace/share</code></td><td>world-level shared state (rw root/world, ro rest)</td></tr>
-          <tr><td><code>web</code></td><td><code>/workspace/web</code></td><td>vite-served output (rw root/world, ro rest)</td></tr>
+          <tr><td><code>web</code></td><td><code>/workspace/web</code></td><td>vite-served output (rw tier 0/1/2; tier 1+2 get world subdir <code>web/&lt;world&gt;/</code>; not mounted tier 3)</td></tr>
           <tr><td><code>ipc</code></td><td><code>/workspace/ipc</code></td><td>IPC requests/responses (rw all tiers)</td></tr>
           <tr><td><code>self</code></td><td><code>/workspace/self</code></td><td>kanipi source (ro, root tier 0 only)</td></tr>
           <tr><td><code>agent-runner</code></td><td><code>/workspace/agent-runner</code></td><td>agent-runner TS source (ro, hot-patch via bunx tsc)</td></tr>
@@ -319,7 +320,7 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
           <tr><th>Tier</th><th>Folder pattern</th><th>Access</th></tr>
           <tr><td>0 (root)</td><td><code>root</code>, <code>main</code></td><td>full rw, ~/self and ~/groups visible, can delegate to any world</td></tr>
           <tr><td>1 (world)</td><td><code>{world}</code> (no /)</td><td>rw home/share/web, ro setup files, world-scoped delegation</td></tr>
-          <tr><td>2 (agent)</td><td><code>{world}/{name}</code></td><td>rw home + temp dirs, ro setup files (CLAUDE.md/SOUL.md/skills), world-scoped</td></tr>
+          <tr><td>2 (agent)</td><td><code>{world}/{name}</code></td><td>rw home + web/&lt;world&gt; + temp dirs, ro setup files (CLAUDE.md/SOUL.md/skills), world-scoped</td></tr>
           <tr><td>3 (worker)</td><td><code>{world}/{a}/{b}/...</code></td><td>full ro home, rw overlays for .claude/projects + media + tmp only</td></tr>
         </table>
       </div>
@@ -346,10 +347,11 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
 
       <h3>Skills and identity</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
-        Skills seeded from <code>container/skills/</code> to <code>.claude/skills/</code> inside the group folder
-        on first spawn. <code>SOUL.md</code> defines agent personality per group. <code>CLAUDE.md</code> defines
+        Skills seeded from <code>templates/default/.claude/skills/</code> to <code>.claude/skills/</code> inside the group folder
+        on first spawn (one-time per skill directory). <code>SOUL.md</code> defines agent personality per group. <code>CLAUDE.md</code> defines
         behavior and instructions. Migration system: <code>MIGRATION_VERSION</code> + numbered files in
-        <code>container/skills/self/migrations/</code>; <code>/migrate</code> skill syncs groups when version advances.
+        <code>templates/default/.claude/skills/self/migrations/</code>; <code>/migrate</code> skill syncs groups when version advances.
+        Current migration version: 42. Gateway image includes <code>templates/</code> so seeding works in production without source checkout.
       </p>
 
       <h3>SYSTEM.md</h3>
@@ -797,7 +799,7 @@ npm run dev</pre>
           <tr><td><code>FACEBOOK_PAGE_ID</code></td><td>enables facebook (+ _PAGE_ACCESS_TOKEN)</td></tr>
           <tr><td><code>CONTAINER_IMAGE</code></td><td>agent docker image name</td></tr>
           <tr><td><code>CLAUDE_CODE_OAUTH_TOKEN</code></td><td>passed to agent containers</td></tr>
-          <tr><td><code>IDLE_TIMEOUT</code></td><td>container keepalive (ms, default 1800000; 0 = never)</td></tr>
+          <tr><td><code>CONTAINER_TIMEOUT</code></td><td>container keepalive (ms, default 3600000 = 60min; 0 = never)</td></tr>
           <tr><td><code>MAX_CONCURRENT_CONTAINERS</code></td><td>parallel agent limit (default 5)</td></tr>
           <tr><td><code>MEDIA_ENABLED</code></td><td>attachment pipeline (default false)</td></tr>
           <tr><td><code>VITE_PORT</code></td><td>enables web serving + dashboard</td></tr>
