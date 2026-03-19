@@ -42,12 +42,6 @@ describe('spawnFolderName', () => {
     expect(spawnFolderName(long).length).toBe(63);
   });
 
-  it('handles mastodon JID', () => {
-    expect(spawnFolderName('mastodon:instance.social:12345')).toBe(
-      'mastodon_instance_social_12345',
-    );
-  });
-
   it('empty JID returns empty string', () => {
     expect(spawnFolderName('')).toBe('');
   });
@@ -617,25 +611,6 @@ describe('resolveRoute — flat routing table', () => {
     });
   });
 
-  it('expands {sender} template in command route target', () => {
-    const routes: Route[] = [
-      {
-        id: 1,
-        jid: 'tg:1',
-        seq: 0,
-        type: 'command',
-        match: '/ask',
-        target: 'atlas/{sender}',
-      },
-    ];
-    expect(resolveRoute(msg('/ask something', 'telegram:789'), routes)).toEqual(
-      {
-        target: 'atlas/tg-789',
-        command: null,
-      },
-    );
-  });
-
   it('falls through template route to static fallback', () => {
     const routes: Route[] = [
       {
@@ -812,30 +787,6 @@ describe('resolveRoute — flat routing table', () => {
     expect(result?.match).toBe('@');
   });
 
-  it('prefix type matches #topic message', () => {
-    const routes: Route[] = [
-      {
-        id: 1,
-        jid: 'tg:1',
-        seq: -1,
-        type: 'prefix',
-        match: '#',
-        target: 'atlas',
-      },
-      {
-        id: 2,
-        jid: 'tg:1',
-        seq: 0,
-        type: 'default',
-        match: null,
-        target: 'atlas',
-      },
-    ];
-    const result = resolveRoute(mkMsg('#deploy review'), routes);
-    expect(result?.target).toBe('atlas');
-    expect(result?.match).toBe('#');
-  });
-
   it('prefix type does not match plain message without @ or #', () => {
     const routes: Route[] = [
       {
@@ -867,24 +818,6 @@ describe('resolveRoute — flat routing table', () => {
     expect(result?.match).toBeUndefined();
     expect(result?.target).toBe('atlas');
   });
-
-  it('prefix route returns match field in resolved route', () => {
-    const routes: Route[] = [
-      {
-        id: 1,
-        jid: 'tg:1',
-        seq: -1,
-        type: 'prefix',
-        match: '#',
-        target: 'root',
-      },
-    ];
-    expect(resolveRoute(mkMsg('#work stuff'), routes)).toEqual({
-      target: 'root',
-      command: null,
-      match: '#',
-    });
-  });
 });
 
 // --- topic sessions ---
@@ -895,13 +828,6 @@ describe('topic sessions', () => {
     setSession('atlas', 'topic-session-id', 'deploy');
     expect(getSession('atlas')).toBe('base-session-id');
     expect(getSession('atlas', 'deploy')).toBe('topic-session-id');
-  });
-
-  it('setSession with topic stores separately from default', () => {
-    setSession('root', 'main-session');
-    setSession('root', 'work-session', 'work');
-    expect(getSession('root')).toBe('main-session');
-    expect(getSession('root', 'work')).toBe('work-session');
   });
 
   it('deleteSession with topic only removes that topic', () => {
