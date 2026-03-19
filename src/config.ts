@@ -18,7 +18,7 @@ const envConfig = readEnvFile([
   'GITHUB_CLIENT_SECRET',
   'GOOGLE_CLIENT_ID',
   'GOOGLE_CLIENT_SECRET',
-  'GOOGLE_ALLOWED_DOMAIN',
+  'GOOGLE_ALLOWED_EMAILS',
   'GITHUB_ALLOWED_ORG',
   'DISCORD_CLIENT_ID',
   'DISCORD_CLIENT_SECRET',
@@ -197,8 +197,8 @@ export const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID || envConfig.GOOGLE_CLIENT_ID || '';
 export const GOOGLE_CLIENT_SECRET =
   process.env.GOOGLE_CLIENT_SECRET || envConfig.GOOGLE_CLIENT_SECRET || '';
-export const GOOGLE_ALLOWED_DOMAIN =
-  process.env.GOOGLE_ALLOWED_DOMAIN || envConfig.GOOGLE_ALLOWED_DOMAIN || '';
+export const GOOGLE_ALLOWED_EMAILS =
+  process.env.GOOGLE_ALLOWED_EMAILS || envConfig.GOOGLE_ALLOWED_EMAILS || '';
 export const GITHUB_ALLOWED_ORG =
   process.env.GITHUB_ALLOWED_ORG || envConfig.GITHUB_ALLOWED_ORG || '';
 export const DISCORD_CLIENT_ID =

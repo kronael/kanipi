@@ -18,12 +18,33 @@ import {
   GITHUB_ALLOWED_ORG,
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
-  GOOGLE_ALLOWED_DOMAIN,
+  GOOGLE_ALLOWED_EMAILS,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   TELEGRAM_BOT_TOKEN,
   WEB_HOST,
 } from './config.js';
+
+// Simple glob match supporting * wildcard (case-insensitive)
+function matchGlob(pattern: string, value: string): boolean {
+  const re = new RegExp(
+    '^' +
+      pattern
+        .toLowerCase()
+        .split('*')
+        .map((s) => s.replace(/[.+^${}()|[\]\\]/g, '\\$&'))
+        .join('.*') +
+      '$',
+  );
+  return re.test(value.toLowerCase());
+}
+
+function allowedEmail(email: string): boolean {
+  if (!GOOGLE_ALLOWED_EMAILS) return true;
+  return GOOGLE_ALLOWED_EMAILS.split(',')
+    .map((p) => p.trim())
+    .some((p) => matchGlob(p, email));
+}
 
 function sha256(s: string): string {
   return crypto.createHash('sha256').update(s).digest('hex');
@@ -384,10 +405,25 @@ export function handleGoogleAuth(
   const baseUrl = getBaseUrl(req);
   const redirectUri = encodeURIComponent(`${baseUrl}/auth/google/callback`);
   const scope = encodeURIComponent('openid email profile');
+  // hd= restricts sign-in to a Google Workspace org at Google's level
+  const hdPatterns = GOOGLE_ALLOWED_EMAILS
+    ? [
+        ...new Set(
+          GOOGLE_ALLOWED_EMAILS.split(',').map((p) =>
+            p
+              .trim()
+              .replace(/^[^@]*@/, '')
+              .replace(/^\*\./, ''),
+          ),
+        ),
+      ]
+    : [];
+  const hd =
+    hdPatterns.length === 1 ? `&hd=${encodeURIComponent(hdPatterns[0])}` : '';
 
   res.writeHead(302, {
     'Set-Cookie': `oauth_state=${state}; HttpOnly; Path=/auth; Max-Age=600; SameSite=Lax`,
-    Location: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`,
+    Location: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}${hd}`,
   });
   res.end();
 }
@@ -462,13 +498,10 @@ export async function handleGoogleCallback(
     name?: string;
   };
 
-  if (
-    GOOGLE_ALLOWED_DOMAIN &&
-    !userData.email?.endsWith('@' + GOOGLE_ALLOWED_DOMAIN)
-  ) {
+  if (!allowedEmail(userData.email ?? '')) {
     res.writeHead(403, { 'Content-Type': 'text/html' });
     res.end(
-      `<!doctype html><html><body><p>Access denied: only @${GOOGLE_ALLOWED_DOMAIN} accounts are allowed.</p><a href="/auth/login">Back</a></body></html>`,
+      `<!doctype html><html><body><p>Access denied: your account is not on the allowed list.</p><a href="/auth/login">Back</a></body></html>`,
     );
     return;
   }
