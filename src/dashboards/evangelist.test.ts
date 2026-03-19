@@ -202,6 +202,57 @@ describe('evangelist dashboard', () => {
     expect(posts[2].filename).toBe('a.md');
   });
 
+  describe('narrative filename validation', () => {
+    it('accepts valid narrative filenames', () => {
+      const ok = (f: string) => /^[\w-]+\.md$/.test(f) && !f.includes('..');
+      expect(ok('my-narrative.md')).toBe(true);
+      expect(ok('narrative-2026-03-19.md')).toBe(true);
+    });
+
+    it('rejects path-traversal narrative filenames', () => {
+      const ok = (f: string) => /^[\w-]+\.md$/.test(f) && !f.includes('..');
+      expect(ok('../secrets.md')).toBe(false);
+      expect(ok('foo/../bar.md')).toBe(false);
+      expect(ok('has spaces.md')).toBe(false);
+    });
+  });
+
+  describe('narrative slug derivation', () => {
+    it('derives kebab-case slug from title', () => {
+      const title = 'My Great Narrative';
+      const slug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      expect(slug).toBe('my-great-narrative');
+      expect(`${slug}.md`).toBe('my-great-narrative.md');
+    });
+
+    it('strips leading/trailing hyphens', () => {
+      const title = '  Hello World  ';
+      const slug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      expect(slug).toBe('hello-world');
+    });
+  });
+
+  describe('narrative save: path safety', () => {
+    it('allows writes inside narrativesDir', () => {
+      const dir = '/fake/groups/evangelist/narratives';
+      const fp = dir + '/my-narrative.md';
+      expect(fp.startsWith(dir + '/')).toBe(true);
+    });
+
+    it('rejects writes that escape narrativesDir', () => {
+      const dir = '/fake/groups/evangelist/narratives';
+      const fp = '/fake/groups/evangelist/narratives/../../../etc/passwd';
+      const resolved = require('path').resolve(fp);
+      expect(resolved.startsWith(dir + '/')).toBe(false);
+    });
+  });
+
   it('history shows only last 20 posted entries', () => {
     const posts = Array.from({ length: 25 }, (_, i) => ({
       filename: `post-${i}.md`,

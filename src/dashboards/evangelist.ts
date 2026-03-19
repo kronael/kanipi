@@ -37,6 +37,14 @@ function isPostFile(filename: string): boolean {
   return /^[\w-]+\.md$/.test(filename) && !filename.includes('..');
 }
 
+function isNarrativeFile(filename: string): boolean {
+  return /^[\w-]+\.md$/.test(filename) && !filename.includes('..');
+}
+
+function narrativesDir(folder: string): string {
+  return path.join(GROUPS_DIR, folder, 'narratives');
+}
+
 type PipelineDir = 'drafts' | 'approved' | 'scheduled' | 'posted' | 'rejected';
 const PIPELINE_DIRS: PipelineDir[] = [
   'drafts',
@@ -495,6 +503,124 @@ function renderKnowledge(folder: string): string {
   return h || '<p><em>No facts files found.</em></p>';
 }
 
+// --- Narratives ---
+
+interface NarrativeMeta {
+  filename: string;
+  title: string;
+  tags: string[];
+  excerpt: string;
+  raw: string;
+}
+
+function listNarratives(folder: string): NarrativeMeta[] {
+  const dir = narrativesDir(folder);
+  let files: string[] = [];
+  try {
+    files = fs.readdirSync(dir).filter((f) => f.endsWith('.md'));
+  } catch {
+    return [];
+  }
+  const result: NarrativeMeta[] = [];
+  for (const file of files) {
+    if (!isNarrativeFile(file)) continue;
+    let raw: string;
+    try {
+      raw = fs.readFileSync(path.join(dir, file), 'utf-8');
+    } catch {
+      continue;
+    }
+    const fm = parseFrontmatter(raw);
+    const body = raw.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+    result.push({
+      filename: file,
+      title: String(fm.title ?? file.replace(/\.md$/, '')),
+      tags: arrayField(fm.tags),
+      excerpt: body.slice(0, 160) + (body.length > 160 ? '…' : ''),
+      raw,
+    });
+  }
+  return result;
+}
+
+function renderNarrativesList(folder: string): string {
+  const narratives = listNarratives(folder);
+  const q = `?group=${encodeURIComponent(folder)}`;
+  let h =
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">` +
+    `<strong>${narratives.length} narrative(s)</strong>` +
+    `<button hx-get="/dash/evangelist/x/narrative-edit${q}&file=" ` +
+    `hx-target="#narratives-content" hx-swap="innerHTML">New narrative</button>` +
+    `</div>`;
+  if (narratives.length === 0) {
+    h += '<p><em>No narratives yet.</em></p>';
+    return h;
+  }
+  for (const n of narratives) {
+    const tags = n.tags.length
+      ? n.tags
+          .map(
+            (t) =>
+              `<span style="background:#e5e7eb;padding:1px 5px;border-radius:3px;font-size:11px">${esc(t)}</span>`,
+          )
+          .join(' ')
+      : '';
+    h +=
+      `<div style="border:1px solid #ddd;border-radius:4px;padding:8px 12px;margin:6px 0;cursor:pointer" ` +
+      `hx-get="/dash/evangelist/x/narrative-edit${q}&file=${encodeURIComponent(n.filename)}" ` +
+      `hx-target="#narratives-content" hx-swap="innerHTML">` +
+      `<div style="display:flex;justify-content:space-between;align-items:baseline">` +
+      `<strong>${esc(n.title)}</strong>` +
+      `<code style="font-size:11px;color:#9ca3af">${esc(n.filename)}</code>` +
+      `</div>` +
+      (tags ? `<div style="margin:3px 0">${tags}</div>` : '') +
+      `<div style="color:#6b7280;font-size:12px">${esc(n.excerpt)}</div>` +
+      `</div>`;
+  }
+  return h;
+}
+
+function renderNarrativeEditor(folder: string, filename: string): string {
+  const q = `?group=${encodeURIComponent(folder)}`;
+  const isNew = !filename;
+  let raw = '';
+  let title = '';
+  if (!isNew) {
+    const fp = path.join(narrativesDir(folder), filename);
+    try {
+      raw = fs.readFileSync(fp, 'utf-8');
+      const fm = parseFrontmatter(raw);
+      title = String(fm.title ?? filename.replace(/\.md$/, ''));
+    } catch {
+      raw = '';
+    }
+  }
+  const saveUrl = isNew
+    ? '/dash/evangelist/api/narratives/new'
+    : '/dash/evangelist/api/narratives/save';
+  const fileInput = isNew
+    ? ''
+    : `<input type="hidden" name="file" value="${esc(filename)}">`;
+  return (
+    `<div>` +
+    `<h3 style="margin:0 0 8px">${isNew ? 'New narrative' : `Edit: ${esc(title)}`}</h3>` +
+    `<form hx-post="${saveUrl}" hx-target="#narratives-content" hx-swap="innerHTML">` +
+    `<input type="hidden" name="group" value="${esc(folder)}">` +
+    fileInput +
+    `<textarea name="content" rows="20" ` +
+    `style="font-family:monospace;width:100%;box-sizing:border-box;height:400px;` +
+    `border:1px solid #ccc;padding:8px;resize:vertical">${esc(raw)}</textarea>` +
+    `<div style="display:flex;gap:8px;margin-top:8px">` +
+    `<button type="submit">Save</button>` +
+    `<button type="button" ` +
+    `hx-get="/dash/evangelist/x/narratives${q}" ` +
+    `hx-target="#narratives-content" hx-swap="innerHTML">Cancel</button>` +
+    `</div>` +
+    `</form>` +
+    `</div>`
+  );
+}
+
 // --- API ---
 
 function apiPosts(folder: string): string {
@@ -596,6 +722,7 @@ ${selector}
   <button class="tab" id="tab-btn-calendar" onclick="showTab('calendar');htmx.ajax('GET','/dash/evangelist/x/calendar${q}','#calendar-content')">Calendar</button>
   <button class="tab" id="tab-btn-history" onclick="showTab('history')">Posted</button>
   <button class="tab" id="tab-btn-knowledge" onclick="showTab('knowledge');htmx.ajax('GET','/dash/evangelist/x/knowledge${q}','#knowledge-content')">Knowledge</button>
+  <button class="tab" id="tab-btn-narratives" onclick="showTab('narratives');htmx.ajax('GET','/dash/evangelist/x/narratives${q}','#narratives-content')">Narratives</button>
 </div>
 <div id="tab-drafts" class="tab-panel">
   <div id="drafts-content">Loading...</div>
@@ -611,6 +738,9 @@ ${selector}
 </div>
 <div id="tab-knowledge" class="tab-panel">
   <div id="knowledge-content">Loading...</div>
+</div>
+<div id="tab-narratives" class="tab-panel">
+  <div id="narratives-content">Loading...</div>
 </div>
 </body></html>`;
 }
@@ -697,6 +827,93 @@ async function evangelistHandler(
   if (sub === '/x/knowledge') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(renderKnowledge(group));
+    return;
+  }
+
+  if (sub === '/x/narratives') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderNarrativesList(group));
+    return;
+  }
+
+  if (sub === '/x/narrative-edit') {
+    const file = urlObj.searchParams.get('file') ?? '';
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderNarrativeEditor(group, file));
+    return;
+  }
+
+  // API: save existing narrative
+  if (sub === '/api/narratives/save' && req.method === 'POST') {
+    const body = await readBody(req);
+    const params = new URLSearchParams(body);
+    const grp = params.get('group') ?? group;
+    const file = params.get('file') ?? '';
+    const content = params.get('content') ?? '';
+    if (!isNarrativeFile(file)) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Invalid filename');
+      return;
+    }
+    const dir = narrativesDir(grp);
+    const fp = path.join(dir, file);
+    // Path safety: resolved path must stay inside narrativesDir
+    if (!fp.startsWith(dir + path.sep) && fp !== dir) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Path error');
+      return;
+    }
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(fp, content, 'utf-8');
+    } catch {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Write failed');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderNarrativesList(grp));
+    return;
+  }
+
+  // API: create new narrative
+  if (sub === '/api/narratives/new' && req.method === 'POST') {
+    const body = await readBody(req);
+    const params = new URLSearchParams(body);
+    const grp = params.get('group') ?? group;
+    const content = params.get('content') ?? '';
+    // Derive filename from title frontmatter, fall back to timestamp
+    const fm = parseFrontmatter(content);
+    const titleRaw = String(fm.title ?? '');
+    const slug = titleRaw
+      ? titleRaw
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+      : `narrative-${Date.now()}`;
+    const file = `${slug}.md`;
+    if (!isNarrativeFile(file)) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Invalid filename derived from title');
+      return;
+    }
+    const dir = narrativesDir(grp);
+    const fp = path.join(dir, file);
+    if (!fp.startsWith(dir + path.sep) && fp !== dir) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Path error');
+      return;
+    }
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(fp, content, 'utf-8');
+    } catch {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Write failed');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderNarrativesList(grp));
     return;
   }
 
