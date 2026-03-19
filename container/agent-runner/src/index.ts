@@ -282,13 +282,17 @@ async function runQuery(
   containerInput: ContainerInput,
   sdkEnv: Record<string, string | undefined>,
   resumeAt?: string,
-): Promise<{ newSessionId?: string; lastAssistantUuid?: string; closedDuringQuery: boolean }> {
+): Promise<{ newSessionId?: string; lastAssistantUuid?: string; closedDuringQuery: boolean; hadResult: boolean }> {
   const stream = new MessageStream();
   stream.push(prompt);
 
   // Poll IPC for follow-up messages and _close sentinel during the query
   let ipcPolling = true;
   let closedDuringQuery = false;
+  // Emit a null heartbeat every 30s so the gateway resets its idle timeout
+  // even when Claude is working silently (no <status> blocks emitted).
+  const HEARTBEAT_INTERVAL_MS = 30_000;
+  let lastHeartbeat = Date.now();
   const pollIpcDuringQuery = () => {
     if (!ipcPolling) return;
     if (shouldClose()) {
@@ -303,6 +307,12 @@ async function runQuery(
     for (const text of messages) {
       log(`Piping IPC message into active query (${text.length} chars)`);
       stream.push(text);
+    }
+    const now = Date.now();
+    if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+      lastHeartbeat = now;
+      writeOutput({ status: 'success', result: null, newSessionId });
+      log('Heartbeat emitted to reset gateway idle timeout');
     }
     // Set wakeup before setTimeout so SIGUSR1 arriving in between
     // still cancels the right timer (no missed-signal double-poll).
@@ -496,7 +506,7 @@ async function runQuery(
     }
   }
 
-  return { newSessionId, lastAssistantUuid, closedDuringQuery };
+  return { newSessionId, lastAssistantUuid, closedDuringQuery, hadResult };
 }
 
 // Scenario mode: return canned responses for integration tests (skip real SDK).
@@ -603,6 +613,13 @@ async function main(): Promise<void> {
       if (queryResult.closedDuringQuery) {
         log('Close sentinel consumed during query, exiting');
         break;
+      }
+
+      // If SDK returned no result (silent fail — no result message, no exception),
+      // tell the user so they know to retry instead of seeing nothing.
+      if (!queryResult.hadResult) {
+        log('Query completed with no result message — SDK silent fail, notifying user');
+        writeOutput({ status: 'error', result: '⚠️ No response generated. Say "continue" to retry.', newSessionId: sessionId });
       }
 
       // Emit session update so host can track it
