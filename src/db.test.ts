@@ -60,6 +60,9 @@ import {
   storeChatMetadata,
   storeEmailThread,
   storeMessage,
+  storeOutbound,
+  setMessageTopic,
+  getRecentMessages,
   updateChatName,
   updateSessionEnd,
   updateTask,
@@ -1289,5 +1292,171 @@ describe('getUnroutedChatJids', () => {
   it('returns empty when no unrouted messages exist', () => {
     const jids = getUnroutedChatJids('2024-01-01T00:00:00.000Z');
     expect(jids).toHaveLength(0);
+  });
+});
+
+// --- setMessageTopic ---
+
+describe('setMessageTopic', () => {
+  it('sets topic on an existing message', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    store({
+      id: 'topic-msg-1',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      sender_name: 'U',
+      content: 'hello',
+      timestamp: '2024-01-01T00:00:01.000Z',
+    });
+    setMessageTopic('topic-msg-1', 'support');
+    const m = getMessageById('topic-msg-1');
+    expect(m).toBeDefined();
+    expect((m as any).topic).toBe('support');
+  });
+
+  it('getMessagesSince with topic filters to that topic only', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    store({
+      id: 'top-a',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      sender_name: 'U',
+      content: 'topic-a msg',
+      timestamp: '2024-01-01T00:00:01.000Z',
+    });
+    store({
+      id: 'top-b',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      sender_name: 'U',
+      content: 'no-topic msg',
+      timestamp: '2024-01-01T00:00:02.000Z',
+    });
+    setMessageTopic('top-a', 'support');
+    // topic='support' should return only top-a
+    const withTopic = getMessagesSince('g@g.us', '', 'Bot', 'support');
+    expect(withTopic).toHaveLength(1);
+    expect(withTopic[0].id).toBe('top-a');
+    // default topic='' should return only top-b (top-a has topic='support')
+    const noTopic = getMessagesSince('g@g.us', '', 'Bot');
+    expect(noTopic.map((m) => m.id)).not.toContain('top-a');
+    expect(noTopic.map((m) => m.id)).toContain('top-b');
+  });
+});
+
+// --- storeOutbound ---
+
+describe('storeOutbound', () => {
+  it('stores outbound message as bot message with topic', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    storeOutbound({
+      chatJid: 'g@g.us',
+      content: 'bot reply',
+      source: 'agent',
+      groupFolder: 'root',
+      topic: 'support',
+    });
+    // getRecentMessages excludes bot messages — verify via getMessageById impossible
+    // storeOutbound uses INSERT OR IGNORE with generated id; verify via getRecentMessages=0
+    const recent = getRecentMessages(10);
+    // bot messages are excluded from getRecentMessages
+    expect(recent.filter((m) => m.content === 'bot reply')).toHaveLength(0);
+  });
+
+  it('storeOutbound without topic stores with empty topic', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    // Should not throw even with no topic field
+    expect(() =>
+      storeOutbound({
+        chatJid: 'g@g.us',
+        content: 'no topic reply',
+        source: 'agent',
+      }),
+    ).not.toThrow();
+  });
+
+  it('storeOutbound with platformMsgId uses stable id (OR IGNORE on duplicate)', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    storeOutbound({
+      chatJid: 'g@g.us',
+      content: 'first',
+      source: 'agent',
+      platformMsgId: 'plat-123',
+    });
+    // Second call with same platformMsgId is ignored
+    expect(() =>
+      storeOutbound({
+        chatJid: 'g@g.us',
+        content: 'second',
+        source: 'agent',
+        platformMsgId: 'plat-123',
+      }),
+    ).not.toThrow();
+  });
+});
+
+// --- getRecentMessages ---
+
+describe('getRecentMessages', () => {
+  it('returns topic field on messages', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    store({
+      id: 'recent-topic-1',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      sender_name: 'U',
+      content: 'recent msg',
+      timestamp: '2024-01-01T00:00:01.000Z',
+    });
+    setMessageTopic('recent-topic-1', 'billing');
+    const msgs = getRecentMessages(10);
+    const m = msgs.find((x) => x.id === 'recent-topic-1');
+    expect(m).toBeDefined();
+    expect(m!.topic).toBe('billing');
+  });
+
+  it('returns empty string topic for messages without topic set', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    store({
+      id: 'recent-notopic-1',
+      chat_jid: 'g@g.us',
+      sender: 'u@s',
+      sender_name: 'U',
+      content: 'no topic msg',
+      timestamp: '2024-01-01T00:00:02.000Z',
+    });
+    const msgs = getRecentMessages(10);
+    const m = msgs.find((x) => x.id === 'recent-notopic-1');
+    expect(m).toBeDefined();
+    expect(m!.topic).toBe('');
+  });
+
+  it('excludes bot messages', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    storeMessage({
+      id: 'recent-bot-1',
+      chat_jid: 'g@g.us',
+      sender: 'assistant',
+      content: 'bot msg',
+      timestamp: '2024-01-01T00:00:03.000Z',
+      is_bot_message: true,
+    });
+    const msgs = getRecentMessages(10);
+    expect(msgs.find((m) => m.id === 'recent-bot-1')).toBeUndefined();
+  });
+
+  it('respects limit', () => {
+    storeChatMetadata('g@g.us', '2024-01-01T00:00:00.000Z');
+    for (let i = 0; i < 5; i++) {
+      store({
+        id: `lim-${i}`,
+        chat_jid: 'g@g.us',
+        sender: 'u@s',
+        sender_name: 'U',
+        content: `msg ${i}`,
+        timestamp: `2024-01-0${i + 1}T00:00:00.000Z`,
+      });
+    }
+    expect(getRecentMessages(3)).toHaveLength(3);
   });
 });

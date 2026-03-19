@@ -307,6 +307,36 @@ describe('handleGoogleCallback', () => {
     expect(res._status).toBe(401);
     expect(res._body).toContain('token exchange failed');
   });
+
+  it('uses sub as username fallback when userinfo has no email', async () => {
+    const state = 'no-email-state';
+    const req = createMockReq({
+      url: `/auth/google/callback?code=abc&state=${state}`,
+      headers: { host: 'localhost:3000', cookie: `oauth_state=${state}` },
+    });
+    const res = createMockRes();
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'gg-token-noemail' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: 'sub-no-email-999',
+          // no email field
+          name: 'No Email User',
+        }),
+      });
+
+    await handleGoogleCallback(req, res);
+
+    // Should succeed (redirect) not fail
+    expect(res._status).toBe(302);
+    expect(res._headers['location']).toBe('/');
+    expect(res._headers['set-cookie']).toContain('refresh=');
+  });
 });
 
 describe('handleDiscordAuth', () => {
