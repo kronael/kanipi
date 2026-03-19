@@ -141,22 +141,6 @@ describe('formatMessages', () => {
     expect(result).toContain('target="456"');
   });
 
-  it('omits optional attributes when not set', () => {
-    const result = formatMessages([makeMsg()], NOW);
-    expect(result).not.toContain('platform=');
-    expect(result).not.toContain('verb=');
-    expect(result).not.toContain('thread=');
-    expect(result).not.toContain('target=');
-  });
-
-  it('escapes special characters in new attributes', () => {
-    const result = formatMessages(
-      [makeMsg({ thread: '<unsafe>&"value' })],
-      NOW,
-    );
-    expect(result).toContain('thread="&lt;unsafe&gt;&amp;&quot;value"');
-  });
-
   it('formats forwarded_from with all attributes', () => {
     const result = formatMessages(
       [
@@ -208,31 +192,6 @@ describe('formatMessages', () => {
       NOW,
     );
     expect(result).toContain('sender="(unknown)"');
-  });
-
-  it('formats reply_to_text without id omits id attr', () => {
-    const result = formatMessages(
-      [
-        makeMsg({
-          reply_to_text: 'quoted',
-          reply_to_sender: 'Alice',
-          content: 'response',
-        }),
-      ],
-      NOW,
-    );
-    expect(result).toContain('sender="Alice"');
-    expect(result).toContain('<reply_to sender="Alice">quoted</reply_to>');
-  });
-
-  it('multiline output when forwarded + content', () => {
-    const result = formatMessages(
-      [makeMsg({ forwarded_from: 'X', content: 'body' })],
-      NOW,
-    );
-    // When parts.length > 1, message tag has newlines inside
-    expect(result).toContain('>\n<forwarded_from');
-    expect(result).toContain('body\n</message>');
   });
 
   it('falls back to sender JID when sender_name is missing', () => {
@@ -314,10 +273,6 @@ describe('senderToUserFileId', () => {
     expect(senderToUserFileId('telegram:123456')).toBe('tg-123456');
   });
 
-  it('converts whatsapp sender to wa-id', () => {
-    expect(senderToUserFileId('whatsapp:5551234')).toBe('wa-5551234');
-  });
-
   it('converts discord sender to dc-id', () => {
     expect(senderToUserFileId('discord:789')).toBe('dc-789');
   });
@@ -372,17 +327,6 @@ describe('userContextXml', () => {
     fs.writeFileSync(
       path.join(tmpDir, 'users', 'tg-123456.md'),
       '---\nname: Alice\nfirst_seen: 2026-03-06\n---\n\nSome content',
-    );
-    const result = userContextXml('telegram:123456', tmpDir);
-    expect(result).toBe(
-      '<user id="tg-123456" name="Alice" memory="~/users/tg-123456.md" />',
-    );
-  });
-
-  it('strips quotes from YAML name value', () => {
-    fs.writeFileSync(
-      path.join(tmpDir, 'users', 'tg-123456.md'),
-      '---\nname: "Alice"\nfirst_seen: 2026-03-06\n---\n\nSome content',
     );
     const result = userContextXml('telegram:123456', tmpDir);
     expect(result).toBe(

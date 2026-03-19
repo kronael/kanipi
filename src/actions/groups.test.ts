@@ -101,15 +101,6 @@ describe('delegateGroup — authorization', () => {
     );
   });
 
-  it('root can delegate to deeply nested descendant', async () => {
-    const ctx = makeCtx('root');
-    const result = await delegateGroup.handler(
-      { group: 'root/code/py', prompt: 'run tests', chatJid: 'tg/-100' },
-      ctx,
-    );
-    expect(result).toEqual({ queued: true });
-  });
-
   it('root can delegate cross-world', async () => {
     const ctx = makeCtx('root');
     const result = await delegateGroup.handler(

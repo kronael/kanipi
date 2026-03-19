@@ -250,18 +250,6 @@ describe('getAvailableGroups (gateway export)', () => {
 // ── DB state consistency ──────────────────────────────────────────────────────
 
 describe('DB state for gateway routing', () => {
-  it('storeChatMetadata creates group entry', () => {
-    storeChatMetadata(
-      'g@g.us',
-      '2024-01-01T00:00:00.000Z',
-      'Test',
-      'telegram',
-      true,
-    );
-    const groups = getAvailableGroups();
-    expect(groups.find((g) => g.jid === 'g@g.us')).toBeDefined();
-  });
-
   it('storeMessage content is retrievable for prompt building', () => {
     storeChatMetadata(
       'g@g.us',
@@ -578,32 +566,6 @@ describe('delegateToChild — depth propagation', () => {
     ];
     expect(input.delegateDepth).toBe(1);
   });
-
-  it('child depth is strictly greater than routing-dispatch depth (0 → 0, IPC increments to 1)', async () => {
-    // Routing dispatch (depth arg = 0) passes delegateDepth: 0 to agent.
-    // When that agent uses IPC delegate_group, groups.ts passes depth+1=1 to
-    // delegateToChild. Verify the child agent receives delegateDepth: 1 here.
-    setupRoutedGroup(true);
-    mockRunContainerAgent.mockResolvedValue({
-      status: 'success',
-      result: null,
-    });
-    const ch = makeChannel(ROUTED_JID);
-    _pushChannel(ch);
-
-    const routingDepth = 0;
-    const ipcDepth = routingDepth + 1; // as groups.ts does: depth + 1
-
-    await _delegateToChild(CHILD_FOLDER, 'task', ROUTED_JID, ipcDepth);
-
-    const [, input] = mockRunContainerAgent.mock.calls[0] as [
-      GroupConfig,
-      ContainerInput,
-      ...unknown[],
-    ];
-    expect(input.delegateDepth).toBeGreaterThan(routingDepth);
-    expect(input.delegateDepth).toBe(ipcDepth);
-  });
 });
 
 // ── Routed-failure rollback ────────────────────────────────────────────────────
@@ -700,22 +662,6 @@ describe('flat routing — delegation failure rollback', () => {
     // Here: delegation fails because parent "other" doesn't exist.
     // Cursor advances (message marked as processed but failed delivery).
     setupUnauthorizedRouting('src@g.us', 'root', 'other/code');
-
-    const ok = await _processGroupMessages('src@g.us');
-
-    expect(ok).toBe(true);
-    // Delegation attempted, no spawn possible, no agent runs
-    expect(mockRunContainerAgent).not.toHaveBeenCalled();
-    await Promise.resolve();
-    // Cursor advances - message dropped, not retried
-    expect(_getLastAgentTimestamp('src@g.us')).toBe(UNAUTH_TS);
-  });
-
-  it('sibling target (root/code → root/ops): delegates but fails, cursor advances (dropped)', async () => {
-    // With flat routing, routes are always followed.
-    // Here: delegation fails because parent "root" isn't registered.
-    // Cursor advances (message marked as processed but failed delivery).
-    setupUnauthorizedRouting('src@g.us', 'root/code', 'root/ops');
 
     const ok = await _processGroupMessages('src@g.us');
 

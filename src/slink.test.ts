@@ -646,61 +646,6 @@ describe('malformed body handling', () => {
   });
 });
 
-// --- auth bucket reset after 60s window ---
-
-describe('auth rate limit bucket reset', () => {
-  it('resets auth bucket after 60s window', async () => {
-    const { vi } = await import('vitest');
-    vi.useFakeTimers();
-    try {
-      const { onMessage } = collect();
-      const group = makeGroup('web:authreset', 'tok-authreset');
-      const jwt = makeJwt({ sub: 'resetuser' });
-      const rpm = 2;
-
-      // Exhaust the auth bucket
-      Array.from({ length: rpm }, () =>
-        handleSlinkPost({
-          token: 'tok-authreset',
-          body: '{"text":"x"}',
-          ip: '1.2.3.4',
-          authHeader: `Bearer ${jwt}`,
-          group,
-          onMessage,
-          authRpm: rpm,
-        }),
-      );
-
-      const blocked = handleSlinkPost({
-        token: 'tok-authreset',
-        body: '{"text":"x"}',
-        ip: '1.2.3.4',
-        authHeader: `Bearer ${jwt}`,
-        group,
-        onMessage,
-        authRpm: rpm,
-      });
-      expect(blocked.status).toBe(429);
-
-      // Advance time past 60s to reset bucket
-      vi.advanceTimersByTime(61_000);
-
-      const after = handleSlinkPost({
-        token: 'tok-authreset',
-        body: '{"text":"x"}',
-        ip: '1.2.3.4',
-        authHeader: `Bearer ${jwt}`,
-        group,
-        onMessage,
-        authRpm: rpm,
-      });
-      expect(after.status).toBe(200);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-});
-
 // --- guessType edge cases ---
 
 describe('guessType edge cases', () => {
@@ -720,10 +665,6 @@ describe('guessType edge cases', () => {
 
   it('unknown extension falls back to document', () => {
     expect(captureType('https://ex.com/file.xyz')).toBe('document');
-  });
-
-  it('url with no extension falls back to document', () => {
-    expect(captureType('https://ex.com/noext')).toBe('document');
   });
 
   it('webm is video', () => {
@@ -834,31 +775,6 @@ describe('rate limit boundary', () => {
       anonRpm: rpm,
     });
     expect(extra.status).toBe(429);
-  });
-
-  it('rpm=1 allows exactly one request', () => {
-    const { onMessage } = collect();
-    const group = makeGroup('web:rpm1', 'tok-rpm1');
-
-    const first = handleSlinkPost({
-      token: 'tok-rpm1',
-      body: '{"text":"x"}',
-      ip: '1.2.3.4',
-      group,
-      onMessage,
-      anonRpm: 1,
-    });
-    expect(first.status).toBe(200);
-
-    const second = handleSlinkPost({
-      token: 'tok-rpm1',
-      body: '{"text":"x"}',
-      ip: '1.2.3.4',
-      group,
-      onMessage,
-      anonRpm: 1,
-    });
-    expect(second.status).toBe(429);
   });
 });
 

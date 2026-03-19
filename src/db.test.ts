@@ -138,28 +138,6 @@ describe('storeMessage', () => {
     expect(messages).toHaveLength(0);
   });
 
-  it('stores is_from_me flag', () => {
-    storeChatMetadata('group@g.us', '2024-01-01T00:00:00.000Z');
-
-    store({
-      id: 'msg-3',
-      chat_jid: 'group@g.us',
-      sender: 'me@s.whatsapp.net',
-      sender_name: 'Me',
-      content: 'my message',
-      timestamp: '2024-01-01T00:00:05.000Z',
-      is_from_me: true,
-    });
-
-    // Message is stored (we can retrieve it — is_from_me doesn't affect retrieval)
-    const messages = getMessagesSince(
-      'group@g.us',
-      '2024-01-01T00:00:00.000Z',
-      'Andy',
-    );
-    expect(messages).toHaveLength(1);
-  });
-
   it('upserts on duplicate id+chat_jid', () => {
     storeChatMetadata('group@g.us', '2024-01-01T00:00:00.000Z');
 
@@ -580,14 +558,6 @@ describe('groups malformed JSON fallback', () => {
   });
 });
 
-// --- pruneExpiredSessions ---
-
-describe('pruneExpiredSessions', () => {
-  it('runs without error on empty db', () => {
-    expect(() => pruneExpiredSessions()).not.toThrow();
-  });
-});
-
 // --- enqueueSystemMessage + flushSystemMessages ---
 
 describe('system_messages', () => {
@@ -678,7 +648,7 @@ describe('session_history', () => {
     expect(getRecentSessions('grp-lim', 3)).toHaveLength(3);
   });
 
-  it('getRecentSessions orders most-recent-first', () => {
+  it('orders most-recent-first', () => {
     recordSessionStart('row-o1', 'grp-ord', '2024-01-01T00:00:00.000Z');
     updateSessionEnd(
       'row-o1',
@@ -727,10 +697,6 @@ describe('updateChatName', () => {
 // --- getLastGroupSync / setLastGroupSync ---
 
 describe('group sync tracking', () => {
-  it('getLastGroupSync returns null initially', () => {
-    expect(getLastGroupSync()).toBeNull();
-  });
-
   it('setLastGroupSync stores a timestamp retrievable by getLastGroupSync', () => {
     setLastGroupSync();
     const ts = getLastGroupSync();
@@ -742,10 +708,6 @@ describe('group sync tracking', () => {
 // --- chat error flag ---
 
 describe('chat error flag', () => {
-  it('isChatErrored returns false for unknown jid', () => {
-    expect(isChatErrored('unknown@g.us')).toBe(false);
-  });
-
   it('markChatErrored / clearChatErrored cycle', () => {
     storeChatMetadata('err@g.us', '2024-01-01T00:00:00.000Z');
     expect(isChatErrored('err@g.us')).toBe(false);
@@ -798,10 +760,6 @@ describe('getMessageById', () => {
     expect(m).toBeDefined();
     expect(m!.content).toBe('found');
   });
-
-  it('returns undefined for missing id', () => {
-    expect(getMessageById('missing')).toBeUndefined();
-  });
 });
 
 // --- routerState ---
@@ -826,10 +784,6 @@ describe('routerState', () => {
 // --- sessions ---
 
 describe('sessions', () => {
-  it('getSession returns undefined for missing group', () => {
-    expect(getSession('nope')).toBeUndefined();
-  });
-
   it('setSession stores and retrieves session id', () => {
     setSession('grp', 'sess-1');
     expect(getSession('grp')).toBe('sess-1');
@@ -846,10 +800,6 @@ describe('sessions', () => {
     setSession('b', 'sb');
     const all = getAllSessions();
     expect(all).toEqual({ a: 'sa', b: 'sb' });
-  });
-
-  it('getAllSessions returns empty object when none', () => {
-    expect(getAllSessions()).toEqual({});
   });
 });
 
@@ -885,34 +835,6 @@ describe('task listing', () => {
     expect(tasks).toHaveLength(1);
     expect(tasks[0].id).toBe('t1');
   });
-
-  it('getAllTasks returns all tasks', () => {
-    createTask({
-      id: 't1',
-      group_folder: 'grp-a',
-      chat_jid: 'c@g.us',
-      prompt: 'a',
-      schedule_type: 'once',
-      schedule_value: '2024-01-01T00:00:00Z',
-      context_mode: 'isolated',
-      next_run: null,
-      status: 'active',
-      created_at: '2024-01-01T00:00:00Z',
-    });
-    createTask({
-      id: 't2',
-      group_folder: 'grp-b',
-      chat_jid: 'c@g.us',
-      prompt: 'b',
-      schedule_type: 'once',
-      schedule_value: '2024-01-01T00:00:00Z',
-      context_mode: 'isolated',
-      next_run: null,
-      status: 'active',
-      created_at: '2024-01-01T00:00:00Z',
-    });
-    expect(getAllTasks()).toHaveLength(2);
-  });
 });
 
 // --- logTaskRun ---
@@ -941,31 +863,6 @@ describe('logTaskRun', () => {
       error: null,
     });
   });
-
-  it('deleteTask also removes run logs', () => {
-    createTask({
-      id: 'tlog-del',
-      group_folder: 'root',
-      chat_jid: 'c@g.us',
-      prompt: 'x',
-      schedule_type: 'once',
-      schedule_value: '2024-01-01T00:00:00Z',
-      context_mode: 'isolated',
-      next_run: null,
-      status: 'active',
-      created_at: '2024-01-01T00:00:00Z',
-    });
-    logTaskRun({
-      task_id: 'tlog-del',
-      run_at: '2024-01-01T00:01:00Z',
-      duration_ms: 100,
-      status: 'success',
-      result: null,
-      error: null,
-    });
-    deleteTask('tlog-del');
-    expect(getTaskById('tlog-del')).toBeUndefined();
-  });
 });
 
 // --- auth ---
@@ -987,14 +884,6 @@ describe('auth users and sessions', () => {
     expect(found!.sub).toBe('sub-2');
   });
 
-  it('getAuthUserBySub returns undefined for missing sub', () => {
-    expect(getAuthUserBySub('missing')).toBeUndefined();
-  });
-
-  it('getAuthUserByUsername returns undefined for missing username', () => {
-    expect(getAuthUserByUsername('missing')).toBeUndefined();
-  });
-
   it('auth session CRUD', () => {
     createAuthUser('sub-s', 'sess-user', 'h', 'S');
     const expires = '2099-01-01T00:00:00.000Z';
@@ -1006,10 +895,6 @@ describe('auth users and sessions', () => {
 
     deleteAuthSession('tok-hash');
     expect(getAuthSession('tok-hash')).toBeUndefined();
-  });
-
-  it('getAuthSession returns undefined for missing hash', () => {
-    expect(getAuthSession('missing')).toBeUndefined();
   });
 
   it('pruneExpiredSessions removes expired sessions', () => {

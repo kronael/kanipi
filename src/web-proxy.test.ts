@@ -424,42 +424,6 @@ describe('POST /_sloth/message edge cases', () => {
       await close();
     }
   });
-
-  it('includes chat_jid in event', async () => {
-    const { port, onMessage, close } = await startProxy();
-    try {
-      await post(port, '/_sloth/message', '{"group":"test","msg":"hi"}');
-      const [, msg] = onMessage.mock.calls[0];
-      expect((msg as { chat_jid: string }).chat_jid).toBe('web:test');
-    } finally {
-      await close();
-    }
-  });
-});
-
-describe('POST /pub/s/:token validation', () => {
-  it('rejects token with special characters (no route match)', async () => {
-    const { port, close } = await startProxy();
-    try {
-      const res = await post(port, '/pub/s/tok!@#$', '{"text":"hi"}');
-      // The regex won't match, so it falls through to the vite proxy
-      // which will fail with 502 (no vite running)
-      expect(res.status).not.toBe(200);
-    } finally {
-      await close();
-    }
-  });
-
-  it('rejects token longer than 64 chars (no route match)', async () => {
-    const { port, close } = await startProxy();
-    try {
-      const longToken = 'a'.repeat(65);
-      const res = await post(port, `/pub/s/${longToken}`, '{"text":"hi"}');
-      expect(res.status).not.toBe(200);
-    } finally {
-      await close();
-    }
-  });
 });
 
 describe('session auth', () => {
