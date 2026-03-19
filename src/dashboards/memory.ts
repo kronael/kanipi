@@ -326,49 +326,62 @@ function renderFacts(folder: string): string {
 
 // --- Search ---
 
-function renderSearch(folder: string, q: string): string {
-  if (!q) return '<p><em>Enter a search term.</em></p>';
+function storeFiles(folder: string): string[] {
+  const stores: string[] = ['MEMORY.md', 'CLAUDE.md'];
+  for (const f of listDir(folder, 'diary')) stores.push(`diary/${f}`);
+  for (const f of listDir(folder, 'episodes')) stores.push(`episodes/${f}`);
+  for (const f of listDir(folder, 'users')) stores.push(`users/${f}`);
+  for (const f of listDir(folder, 'facts')) stores.push(`facts/${f}`);
+  return stores;
+}
+
+function searchMatches(
+  folder: string,
+  q: string,
+): { file: string; line: number; content: string }[] {
   const ql = q.toLowerCase();
-
-  const stores: [string, string][] = [
-    ['MEMORY.md', 'MEMORY.md'],
-    ['CLAUDE.md', 'CLAUDE.md'],
-  ];
-  for (const f of listDir(folder, 'diary'))
-    stores.push([`diary/${f}`, `diary/${f}`]);
-  for (const f of listDir(folder, 'episodes'))
-    stores.push([`episodes/${f}`, `episodes/${f}`]);
-  for (const f of listDir(folder, 'users'))
-    stores.push([`users/${f}`, `users/${f}`]);
-  for (const f of listDir(folder, 'facts'))
-    stores.push([`facts/${f}`, `facts/${f}`]);
-
-  let results = '';
-  let total = 0;
-
-  for (const [rel] of stores) {
+  const results: { file: string; line: number; content: string }[] = [];
+  for (const rel of storeFiles(folder)) {
     const content = readFileSafe(folder, rel);
     if (!content) continue;
     const lines = content.split('\n');
-    const matched: { n: number; line: string }[] = [];
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].toLowerCase().includes(ql)) {
-        matched.push({ n: i + 1, line: lines[i] });
+        results.push({ file: rel, line: i + 1, content: lines[i] });
       }
     }
-    if (matched.length === 0) continue;
-    total += matched.length;
+  }
+  return results;
+}
+
+function renderSearch(folder: string, q: string): string {
+  if (!q) return '<p><em>Enter a search term.</em></p>';
+
+  const matches = searchMatches(folder, q);
+  if (matches.length === 0)
+    return `<p><em>No results for "${esc(q)}".</em></p>`;
+
+  // Group by file for HTML rendering
+  const byFile = new Map<string, { line: number; content: string }[]>();
+  for (const m of matches) {
+    const g = byFile.get(m.file) ?? [];
+    g.push({ line: m.line, content: m.content });
+    byFile.set(m.file, g);
+  }
+
+  let results = '';
+  for (const [rel, lines] of byFile) {
     results += `<h4>${esc(rel)}</h4><table><tr><th>Line</th><th>Content</th></tr>`;
-    for (const { n, line } of matched.slice(0, 20)) {
-      results += `<tr><td>${n}</td><td>${esc(line.slice(0, 120))}</td></tr>`;
+    for (const { line, content } of lines.slice(0, 20)) {
+      results += `<tr><td>${line}</td><td>${esc(content.slice(0, 120))}</td></tr>`;
     }
-    if (matched.length > 20) {
-      results += `<tr><td colspan="2"><em>... ${matched.length - 20} more</em></td></tr>`;
+    if (lines.length > 20) {
+      results += `<tr><td colspan="2"><em>... ${lines.length - 20} more</em></td></tr>`;
     }
     results += '</table>';
   }
 
-  if (!results) return `<p><em>No results for "${esc(q)}".</em></p>`;
+  const total = matches.length;
   return (
     `<p>${total} match${total === 1 ? '' : 'es'} for "${esc(q)}"</p>` + results
   );
@@ -462,29 +475,12 @@ function apiFiles(folder: string): string {
 
 function apiSearch(folder: string, q: string): string {
   if (!q) return JSON.stringify([]);
-  const ql = q.toLowerCase();
-  const stores: string[] = ['MEMORY.md', 'CLAUDE.md'];
-  for (const f of listDir(folder, 'diary')) stores.push(`diary/${f}`);
-  for (const f of listDir(folder, 'episodes')) stores.push(`episodes/${f}`);
-  for (const f of listDir(folder, 'users')) stores.push(`users/${f}`);
-  for (const f of listDir(folder, 'facts')) stores.push(`facts/${f}`);
-
-  const results: { file: string; line: number; content: string }[] = [];
-  for (const rel of stores) {
-    const content = readFileSafe(folder, rel);
-    if (!content) continue;
-    const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].toLowerCase().includes(ql)) {
-        results.push({
-          file: rel,
-          line: i + 1,
-          content: lines[i].slice(0, 200),
-        });
-      }
-    }
-  }
-  return JSON.stringify(results);
+  return JSON.stringify(
+    searchMatches(folder, q).map((m) => ({
+      ...m,
+      content: m.content.slice(0, 200),
+    })),
+  );
 }
 
 // --- CSS ---

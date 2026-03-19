@@ -33,11 +33,7 @@ function timeAgo(iso: string): string {
 }
 
 // Path safety: only allow simple *.md filenames
-function isPostFile(filename: string): boolean {
-  return /^[\w-]+\.md$/.test(filename) && !filename.includes('..');
-}
-
-function isNarrativeFile(filename: string): boolean {
+function isSafeFilename(filename: string): boolean {
   return /^[\w-]+\.md$/.test(filename) && !filename.includes('..');
 }
 
@@ -84,7 +80,7 @@ function listDir(folder: string, dir: PipelineDir): PostMeta[] {
 
   const posts: PostMeta[] = [];
   for (const file of files) {
-    if (!isPostFile(file)) continue;
+    if (!isSafeFilename(file)) continue;
     const fp = path.join(dirPath, file);
     let raw: string;
     try {
@@ -142,7 +138,7 @@ function movePost(
   from: PipelineDir,
   to: PipelineDir,
 ): boolean {
-  if (!isPostFile(filename)) return false;
+  if (!isSafeFilename(filename)) return false;
   const src = path.join(postsSubDir(folder, from), filename);
   const dst = path.join(postsSubDir(folder, to), filename);
   try {
@@ -310,15 +306,12 @@ function renderPostRow(
 // Group posts by content_id for cluster display
 function groupByContentId(posts: PostMeta[]): Array<PostMeta | PostMeta[]> {
   const idGroups = new Map<string, PostMeta[]>();
-  const standalone: PostMeta[] = [];
 
   for (const p of posts) {
     if (p.content_id) {
       const g = idGroups.get(p.content_id) ?? [];
       g.push(p);
       idGroups.set(p.content_id, g);
-    } else {
-      standalone.push(p);
     }
   }
 
@@ -500,7 +493,7 @@ function renderKnowledge(folder: string): string {
       `<pre style="background:#f9f9f9;border:1px solid #ddd;padding:8px;` +
       `white-space:pre-wrap;font-size:12px;max-width:860px">${esc(content)}</pre>`;
   }
-  return h || '<p><em>No facts files found.</em></p>';
+  return h;
 }
 
 // --- Narratives ---
@@ -523,7 +516,7 @@ function listNarratives(folder: string): NarrativeMeta[] {
   }
   const result: NarrativeMeta[] = [];
   for (const file of files) {
-    if (!isNarrativeFile(file)) continue;
+    if (!isSafeFilename(file)) continue;
     let raw: string;
     try {
       raw = fs.readFileSync(path.join(dir, file), 'utf-8');
@@ -850,7 +843,7 @@ async function evangelistHandler(
     const grp = params.get('group') ?? group;
     const file = params.get('file') ?? '';
     const content = params.get('content') ?? '';
-    if (!isNarrativeFile(file)) {
+    if (!isSafeFilename(file)) {
       res.writeHead(400, { 'Content-Type': 'text/plain' });
       res.end('Invalid filename');
       return;
@@ -858,7 +851,7 @@ async function evangelistHandler(
     const dir = narrativesDir(grp);
     const fp = path.join(dir, file);
     // Path safety: resolved path must stay inside narrativesDir
-    if (!fp.startsWith(dir + path.sep) && fp !== dir) {
+    if (!fp.startsWith(dir + path.sep)) {
       res.writeHead(400, { 'Content-Type': 'text/plain' });
       res.end('Path error');
       return;
@@ -892,14 +885,14 @@ async function evangelistHandler(
           .replace(/^-+|-+$/g, '')
       : `narrative-${Date.now()}`;
     const file = `${slug}.md`;
-    if (!isNarrativeFile(file)) {
+    if (!isSafeFilename(file)) {
       res.writeHead(400, { 'Content-Type': 'text/plain' });
       res.end('Invalid filename derived from title');
       return;
     }
     const dir = narrativesDir(grp);
     const fp = path.join(dir, file);
-    if (!fp.startsWith(dir + path.sep) && fp !== dir) {
+    if (!fp.startsWith(dir + path.sep)) {
       res.writeHead(400, { 'Content-Type': 'text/plain' });
       res.end('Path error');
       return;
