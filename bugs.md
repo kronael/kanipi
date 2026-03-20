@@ -84,8 +84,8 @@ This means every 30s heartbeat **stops the typing indicator** and marks the agen
 ## B10 — WhatsApp 503 stream errors create ~22s message gap [rhias] (found 2026-03-20)
 
 **Evidence:** 4 × `stream:error code 503` overnight (21:21, 00:37, 01:32, 01:50). Each triggers reconnect + B8 AwaitingInitialSync 20s delay.
-**Root cause:** `src/channels/whatsapp.ts:129-196` — on `connection === 'close'`, calls `scheduleReconnect(1)` (2s delay). After reconnect, enters AwaitingInitialSync (20s). Total gap per event: ~22s where incoming messages are not received. No message replay after reconnect.
-**Fix:** After `connection === 'open'` handler, request message history for the gap window. Or track last-received-message timestamp and use Baileys history sync to recover. Short-term: confirm `shouldReconnect: true` path doesn't drop buffered incoming messages.
+**Root cause:** Gap was the AwaitingInitialSync 20s wait, not message loss — WA server holds messages and replays them via `messages.upsert` on reconnect.
+**Status:** Resolved by B8 fix (`shouldSyncHistoryMessage: () => false`). Reconnect gap now ~2s; messages delivered by server on reconnect.
 
 ---
 
