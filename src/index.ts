@@ -1128,13 +1128,15 @@ async function startMessageLoop(): Promise<void> {
               continue;
             }
 
-            // Handle @agent and #topic prefix routing
-            if (resolved?.match === '@') {
+            // Handle @agent and #topic prefix routing.
+            // Note: @ and # prefix routes have higher seq than the default
+            // route, so resolved.match is never '@'/'#' — check content directly.
+            if (lastMsg.content.trim().startsWith('@')) {
               const m = lastMsg.content
                 .trim()
                 .match(/^@(\w[\w-]*)(?:\s+([\s\S]*))?$/);
               if (m) {
-                const childFolder = `${resolved.target}/${m[1]}`;
+                const childFolder = `${resolved?.target ?? group.folder}/${m[1]}`;
                 const childGroup = groups[childFolder];
                 if (childGroup) {
                   const stripped = (m[2] ?? '').trim();
@@ -1166,7 +1168,7 @@ async function startMessageLoop(): Promise<void> {
               // unparseable @prefix or missing child — fall through
             }
 
-            if (resolved?.match === '#') {
+            if (lastMsg.content.trim().startsWith('#')) {
               const m = lastMsg.content
                 .trim()
                 .match(/^#(\w[\w-]*)(?:\s+([\s\S]*))?$/);
