@@ -7,6 +7,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.4] — 2026-03-20
+
+### Fixed
+
+- **Output styles not applied**: output style frontmatter names were capitalized (`Telegram`, `Discord`, `Email`) but the SDK registry lookup uses the lowercase channel name (`telegram`, etc.) — styles were loaded but never matched, so formatting instructions were never injected into the agent's context.
+
+---
+
 ## [v1.0.3] — 2026-03-20
 
 ### Fixed
