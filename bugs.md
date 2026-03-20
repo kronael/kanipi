@@ -86,3 +86,15 @@ This means every 30s heartbeat **stops the typing indicator** and marks the agen
 **Evidence:** 4 × `stream:error code 503` overnight (21:21, 00:37, 01:32, 01:50). Each triggers reconnect + B8 AwaitingInitialSync 20s delay.
 **Root cause:** `src/channels/whatsapp.ts:129-196` — on `connection === 'close'`, calls `scheduleReconnect(1)` (2s delay). After reconnect, enters AwaitingInitialSync (20s). Total gap per event: ~22s where incoming messages are not received. No message replay after reconnect.
 **Fix:** After `connection === 'open'` handler, request message history for the gap window. Or track last-received-message timestamp and use Baileys history sync to recover. Short-term: confirm `shouldReconnect: true` path doesn't drop buffered incoming messages.
+
+---
+
+## B11 — Orphan agent containers steal IPC messages after gateway restart [marinade, 2026-03-20]
+
+**Evidence:** Three `nanoclaw-atlas-*` containers running simultaneously (22h and 24h old orphans + current). Message piped at 09:30 consumed by orphan; current container received SIGUSR1 but found empty input dir; user got no reply for 27 minutes.
+
+**Root cause:** IPC has no per-container ownership — all containers mount the same `data/ipc/<group>/input/` directory and any can consume files. On gateway restart, previously spawned agent containers become orphans (still running, still polling IPC). Gateway has no record of them and spawns a new container. Both old and new compete for input files.
+
+**Why orphans survive:** `systemd ExecStartPre` only stops/removes the gateway docker container, not agent containers. Agent containers are spawned with `--rm` but only exit on timeout or explicit kill. Gateway restart does not kill them.
+
+**Fix:** On gateway startup, kill all containers matching `nanoclaw-*` prefix before accepting new work. Or: store the container name in the queue state and kill it on restart. `src/index.ts` startup or `src/group-queue.ts` init.
