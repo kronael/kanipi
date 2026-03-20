@@ -7,13 +7,25 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [Unreleased]
+## [v1.0.2] — 2026-03-20
+
+### Added
+
+- **Skill `/recall-messages`**: v1 searches older chat messages via `get_history` IPC using an Explore subagent.
+- **Spec `get_history`**: IPC action spec for on-demand message history retrieval (`specs/1/O-get-history.md`).
 
 ### Changed
 
-- **Skill rename**: `/recall` → `/recall-memories` (migration 043). Searches knowledge stores (facts/, diary/, users/, episodes/).
-- **New skill**: `/recall-messages` — v1 searches older chat messages via `get_history` IPC using an Explore subagent. No CLI tooling required.
+- **Skill rename**: `/recall` → `/recall-memories` (migration 043).
 - **Agent self-exit**: container exits when IPC input is empty per L-chat-bound-sessions spec (previously polled forever).
+- **IPC message format**: gateway now writes `{ id, text, chatJid }` to input files per spec.
+
+### Fixed
+
+- **Telegram reply NaN (B1)**: `reply_parameters.message_id` guarded with `!isNaN()` — omitted if replyTo is non-numeric.
+- **Heartbeat typing indicator (B6)**: heartbeat (null result) now calls `startTyping()` instead of stopping the indicator and signalling idle.
+- **WhatsApp route JID (B4)**: `addRoute()` normalizes `whatsapp:` JIDs to include `@s.whatsapp.net` suffix.
+- **WhatsApp AwaitingInitialSync (B8)**: `shouldSyncHistoryMessage: () => false` added to `makeWASocket()` — eliminates the 20s sync wait on every connect.
 
 ---
 
