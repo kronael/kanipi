@@ -7,6 +7,18 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.5] — 2026-03-20
+
+### Added
+
+- **Output styles for all channels**: `whatsapp`, `web`, `twitter`, `bluesky`, `mastodon`, `reddit`, `facebook` — each documents exactly what markdown renders vs what breaks, derived from the actual gateway conversion code.
+
+### Fixed
+
+- **Improved telegram/discord/email style content**: telegram now explains that `_underscores_` in identifiers are dangerous (accidentally italicized by `mdToHtml`); whatsapp style accounts for `markdownToWhatsApp()` (only bold/strikethrough converted).
+
+---
+
 ## [v1.0.4] — 2026-03-20
 
 ### Fixed
