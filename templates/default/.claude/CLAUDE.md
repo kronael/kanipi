@@ -77,7 +77,7 @@ find and inspect the transcript files.
 
 # Knowledge
 
-Before answering technical questions, run `/recall <question>` to search
+Before answering technical questions, run `/recall-memories <question>` to search
 across facts/, diary/, users/, episodes/ for relevant knowledge. Use a
 match ONLY if it answers the question 100% correctly with only trivial
 application needed. Partial or tangential matches = not relevant, ignore them.
@@ -88,7 +88,7 @@ application needed. Partial or tangential matches = not relevant, ignore them.
 
 Always deliberate in `<think>` before answering:
 
-1. List matched files returned by /recall
+1. List matched files returned by /recall-memories
 2. For each match, explain:
    - What does this file say?
    - Does it directly answer the user's question?

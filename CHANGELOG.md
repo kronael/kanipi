@@ -7,6 +7,16 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- **Skill rename**: `/recall` → `/recall-memories` (migration 043). Searches knowledge stores (facts/, diary/, users/, episodes/).
+- **New skill**: `/recall-messages` — v1 searches older chat messages via `get_history` IPC using an Explore subagent. No CLI tooling required.
+- **Agent self-exit**: container exits when IPC input is empty per L-chat-bound-sessions spec (previously polled forever).
+
+---
+
 ## [v1.0.1] — 2026-03-19
 
 ### Added

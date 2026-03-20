@@ -2,7 +2,11 @@
 status: shipped
 ---
 
-# `/recall` — Knowledge Retrieval
+# `/recall-memories` — Knowledge Retrieval
+
+> **Renamed**: `/recall` → `/recall-memories` (2026-03-20). Skill directory
+> renamed to `skills/recall-memories/`. See also `/recall-messages` (new,
+> v1 spec: Explore subagent over `get_history` IPC output).
 
 Generic search across knowledge stores. Read-only — never writes.
 All stores use `summary:` frontmatter, so recall treats them

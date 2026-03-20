@@ -67,7 +67,7 @@ How the assistant remembers and learns:
 - **Episodes** — compressed session transcripts. Daily/weekly/monthly summaries
   in `episodes/`. Created by `/compact-memories` cron tasks.
 - **Diary summaries** — weekly/monthly compressed diary in `diary/week/`, `diary/month/`.
-- **Recall** — `/recall <question>` searches across all stores by `summary:` frontmatter.
+- **Recall** — `/recall-memories <question>` searches knowledge stores by `summary:` frontmatter.
 
 ### 3. Building Web Apps
 

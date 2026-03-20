@@ -1,11 +1,11 @@
 ---
-name: recall
+name: recall-memories
 description: Search knowledge stores for relevant information.
 user_invocable: true
 arg: <question>
 ---
 
-# Recall
+# Recall Memories
 
 Search `facts/`, `diary/`, `users/`, `episodes/` for information
 relevant to a question. Read-only — never writes files.
