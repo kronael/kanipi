@@ -119,7 +119,7 @@ function taskAction(
       const { taskId } = TaskIdInput.parse(raw);
       if (ctx.tier >= 3) throw new Error('unauthorized');
       const task = getTaskById(taskId);
-      if (!task) throw new Error('unauthorized');
+      if (!task) throw new Error('not found');
       if (ctx.tier === 2 && task.group_folder !== ctx.sourceGroup) {
         throw new Error('unauthorized');
       }

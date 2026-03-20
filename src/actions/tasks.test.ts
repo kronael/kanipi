@@ -255,7 +255,7 @@ describe('pause_task / resume_task / cancel_task', () => {
   it('rejects nonexistent task', async () => {
     await expect(
       pauseTask.handler({ taskId: 'nope' }, makeCtx()),
-    ).rejects.toThrow('unauthorized');
+    ).rejects.toThrow('not found');
   });
 
   it('tier 2 can pause own group task', async () => {
