@@ -75,4 +75,4 @@ Gateway determines new vs resume by stored `session_id`.
 
 - `reply_to` not emitted (see `channels.md`)
 - No compaction on `messages` table
-- `get_history` IPC for on-demand lookups
+- `get_history` IPC for on-demand lookups — see O-get-history.md
