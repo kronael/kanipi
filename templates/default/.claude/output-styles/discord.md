@@ -1,5 +1,5 @@
 ---
-name: Discord
+name: discord
 description: Markdown-friendly responses for Discord
 keep-coding-instructions: true
 ---

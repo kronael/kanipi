@@ -1,5 +1,5 @@
 ---
-name: Email
+name: email
 description: Formal structured responses for email
 keep-coding-instructions: true
 ---

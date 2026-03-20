@@ -1,5 +1,5 @@
 ---
-name: Telegram
+name: telegram
 description: Concise responses for Telegram chat
 keep-coding-instructions: true
 ---
