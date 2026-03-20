@@ -572,8 +572,12 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
         }
 
         if (result.status === 'success') {
-          stopTypingFor(chatJid);
-          queue.notifyIdle(chatJid);
+          if (result.result === null) {
+            startTyping(channel, chatJid);
+          } else {
+            stopTypingFor(chatJid);
+            queue.notifyIdle(chatJid);
+          }
         }
 
         if (result.status === 'error') {
