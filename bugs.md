@@ -1,6 +1,6 @@
 # Bugs
 
-Observed issues from log/conversation audit 2026-03-19. Review and fix.
+Observed issues from log/conversation audit 2026-03-19/20. Review and fix.
 
 ---
 
@@ -8,69 +8,81 @@ Observed issues from log/conversation audit 2026-03-19. Review and fix.
 
 **Evidence:** `GrammyError: Call to 'sendMessage' failed! (400: Bad Request: field "message_id" must be a Number)`
 **Context:** After HTML parse failure retried as plain text, the reply parameter failed.
-**Root cause:** Possibly `opts.replyTo` was a non-numeric string. After the `lastSentId` chain-reply fix (3af6231), the triggering user message ID is always used — this is a valid numeric string for Telegram. May be self-healed. Monitor.
-**Fix:** Add guard: `Number(opts.replyTo)` is `NaN` → omit `reply_parameters` entirely rather than sending NaN.
-**File:** `src/channels/telegram.ts`
+**Root cause:** `opts.replyTo` not validated before `Number()` conversion. Non-numeric string → NaN. After the `lastSentId` chain-reply fix (3af6231), the triggering user message ID is always used — likely a valid numeric string now. Monitor.
+**Fix:** `src/channels/telegram.ts:428` — guard: if `Number(opts.replyTo)` is NaN, omit `reply_parameters` entirely.
 
 ---
 
-## B2 — Container killed with code 137 at startup (atlas/tom, 11:45) [marinade]
+## B2 — Container killed with code 137 at startup [marinade]
 
-**Evidence:** `Container exited with error: code 137 — [agent-runner] Received input for group: atlas/tom — Starting query (session: new, resumeAt: latest)...`
-**Context:** Container spawned, logged startup, then immediately SIGKILL'd before producing any output. Session evicted as corrupted.
-**Root cause:** Unknown — OOM, or killed by a concurrent gateway restart. The session was evicted so user would need to retry.
-**Fix:** Log available memory at container spawn. Alert if containers are killed before producing output (not just idle cleanup). Distinguish OOM (code 137 with no output) from idle cleanup (code 137 after output).
-**File:** `src/container-runner.ts`
+**Evidence:** `Container exited with error: code 137` — agent-runner logged startup, then SIGKILL'd with no output in ~14s.
+**Context:** Container spawned, initialized session, then immediately killed before producing any output. Session evicted.
+**Root cause:** OOM or concurrent gateway restart. No distinction made between OOM kill (code 137, no output, short duration) and idle cleanup (code 137, had output).
+**Fix:** `src/container-runner.ts:855-910` — detect OOM: code 137 + `hadStreamingOutput = false` + duration < 30s → log as OOM, not generic error. Log available memory at spawn.
 
 ---
 
 ## B3 — Vite PostCSS errors: missing reveal.js font file [marinade, 12:31]
 
 **Evidence:** `[postcss] ENOENT: no such file or directory, open './fonts/source-sans-pro/source-sans-pro.css'`
-**Context:** Virtual-validator presentation has a local `reveal/` directory from a temporary CDN-bypass experiment. The directory is incomplete (missing font files). Vite tries to compile it via PostCSS and fails.
-**Fix:** Remove the incomplete `reveal/` directory from `/srv/data/kanipi_marinade/web/atlas/virtual-validator/`. Presentation uses CDN.
-**File:** `/srv/data/kanipi_marinade/web/atlas/virtual-validator/reveal/` (data, not code)
+**Context:** Virtual-validator presentation has a local `reveal/` directory missing font files. Vite tries to compile it via PostCSS and fails. Presentation uses CDN.
+**Fix:** Remove `/srv/data/kanipi_marinade/web/atlas/virtual-validator/reveal/` (data, not code).
 
 ---
 
 ## B4 — WhatsApp route JID without domain suffix [rhias, pre-fix]
 
 **Evidence:** Messages stored with `group_folder = ''` — route `whatsapp:420775035931` never matched `whatsapp:420775035931@s.whatsapp.net`.
-**Status:** Fixed in DB (route updated to full JID). But new routes created via CLI may have same issue.
-**Fix:** Normalize JID at route creation time — strip or add `@s.whatsapp.net` consistently. Check `group route add` CLI command.
-**File:** `src/cli.ts` (route add), `src/channels/whatsapp.ts` (JID normalization)
+**Status:** Fixed in DB (route updated to full JID). New routes via CLI may have same issue.
+**Fix:** `src/actions/groups.ts:262` — normalize JID before calling `addRoute()`. Incoming WA messages always have `@s.whatsapp.net` suffix (set at `src/channels/whatsapp.ts:209`).
 
 ---
 
-## B5 — "you never responded" — user confusion during long 110-min container runs [marinade]
+## B5 — User sees silence during long container runs [marinade]
 
-**Evidence:** Messages: `"you never responded to me with anything."`, `"are you not responding like every?"`, `"wgat?"`, `"what?"` — all while Atlas container was running for 6605s.
-**Context:** Container was running (no timeout), but user got no feedback for ~90 min. The 30s heartbeat (fdbac9f) prevents _gateway_ timeout but the user still sees silence.
-**Fix:** Consider sending a user-visible `<status>` message at intervals (e.g. every 5 min) when the container is actively running but producing no output. Already possible via `<status>` IPC type — the agent would need to emit these.
-**File:** Agent CLAUDE.md / container/agent-runner pattern
-
----
-
-## B6 — No typing indicator during heartbeats [all channels]
-
-**Related to B5.** The heartbeat emits a null result to reset gateway idle timer, but `stopTypingFor` is only called on `status: 'success'`. During long runs, typing indicator may expire (Telegram auto-expires after ~5s) and never restart.
-**Fix:** In the heartbeat path, call `startTyping` again to refresh the indicator.
-**File:** `src/index.ts` (onOutput callback), `container/agent-runner/src/index.ts`
+**Evidence:** `"you never responded to me with anything."` — all while Atlas container was running for 6605s.
+**Context:** Heartbeat (agent-runner/src/index.ts:314) keeps gateway alive every 30s but is `result: null` — no user-visible output. User sees nothing for 90+ min.
+**Fix:** Agent should emit `<status>` IPC blocks periodically (e.g. every 5 min) during long tool-heavy tasks. Update agent CLAUDE.md/skills to prompt this behavior.
 
 ---
 
-## B7 — `last_agent_timestamp` not updated when route fix requires timestamp rollback [rhias]
+## B6 — Heartbeat stops typing indicator and signals idle [all channels] ⚠️
 
-**Context:** When a route bug caused messages to be unrouted, fixing the route required manually rolling back `router_state.last_timestamp` and `last_agent_timestamp`. If this happens again (e.g. new group added with wrong JID format), there's no tooling to replay missed messages.
-**Fix:** Add a `kanipi replay-messages --jid <jid> --since <timestamp>` CLI command that sets the per-JID agent timestamp back and triggers reprocessing.
-**File:** `src/cli.ts`
+**Root cause confirmed:** `src/index.ts:545-582` — heartbeat arrives as `{ status: 'success', result: null }`. The onOutput callback:
+
+1. `if (result.result)` → false, no message sent ✓
+2. `if (result.status === 'success')` → **true** → calls `stopTypingFor(chatJid)` and `queue.notifyIdle()` ✗
+
+This means every 30s heartbeat **stops the typing indicator** and marks the agent as idle. The typing indicator is not restarted until the next real output arrives (too late — it expired).
+**Fix:** `src/index.ts:574` — differentiate heartbeat (null result) from completion. Only call `stopTypingFor`/`notifyIdle` when `result.result !== null` OR when container exits. On heartbeat, call `startTyping()` instead.
+
+---
+
+## B7 — No CLI tooling to replay missed messages [rhias]
+
+**Context:** Route fix required manual DB rollback of `router_state` + `last_agent_timestamp`. No CLI command for this.
+**Fix:** `src/cli.ts` — add `kanipi config <instance> route replay <jid> [--since <timestamp>]` command that resets per-JID agent timestamp to trigger reprocessing.
 
 ---
 
 ## B8 — WhatsApp `AwaitingInitialSync` timeout loop on every restart [rhias]
 
-**Evidence:** Every restart shows: `History sync is enabled, awaiting notification with a 20s timeout.` then `Timeout in AwaitingInitialSync, forcing state to Online and flushing buffer`
-**Context:** WhatsApp Baileys enters a 20s sync wait on connect. The notification never arrives (WA Web sessions have degraded history sync). Service is forced Online but this may leave message state inconsistent.
-**Impact:** All rhias restarts (5 today) go through this degraded path. Unclear if messages received during the 20s window are buffered correctly.
-**Fix:** Either increase the timeout to 60s, or explicitly handle the forced-Online case by flushing the buffer and confirming no messages are dropped. Investigate whether WA multi-device history sync is expected to work on this account.
-**File:** `src/channels/whatsapp.ts` (Baileys config, `syncTimeout` option)
+**Evidence:** Every connect: `awaiting notification with a 20s timeout.` then `Timeout in AwaitingInitialSync, forcing state to Online`
+**Root cause:** `src/channels/whatsapp.ts:105-114` — `makeWASocket()` called without `syncTimeout` option. Baileys waits indefinitely for history sync notification that never arrives (degraded WA Web session).
+**Fix:** Add `syncTimeout: 20000` to `makeWASocket()` options (already using the 20s behavior — just make explicit). Investigate whether incoming messages during the sync window are buffered — the `shouldReconnect: true` path flushes `outgoingQueue` but incoming message buffering is unclear.
+
+---
+
+## B9 — Vite stdout leaks into gateway journalctl [marinade] (found 2026-03-20)
+
+**Evidence:** `7:37:47 AM [vite] (client) page reload atlas/virtual-validator/test-specs.html` appears in gateway systemd journal.
+**Root cause:** `src/cli.ts:927` — Vite spawned with `stdio: 'inherit'`. All Vite HMR output (page reloads, build errors, PostCSS warnings) flows to gateway stdout → systemd journal → pollutes operational logs.
+**Fix:** Change `stdio: 'inherit'` to `stdio: 'ignore'` (or pipe to a dedicated log file like `groups/<folder>/logs/vite.log`).
+
+---
+
+## B10 — WhatsApp 503 stream errors create ~22s message gap [rhias] (found 2026-03-20)
+
+**Evidence:** 4 × `stream:error code 503` overnight (21:21, 00:37, 01:32, 01:50). Each triggers reconnect + B8 AwaitingInitialSync 20s delay.
+**Root cause:** `src/channels/whatsapp.ts:129-196` — on `connection === 'close'`, calls `scheduleReconnect(1)` (2s delay). After reconnect, enters AwaitingInitialSync (20s). Total gap per event: ~22s where incoming messages are not received. No message replay after reconnect.
+**Fix:** After `connection === 'open'` handler, request message history for the gap window. Or track last-received-message timestamp and use Baileys history sync to recover. Short-term: confirm `shouldReconnect: true` path doesn't drop buffered incoming messages.
