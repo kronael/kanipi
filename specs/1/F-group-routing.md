@@ -28,7 +28,7 @@ CREATE TABLE routes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   jid TEXT NOT NULL,         -- which JID this rule applies to
   seq INTEGER NOT NULL,      -- evaluation order (lower first)
-  type TEXT NOT NULL,        -- command/verb/pattern/keyword/sender/default
+  type TEXT NOT NULL,        -- command/prefix/verb/pattern/keyword/sender/default
   match TEXT,                -- trigger/pattern/keyword/verb value
   target TEXT NOT NULL,      -- destination folder
   command TEXT               -- optional shell command override
@@ -44,6 +44,7 @@ Message arrives on JID:
 1. Select all routes for that JID, ordered by `seq`
 2. Scan rules, first match wins:
    - `command` — message equals `match` or starts with `match` + space
+   - `prefix` — message starts with `match` (no space required)
    - `verb` — message verb equals `match`
    - `pattern` — regex `match` against message text
    - `keyword` — case-insensitive substring

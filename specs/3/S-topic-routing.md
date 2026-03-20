@@ -10,31 +10,35 @@ for tiers 0-2. Tier 3 must add them explicitly.
 
 ## Routing symbols
 
-Two message prefixes handled as route table entries:
+Two message symbols handled implicitly for tier 0-2 groups:
 
 ### @agent — route to subgroup
 
-`@support hello` routes to `<parent>/support` (child group).
-The prefix is stripped before the agent sees the message.
+`@support hello` or `hey @support can you help?` routes to
+`<parent>/support` (child group). The `@name` token is stripped
+before the agent sees the message. The symbol can appear anywhere
+in the message — the first `@word` match wins.
 
-- Route type: `prefix`, match: `@` (matches any `@<name>` prefix)
-- Resolves target: `<parent>/<name>`
+- Detection: `/@\w/.test(content)` — anywhere in message
+- Resolves target: `<parent>/<name>` (parent = group's own folder)
 - Child must exist in groups table for delegation to succeed
-- Message delivered via `delegateToChild` with stripped text
-- If child doesn't exist: delegation fails, logged, no response
+- Message delivered via `delegateToChild` with `@name` token stripped
+- If child doesn't exist: falls through to normal self-processing
 
 ### #topic — route to named session
 
-`#deploy let's review` routes to session "deploy" within
-the same group. Same agent, same folder, different session.
+`#deploy let's review` or `working on #billing — status?` routes
+to session "deploy"/"billing" within the same group. Same agent,
+same folder, different session. The `#name` token can appear
+anywhere in the message — first match wins.
 
-- Route type: `prefix`, match: `#` (matches any `#<name>` prefix)
+- Detection: `/#\w/.test(content)` — anywhere in message
 - Target: same group folder (self-route with topic context)
 - Creates or resumes a named session keyed by `(group_folder, topic)`
 - Same container config, CLAUDE.md, skills
 - Agent sees only messages from that topic's session history
-- The `#` prefix is consumed — agent sees "let's review"
-- No prefix = default session (topic = '')
+- The `#name` token is stripped — agent sees the rest of the message
+- No `#name` in message = default session (topic = '')
 
 ### Difference
 
@@ -48,8 +52,8 @@ the same group. Same agent, same folder, different session.
 
 ## Predefined routes on group creation
 
-When `registerGroup` creates a group, it already inserts a
-default route. For tiers 0-2, also insert `@` and `#` routes:
+When `registerGroup` creates a group, it inserts a default route
+plus `@` and `#` prefix routes for tiers 0-2:
 
 ```typescript
 // In registerGroup(), after addRoute(jid, { seq:0, type:'default', ... })
@@ -59,8 +63,13 @@ if (permissionTier(group.folder) <= 2) {
 }
 ```
 
-Negative seq values ensure `@` and `#` are evaluated before
-all user-defined routes (which start at seq 0).
+Negative seq values ensure `@` and `#` are evaluated before the
+default route (seq 0) and all user-defined routes (seq ≥ 0).
+
+**Note:** detection of `@`/`#` uses content matching (`/@\w/`,
+`/#\w/`), not `resolved.match`, because default route (seq 0) would
+otherwise shadow the prefix routes in the first-match resolution.
+The route table entries exist for visibility and future tooling.
 
 | Tier | @agent route | #topic route | Notes                          |
 | ---- | ------------ | ------------ | ------------------------------ |
@@ -80,66 +89,52 @@ Message arrives on JID:
 
 ```
 1. Gateway commands (/new, /stop, /ping, /status, etc.)
-2. Route table scan (seq-ordered, first match wins)
-   seq -2: @ prefix, type 'prefix' (predefined for tiers 0-2)
-   seq -1: # prefix, type 'prefix' (predefined for tiers 0-2)
+2. @agent / #topic content check (anywhere in message)
+3. Route table scan (seq-ordered, first match wins)
+   seq -2: @ prefix (predefined for tiers 0-2)
+   seq -1: # prefix (predefined for tiers 0-2)
    seq  0: default route
    seq  N: user-defined routes
 ```
 
-`@` and `#` are regular route entries resolved by
-`resolveRoute` in router.ts. The gateway handles the
-matched route differently based on whether the resolved
-route's `match` value is `@` or `#`.
+`@` and `#` are detected via content regex before route delegation.
+The route table entries (seq -2/-1) exist for visibility and
+tooling but detection does not rely on `resolved.match`.
 
-## Route matching for @ and
+## Detection and parsing
 
-**Important:** the existing `command` route type matches via
-`text === match || text.startsWith(match + ' ')`. For `@` and
-`#` routes, this means match=`@` would only match messages
-that are exactly `@` or start with `@ ` (space after `@`).
-This does NOT match `@support hello`.
-
-Two approaches:
-
-**Option A — New route type `prefix`**: matches
-`text.startsWith(match)` without requiring a space. Route
-entries use `type: 'prefix'` instead of `command`.
-
-**Option B — Change match to empty + custom matcher**: the
-`@` and `#` routes use a dedicated check in `routeMatches`
-that does `text.startsWith('@')` / `text.startsWith('#')`.
-
-**Chosen: Option A.** Add `prefix` to the Route type union.
-`routeMatches` gains a case that returns
-`text.startsWith(r.match)`. This keeps the route table clean
-and doesn't special-case `@`/`#` in the matcher.
+`@` and `#` symbols are detected via content regex anywhere in the
+message, then parsed to extract the name and stripped message:
 
 ```typescript
-// router.ts — new case in routeMatches
-case 'prefix':
-  return !!(r.match && msg.content.trim().startsWith(r.match));
-```
+// @agent detection — index.ts
+if (/@\w/.test(lastMsg.content)) {
+  const m = lastMsg.content.match(/@(\w[\w-]*)/);
+  if (m) {
+    const childFolder = `${group.folder}/${m[1]}`;
+    const stripped = lastMsg.content.replace(/@\w[\w-]*/, '').trim();
+    // delegate to child if exists
+  }
+}
 
-Route entries become:
-
-```typescript
-addRoute(jid, { seq: -2, type: 'prefix', match: '@', target: group.folder });
-addRoute(jid, { seq: -1, type: 'prefix', match: '#', target: group.folder });
-```
-
-After match, the caller parses the full prefix:
-
-```typescript
-function parsePrefix(text: string): { name: string; rest: string } | null {
-  const m = text.match(/^[@#](\w[\w-]*)(?:\s+([\s\S]+))?$/);
-  if (!m) return null;
-  return { name: m[1], rest: (m[2] ?? '').trim() };
+// #topic detection — index.ts
+if (/#\w/.test(lastMsg.content)) {
+  const m = lastMsg.content.match(/#(\w[\w-]*)/);
+  if (m) {
+    const topicName = m[1];
+    const stripped = lastMsg.content.replace(/#\w[\w-]*/, '').trim();
+    // run agent with topic session
+  }
 }
 ```
 
-Note: the regex allows bare `@agent` or `#topic` with no
-trailing message. In that case, `rest` is empty string.
+First match wins. Bare `@agent` or `#topic` with no other text
+produces an empty stripped string.
+
+The `prefix` route type in `routeMatches` uses `startsWith` for
+user-defined prefix routes (e.g. routing `/code` prefix to a code
+group). The `@`/`#` implicit detection above is separate from this
+and runs in the message loop before route delegation.
 
 ## @agent resolution
 
@@ -326,17 +321,18 @@ inspects `resolved.match` to detect `@`/`#` prefix routes.
 
 ## Implementation changes
 
-| File            | Change                                                      |
-| --------------- | ----------------------------------------------------------- |
-| `src/types.ts`  | `Route.type`: add `'prefix'` to union                       |
-| `src/router.ts` | `routeMatches`: add `prefix` type case                      |
-| `src/router.ts` | `ResolvedRoute`: add `match` field, return from resolve     |
-| `src/index.ts`  | `registerGroup`: insert @ and # routes for tiers 0-2        |
-| `src/index.ts`  | `processGroupMessages`: handle @ and # via `resolved.match` |
-| `src/db.ts`     | `getSession`/`setSession`/`deleteSession`: add topic param  |
-| `src/cli.ts`    | CLI `group add`: insert @ and # for tiers 0-2               |
-| migration 0013  | sessions table: add topic column, change PK                 |
-| migration 0013  | messages table: add topic column                            |
+| File            | Change                                                          |
+| --------------- | --------------------------------------------------------------- |
+| `src/types.ts`  | `Route.type`: add `'prefix'` to union                           |
+| `src/router.ts` | `routeMatches`: add `prefix` type case (`startsWith`)           |
+| `src/router.ts` | `ResolvedRoute`: add `match` field, return from resolve         |
+| `src/index.ts`  | `registerGroup`: insert @ (seq -2) and # (seq -1) for tiers 0-2 |
+| `src/index.ts`  | message loop: detect `@`/`#` via content regex anywhere in msg  |
+| `src/db.ts`     | `getSession`/`setSession`/`deleteSession`: add topic param      |
+| `src/cli.ts`    | CLI `group add`: insert @ and # for tiers 0-2                   |
+| migration 0014  | sessions table: add topic column, change PK                     |
+| migration 0014  | messages table: add topic column                                |
+| migration 0016  | fix @ and # route seq values (9998/9999 → -2/-1)                |
 
 ## Interaction with per-sender batching (R-reply-routing)
 

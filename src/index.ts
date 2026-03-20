@@ -301,7 +301,7 @@ function registerGroup(jid: string, group: GroupConfig): void {
     const existing = getRoutesForJid(jid).map((r) => r.match);
     if (!existing.includes('@')) {
       addRoute(jid, {
-        seq: 9998,
+        seq: -2,
         type: 'prefix',
         match: '@',
         target: group.folder,
@@ -309,7 +309,7 @@ function registerGroup(jid: string, group: GroupConfig): void {
     }
     if (!existing.includes('#')) {
       addRoute(jid, {
-        seq: 9999,
+        seq: -1,
         type: 'prefix',
         match: '#',
         target: group.folder,
@@ -1128,18 +1128,16 @@ async function startMessageLoop(): Promise<void> {
               continue;
             }
 
-            // Handle @agent and #topic prefix routing.
-            // Note: @ and # prefix routes have higher seq than the default
-            // route, so resolved.match is never '@'/'#' — check content directly.
-            if (lastMsg.content.trim().startsWith('@')) {
-              const m = lastMsg.content
-                .trim()
-                .match(/^@(\w[\w-]*)(?:\s+([\s\S]*))?$/);
+            // Handle @agent and #topic routing — match anywhere in message.
+            if (/@\w/.test(lastMsg.content)) {
+              const m = lastMsg.content.match(/@(\w[\w-]*)/);
               if (m) {
                 const childFolder = `${resolved?.target ?? group.folder}/${m[1]}`;
                 const childGroup = groups[childFolder];
                 if (childGroup) {
-                  const stripped = (m[2] ?? '').trim();
+                  const stripped = lastMsg.content
+                    .replace(/@\w[\w-]*/, '')
+                    .trim();
                   lastAgentTimestamp[chatJid] = lastMsg.timestamp;
                   saveState();
                   await waitForEnrichments(
@@ -1168,13 +1166,13 @@ async function startMessageLoop(): Promise<void> {
               // unparseable @prefix or missing child — fall through
             }
 
-            if (lastMsg.content.trim().startsWith('#')) {
-              const m = lastMsg.content
-                .trim()
-                .match(/^#(\w[\w-]*)(?:\s+([\s\S]*))?$/);
+            if (/#\w/.test(lastMsg.content)) {
+              const m = lastMsg.content.match(/#(\w[\w-]*)/);
               if (m) {
                 const topicName = m[1];
-                const stripped = (m[2] ?? '').trim();
+                const stripped = lastMsg.content
+                  .replace(/#\w[\w-]*/, '')
+                  .trim();
                 setMessageTopic(lastMsg.id, topicName);
                 lastAgentTimestamp[chatJid] = lastMsg.timestamp;
                 saveState();
