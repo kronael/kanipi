@@ -7,6 +7,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.3] — 2026-03-20
+
+### Fixed
+
+- **Task not found error**: cancelling/pausing a non-existent task now returns `"not found"` instead of `"unauthorized"`, so agents can distinguish missing tasks from permission errors.
+
+---
+
 ## [v1.0.2] — 2026-03-20
 
 ### Added
