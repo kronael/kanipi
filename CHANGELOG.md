@@ -7,6 +7,16 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.6] — 2026-03-20
+
+### Fixed
+
+- **Reply threading**: multi-part agent responses now chain correctly — each reply threads off the previous bot message instead of all replying to the original user message. `lastSentId` was not updated after each send in the main agent callback.
+- **@agent / #topic routing**: detection now checks message content directly (`/@\w/`, `/#\w/`) so symbols anywhere in the message trigger routing. Previously broken because the default route (seq 0) always resolved before the prefix routes (seq 9998/9999), so `resolved.match` was never `'@'` or `'#'`.
+- **Route seq ordering**: `@` and `#` auto-routes now registered at seq -2/-1 (before default at seq 0). Migration 0016 fixes existing DBs.
+
+---
+
 ## [v1.0.5] — 2026-03-20
 
 ### Added
