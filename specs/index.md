@@ -96,12 +96,15 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | Z-audit-log             | Outbound message recording in messages table                         | shipped |
 | S-topic-routing         | @agent/#topic prefix routes, named sessions, new `prefix` route type | shipped |
 
-## Phase 4 — Shipped before end state
+## Phase 4 — Active specs
 
-| Spec           | Topic                              | Status  |
-| -------------- | ---------------------------------- | ------- |
-| X-onboarding   | Unrouted JID → approve → world     | shipped |
-| Y-control-chat | Gateway ↔ operator command channel | shipped |
+| Spec                  | Topic                              | Status   |
+| --------------------- | ---------------------------------- | -------- |
+| K-versioning-personas | Composable personas via templates  | spec     |
+| R-evangelist          | Community engagement agent         | →arizuko |
+| W-detached-containers | File-based container IPC, reclaim  | →arizuko |
+| X-onboarding          | Unrouted JID → approve → world     | shipped  |
+| Y-control-chat        | Gateway ↔ operator command channel | shipped  |
 
 ## Phase 5 — End state
 
