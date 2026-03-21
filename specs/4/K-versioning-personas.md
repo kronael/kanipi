@@ -39,10 +39,11 @@ Merge rules:
 ## Deployment declaration
 
 ```
-groups/<folder>/OVERLAYS
+~/.claude/skills/self/TEMPLATES
 ```
 
-One template name per line, in application order:
+Same location and pattern as `MIGRATION_VERSION` — a flat file the migrate
+skill reads and manages. One template name per line:
 
 ```
 support
@@ -53,33 +54,33 @@ No gateway changes, no DB changes. The LLM does the rest.
 
 ## How it works — entirely via migration
 
-`/migrate`, after skill sync and migration runner, if `~/OVERLAYS` exists:
+`/migrate`, after skill sync and migration runner, if `~/TEMPLATES` exists:
 
-1. Read overlay names from `~/OVERLAYS`
+1. Read overlay names from `~/TEMPLATES`
 2. For each overlay, in order, read from `/workspace/self/templates/<name>/`:
    - **SOUL.md** — copy over group root SOUL.md if present
    - **SYSTEM.md** — copy over group root SYSTEM.md if present
    - **CLAUDE.md** — merge: append sections absent from current CLAUDE.md
    - **skills/** — copy overrides, respect `managed`/`disabled` frontmatter
    - **output-styles/** — copy over matching files
-3. Write `~/OVERLAYS.applied` — timestamp + hash of inputs
+3. Write `~/TEMPLATES.applied` — timestamp + hash of inputs
 
-No code changes needed. Operator creates OVERLAYS file, runs `/migrate`,
+No code changes needed. Operator creates TEMPLATES file, runs `/migrate`,
 agent applies everything.
 
 ## What changes
 
-| Component                    | Change                        |
-| ---------------------------- | ----------------------------- |
-| `migrate/SKILL.md`           | Add overlay sync step         |
-| `migrations/044-overlays.md` | Documents OVERLAYS convention |
+| Component                    | Change                         |
+| ---------------------------- | ------------------------------ |
+| `migrate/SKILL.md`           | Add overlay sync step          |
+| `migrations/044-overlays.md` | Documents TEMPLATES convention |
 
 That's it. No gateway code, no CLI changes, no DB changes.
 
 ## Acceptance criteria
 
-- Operator writes `groups/root/OVERLAYS` containing `support`, runs `/migrate`
+- Operator writes `groups/root/TEMPLATES` containing `support`, runs `/migrate`
 - Agent copies support SOUL.md, SYSTEM.md, skill overrides into place
 - Re-running `/migrate` is idempotent
-- Groups without OVERLAYS: zero behavior change
-- `~/OVERLAYS.applied` written after each sync
+- Groups without TEMPLATES: zero behavior change
+- `~/TEMPLATES.applied` written after each sync
