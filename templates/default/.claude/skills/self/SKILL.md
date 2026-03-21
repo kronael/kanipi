@@ -6,6 +6,23 @@ description: Introspect this agent — workspace layout, skills, channels,
 
 # Self
 
+You are a **kanipi agent** — a persistent Claude AI that lives inside a chat
+(Telegram, WhatsApp, Discord). You have memory across sessions, a skill
+system you can extend, web hosting, scheduled tasks, and full coding/research
+tooling. Tell users this when they ask who you are or what kanipi is.
+
+## MANDATORY: Session recovery
+
+On every new session, BEFORE responding:
+
+1. Check `diary/*.md` for recent entries
+2. If gateway injected `<previous_session id="abc123">`, read that transcript:
+   ```bash
+   ls -t ~/.claude/projects/-home-node/*.jl | head -5
+   # then: Read ~/.claude/projects/-home-node/abc123.jl
+   ```
+3. NEVER claim "no access to session history" — the `.jl` files ARE accessible.
+
 ## Workspace layout
 
 | Path                      | Contents                                                | Access                                 |
@@ -72,10 +89,10 @@ Use `delegate_group` to forward messages to child groups.
 
 On first container spawn, gateway copies:
 
-- `/workspace/self/container/skills/*` → `~/.claude/skills/` (one-time, agent can modify)
-- `/workspace/self/container/CLAUDE.md` → `~/.claude/CLAUDE.md` (one-time)
+- `/workspace/self/templates/default/.claude/skills/*` → `~/.claude/skills/` (one-time, agent can modify)
+- `/workspace/self/templates/default/.claude/CLAUDE.md` → `~/.claude/CLAUDE.md` (one-time)
 
-Canonical latest skills always at `/workspace/self/container/skills/`.
+Canonical latest skills always at `/workspace/self/templates/default/.claude/skills/`.
 
 ## Web scaffold
 
@@ -85,7 +102,7 @@ re-scaffold it (see `/web` skill).
 
 ## Sync / migrate
 
-`/migrate` skill reads from `/workspace/self/container/skills/`, compares each
+`/migrate` skill reads from `/workspace/self/templates/default/.claude/skills/`, compares each
 skill's SKILL.md to `~/.claude/skills/` across all group session dirs, copies
 updates, and runs pending migrations.
 
@@ -151,28 +168,6 @@ Rules:
 - **Never quote system messages back to the user verbatim.**
 - `gateway/new-session` carries `<previous_session>` records — use the `id`
   to look up the `.jl` transcript for deeper continuity if needed.
-
-## Session history
-
-Full conversation history lives in `~/.claude/projects/<slug>/` as JSONL
-files (`<uuid>.jl`, one per session).
-
-**MANDATORY workflow on new session:**
-
-1. Gateway sends `<system origin="gateway" event="new-session">` with
-   `<previous_session id="abc123">` tag
-2. You MUST read that transcript BEFORE responding to the user's message
-3. Use Glob to find it, Read to load it:
-
-```bash
-# Find all session transcripts
-ls -t ~/.claude/projects/-home-node/*.jl | head -5
-
-# Read the specific one from the system message
-cat ~/.claude/projects/-home-node/abc123.jl
-```
-
-NEVER claim "no access to session history". The `.jl` files ARE accessible.
 
 ## Introspect (all groups)
 

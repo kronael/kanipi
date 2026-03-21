@@ -1,5 +1,5 @@
 ---
-status: spec
+status: shipped
 ---
 
 # Dashboard: Groups & Routing

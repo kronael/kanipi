@@ -86,14 +86,14 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | _(4/B)_ B-memory-episodic | Progressive compression (episodes + diary)                           | shipped |
 | _(4/4)_ 4-dashboards      | Dashboard portal system (tile-based, registration)                   | shipped |
 | _(4/P)_ P-dash-status     | Dashboard: status & health (expanded, errors)                        | shipped |
-| _(4/S)_ S-dash-tasks      | Dashboard: scheduled tasks & run history                             | spec    |
-| _(4/Q)_ Q-dash-memory     | Dashboard: memory & knowledge browser (read-only)                    | spec    |
-| _(4/T)_ T-dash-activity   | Dashboard: messages & activity flow                                  | spec    |
-| _(4/U)_ U-dash-groups     | Dashboard: groups, routing, world structure                          | spec    |
+| _(4/S)_ S-dash-tasks      | Dashboard: scheduled tasks & run history                             | shipped |
+| _(4/Q)_ Q-dash-memory     | Dashboard: memory & knowledge browser (read-only)                    | shipped |
+| _(4/T)_ T-dash-activity   | Dashboard: messages & activity flow                                  | shipped |
+| _(4/U)_ U-dash-groups     | Dashboard: groups, routing, world structure                          | shipped |
 | _(4/V)_ V-action-grants   | Token-based action permissions, delegation scoping                   | shipped |
 | _(impl)_ SYSTEM.md        | Custom system prompt override (agent-runner)                         | shipped |
 | _(4/Z)_ Z-audit-log       | Outbound message recording in messages table                         | shipped |
-| _(5/K)_ S-topic-routing   | @agent/#topic prefix routes, named sessions, new `prefix` route type | spec    |
+| _(5/K)_ S-topic-routing   | @agent/#topic prefix routes, named sessions, new `prefix` route type | shipped |
 
 ## Phase 4 — Arizuko (deferred)
 
@@ -108,8 +108,8 @@ Requires new instance or major architectural changes.
 | R-evangelist          | Community engagement agent         | arizuko                                         |
 | K-versioning-personas | Versioning model, persona plugins  | open                                            |
 | W-detached-containers | File-based container IPC, reclaim  | arizuko (spec)                                  |
-| X-onboarding          | Unrouted JID → approve → world     | spec                                            |
-| Y-control-chat        | Gateway ↔ operator command channel | spec                                            |
+| X-onboarding          | Unrouted JID → approve → world     | shipped                                         |
+| Y-control-chat        | Gateway ↔ operator command channel | shipped                                         |
 
 ## Phase 5 — Agent Extensions & Workflows (future)
 
