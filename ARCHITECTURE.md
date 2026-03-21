@@ -382,6 +382,10 @@ Runs in isolated containers (no session history). Each compressed
 file tracks `sources:` for traceability. Gateway injects episode
 summaries; diary week/month exist for `/recall` only.
 
+The 5 standard cron tasks are seeded automatically into DB when a
+new group is created via the approve/onboarding flow (`seedDefaultTasks`
+in `db.ts`). Existing tasks are not overwritten.
+
 ## Multi-instance Architecture
 
 Each instance is independent: own data dir, agent image tag, and

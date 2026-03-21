@@ -7,6 +7,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Auto-seed compact-memories crons on new group creation**: `seedDefaultTasks` in `db.ts` creates the 5 standard memory cron tasks (episodes day/week/month, diary week/month) when a group is approved via the onboarding flow.
+
+---
+
 ## [v1.0.7] — 2026-03-21
 
 ### Added

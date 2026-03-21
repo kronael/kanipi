@@ -308,13 +308,10 @@ const DEFAULT_MEMORY_TASKS = [
 ];
 
 export function seedDefaultTasks(folder: string, chatJid: string): void {
-  const existing = new Set(
-    (
-      db
-        .prepare('SELECT prompt FROM scheduled_tasks WHERE group_folder = ?')
-        .all(folder) as { prompt: string }[]
-    ).map((r) => r.prompt),
-  );
+  const rows = db
+    .prepare('SELECT prompt FROM scheduled_tasks WHERE group_folder = ?')
+    .all(folder) as { prompt: string }[];
+  const existing = new Set(rows.map((r) => r.prompt));
   const now = new Date().toISOString();
   for (const { prompt, schedule } of DEFAULT_MEMORY_TASKS) {
     if (existing.has(prompt)) continue;
