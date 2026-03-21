@@ -80,9 +80,7 @@ cat ~/.claude/CLAUDE.md
 
 ## d) Apply template overlays
 
-If a group has `~/.claude/skills/self/TEMPLATES`, apply named overlays from
-`/workspace/self/templates/<name>/`. Default base is always applied by seeding;
-overlays only carry what they change.
+For each group with `~/.claude/skills/self/TEMPLATES`, apply named overlays from `/workspace/self/templates/<name>/`.
 
 ```bash
 src_templates=/workspace/self/templates
@@ -92,29 +90,25 @@ for session in ~/groups/*/; do
   tfile="$self_dir/TEMPLATES"
   test -f "$tfile" || continue
   group=$(basename "$session")
-  echo "$group: applying template overlays"
 
   while IFS= read -r name || [ -n "$name" ]; do
     name=$(echo "$name" | tr -d '[:space:]')
     [ -z "$name" ] && continue
     tdir="$src_templates/$name"
     if [ ! -d "$tdir" ]; then
-      echo "  warning: template '$name' not found at $tdir, skipping"
+      echo "  $group: warning: template '$name' not found, skipping"
       continue
     fi
 
-    # SOUL.md / SYSTEM.md — replace group root copies
-    [ -f "$tdir/SOUL.md" ]   && cp "$tdir/SOUL.md"   "$session/SOUL.md"   && echo "  $name: SOUL.md"
-    [ -f "$tdir/SYSTEM.md" ] && cp "$tdir/SYSTEM.md" "$session/SYSTEM.md" && echo "  $name: SYSTEM.md"
+    [ -f "$tdir/SOUL.md" ]   && cp "$tdir/SOUL.md"   "$session/SOUL.md"   && echo "$group: $name: SOUL.md"
+    [ -f "$tdir/SYSTEM.md" ] && cp "$tdir/SYSTEM.md" "$session/SYSTEM.md" && echo "$group: $name: SYSTEM.md"
 
-    # CLAUDE.md — append ## sections absent from group's CLAUDE.md
     if [ -f "$tdir/CLAUDE.md" ]; then
       target="$session/.claude/CLAUDE.md"
-      touch "$target"
       python3 -c "
 import re
 src = open('$tdir/CLAUDE.md').read()
-tgt = open('$target').read()
+tgt = open('$target').read() if __import__('os').path.exists('$target') else ''
 parts = re.split(r'(?=^## )', src, flags=re.M)
 with open('$target', 'a') as f:
     for p in parts:
@@ -123,24 +117,22 @@ with open('$target', 'a') as f:
             f.write(('\n' if tgt.rstrip() else '') + p)
             tgt += p
 "
-      echo "  $name: CLAUDE.md merged"
+      echo "$group: $name: CLAUDE.md merged"
     fi
 
-    # .claude/skills/ — copy overrides, skip managed/disabled
-    if [ -d "$tdir/.claude/skills/" ]; then
+    if [ -d "$tdir/.claude/skills" ]; then
       for skill_dir in "$tdir/.claude/skills/"/*/; do
         sname=$(basename "$skill_dir")
         dest="$session/.claude/skills/$sname"
         grep -qE "^(disabled: true|managed: local)" "$dest/SKILL.md" 2>/dev/null && continue
-        cp -r "$skill_dir" "$dest" && echo "  $name: skills/$sname"
+        cp -r "$skill_dir" "$dest" && echo "$group: $name: skills/$sname"
       done
     fi
 
-    # .claude/output-styles/ — replace matching files
-    if [ -d "$tdir/.claude/output-styles/" ]; then
+    if [ -d "$tdir/.claude/output-styles" ]; then
       mkdir -p "$session/.claude/output-styles/"
       cp "$tdir/.claude/output-styles/"* "$session/.claude/output-styles/" 2>/dev/null
-      echo "  $name: output-styles"
+      echo "$group: $name: output-styles"
     fi
   done < "$tfile"
 

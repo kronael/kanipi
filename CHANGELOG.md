@@ -7,6 +7,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Template overlays via `/migrate` (migration 044)**: `/migrate` step d) reads `~/.claude/skills/self/TEMPLATES` per group and applies named overlays from `/workspace/self/templates/<name>/` — SOUL.md/SYSTEM.md replace, CLAUDE.md sections merge, skills/output-styles copy with managed/disabled respect.
+
+---
+
 ## [v1.0.6] — 2026-03-20
 
 ### Fixed
