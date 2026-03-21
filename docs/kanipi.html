@@ -351,7 +351,13 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
         on first spawn (one-time per skill directory). <code>SOUL.md</code> defines agent personality per group. <code>CLAUDE.md</code> defines
         behavior and instructions. Migration system: <code>MIGRATION_VERSION</code> + numbered files in
         <code>templates/default/.claude/skills/self/migrations/</code>; <code>/migrate</code> skill syncs groups when version advances.
-        Current migration version: 42. Gateway image includes <code>templates/</code> so seeding works in production without source checkout.
+        Current migration version: 44. Gateway image includes <code>templates/</code> so seeding works in production without source checkout.
+      </p>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        <strong>Template overlays</strong> (v1.0.7): migration step d) reads <code>~/.claude/skills/self/TEMPLATES</code> per group
+        and applies named overlays from <code>templates/&lt;name&gt;/</code>. <code>SOUL.md</code>/<code>SYSTEM.md</code> replace,
+        <code>CLAUDE.md</code> sections merge, skills and output-styles copy. Allows per-group persona and capability sets
+        to stay in sync with canonical templates without full skill rewrites.
       </p>
 
       <h3>SYSTEM.md</h3>
@@ -449,6 +455,7 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
         Gateway injects most recent day, week, and month episode summaries on session start.
         Each file tracks <code>sources:</code> for traceability back to originals.
         Diary week/month summaries are not injected (14-day daily covers it) but are searchable via <code>/recall</code>.
+        These 5 cron tasks are seeded automatically when a new group is created via the onboarding/approve flow (v1.0.8).
       </p>
 
       <h3>Recall</h3>
@@ -560,6 +567,8 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
         Root operators run <code>/approve &lt;jid&gt;</code> or <code>/reject &lt;jid&gt;</code>.
         On approval, the root group's <code>prototype/</code> folder is copied to a new world folder for the user.
         States: new &rarr; pending &rarr; approved / rejected.
+        The 5 standard <code>/compact-memories</code> cron tasks (episodes day/week/month, diary week/month) are seeded
+        automatically into DB on approval — isolated containers, no session history.
       </p>
 
       <h3>CLI</h3>
@@ -923,7 +932,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           ban, unban, timeout, mute, block, pin, unpin, lock, unlock, hide, approve, set_flair, kick).
           Dynamic action registration: channels register PlatformClient at connect time; actions available only while channel is connected.
           Impulse gate: social channels only (Twitter, Mastodon, Bluesky, Reddit, Facebook); per-JID event weight accumulation (configurable per-verb weights, threshold 100, max hold 5min) before agent flush. Chat channels (Telegram, WhatsApp, Discord, Email, Web) bypass gate entirely.
-          Onboarding: gateway-level state machine (ONBOARDING_ENABLED=1). States: new -> pending -> approved/rejected. Commands: /request <name> (user), /approve <jid> /reject <jid> (root). On approve, copies root prototype/ to new world folder.
+          Onboarding: gateway-level state machine (ONBOARDING_ENABLED=1). States: new -> pending -> approved/rejected. Commands: /request <name> (user), /approve <jid> /reject <jid> (root). On approve, copies root prototype/ to new world folder; seeds 5 compact-memories cron tasks (episodes day/week/month, diary week/month) automatically.
           WhatsApp reconnect: exponential backoff scheduleReconnect() replaces process.exit() on reconnect failure.
           Architecture: Channel &rarr; Impulse Gate &rarr; SQLite DB &rarr; GroupQueue (per-group FIFO) &rarr; Router (JID &rarr; group, prompt assembly, {sender} template expansion)
           &rarr; Container (docker run, IPC file pipe, unified home mount at /home/node) &rarr; Claude Code SDK (tools, subagents, skills, MCP)
@@ -968,7 +977,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           Error handling: circuit breaker (3 failures), session eviction, error_max_turns recovery, fatal channel crash for systemd restart.
           DinD path translation: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR for docker-in-docker mounts.
           Hot-patching: agent-runner TS source mounted, bunx tsc at runtime.
-          Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. SYSTEM.md for custom system prompt. Migration system.
+          Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. SYSTEM.md for custom system prompt. Migration system (version 44). Template overlays (v1.0.7): /migrate step d reads TEMPLATES file per group, applies named overlays from templates/<name>/ (SOUL.md/SYSTEM.md replace, CLAUDE.md sections merge, skills/output-styles copy).
           Products are configurations: Atlas (code support, shipped), Yonder (research, shipped).
           Deploy: systemd per instance, multi-instance with independent image tags.
           Topic routing: #topic prefix runs message in named session (isolated, persistent) within same group. @agent prefix delegates to matching child group; unknown child falls through to self. Both use prefix route type at seq 9998/9999; user routes evaluated first and can override.
@@ -993,7 +1002,7 @@ social-events: unified InboundEvent with verbs (message, reply, post, react, rep
 social-actions: 22 actions (post, reply, react, repost, follow, unfollow, set_profile, delete_post, edit_post, ban, unban, timeout, mute, block, pin, unpin, lock, unlock, hide, approve, set_flair, kick)
 dynamic-registration: channels register PlatformClient at connect, actions available only while connected
 impulse-gate: social channels only (twitter, mastodon, bluesky, reddit, facebook); per-jid weight accumulation (threshold 100, max-hold 5min, configurable per-verb weights, 0=drop); chat channels (telegram, whatsapp, discord, email, web) bypass gate entirely
-onboarding: gateway-level state machine (ONBOARDING_ENABLED=1); states: new->pending->approved/rejected; /request <name> (user), /approve <jid> /reject <jid> (root); on approve copies root prototype/ to new world folder
+onboarding: gateway-level state machine (ONBOARDING_ENABLED=1); states: new->pending->approved/rejected; /request <name> (user), /approve <jid> /reject <jid> (root); on approve copies root prototype/ to new world folder; seeds 5 compact-memories cron tasks automatically (v1.0.8)
 whatsapp-reconnect: exponential backoff scheduleReconnect() replaces process.exit() on reconnect failure or LoggedOut
 config: .env + env vars, sqlite group state
 source: 78 files 18833 LOC, 62 test files 15602 LOC, 952 tests, 102 specs
@@ -1001,7 +1010,7 @@ architecture: channel -> impulse-gate -> sqlite -> group-queue -> router ({sende
 unified-home: groups/{folder}/ mounted as /home/node (cwd+HOME), .claude/ inside group folder, media paths ~/media/...
 permissions: 4-tier (root 0=no /, world 1={world}, agent 2={world}/{name}, worker 3=deeper), tier from / count, overlay mounts tier 2+
 mounts: home(/home/node rw/ro), groups(~/groups root-only), share(~/share rw/ro), web(/workspace/web rw tier 0/1/2, world-subdir for tier 1+2, not mounted tier 3), ipc(~/ipc rw), self(~/self ro root), agent-runner(~/agent-runner ro hot-patch)
-skills: templates/default/.claude/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; SYSTEM.md for custom system prompt; migration system (version 42); templates/ bundled in gateway image
+skills: templates/default/.claude/skills/ seeded to .claude/skills/ inside group folder; SOUL.md for identity; SYSTEM.md for custom system prompt; migration system (version 44); templates/ bundled in gateway image; template-overlays (v1.0.7): /migrate step d reads TEMPLATES per group, applies overlays from templates/<name>/ (SOUL.md/SYSTEM.md replace, CLAUDE.md merge, skills copy)
 ipc: signal-driven (SIGUSR1), 500ms fallback, file-based request/response
 memory: messages (db+xml), session (sdk jsonl), managed (claude.md/memory.md), diary (14 recent), user-context (per-sender pointer), facts (/recall search), episodes (day/week/month compression via /compact-memories)
 recall: v1 (explore grep on summary: frontmatter) + v2 (FTS5+sqlite-vec hybrid, RRF fusion 0.7vec/0.3bm25, ollama nomic-embed-text, .recallrc config, per-store sqlite dbs)

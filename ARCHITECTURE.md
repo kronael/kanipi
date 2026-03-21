@@ -306,10 +306,16 @@ Claude Code default system prompt (`systemPrompt` string instead of
 Used for user-facing groups where developer-style output is unwanted.
 
 **Migration system**: `templates/default/.claude/skills/self/MIGRATION_VERSION`
-tracks the applied version number (currently 42). `templates/default/.claude/skills/self/migrations/`
+tracks the applied version number (currently 44). `templates/default/.claude/skills/self/migrations/`
 contains numbered migration files (`NNN-desc.md`). The `/migrate`
 skill syncs all groups from the canonical source when the version
 changes.
+
+**Template overlays** (migration 044): `/migrate` step d reads
+`~/.claude/skills/self/TEMPLATES` in each group folder and applies
+named overlays from `templates/<name>/`. `SOUL.md`/`SYSTEM.md`
+replace, `CLAUDE.md` sections merge, skills and output-styles copy.
+Allows per-group persona sets to stay in sync with canonical templates.
 
 **Signal-driven IPC**: gateway writes IPC file then sends SIGUSR1;
 agent wakes immediately rather than waiting for 500ms poll.
