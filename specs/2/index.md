@@ -1,6 +1,7 @@
-# Phase 2 — Social Channels (shipped)
+# Phase 2 — Social Channels (dropped)
 
-Five platforms, 27 actions, unified watcher/client/action pattern.
+Implemented then removed — see `specs/5/K-social-rollback.md`.
+Code lives in git history. Arizuko handles social channels going forward.
 
 ## Platform Status
 

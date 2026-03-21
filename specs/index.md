@@ -40,76 +40,67 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 | d-voice             | Whisper transcription     | shipped   |
 | e-worlds            | Nested folders, tiers     | shipped   |
 
-## Phase 2 — Social Channels (shipped)
+## Phase 2 — Social Channels (dropped)
 
-6 specs. Five platforms + action infrastructure.
+6 specs. Implemented then removed — see `specs/5/K-social-rollback.md`.
 
 | Spec              | Topic                       | Status  |
 | ----------------- | --------------------------- | ------- |
-| f-facebook        | Facebook Page channel       | shipped |
-| g-reddit          | Reddit channel              | shipped |
-| h-twitter         | Twitter/X channel           | shipped |
-| i-social-events   | Unified inbound model       | shipped |
-| j-social-actions  | Outbound action catalog     | shipped |
-| k-channel-actions | Dynamic action registration | shipped |
+| f-facebook        | Facebook Page channel       | dropped |
+| g-reddit          | Reddit channel              | dropped |
+| h-twitter         | Twitter/X channel           | dropped |
+| i-social-events   | Unified inbound model       | dropped |
+| j-social-actions  | Outbound action catalog     | dropped |
+| k-channel-actions | Dynamic action registration | dropped |
 
 ## Phase 3 — Permissions, Cleanup, Gaps (in progress)
 
 Focus: access control, partial implementations, cleanup, and selected phase 4 items pulled forward.
 
-| Spec                      | Topic                                                                | Status  |
-| ------------------------- | -------------------------------------------------------------------- | ------- |
-| 0-agent-capabilities      | Container tooling catalog                                            | shipped |
-| 1-atlas                   | Facts, researcher, verifier                                          | shipped |
-| 2-autotesting             | Subsystem test strategy                                              | shipped |
-| 3-code-research           | Code research agent (merged H-researcher + 3-support)                | shipped |
-| 4-paths                   | Path translation cleanup                                             | shipped |
-| 5-permissions             | Tier 0-3 hierarchy                                                   | shipped |
-| 7-user-context            | Per-user memory files                                                | shipped |
-| 8-web-virtual-hosts       | Per-group web serving                                                | shipped |
-| 9-whatsapp-improvements   | Read receipts, presence                                              | shipped |
-| A-auth                    | Local auth, JWT                                                      | shipped |
-| C-files-in                | File transfer                                                        | shipped |
-| D-knowledge-system        | Memory layers pattern                                                | shipped |
-| E-memory-session          | SDK sessions, .jl files                                              | shipped |
-| G-codebase-trim           | Dead code removal (~900 lines)                                       | shipped |
-| H-jid-format              | Compact JID URIs, sender IDs                                         | shipped |
-| J-container-commands      | Generic container commands                                           | shipped |
-| K-remove-triggers         | Remove trigger pattern system                                        | shipped |
-| L-chat-bound-sessions     | Chat-bound containers, send_reply, IDLE_TIMEOUT=0                    | shipped |
-| M-think-blocks            | <think> delimiter for silent decisions                               | shipped |
-| N-status-messages         | Agent-initiated status updates                                       | shipped |
-| P-message-ids             | Reply/forward metadata per channel                                   | shipped |
-| Q-auto-threading          | Template routing (per-user groups)                                   | shipped |
-| R-reply-routing           | Per-sender batching, chunk chaining, reply threading                 | shipped |
-| T-recall                  | Knowledge retrieval (LLM grep → hybrid search)                       | shipped |
-| _(4/B)_ B-memory-episodic | Progressive compression (episodes + diary)                           | shipped |
-| _(4/4)_ 4-dashboards      | Dashboard portal system (tile-based, registration)                   | shipped |
-| _(4/P)_ P-dash-status     | Dashboard: status & health (expanded, errors)                        | shipped |
-| _(4/S)_ S-dash-tasks      | Dashboard: scheduled tasks & run history                             | shipped |
-| _(4/Q)_ Q-dash-memory     | Dashboard: memory & knowledge browser (read-only)                    | shipped |
-| _(4/T)_ T-dash-activity   | Dashboard: messages & activity flow                                  | shipped |
-| _(4/U)_ U-dash-groups     | Dashboard: groups, routing, world structure                          | shipped |
-| _(4/V)_ V-action-grants   | Token-based action permissions, delegation scoping                   | shipped |
-| _(impl)_ SYSTEM.md        | Custom system prompt override (agent-runner)                         | shipped |
-| _(4/Z)_ Z-audit-log       | Outbound message recording in messages table                         | shipped |
-| _(5/K)_ S-topic-routing   | @agent/#topic prefix routes, named sessions, new `prefix` route type | shipped |
+| Spec                    | Topic                                                                | Status  |
+| ----------------------- | -------------------------------------------------------------------- | ------- |
+| 0-agent-capabilities    | Container tooling catalog                                            | shipped |
+| 1-atlas                 | Facts, researcher, verifier                                          | shipped |
+| 2-autotesting           | Subsystem test strategy                                              | shipped |
+| 3-code-research         | Code research agent (merged H-researcher + 3-support)                | shipped |
+| 4-paths                 | Path translation cleanup                                             | shipped |
+| 5-permissions           | Tier 0-3 hierarchy                                                   | shipped |
+| 7-user-context          | Per-user memory files                                                | shipped |
+| 8-web-virtual-hosts     | Per-group web serving                                                | shipped |
+| 9-whatsapp-improvements | Read receipts, presence                                              | shipped |
+| A-auth                  | Local auth, JWT                                                      | shipped |
+| C-files-in              | File transfer                                                        | shipped |
+| D-knowledge-system      | Memory layers pattern                                                | shipped |
+| E-memory-session        | SDK sessions, .jl files                                              | shipped |
+| G-codebase-trim         | Dead code removal (~900 lines)                                       | shipped |
+| H-jid-format            | Compact JID URIs, sender IDs                                         | shipped |
+| J-container-commands    | Generic container commands                                           | shipped |
+| K-remove-triggers       | Remove trigger pattern system                                        | shipped |
+| L-chat-bound-sessions   | Chat-bound containers, send_reply, IDLE_TIMEOUT=0                    | shipped |
+| M-think-blocks          | <think> delimiter for silent decisions                               | shipped |
+| N-status-messages       | Agent-initiated status updates                                       | shipped |
+| P-message-ids           | Reply/forward metadata per channel                                   | shipped |
+| Q-auto-threading        | Template routing (per-user groups)                                   | shipped |
+| R-reply-routing         | Per-sender batching, chunk chaining, reply threading                 | shipped |
+| T-recall                | Knowledge retrieval (LLM grep → hybrid search)                       | shipped |
+| B-memory-episodic       | Progressive compression (episodes + diary)                           | shipped |
+| 4-dashboards            | Dashboard portal system (tile-based, registration)                   | shipped |
+| P-dash-status           | Dashboard: status & health (expanded, errors)                        | shipped |
+| S-dash-tasks            | Dashboard: scheduled tasks & run history                             | shipped |
+| Q-dash-memory           | Dashboard: memory & knowledge browser (read-only)                    | shipped |
+| T-dash-activity         | Dashboard: messages & activity flow                                  | shipped |
+| U-dash-groups           | Dashboard: groups, routing, world structure                          | shipped |
+| V-action-grants         | Token-based action permissions, delegation scoping                   | shipped |
+| SYSTEM.md               | Custom system prompt override (agent-runner)                         | shipped |
+| Z-audit-log             | Outbound message recording in messages table                         | shipped |
+| S-topic-routing         | @agent/#topic prefix routes, named sessions, new `prefix` route type | shipped |
 
-## Phase 4 — Arizuko (deferred)
+## Phase 4 — Shipped before end state
 
-Requires new instance or major architectural changes.
-
-| Spec                  | Topic                              | Status                                          |
-| --------------------- | ---------------------------------- | ----------------------------------------------- |
-| 1-agent-routing       | Pipeline routing to workers        | dropped — superseded by nested groups + routing |
-| 8-gmail               | Gmail API channel                  | arizuko                                         |
-| G-instance-repos      | Git-based config repos             | arizuko                                         |
-| Q-dash-memory         | _(pulled to phase 3)_              | spec                                            |
-| R-evangelist          | Community engagement agent         | arizuko                                         |
-| K-versioning-personas | Versioning model, persona plugins  | open                                            |
-| W-detached-containers | File-based container IPC, reclaim  | arizuko (spec)                                  |
-| X-onboarding          | Unrouted JID → approve → world     | shipped                                         |
-| Y-control-chat        | Gateway ↔ operator command channel | shipped                                         |
+| Spec           | Topic                              | Status  |
+| -------------- | ---------------------------------- | ------- |
+| X-onboarding   | Unrouted JID → approve → world     | shipped |
+| Y-control-chat | Gateway ↔ operator command channel | shipped |
 
 ## Phase 5 — End state
 
