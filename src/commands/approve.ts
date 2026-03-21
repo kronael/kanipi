@@ -6,6 +6,7 @@ import {
   getOnboardingEntry,
   getPendingOnboarding,
   GroupConfig,
+  seedDefaultTasks,
   upsertOnboarding,
 } from '../db.js';
 import { logger } from '../logger.js';
@@ -147,6 +148,7 @@ const approveCommand: CommandHandler = {
       };
 
       deps?.registerGroup(jid, newGroup);
+      seedDefaultTasks(targetFolder, jid);
     } else {
       // Existing group — just add the route
       deps?.registerGroup(jid, existingGroup);

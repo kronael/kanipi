@@ -299,6 +299,41 @@ export function createTask(
   );
 }
 
+const DEFAULT_MEMORY_TASKS = [
+  { prompt: '/compact-memories episodes day', schedule: '0 2 * * *' },
+  { prompt: '/compact-memories episodes week', schedule: '0 3 * * 1' },
+  { prompt: '/compact-memories episodes month', schedule: '0 4 1 * *' },
+  { prompt: '/compact-memories diary week', schedule: '0 3 * * 1' },
+  { prompt: '/compact-memories diary month', schedule: '0 4 1 * *' },
+];
+
+export function seedDefaultTasks(folder: string, chatJid: string): void {
+  const existing = new Set(
+    (
+      db
+        .prepare('SELECT prompt FROM scheduled_tasks WHERE group_folder = ?')
+        .all(folder) as { prompt: string }[]
+    ).map((r) => r.prompt),
+  );
+  const now = new Date().toISOString();
+  for (const { prompt, schedule } of DEFAULT_MEMORY_TASKS) {
+    if (existing.has(prompt)) continue;
+    createTask({
+      id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      group_folder: folder,
+      chat_jid: chatJid,
+      prompt,
+      command: null,
+      schedule_type: 'cron',
+      schedule_value: schedule,
+      context_mode: 'isolated',
+      next_run: null,
+      status: 'active',
+      created_at: now,
+    });
+  }
+}
+
 export function getTaskById(id: string): ScheduledTask | undefined {
   return db.prepare('SELECT * FROM scheduled_tasks WHERE id = ?').get(id) as
     | ScheduledTask
