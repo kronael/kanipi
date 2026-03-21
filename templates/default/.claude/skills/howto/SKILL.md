@@ -26,9 +26,28 @@ fi
 Deploys to: `$WEB_DIR/howto/index.html`
 Public URL: `https://$WEB_HOST/$GROUP_FOLDER/howto/`
 
+## Theme selection (ask first)
+
+Before building, ask the user which visual style they want:
+
+> "Which website would you like me to imitate for the style? Give me a URL
+> or a name (e.g. stripe.com, linear.app, vercel.com). I'll extract their
+> design system and apply it. Or say 'default' for the warm earth-tone theme."
+
+If the user provides a URL/name:
+
+1. Use `agent-browser` to open the site and screenshot/inspect it
+2. Extract: color palette, font choices, border radius, card style, spacing,
+   button shapes, code block style, overall vibe (minimal, bold, warm, dark, etc.)
+3. Re-theme the template to match — replace Tailwind color extensions,
+   custom CSS vars, font imports, and component styles
+4. Keep the **structure** (20 sections, TLDR grid, TOC, footer) — only restyle
+
+If the user says "default" or gives no preference, use the warm earth-tone theme.
+
 ## Starting point
 
-Copy the template and customize — do NOT rebuild from scratch:
+Copy the template and customize:
 
 ```bash
 mkdir -p "$WEB_DIR/howto"
@@ -36,12 +55,12 @@ cp /workspace/self/templates/default/.claude/skills/web/template/pub/howto/index
    "$WEB_DIR/howto/index.html"
 ```
 
-The template has the full design system: Tailwind CDN, warm earth-tone palette,
-dark/light theme toggle, all 20 sections pre-built with TLDRs + examples.
+The template has the full structure: Tailwind CDN, dark/light toggle, all 20
+sections with TLDRs + examples. The visual theme is the part you replace.
 
 ## Customization
 
-Minimal required changes:
+Required changes:
 
 1. Replace `kanipi agent` in `<title>` and `<h1>` with `$ASSISTANT_NAME`
 2. Replace hero tagline if you have a more specific description
