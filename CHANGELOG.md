@@ -7,7 +7,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
-## [Unreleased]
+## [v1.0.8] — 2026-03-21
 
 ### Added
 
