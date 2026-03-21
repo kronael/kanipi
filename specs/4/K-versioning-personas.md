@@ -2,107 +2,84 @@
 status: spec
 ---
 
-# Composable Personas
+# Template Overlays
 
-## Problem
+## Concept
 
-Deployment persona is a single manually-edited SOUL.md. No composable
-units, no deployment-level declaration, no automated synthesis. Templates
-exist and contain persona files but `kanipi create` never copies them into
-the group folder — the operator does it manually every time.
+Agent setup is layered: **default** base + **overlays** stacked on top.
 
-## Insight
+```
+templates/default/     base — always applied, full skill set, default instructions
+templates/support/     overlay — replaces/merges specific files into default
+templates/researcher/  overlay — replaces/merges specific files into default
+```
 
-Templates are already the persona unit. Three small changes realize the
-full system with no new abstractions, no plugin registry, no DB columns.
+Overlays only carry what they change. Anything absent inherits from default.
+The mechanism already exists for skills (`managed: local`, `disabled: true`
+in SKILL.md frontmatter) — this spec extends it to the full setup: SOUL.md,
+SYSTEM.md, CLAUDE.md, output-styles.
 
-## Persona Components
-
-Each template directory is a persona component. Files that participate:
+## What overlays can contain
 
 ```
 templates/<name>/
-  PERSONA.md          name, description, conflicts, priority
-  SOUL.md             persona fragment (voice, values, identity)
-  CLAUDE.md           instruction overrides
-  SYSTEM.md           system prompt (replaces default; last persona wins)
-  .claude/skills/     skill overrides (managed: local protects from /migrate)
+  SOUL.md                   replaces default SOUL.md
+  SYSTEM.md                 replaces default SYSTEM.md
+  CLAUDE.md                 merged into default (sections appended)
+  .claude/skills/           per-skill overrides (managed/disabled frontmatter)
+  .claude/output-styles/    replaces matching output style files
 ```
 
-All files are optional. A template with only `.claude/skills/` overrides
-is a skill pack. A template with only SOUL.md + CLAUDE.md is a voice overlay.
+Merge rules:
 
-`PERSONA.md` frontmatter:
+- **Replace**: SOUL.md, SYSTEM.md, output-styles — last overlay wins
+- **Merge**: CLAUDE.md — overlay sections appended/overriding default
+- **Frontmatter-governed**: skills — existing `managed`/`disabled` flags
 
-```yaml
----
-name: support
-description: Support bot — patient, user-focused, no dev content
-conflicts: [researcher]
-priority: 10
----
-```
-
-## Deployment Declaration
+## Deployment declaration
 
 ```
-groups/<folder>/PERSONAS
+groups/<folder>/OVERLAYS
 ```
 
-One template name per line. Created by `kanipi create` (writes the chosen
-template name). Operator edits to add/remove personas. No DB changes.
+One template name per line, in application order:
 
 ```
 support
-facts-verifier
 ```
 
-## Composition — migrate skill
+Default is always the base and never listed. Operator writes this file.
+No gateway changes, no DB changes. The LLM does the rest.
 
-When `/migrate` runs (root group), after skill sync and migration runner,
-if `~/PERSONAS` exists:
+## How it works — entirely via migration
 
-1. Read persona names from `~/PERSONAS`
-2. For each name, locate `/workspace/self/templates/<name>/`
-3. Collect SOUL.md fragments (in PERSONAS file order)
-4. **LLM-compose** a unified `~/SOUL.md` — synthesize into one coherent
-   voice, do not concatenate. The agent writes it.
-5. Merge CLAUDE.md — append non-duplicate content per persona
-6. Copy `.claude/skills/` overrides per persona (respect `managed: local`)
-7. SYSTEM.md: highest-priority persona wins; warn if ambiguous
-8. Write `~/PERSONAS.composed` — timestamp + hash of inputs
+`/migrate`, after skill sync and migration runner, if `~/OVERLAYS` exists:
 
-Step 4 is the key: the agent synthesizes a persona that reads as one voice,
-not a mechanical join.
+1. Read overlay names from `~/OVERLAYS`
+2. For each overlay, in order, read from `/workspace/self/templates/<name>/`:
+   - **SOUL.md** — copy over group root SOUL.md if present
+   - **SYSTEM.md** — copy over group root SYSTEM.md if present
+   - **CLAUDE.md** — merge: append sections absent from current CLAUDE.md
+   - **skills/** — copy overrides, respect `managed`/`disabled` frontmatter
+   - **output-styles/** — copy over matching files
+3. Write `~/OVERLAYS.applied` — timestamp + hash of inputs
+
+No code changes needed. Operator creates OVERLAYS file, runs `/migrate`,
+agent applies everything.
 
 ## What changes
 
-| Component                               | Change                                                                                         |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `src/cli.ts` `create()`                 | Copy template SOUL.md, CLAUDE.md, SYSTEM.md, skills into `groups/root/`; write `PERSONAS` file |
-| `templates/*/PERSONA.md`                | Add to: default, support, evangelist                                                           |
-| `migrate/SKILL.md`                      | Add step: compose personas if `~/PERSONAS` present                                             |
-| `migrations/044-persona-composition.md` | Documents convention; no filesystem changes                                                    |
+| Component                    | Change                        |
+| ---------------------------- | ----------------------------- |
+| `migrate/SKILL.md`           | Add overlay sync step         |
+| `migrations/044-overlays.md` | Documents OVERLAYS convention |
 
-## What does not change
-
-- No DB changes — PERSONAS is a flat file
-- No gateway runtime changes — all composition is agent-side
-- No new abstractions — templates are already the unit
-- Groups without PERSONAS: `/migrate` behaves exactly as today
-- Per-group (non-root) persona: root composes, child inherits via ro mount
-
-## Conflict detection
-
-- `conflicts:` in PERSONA.md — warn if conflicting personas both active
-- Multiple SYSTEM.md — warn + use highest priority; operator resolves
+That's it. No gateway code, no CLI changes, no DB changes.
 
 ## Acceptance criteria
 
-- `kanipi create --template support` auto-populates `groups/root/PERSONAS`,
-  SOUL.md, SYSTEM.md from template — no manual copying
-- `/migrate` on root with `~/PERSONAS` produces a composed `~/SOUL.md`
-  that reads as one coherent voice
-- Adding a second persona to PERSONAS and re-running `/migrate` updates SOUL.md
-- Groups without PERSONAS: `/migrate` unchanged
-- `~/PERSONAS.composed` written after each successful composition run
+- Operator writes `groups/root/OVERLAYS` containing `support`, runs `/migrate`
+- Agent copies support SOUL.md, SYSTEM.md, skill overrides into place
+- Re-running `/migrate` is idempotent
+- Groups without OVERLAYS: zero behavior change
+- `~/OVERLAYS.applied` written after each sync
