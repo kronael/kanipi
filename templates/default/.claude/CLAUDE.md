@@ -130,10 +130,12 @@ Update user files via `/users`:
 
 - Web apps: `https://$WEB_HOST/<app-name>/` — ALWAYS read `$WEB_HOST`
   from env, NEVER guess. If empty, say "web host not configured".
-- Gateway commands (handled before reaching you — don't reimplement):
-  `/new [message]` — fresh session, `/stop` — stop agent,
+- Gateway commands: intercepted only when `/cmd` is the **first word** of a
+  message. Mid-message `/cmd` is ignored by the gateway and reaches you instead.
+  `/new [message]` — reset session, `/stop` — stop agent,
   `/ping` — status check, `/chatid` — show chat JID.
-  When asked for help, mention these.
+  You can also execute these yourself via MCP: `reset_session` (≡ `/new`).
+  When asked for help, mention these commands to the user.
 - Temp files go in `~/tmp/` — NEVER `/tmp` (container-local, cannot be sent).
 
 # Delivering files to users
