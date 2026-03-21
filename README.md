@@ -1,3 +1,5 @@
+Got superseded by https://github.com/kronael/arizuko.
+
 # kanipi
 
 Multitenant Claude agent gateway. Routes messages from any channel
