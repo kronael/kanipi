@@ -40,18 +40,19 @@ Phase state and spec inventory. See ROADMAP.md for milestones.
 | d-voice             | Whisper transcription     | shipped   |
 | e-worlds            | Nested folders, tiers     | shipped   |
 
-## Phase 2 — Social Channels (dropped)
+## Phase 2 — Social Channels (dropped → arizuko)
 
 6 specs. Implemented then removed — see `specs/5/K-social-rollback.md`.
+Social channels continue in arizuko.
 
-| Spec              | Topic                       | Status  |
-| ----------------- | --------------------------- | ------- |
-| f-facebook        | Facebook Page channel       | dropped |
-| g-reddit          | Reddit channel              | dropped |
-| h-twitter         | Twitter/X channel           | dropped |
-| i-social-events   | Unified inbound model       | dropped |
-| j-social-actions  | Outbound action catalog     | dropped |
-| k-channel-actions | Dynamic action registration | dropped |
+| Spec              | Topic                       | Status          |
+| ----------------- | --------------------------- | --------------- |
+| f-facebook        | Facebook Page channel       | dropped→arizuko |
+| g-reddit          | Reddit channel              | dropped→arizuko |
+| h-twitter         | Twitter/X channel           | dropped→arizuko |
+| i-social-events   | Unified inbound model       | dropped→arizuko |
+| j-social-actions  | Outbound action catalog     | dropped→arizuko |
+| k-channel-actions | Dynamic action registration | dropped→arizuko |
 
 ## Phase 3 — Permissions, Cleanup, Gaps (in progress)
 

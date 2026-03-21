@@ -1,7 +1,7 @@
-# Phase 2 — Social Channels (dropped)
+# Phase 2 — Social Channels (dropped → arizuko)
 
 Implemented then removed — see `specs/5/K-social-rollback.md`.
-Code lives in git history. Arizuko handles social channels going forward.
+Code lives in git history. Social channels continue in arizuko.
 
 ## Platform Status
 
