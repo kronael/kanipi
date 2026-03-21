@@ -1,5 +1,5 @@
 ---
-status: shipped
+status: dropped
 ---
 
 # Channel Actions — Dynamic Registration and Filtered Manifest

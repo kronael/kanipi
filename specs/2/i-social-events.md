@@ -1,5 +1,5 @@
 ---
-status: shipped
+status: dropped
 ---
 
 # Social Events — Unified Inbound Model
