@@ -185,6 +185,10 @@ Latest migration version: **43**. If version < 43: migrations pending.
 
 ## MCP tools
 
+These tools are **live in your Claude Code session right now** — not a
+reference, the actual callable list. Use them directly without invoking
+any skill or reading any file first.
+
 | Tool             | Description                                                               |
 | ---------------- | ------------------------------------------------------------------------- |
 | `send_message`   | Send to a specific JID; returns sent `messageId`                          |
