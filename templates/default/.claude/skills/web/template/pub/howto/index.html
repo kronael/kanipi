@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>kanipi - getting started</title>
+  <title>kanipi agent — how to use</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -52,9 +52,7 @@
     [data-theme="dark"] .glow { box-shadow: 0 0 0 1px rgba(212,168,67,0.15), 0 2px 10px rgba(212,168,67,0.06); }
     [data-theme="dark"] .glow:hover { box-shadow: 0 0 0 1px rgba(212,168,67,0.35), 0 4px 18px rgba(212,168,67,0.12); }
 
-    .step-card {
-      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-    }
+    .step-card { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
     .step-card:hover { transform: translateY(-2px); }
 
     .color-strip { height: 3px; border-radius: 3px 3px 0 0; }
@@ -75,10 +73,8 @@
     .c-dim { color: #6d5e50; }
     .c-prompt { color: #7a6a5a; }
 
-    .feat-card {
-      transition: all 0.2s ease;
-    }
-    .feat-card:hover { transform: translateY(-3px); }
+    .tldr-card { transition: all 0.15s ease; }
+    .tldr-card:hover { transform: translateY(-2px); }
 
     .toc-item { transition: all 0.15s ease; border-left: 2px solid transparent; }
     .toc-item:hover { border-left-color: #8b6914; padding-left: 1rem; }
@@ -104,333 +100,553 @@
     <!-- INFO BANNER -->
     <div id="info-banner" class="bg-white dark:bg-stable-800 depth-sm rounded-xl p-4 mb-6 border border-leather-200/40 dark:border-leather-900/30 flex items-start gap-3" style="display:none">
       <span class="w-1.5 h-1.5 rounded-full bg-sky-500 mt-2 shrink-0"></span>
-      <p class="text-sm text-leather-500 dark:text-leather-400 flex-1">This is the getting started guide. Once set up, your agent can deploy apps here and replace this page.</p>
+      <p class="text-sm text-leather-500 dark:text-leather-400 flex-1">This guide covers how to use your kanipi agent. Your agent can update and extend this page.</p>
       <button onclick="document.getElementById('info-banner').remove();localStorage.setItem('kanipi-howto-dismissed','1')" class="text-leather-300 dark:text-leather-800 hover:text-leather-500 dark:hover:text-leather-400 text-lg leading-none shrink-0 cursor-pointer" style="background:none;border:none">&times;</button>
     </div>
     <script>if(!localStorage.getItem('kanipi-howto-dismissed')){document.getElementById('info-banner').style.display='flex'}</script>
 
     <!-- HERO -->
-    <header class="text-center pt-8 pb-14 mb-10 border-b border-leather-200 dark:border-leather-900/50">
+    <header class="text-center pt-8 pb-12 mb-10 border-b border-leather-200 dark:border-leather-900/50">
       <div class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 bg-white dark:bg-stable-800 depth-sm rounded-full border border-leather-200/50 dark:border-leather-900/30">
         <span class="w-2 h-2 rounded-full bg-field-500 dark:bg-field-400" style="animation:pulse 2s infinite"></span>
-        <span class="text-xs font-semibold text-leather-400 tracking-wide uppercase">howto</span>
+        <span class="text-xs font-semibold text-leather-400 tracking-wide uppercase">how to use</span>
       </div>
       <h1 class="text-5xl sm:text-7xl font-black text-leather-900 dark:text-leather-100 mb-5 leading-[1.05] tracking-tight">
-        kanipi
+        kanipi agent
       </h1>
       <p class="text-lg sm:text-xl text-leather-400 max-w-sm mx-auto leading-relaxed font-medium">
-        AI agent across telegram, whatsapp, and discord.<br>
-        From your phone.
+        A persistent Claude AI in your chat.<br>
+        Memory, tools, web apps — from your phone.
       </p>
     </header>
 
-    <!-- INTRO -->
+    <!-- QUICK REF TLDR -->
     <div class="bg-white dark:bg-stable-800 depth-md rounded-2xl p-6 sm:p-8 mb-10 border border-leather-200/40 dark:border-leather-900/30 relative overflow-hidden">
-      <div class="absolute top-0 left-0 right-0 h-1" style="background: linear-gradient(90deg, #8b6914, #5a8f5c, #b87333, #6a9ec0)"></div>
-      <p class="text-leather-600 dark:text-leather-300 text-base sm:text-lg leading-relaxed font-medium">
-        A multitenant Claude agent gateway. Send it a message on Telegram, Discord, or WhatsApp &mdash;
-        it reads and edits files, runs commands, searches the web, and deploys web apps via Vite.
-        Each conversation gets its own container.
-      </p>
-    </div>
-
-    <!-- TOC -->
-    <div class="bg-white dark:bg-stable-800 depth-sm rounded-2xl p-6 mb-12 border border-leather-200/40 dark:border-leather-900/30">
-      <div class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-4">Contents</div>
-      <div class="space-y-0.5">
-        <a href="#s1" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2">01</span> Prerequisites</a>
-        <a href="#s2" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2">02</span> Clone and build</a>
-        <a href="#s3" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2">03</span> Create instance</a>
-        <a href="#s4" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2">04</span> Configure</a>
-        <a href="#s5" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2">05</span> Start</a>
-        <a href="#s6" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2">06</span> Usage</a>
-        <a href="#s7" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2">07</span> Agent capabilities</a>
+      <div class="absolute top-0 left-0 right-0 h-1" style="background: linear-gradient(90deg, #8b6914, #5a8f5c, #b87333, #6a9ec0, #c0485e)"></div>
+      <div class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-5">Quick Reference</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <a href="#s01" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">01</span> Getting Started</a>
+        <a href="#s02" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">02</span> Gateway Commands</a>
+        <a href="#s03" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">03</span> Topic Sessions #</a>
+        <a href="#s04" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">04</span> Agent Routing @</a>
+        <a href="#s05" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">05</span> Files &amp; Attachments</a>
+        <a href="#s06" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">06</span> Voice Messages</a>
+        <a href="#s07" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">07</span> Memory &amp; Diary</a>
+        <a href="#s08" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">08</span> User Context</a>
+        <a href="#s09" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">09</span> Facts System</a>
+        <a href="#s10" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">10</span> Episodes &amp; Compression</a>
+        <a href="#s11" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">11</span> Recall Search</a>
+        <a href="#s12" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">12</span> Web Apps</a>
+        <a href="#s13" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">13</span> Scheduling</a>
+        <a href="#s14" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">14</span> Dashboard</a>
+        <a href="#s15" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">15</span> Skills</a>
+        <a href="#s16" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">16</span> Research &amp; Web</a>
+        <a href="#s17" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">17</span> Data &amp; Visualization</a>
+        <a href="#s18" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">18</span> Coding &amp; Dev</a>
+        <a href="#s19" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">19</span> Groups &amp; Tiers</a>
+        <a href="#s20" class="toc-item block py-1.5 pl-3 text-sm text-leather-500 dark:text-leather-400 font-medium no-underline"><span class="text-hay-600 dark:text-hay-400 font-mono mr-2 text-xs">20</span> Onboarding</a>
       </div>
     </div>
 
     <!-- SECTION LABEL -->
     <div class="flex items-center gap-3 mb-8">
       <div class="w-5 h-1 bg-hay-500 rounded-full"></div>
-      <span class="text-xs font-bold text-leather-400 tracking-[0.2em] uppercase">Setup</span>
+      <span class="text-xs font-bold text-leather-400 tracking-[0.2em] uppercase">Deep Dives</span>
       <div class="flex-1 h-px bg-leather-200/60 dark:bg-leather-900/40"></div>
     </div>
 
-    <!-- STEPS -->
+    <!-- SECTIONS -->
     <div class="space-y-6 mb-16">
 
-      <!-- 01 -->
-      <div id="s1" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+      <!-- 01 Getting Started -->
+      <div id="s01" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
         <div class="color-strip" style="background: linear-gradient(90deg, #8b6914, #d4a843)"></div>
         <div class="p-6">
           <div class="flex items-center gap-3 mb-4">
             <span class="w-8 h-8 rounded-lg bg-hay-500/10 text-hay-600 dark:text-hay-400 flex items-center justify-center text-xs font-bold font-mono">01</span>
-            <h3 class="text-leather-900 dark:text-leather-100 font-bold text-base">Prerequisites</h3>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Getting Started</h2>
           </div>
-          <div class="space-y-2.5 ml-11">
-            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-hay-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">Docker on your server</span></div>
-            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-hay-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">A messaging account &mdash; Telegram, Discord, or WhatsApp</span></div>
-            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-hay-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">Claude OAuth token from <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">claude.ai</code></span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 02 -->
-      <div id="s2" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
-        <div class="color-strip" style="background: linear-gradient(90deg, #5a8f5c, #7abd82)"></div>
-        <div class="p-6">
-          <div class="flex items-center gap-3 mb-4">
-            <span class="w-8 h-8 rounded-lg bg-field-500/10 text-field-600 dark:text-field-400 flex items-center justify-center text-xs font-bold font-mono">02</span>
-            <h3 class="text-leather-900 dark:text-leather-100 font-bold text-base">Clone and build</h3>
-          </div>
-          <div class="ml-11">
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Send a message — the agent responds. Each conversation runs in its own container.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">In a direct message, every message you send reaches the agent. In a group chat, mention the bot by name or reply to one of its messages. The agent usually responds in <strong class="text-leather-700 dark:text-leather-200">5–30 seconds</strong> — container startup and thinking both take a moment.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Your session continues across messages until you explicitly reset it with <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/new</code> or it times out from inactivity. For long tasks, the agent sends <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">⏳ status...</code> messages so you know it's still working. You can send a follow-up mid-task — the agent adapts.</p>
             <div class="code-block depth-lg">
-              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">terminal</span></div>
-              <pre class="font-mono"><code><span class="c-prompt">$</span> git clone https://krons.fiu.wtf/kanipi
-<span class="c-prompt">$</span> <span class="c-kw">cd</span> kanipi
-<span class="c-prompt">$</span> make image</code></pre>
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">conversation</span></div>
+              <pre class="font-mono"><code><span class="c-dim"># first message</span>
+<span class="c-prompt">you:</span>  <span class="c-str">summarise the three main risks in this contract</span>
+
+<span class="c-dim"># steer mid-task</span>
+<span class="c-prompt">you:</span>  <span class="c-str">actually focus only on liability clauses</span>
+
+<span class="c-dim"># agent incorporates the update in its reply</span></code></pre>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 03 -->
-      <div id="s3" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
-        <div class="color-strip" style="background: linear-gradient(90deg, #b87333, #d9944a)"></div>
-        <div class="p-6">
-          <div class="flex items-center gap-3 mb-4">
-            <span class="w-8 h-8 rounded-lg bg-copper-500/10 text-copper-600 dark:text-copper-400 flex items-center justify-center text-xs font-bold font-mono">03</span>
-            <h3 class="text-leather-900 dark:text-leather-100 font-bold text-base">Create instance</h3>
-          </div>
-          <div class="ml-11">
-            <div class="code-block depth-lg mb-4">
-              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">terminal</span></div>
-              <pre class="font-mono"><code><span class="c-prompt">$</span> ./kanipi create mybot</code></pre>
-            </div>
-            <p class="text-xs text-leather-400 font-semibold uppercase tracking-wider mb-2">Creates:</p>
-            <div class="space-y-2">
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-copper-500"></span><code class="font-mono text-xs text-copper-600 dark:text-copper-400">/srv/data/kanipi_mybot/.env</code><span class="text-leather-300 dark:text-leather-800">&mdash;</span> configuration</div>
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-copper-500"></span><code class="font-mono text-xs text-copper-600 dark:text-copper-400">/srv/data/kanipi_mybot/store/</code><span class="text-leather-300 dark:text-leather-800">&mdash;</span> SQLite DB, auth state</div>
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-copper-500"></span><code class="font-mono text-xs text-copper-600 dark:text-copper-400">/srv/data/kanipi_mybot/groups/</code><span class="text-leather-300 dark:text-leather-800">&mdash;</span> per-group folders</div>
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-copper-500"></span><code class="font-mono text-xs text-copper-600 dark:text-copper-400">/srv/data/kanipi_mybot/data/</code><span class="text-leather-300 dark:text-leather-800">&mdash;</span> IPC, sessions</div>
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-copper-500"></span><code class="font-mono text-xs text-copper-600 dark:text-copper-400">/srv/data/kanipi_mybot/web/</code><span class="text-leather-300 dark:text-leather-800">&mdash;</span> Vite web app</div>
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-copper-500"></span>systemd service unit</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 04 -->
-      <div id="s4" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+      <!-- 02 Gateway Commands -->
+      <div id="s02" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
         <div class="color-strip" style="background: linear-gradient(90deg, #6a9ec0, #8ecae6)"></div>
         <div class="p-6">
           <div class="flex items-center gap-3 mb-4">
-            <span class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-bold font-mono">04</span>
-            <h3 class="text-leather-900 dark:text-leather-100 font-bold text-base">Configure</h3>
+            <span class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-bold font-mono">02</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Gateway Commands</h2>
           </div>
-          <div class="ml-11">
-            <p class="text-sm text-leather-500 dark:text-leather-400 mb-3">Edit <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-sky-600 dark:text-sky-400 border border-leather-200/40 dark:border-leather-900/30">/srv/data/kanipi_mybot/.env</code>:</p>
-            <div class="code-block depth-lg mb-4">
-              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">.env</span></div>
-              <pre class="font-mono"><code><span class="c-kw">ASSISTANT_NAME</span>=<span class="c-str">"mybot"</span>
-<span class="c-kw">CLAUDE_CODE_OAUTH_TOKEN</span>=<span class="c-str">"sk-ant-oat-..."</span>
-
-<span class="c-dim"># enable channels by adding their token</span>
-<span class="c-kw">TELEGRAM_BOT_TOKEN</span>=<span class="c-str">"123456:ABC-xyz..."</span>
-<span class="c-kw">DISCORD_BOT_TOKEN</span>=<span class="c-str">"MTIz..."</span>
-
-<span class="c-kw">VITE_PORT</span>=<span class="c-num">5173</span></code></pre>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Slash commands at the <strong class="text-leather-700 dark:text-leather-200">start</strong> of a message are intercepted before the agent sees them.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">These commands are handled by the gateway itself — the agent never receives them. The rule is positional: <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/new</code> at the start resets your session; <em>"tell the agent /new context"</em> goes straight to the agent as plain text.</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm border-collapse">
+                <thead><tr class="border-b border-leather-200/40 dark:border-leather-900/30"><th class="text-left py-2 pr-4 text-xs font-bold text-leather-400 tracking-widest uppercase">Command</th><th class="text-left py-2 text-xs font-bold text-leather-400 tracking-widest uppercase">What it does</th></tr></thead>
+                <tbody class="divide-y divide-leather-100 dark:divide-leather-900/20">
+                  <tr><td class="py-2 pr-4 font-mono text-xs text-copper-500">/new [msg]</td><td class="py-2 text-sm text-leather-600 dark:text-leather-300">Reset session. Optional message starts fresh immediately. <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/new #topic</code> resets only that topic.</td></tr>
+                  <tr><td class="py-2 pr-4 font-mono text-xs text-copper-500">/stop</td><td class="py-2 text-sm text-leather-600 dark:text-leather-300">Halt the active container immediately.</td></tr>
+                  <tr><td class="py-2 pr-4 font-mono text-xs text-copper-500">/ping</td><td class="py-2 text-sm text-leather-600 dark:text-leather-300">Check the gateway is alive — responds with pong.</td></tr>
+                  <tr><td class="py-2 pr-4 font-mono text-xs text-copper-500">/chatid</td><td class="py-2 text-sm text-leather-600 dark:text-leather-300">Returns your current chat ID.</td></tr>
+                  <tr><td class="py-2 pr-4 font-mono text-xs text-copper-500">/status</td><td class="py-2 text-sm text-leather-600 dark:text-leather-300">Show whether a container is currently running.</td></tr>
+                  <tr><td class="py-2 pr-4 font-mono text-xs text-copper-500">/file</td><td class="py-2 text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">put</code> upload, <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">get</code> download, <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">ls</code> list workspace.</td></tr>
+                </tbody>
+              </table>
             </div>
-            <p class="text-xs text-leather-400 font-semibold uppercase tracking-wider mb-2">Channel activation:</p>
-            <div class="space-y-2">
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-sky-500"></span><strong class="text-leather-900 dark:text-leather-100">Telegram</strong> &mdash; set <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">TELEGRAM_BOT_TOKEN</code></div>
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-sky-500"></span><strong class="text-leather-900 dark:text-leather-100">Discord</strong> &mdash; set <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">DISCORD_BOT_TOKEN</code></div>
-              <div class="flex items-center gap-2 text-sm text-leather-600 dark:text-leather-300"><span class="w-1 h-1 rounded-full bg-sky-500"></span><strong class="text-leather-900 dark:text-leather-100">WhatsApp</strong> &mdash; auto-enabled when auth credentials exist in <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">store/auth/</code></div>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">examples</span></div>
+              <pre class="font-mono"><code><span class="c-kw">/new</span> <span class="c-str">let's start over — summarise Q3 results</span>
+<span class="c-kw">/file</span> ls
+<span class="c-dim"># mid-message /new goes to the agent, not gateway:</span>
+<span class="c-str">can you explain /new session handling?</span>  <span class="c-dim">← agent gets this</span></code></pre>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 05 -->
-      <div id="s5" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+      <!-- 03 Topic Sessions -->
+      <div id="s03" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #5a8f5c, #7abd82)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-field-500/10 text-field-600 dark:text-field-400 flex items-center justify-center text-xs font-bold font-mono">03</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Topic Sessions</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">#topic</code> in your message routes to a named session — separate context, same agent.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Any message containing <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">#word</code> anywhere routes to that topic's dedicated session. The agent only sees the history for that topic — your main session stays untouched. Use this to run parallel work streams without contexts bleeding into each other.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Reset a single topic with <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/new #topic</code> — clears only that thread.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">parallel topics</span></div>
+              <pre class="font-mono"><code><span class="c-str">#research</span> <span class="c-dim">start digging into WASM runtimes</span>
+<span class="c-str">#deploy</span> <span class="c-dim">any issues with last night's rollout?</span>
+<span class="c-str">#research</span> <span class="c-dim">what have you found so far?</span>
+<span class="c-kw">/new</span> <span class="c-str">#deploy</span>   <span class="c-dim"># reset only the deploy thread</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 04 Agent Routing @ -->
+      <div id="s04" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #b87333, #d9944a)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-copper-500/10 text-copper-600 dark:text-copper-400 flex items-center justify-center text-xs font-bold font-mono">04</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Agent Routing</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">@name</code> in your message routes to a child agent named <em>name</em>.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Put <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">@name</code> anywhere in your message to address a specific child agent — <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">@support</code>, <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">@code</code>, or <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">@research</code>. Each child agent has its own personality, instructions, and conversation history. The routing token is stripped before the agent sees your message — it receives clean text. If the named child doesn't exist, the message falls back to your default agent.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">routing</span></div>
+              <pre class="font-mono"><code><span class="c-kw">@support</span> <span class="c-str">I have a billing question</span>
+<span class="c-dim"># support agent receives: "I have a billing question"</span>
+
+<span class="c-str">hey</span> <span class="c-kw">@code</span> <span class="c-str">can you review this snippet?</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05 Files & Attachments -->
+      <div id="s05" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
         <div class="color-strip" style="background: linear-gradient(90deg, #c0485e, #e06080)"></div>
         <div class="p-6">
           <div class="flex items-center gap-3 mb-4">
             <span class="w-8 h-8 rounded-lg bg-rosette-500/10 text-rosette-600 dark:text-rosette-400 flex items-center justify-center text-xs font-bold font-mono">05</span>
-            <h3 class="text-leather-900 dark:text-leather-100 font-bold text-base">Start</h3>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Files &amp; Attachments</h2>
           </div>
-          <div class="ml-11">
-            <div class="code-block depth-lg mb-4">
-              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">terminal</span></div>
-              <pre class="font-mono"><code><span class="c-prompt">$</span> sudo systemctl start kanipi_mybot</code></pre>
-            </div>
-            <p class="text-xs text-leather-400 font-semibold uppercase tracking-wider mb-3">Or manually with docker:</p>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Send files directly — the agent reads them. Get files back via <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/file</code> or the agent delivers them as attachments.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Attach files directly to your message — images seen natively, PDFs extracted, documents read as text. No special command needed: just attach and ask. To retrieve files the agent produced, use <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/file get ~/path</code> or ask the agent to send it. The agent's writable temp area is <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">~/tmp/</code>.</p>
             <div class="code-block depth-lg">
-              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">docker</span></div>
-              <pre class="font-mono"><code><span class="c-prompt">$</span> docker run -i --rm --network=host \
-    -v /srv/data/kanipi_mybot:/srv/app/home \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    kanipi \
-    ./kanipi mybot</code></pre>
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">file flow</span></div>
+              <pre class="font-mono"><code><span class="c-str">here's the report [report.pdf] — pull out the key metrics</span>
+<span class="c-kw">/file</span> put data.csv
+<span class="c-kw">/file</span> ls
+<span class="c-kw">/file</span> get ~/tmp/summary.md
+<span class="c-str">send me the output as a file</span></code></pre>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 06 -->
-      <div id="s6" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
-        <div class="color-strip" style="background: linear-gradient(90deg, #d4a843, #5a8f5c, #b87333, #6a9ec0)"></div>
+      <!-- 06 Voice Messages -->
+      <div id="s06" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #6a9ec0, #8ecae6)"></div>
         <div class="p-6">
           <div class="flex items-center gap-3 mb-4">
-            <span class="w-8 h-8 rounded-lg bg-field-500/10 text-field-600 dark:text-field-400 flex items-center justify-center text-xs font-bold font-mono">06</span>
-            <h3 class="text-leather-900 dark:text-leather-100 font-bold text-base">Usage</h3>
+            <span class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-bold font-mono">06</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Voice Messages</h2>
           </div>
-          <div class="space-y-2.5 ml-11 mb-6">
-            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">Mention the bot or send it a direct message &mdash; it responds as Claude</span></div>
-            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">It can build and deploy web apps to <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/workspace/web/</code>, served by Vite</span></div>
-            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">Each conversation spawns its own Docker container with full shell access</span></div>
-            <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-field-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300">Containers idle-timeout automatically when inactive</span></div>
-          </div>
-          <div class="ml-11 mb-6">
-            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Web file layout</p>
-            <p class="text-sm text-leather-500 dark:text-leather-400 mb-3">Web files live under <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">/workspace/web/</code> inside the container. The <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">/pub/</code> URL prefix is the auth boundary:</p>
-            <div class="space-y-2">
-              <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-copper-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">web/pub/</code> &mdash; publicly accessible, no authentication required</span></div>
-              <div class="flex items-start gap-2.5"><span class="w-1.5 h-1.5 rounded-full bg-copper-500 mt-2 shrink-0"></span><span class="text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">web/priv/</code> &mdash; auth-gated, not accessible without login</span></div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Voice messages are automatically transcribed — you see the text, the agent gets the text.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">WhatsApp voice notes, Telegram voice messages, and Discord audio are all supported. Transcription happens before the agent processes the message — no action needed. The agent never receives the audio file itself, only the transcription text. Your operator can configure additional language passes (e.g. Czech, Russian) for multilingual accuracy.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">conversation history</span></div>
+              <pre class="font-mono"><code><span class="c-dim"># what the agent sees</span>
+<span class="c-kw">You</span>  <span class="c-str">[voice/auto→en: can you summarise the last three tickets?]</span>
+
+<span class="c-dim"># multi-language (operator configured Czech)</span>
+<span class="c-kw">You</span>  <span class="c-str">[voice/auto→cs: potřebuji pomoc s nasazením]</span></code></pre>
             </div>
-          </div>
-          <div class="ml-11 mb-6">
-            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Agent identity (character.json)</p>
-            <p class="text-sm text-leather-500 dark:text-leather-400">Agent personality is defined in <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">container/character.json</code> (ElizaOS-style: bio, topics, adjectives, style, messageExamples). Fields are randomized per query. Per-instance overrides go in <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">/workspace/global/character.json</code> and are merged at runtime.</p>
-          </div>
-          <div class="ml-11 mb-6">
-            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Upgrading existing instances (migration system)</p>
-            <p class="text-sm text-leather-500 dark:text-leather-400 mb-2">Skills and CLAUDE.md are seeded per group on first spawn. To sync all groups after a kanipi update, use the <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">/migrate</code> skill. It checks <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">container/skills/self/MIGRATION_VERSION</code> against each group's applied version and runs any pending numbered migration files from <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">container/skills/self/migrations/</code>.</p>
-          </div>
-          <div class="ml-11">
-            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Registering groups</p>
-            <p class="text-sm text-leather-500 dark:text-leather-400 mb-3">Start the bot, add it to a chat, then register the group. List available (unregistered) chats the bot has seen:</p>
-            <div class="code-block depth-lg mb-3">
-              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">terminal</span></div>
-              <pre class="font-mono"><code><span class="c-prompt">$</span> ./kanipi config mybot group list
-<span class="c-prompt">$</span> ./kanipi config mybot group add <span class="c-str">tg:-1234567890</span>
-<span class="c-prompt">$</span> ./kanipi config mybot group rm  <span class="c-str">tg:-1234567890</span></code></pre>
-            </div>
-            <p class="text-sm text-leather-500 dark:text-leather-400">The first group registered becomes <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">folder=root</code> with no trigger required. Subsequent groups require a trigger (<code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded border border-leather-200/40 dark:border-leather-900/30">@botname</code>) and a folder name as the third argument.</p>
           </div>
         </div>
       </div>
 
-      <!-- 07 -->
-      <div id="s7" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
-        <div class="color-strip" style="background: linear-gradient(90deg, #6a9ec0, #7abd82, #d4a843)"></div>
+      <!-- 07 Memory & Diary -->
+      <div id="s07" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #8b6914, #d4a843)"></div>
         <div class="p-6">
           <div class="flex items-center gap-3 mb-4">
-            <span class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-bold font-mono">07</span>
-            <h3 class="text-leather-900 dark:text-leather-100 font-bold text-base">Agent capabilities</h3>
+            <span class="w-8 h-8 rounded-lg bg-hay-500/10 text-hay-600 dark:text-hay-400 flex items-center justify-center text-xs font-bold font-mono">07</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Memory &amp; Diary</h2>
           </div>
-          <div class="space-y-6 ml-11">
-
-            <!-- Steering -->
-            <div>
-              <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Steering a running agent</p>
-              <p class="text-sm text-leather-600 dark:text-leather-300 mb-2">Send a follow-up message while an agent is still processing. The gateway pipes it into the active container — no new container is spawned. The agent sees it as a new user turn and can change course.</p>
-              <p class="text-sm text-leather-500 dark:text-leather-400">Messages sent while no container is running queue normally and start a fresh container.</p>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The agent keeps a daily diary and persistent memory — it remembers across sessions.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The diary (<code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">diary/YYYYMMDD.md</code>) is written at the end of each session and surfaced at the start of the next. <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">MEMORY.md</code> holds stable facts — preferences, ongoing projects, decisions — and is always loaded. To influence memory, tell the agent something important and ask it to remember. Clearing a session with <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/new</code> resets the conversation but does <em>not</em> wipe memory.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">example</span></div>
+              <pre class="font-mono"><code><span class="c-kw">you</span>    remember I prefer TypeScript for all new projects
+<span class="c-kw">agent</span>  Got it — noted in MEMORY.md. I'll default to TypeScript.</code></pre>
             </div>
-
-            <!-- Subagents -->
-            <div>
-              <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Subagents (Agent Teams)</p>
-              <p class="text-sm text-leather-600 dark:text-leather-300 mb-2">The agent can spawn subagents via the <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">Task</code> tool. Subagents run <strong class="text-leather-800 dark:text-leather-200">inside the same container</strong> — shared filesystem, shared mounts, same MCP server. They are not independent docker containers and cannot be addressed separately.</p>
-              <p class="text-sm text-leather-500 dark:text-leather-400">Subagents can call <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">send_message</code> to push updates to the chat, and can read/write the same <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/workspace/group/</code> folder.</p>
-            </div>
-
-            <!-- Progress messages -->
-            <div>
-              <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Progress messages</p>
-              <p class="text-sm text-leather-600 dark:text-leather-300 mb-3">The agent can send messages mid-task via the <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">mcp__nanoclaw__send_message</code> tool. The final result is sent automatically — <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">send_message</code> is for intermediate updates only.</p>
-              <div class="code-block depth-lg">
-                <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">CLAUDE.md hint</span></div>
-                <pre class="font-mono"><code><span class="c-dim"># in the agent's CLAUDE.md or system prompt:</span>
-For tasks expected to take &gt;30s, call send_message
-with a brief progress update every ~60s.</code></pre>
-              </div>
-            </div>
-
-            <!-- Scheduled tasks -->
-            <div>
-              <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase mb-2">Scheduled tasks</p>
-              <p class="text-sm text-leather-600 dark:text-leather-300 mb-2">Agents schedule work via <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">mcp__nanoclaw__schedule_task</code>. Each run spawns a <strong class="text-leather-800 dark:text-leather-200">fresh independent container</strong> — unlike subagents, these are fully isolated.</p>
-              <div class="space-y-2 mb-3">
-                <div class="flex items-start gap-2"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-hay-600 dark:text-hay-400 border border-leather-200/40 dark:border-leather-900/30 shrink-0">cron</code><span class="text-sm text-leather-500 dark:text-leather-400">Recurring on a schedule — <code class="font-mono text-xs">0 9 * * *</code> for daily 9am</span></div>
-                <div class="flex items-start gap-2"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-hay-600 dark:text-hay-400 border border-leather-200/40 dark:border-leather-900/30 shrink-0">interval</code><span class="text-sm text-leather-500 dark:text-leather-400">Recurring every N milliseconds</span></div>
-                <div class="flex items-start gap-2"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-hay-600 dark:text-hay-400 border border-leather-200/40 dark:border-leather-900/30 shrink-0">once</code><span class="text-sm text-leather-500 dark:text-leather-400">Single run at a specific local timestamp. After running, status becomes <code class="font-mono text-xs">completed</code> and the task never runs again. Use <code class="font-mono text-xs">cancel_task</code> to delete it.</span></div>
-              </div>
-              <p class="text-sm text-leather-500 dark:text-leather-400">Tasks run in <strong class="text-leather-700 dark:text-leather-300">group</strong> context (with conversation history) or <strong class="text-leather-700 dark:text-leather-300">isolated</strong> context (fresh session — include all needed context in the prompt).</p>
-            </div>
-
           </div>
         </div>
       </div>
 
-    </div>
+      <!-- 08 User Context -->
+      <div id="s08" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #5a8f5c, #7abd82)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-field-500/10 text-field-600 dark:text-field-400 flex items-center justify-center text-xs font-bold font-mono">08</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">User Context</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The agent tracks per-user context — your preferences, role, and history — separately from global memory.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Each user gets a file at <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">users/&lt;your-id&gt;.md</code> in the agent's workspace. The agent reads and updates it each session, storing your role, expertise level, ongoing work, and stated preferences — without you having to repeat yourself. To shape what gets stored, just tell the agent explicitly.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">users/tg-12345.md</span></div>
+              <pre class="font-mono"><code><span class="c-str">## Role
+Backend developer — Go preferred.
 
-    <!-- FEATURES -->
-    <div class="flex items-center gap-3 mb-8">
-      <div class="w-5 h-1 bg-field-500 rounded-full"></div>
-      <span class="text-xs font-bold text-leather-400 tracking-[0.2em] uppercase">Features</span>
-      <div class="flex-1 h-px bg-leather-200/60 dark:bg-leather-900/40"></div>
-    </div>
+## Active work
+- Auth service migration (started 2025-06-10)
 
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-16">
-      <div class="feat-card bg-white dark:bg-stable-800 depth-sm rounded-xl p-5 text-center border border-leather-200/40 dark:border-leather-900/30">
-        <div class="w-11 h-11 rounded-xl bg-hay-500/10 flex items-center justify-center mx-auto mb-3">
-          <span class="text-hay-600 dark:text-hay-400 font-mono font-bold text-sm">#</span>
+## Preferences
+- Concise answers, no preamble
+- Show diffs, not full file rewrites</span></code></pre>
+            </div>
+          </div>
         </div>
-        <div class="text-leather-900 dark:text-leather-100 text-sm font-bold mb-1">Multi-channel</div>
-        <div class="text-leather-400 text-xs">Telegram, Discord, WhatsApp</div>
       </div>
-      <div class="feat-card bg-white dark:bg-stable-800 depth-sm rounded-xl p-5 text-center border border-leather-200/40 dark:border-leather-900/30">
-        <div class="w-11 h-11 rounded-xl bg-field-500/10 flex items-center justify-center mx-auto mb-3">
-          <span class="text-field-600 dark:text-field-400 font-mono font-bold text-sm">[ ]</span>
+
+      <!-- 09 Facts System -->
+      <div id="s09" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #b87333, #d9944a)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-copper-500/10 text-copper-600 dark:text-copper-400 flex items-center justify-center text-xs font-bold font-mono">09</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Facts System</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/facts</code> creates verified knowledge entries the agent checks before answering.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">When you ask something factual, the agent runs <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/recall-memories</code> first. If no fresh match exists, it uses <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/facts</code> to research and write a new entry. Facts live in <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">facts/*.md</code> with YAML frontmatter and go stale after 14 days — the agent refreshes them automatically. You can seed facts manually: "create a fact about our deployment process."</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">facts/deploy.md</span></div>
+              <pre class="font-mono"><code><span class="c-str">---
+summary: Deploy uses make deploy → ansible → systemd restart
+verified_at: 2025-06-11
+---</span>
+<span class="c-dim">Run `make deploy`. Ansible pushes image, restarts service.</span></code></pre>
+            </div>
+          </div>
         </div>
-        <div class="text-leather-900 dark:text-leather-100 text-sm font-bold mb-1">Container isolation</div>
-        <div class="text-leather-400 text-xs">Per-conversation sandboxing</div>
       </div>
-      <div class="feat-card bg-white dark:bg-stable-800 depth-sm rounded-xl p-5 text-center border border-leather-200/40 dark:border-leather-900/30">
-        <div class="w-11 h-11 rounded-xl bg-copper-500/10 flex items-center justify-center mx-auto mb-3">
-          <span class="text-copper-600 dark:text-copper-400 font-mono font-bold text-sm">&lt;/&gt;</span>
+
+      <!-- 10 Episodes & Compression -->
+      <div id="s10" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #c0485e, #e06080)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-rosette-500/10 text-rosette-600 dark:text-rosette-400 flex items-center justify-center text-xs font-bold font-mono">10</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Episodes &amp; Compression</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Long sessions get compressed into episode summaries — the agent remembers month-old work without re-reading everything.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/compact-memories</code> skill rolls up raw session transcripts: daily sessions → weekly episodes → monthly. The gateway injects these summaries as context at every new session start — so the agent arrives knowing what you worked on last month. Schedule compaction automatically via cron, or trigger it manually.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">commands</span></div>
+              <pre class="font-mono"><code><span class="c-kw">/compact-memories</span> episodes day   <span class="c-dim"># compress yesterday's sessions</span>
+<span class="c-kw">/compact-memories</span> episodes week  <span class="c-dim"># roll up daily → weekly</span>
+<span class="c-kw">/compact-memories</span> diary week     <span class="c-dim"># compress diary entries</span></code></pre>
+            </div>
+          </div>
         </div>
-        <div class="text-leather-900 dark:text-leather-100 text-sm font-bold mb-1">Web deploy</div>
-        <div class="text-leather-400 text-xs">Vite apps from chat</div>
       </div>
-      <div class="feat-card bg-white dark:bg-stable-800 depth-sm rounded-xl p-5 text-center border border-leather-200/40 dark:border-leather-900/30">
-        <div class="w-11 h-11 rounded-xl bg-sky-500/10 flex items-center justify-center mx-auto mb-3">
-          <span class="text-sky-600 dark:text-sky-400 font-mono font-bold text-sm">MCP</span>
+
+      <!-- 11 Recall Search -->
+      <div id="s11" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #5a8f5c, #7abd82)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-field-500/10 text-field-600 dark:text-field-400 flex items-center justify-center text-xs font-bold font-mono">11</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Recall Search</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300"><code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/recall-memories</code> searches all knowledge stores at once — diary, facts, episodes, MEMORY.md, user context.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The agent runs this proactively before answering questions that touch long-term context. Matching uses <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">summary:</code> frontmatter in each file. If a match looks stale the agent refreshes it before responding. You can also ask naturally: "what do you know about project Y?"</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">example</span></div>
+              <pre class="font-mono"><code><span class="c-kw">you</span>   search your memory for anything about the API migration
+<span class="c-kw">agent</span> Found 3 matches: diary/20250310.md, facts/backend.md,
+      episodes/2025-W10.md. Migration moved auth to /v2/token,
+      complete as of March 10.</code></pre>
+            </div>
+          </div>
         </div>
-        <div class="text-leather-900 dark:text-leather-100 text-sm font-bold mb-1">MCP servers</div>
-        <div class="text-leather-400 text-xs">Extensible tool servers</div>
       </div>
-      <div class="feat-card bg-white dark:bg-stable-800 depth-sm rounded-xl p-5 text-center border border-leather-200/40 dark:border-leather-900/30">
-        <div class="w-11 h-11 rounded-xl bg-rosette-500/10 flex items-center justify-center mx-auto mb-3">
-          <span class="text-rosette-600 dark:text-rosette-400 font-mono font-bold text-sm">cron</span>
+
+      <!-- 12 Web Apps -->
+      <div id="s12" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #b87333, #d9944a)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-copper-500/10 text-copper-600 dark:text-copper-400 flex items-center justify-center text-xs font-bold font-mono">12</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Web Apps</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Ask the agent to build an app — it deploys to your web host URL live.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The agent writes files into <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/workspace/web/</code>, served live at your group's URL. Files under <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">pub/</code> are public; <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">priv/</code> requires login. Send follow-ups to iterate — the agent edits in place and changes appear immediately.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">example</span></div>
+              <pre class="font-mono"><code><span class="c-kw">you</span>   build a todo app with dark mode
+<span class="c-kw">agent</span> Done. Live at: <span class="c-str">https://bot.example.com/mygroup/todo/</span>
+
+<span class="c-kw">you</span>   add a due-date field
+<span class="c-kw">agent</span> Updated — reload the page.</code></pre>
+            </div>
+          </div>
         </div>
-        <div class="text-leather-900 dark:text-leather-100 text-sm font-bold mb-1">Scheduled tasks</div>
-        <div class="text-leather-400 text-xs">Cron, interval, or once</div>
       </div>
-      <div class="feat-card bg-white dark:bg-stable-800 depth-sm rounded-xl p-5 text-center border border-leather-200/40 dark:border-leather-900/30">
-        <div class="w-11 h-11 rounded-xl bg-field-500/10 flex items-center justify-center mx-auto mb-3">
-          <span class="text-field-600 dark:text-field-400 font-mono font-bold text-sm">&gt;_</span>
+
+      <!-- 13 Scheduling -->
+      <div id="s13" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #8b6914, #d4a843)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-hay-500/10 text-hay-600 dark:text-hay-400 flex items-center justify-center text-xs font-bold font-mono">13</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Scheduling</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Ask the agent to schedule recurring tasks — it sets up cron jobs that run automatically.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Task types: <strong>cron</strong> (schedule expression), <strong>interval</strong> (every N ms), <strong>once</strong> (specific time). Scheduled tasks run isolated with a self-contained prompt — write the prompt as if it's a new conversation. View or cancel: "what tasks are running?" or visit <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/dash/tasks/</code>.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">example</span></div>
+              <pre class="font-mono"><code><span class="c-kw">you</span>   check the weather in London every morning at 9am
+<span class="c-kw">agent</span> Scheduled "weather-london" at <span class="c-str">0 9 * * *</span>. I'll message you daily.
+
+<span class="c-kw">you</span>   cancel the weather task
+<span class="c-kw">agent</span> Cancelled.</code></pre>
+            </div>
+          </div>
         </div>
-        <div class="text-leather-900 dark:text-leather-100 text-sm font-bold mb-1">Subagents</div>
-        <div class="text-leather-400 text-xs">Parallel work via Task tool</div>
       </div>
-      <div class="feat-card bg-white dark:bg-stable-800 depth-sm rounded-xl p-5 text-center border border-leather-200/40 dark:border-leather-900/30">
-        <div class="w-11 h-11 rounded-xl bg-hay-500/10 flex items-center justify-center mx-auto mb-3">
-          <span class="text-hay-600 dark:text-hay-400 font-mono font-bold text-sm">···</span>
+
+      <!-- 14 Dashboard -->
+      <div id="s14" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #6a9ec0, #8ecae6)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-bold font-mono">14</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Dashboard</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/dash/</code> portal shows gateway status, tasks, groups, memory, and activity — no CLI needed.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Log in with your kanipi password. Pause or cancel tasks, edit MEMORY.md and CLAUDE.md directly in the browser, and approve onboarding requests — all from a single portal.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">sections</span></div>
+              <pre class="font-mono"><code><span class="c-str">https://bot.example.com/dash/</span>
+
+<span class="c-kw">Status</span>     container uptime · error counts · last activity
+<span class="c-kw">Tasks</span>      scheduled jobs · next run · pause / cancel
+<span class="c-kw">Groups</span>     routing table · group config · tiers
+<span class="c-kw">Memory</span>     edit MEMORY.md · CLAUDE.md per group
+<span class="c-kw">Activity</span>   last 50 messages · routing decisions
+<span class="c-kw">Onboarding</span> approve / reject new user requests</code></pre>
+            </div>
+          </div>
         </div>
-        <div class="text-leather-900 dark:text-leather-100 text-sm font-bold mb-1">Progress updates</div>
-        <div class="text-leather-400 text-xs">Mid-task messages via IPC</div>
       </div>
+
+      <!-- 15 Skills -->
+      <div id="s15" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #c0485e, #e06080)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-rosette-500/10 text-rosette-600 dark:text-rosette-400 flex items-center justify-center text-xs font-bold font-mono">15</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Skills</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Skills are slash commands that extend what the agent can do.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Type <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/skill-name</code> at the start of your message to invoke one. The agent can also create new skills itself by writing a <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">SKILL.md</code> — capabilities extend across sessions. Run <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/migrate</code> to push the latest skills to all groups.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">built-in skills</span></div>
+              <pre class="font-mono"><code><span class="c-kw">/hello</span>  <span class="c-kw">/self</span>  <span class="c-kw">/facts</span>  <span class="c-kw">/recall-memories</span>
+<span class="c-kw">/compact-memories</span>  <span class="c-kw">/diary</span>  <span class="c-kw">/web</span>  <span class="c-kw">/howto</span>
+<span class="c-kw">/users</span>  <span class="c-kw">/migrate</span>  <span class="c-kw">/info</span>  <span class="c-kw">/git-repo</span>
+
+<span class="c-kw">you</span>   what skills do you have?
+<span class="c-kw">agent</span> <span class="c-dim">Running /self… [lists all loaded skills]</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 16 Research & Web -->
+      <div id="s16" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #5a8f5c, #7abd82)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-field-500/10 text-field-600 dark:text-field-400 flex items-center justify-center text-xs font-bold font-mono">16</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Research &amp; Web</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The agent can browse the web, read pages, download videos, and extract text from any document.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Ask it to research any topic and it runs live searches, opens pages, and returns a summary. For complex sites it uses the browser to interact with forms and take screenshots. Video and audio URLs are handled with <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">yt-dlp</code>; transcription via Whisper. PDFs and DOCXs convert to readable text via <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">pandoc</code>.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">prompts</span></div>
+              <pre class="font-mono"><code><span class="c-str">research the latest on quantum error correction</span>
+<span class="c-str">download and transcribe https://youtu.be/abc123</span>
+<span class="c-str">summarize the PDF I just sent</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 17 Data & Visualization -->
+      <div id="s17" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #b87333, #d9944a)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-copper-500/10 text-copper-600 dark:text-copper-400 flex items-center justify-center text-xs font-bold font-mono">17</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Data &amp; Visualization</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Send data — the agent analyzes it and sends charts back as files.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Attach a CSV or Excel file (or paste numbers directly) and tell the agent what you want. It uses <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">pandas</code>, <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">numpy</code>, <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">matplotlib</code>, and <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">plotly</code> to produce charts, then sends the image back. Beyond charts: Excel files via <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">openpyxl</code>, PowerPoint decks via <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">python-pptx</code>, PDF reports via <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">weasyprint</code>.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">prompts</span></div>
+              <pre class="font-mono"><code><span class="c-str">analyze this CSV and plot monthly totals</span>
+<span class="c-str">make a bar chart of these numbers: 12, 45, 38, 72</span>
+<span class="c-str">turn this data into a PowerPoint slide deck</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 18 Coding & Dev -->
+      <div id="s18" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #8b6914, #d4a843)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-hay-500/10 text-hay-600 dark:text-hay-400 flex items-center justify-center text-xs font-bold font-mono">18</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Coding &amp; Dev</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The agent codes in any language, runs it, and sends back results.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">The container ships with Node/Bun, Python 3/uv, Go 1.24, and Rust/Cargo. The agent writes code, installs packages, runs it, and iterates until it works — then sends you the output or the file. Linting built in: <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">biome</code>, <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">ruff</code>, <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">prettier</code>. Media: <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">ffmpeg</code>, <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">imagemagick</code>.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">prompts</span></div>
+              <pre class="font-mono"><code><span class="c-str">write a Go HTTP server that returns JSON health</span>
+<span class="c-str">run this Python script on my data file</span>
+<span class="c-str">convert this video to mp3 and send it back</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 19 Groups & Tiers -->
+      <div id="s19" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #6a9ec0, #8ecae6)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-bold font-mono">19</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Groups &amp; Tiers</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Groups are nested — worlds contain children which contain grandchildren.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">Every group lives at a tier: root (system), world admin, child, or grandchild. All groups sharing the same first path segment belong to the same world and share <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/workspace/share</code>. With template routing, a message from an unknown user automatically spawns a dedicated child group — giving each user their own isolated agent.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">group tree</span></div>
+              <pre class="font-mono"><code><span class="c-kw">atlas/</span>           <span class="c-dim"># tier 1 — world admin</span>
+<span class="c-kw">atlas/support</span>    <span class="c-dim"># tier 2 — child group</span>
+<span class="c-kw">atlas/support/ops</span> <span class="c-dim"># tier 3 — grandchild</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 20 Onboarding -->
+      <div id="s20" class="step-card bg-white dark:bg-stable-800 depth-md rounded-2xl overflow-hidden border border-leather-200/40 dark:border-leather-900/30">
+        <div class="color-strip" style="background: linear-gradient(90deg, #c0485e, #e06080)"></div>
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-lg bg-rosette-500/10 text-rosette-600 dark:text-rosette-400 flex items-center justify-center text-xs font-bold font-mono">20</span>
+            <h2 class="text-base font-bold text-leather-800 dark:text-leather-100">Onboarding</h2>
+          </div>
+          <div class="space-y-4 ml-11">
+            <p class="text-xs font-bold text-leather-400 dark:text-leather-800 tracking-widest uppercase">TLDR</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">New users request a world with <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/request</code> — operators approve with <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/approve</code>.</p>
+            <p class="text-sm text-leather-600 dark:text-leather-300">When an unrecognized user messages the gateway, they are prompted to run <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/request myworld</code>. The root operator receives a notification and can approve or reject from any channel. Pending requests appear in <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">/dash/onboarding/</code> with copyable commands. On approval, a world is created from the root prototype. Requires <code class="font-mono text-xs bg-leather-100 dark:bg-stable-900 px-1.5 py-0.5 rounded text-copper-500 border border-leather-200/40 dark:border-leather-900/30">ONBOARDING_ENABLED=1</code> in the gateway config.</p>
+            <div class="code-block depth-lg">
+              <div class="code-header"><span class="code-dot" style="background:#c0485e"></span><span class="code-dot" style="background:#d4a843"></span><span class="code-dot" style="background:#5a8f5c"></span><span class="text-xs ml-2" style="color:#6d5e50">flow</span></div>
+              <pre class="font-mono"><code><span class="c-dim"># user</span>
+<span class="c-kw">/request</span> myworld
+
+<span class="c-dim"># operator</span>
+<span class="c-kw">/approve</span> <span class="c-str">telegram:-123456789</span>
+<span class="c-kw">/reject</span>  <span class="c-str">telegram:-123456789</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- FOOTER -->
@@ -445,6 +661,24 @@ with a brief progress update every ~60s.</code></pre>
 
   </div>
 
-  <script src="/assets/hub.js"></script>
+  <script>
+    // theme toggle
+    const btn = document.querySelector('.theme-toggle');
+    const html = document.documentElement;
+    const saved = localStorage.getItem('kanipi-theme');
+    if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      html.setAttribute('data-theme', 'dark');
+    }
+    function updateBtn() {
+      btn.textContent = html.getAttribute('data-theme') === 'dark' ? '☀' : '◑';
+    }
+    updateBtn();
+    btn.addEventListener('click', () => {
+      const dark = html.getAttribute('data-theme') === 'dark';
+      html.setAttribute('data-theme', dark ? 'light' : 'dark');
+      localStorage.setItem('kanipi-theme', dark ? 'light' : 'dark');
+      updateBtn();
+    });
+  </script>
 </body>
 </html>
