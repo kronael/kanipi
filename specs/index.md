@@ -113,23 +113,24 @@ Requires new instance or major architectural changes.
 
 ## Phase 5 — Agent Extensions & Workflows (future)
 
-13 specs. Focus: agent-to-agent, self-modification, workflows.
+14 specs. Focus: agent-to-agent, self-modification, workflows.
 
-| Spec                      | Topic                              | Status            |
-| ------------------------- | ---------------------------------- | ----------------- |
-| 0-agent-code-modification | Gateway staging area               | not started       |
-| 2-agent-pipeline          | Inter-agent workflows              | product config    |
-| 3-agent-teams             | Multi-agent patterns               | decided (use SDK) |
-| 6-extend-gateway-self     | Root agent modifies gateway        | open              |
-| 9-identities              | Cross-channel identity (needs 3/H) | open              |
-| A-ipc-mcp-proxy           | Unix socket replaces file IPC      | spec              |
-| C-message-mcp             | Agent-side history queries         | spec              |
-| D-message-wal             | Write-ahead log delivery           | spec              |
-| E-plugins                 | Agent-proposed plugins             | not implemented   |
-| F-prototypes              | Parent prototype/ seeds children   | open              |
-| J-sse                     | Per-group SSE stream               | incomplete        |
-| M-webdav                  | WebDAV workspace access            | spec              |
-| N-workflows               | Media MCP, delegation              | spec              |
+| Spec                      | Topic                                | Status            |
+| ------------------------- | ------------------------------------ | ----------------- |
+| K-social-rollback         | Remove social channels, declare done | next              |
+| 0-agent-code-modification | Gateway staging area                 | not started       |
+| 2-agent-pipeline          | Inter-agent workflows                | product config    |
+| 3-agent-teams             | Multi-agent patterns                 | decided (use SDK) |
+| 6-extend-gateway-self     | Root agent modifies gateway          | open              |
+| 9-identities              | Cross-channel identity (needs 3/H)   | open              |
+| A-ipc-mcp-proxy           | Unix socket replaces file IPC        | spec              |
+| C-message-mcp             | Agent-side history queries           | spec              |
+| D-message-wal             | Write-ahead log delivery             | spec              |
+| E-plugins                 | Agent-proposed plugins               | not implemented   |
+| F-prototypes              | Parent prototype/ seeds children     | open              |
+| J-sse                     | Per-group SSE stream                 | incomplete        |
+| M-webdav                  | WebDAV workspace access              | spec              |
+| N-workflows               | Media MCP, delegation                | spec              |
 
 ## Resources
 
