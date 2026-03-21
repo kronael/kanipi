@@ -53,13 +53,13 @@ CLAUDE.md, memory) is the primary extension mechanism.
 A product is a kanipi instance configured for a specific role.
 Same gateway, different CLAUDE.md + skills + mounts + persona.
 
-**Atlas** — code support agent. Mounted repos, support persona,
+**Support** — code support agent. Mounted repos, support persona,
 and workspace knowledge files. Agent searches code, researches via
 subagents, answers questions. Current configuration is CLAUDE.md +
 skills + refs/ mounts. A dedicated `facts/` memory layer is still
 planned, not shipped.
 
-**Yonder** — research associate and knowledge mapper. Message from
+**Researcher** — research associate and knowledge mapper. Message from
 phone, agent researches topics, builds knowledge pages, maps
 connections. Vite serves results live.
 

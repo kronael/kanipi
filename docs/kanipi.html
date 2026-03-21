@@ -57,7 +57,7 @@
         </a>
         <a href="#products" class="nav-item">
           <span class="nav-label">Products</span>
-          <span class="nav-hint">Atlas, Yonder</span>
+          <span class="nav-hint">Support, Researcher</span>
         </a>
         <a href="#quickstart" class="nav-item">
           <span class="nav-label">Quick Start</span>
@@ -717,7 +717,7 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
 
       <div class="grid">
         <div class="card">
-          <div class="card-title">Atlas</div>
+          <div class="card-title">Support</div>
           <p>Code support agent. Mounted repos, workspace knowledge, support persona.
             Searches code, researches via subagents, answers architecture questions.
             Uses facts/ memory for persistent knowledge, /recall for retrieval.</p>
@@ -726,7 +726,7 @@ kanipi config &lt;instance&gt; mount add|rm|list          # manage container mou
           </p>
         </div>
         <div class="card">
-          <div class="card-title">Yonder</div>
+          <div class="card-title">Researcher</div>
           <p>Research associate and knowledge mapper. Message from phone, agent researches topics,
             builds knowledge pages, maps connections. Vite serves results live.</p>
           <p style="font-size: 0.9em; color: var(--dim);">
@@ -978,7 +978,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           DinD path translation: HOST_GROUPS_DIR, HOST_DATA_DIR, HOST_APP_DIR for docker-in-docker mounts.
           Hot-patching: agent-runner TS source mounted, bunx tsc at runtime.
           Skills seeded from container/skills/ to .claude/skills/ inside group folder. SOUL.md for identity. SYSTEM.md for custom system prompt. Migration system (version 44). Template overlays (v1.0.7): /migrate step d reads TEMPLATES file per group, applies named overlays from templates/<name>/ (SOUL.md/SYSTEM.md replace, CLAUDE.md sections merge, skills/output-styles copy).
-          Products are configurations: Atlas (code support, shipped), Yonder (research, shipped).
+          Products are configurations: Support (code support, shipped), Researcher (research, shipped).
           Deploy: systemd per instance, multi-instance with independent image tags.
           Topic routing: #topic prefix runs message in named session (isolated, persistent) within same group. @agent prefix delegates to matching child group; unknown child falls through to self. Both use prefix route type at seq 9998/9999; user routes evaluated first and can override.
           Product templates: templates/default/ (dev+research+assistant), templates/support/ (tier-2 user-facing: disabled web skill, custom hello/howto, SYSTEM.md), templates/researcher/. kanipi create --template &lt;name&gt;.

@@ -2,7 +2,7 @@
 status: shipped
 ---
 
-# Atlas: What We Actually Need
+# Support: What We Actually Need
 
 The evangelist plugin's real value stripped of ElizaOS scaffolding.
 
@@ -52,9 +52,9 @@ and store on the message row. `formatMessages()` emits
 Public-facing agent with restricted permissions using the tier model:
 
 ```
-atlas/               → tier 1: world admin
-  atlas/support      → tier 2: research backend (rw facts/)
-    atlas/support/web → tier 3: user-facing (ro, escalate-only)
+support/               → tier 1: world admin
+  support/support      → tier 2: research backend (rw facts/)
+    support/support/web → tier 3: user-facing (ro, escalate-only)
 ```
 
 Worker escalates to parent when facts insufficient. This is product

@@ -70,7 +70,7 @@ Gateway rewrite in Go. Agent container stays TypeScript.
 - Same SQLite schema, same .env, same IPC protocol
 - Drop-in replacement for TS gateway
 
-## Atlas
+## Support
 
 Product-specific roadmap.
 

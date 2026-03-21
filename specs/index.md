@@ -61,7 +61,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 | Spec                    | Topic                                                                | Status  |
 | ----------------------- | -------------------------------------------------------------------- | ------- |
 | 0-agent-capabilities    | Container tooling catalog                                            | shipped |
-| 1-atlas                 | Facts, researcher, verifier                                          | shipped |
+| 1-support               | Facts, researcher, verifier                                          | shipped |
 | 2-autotesting           | Subsystem test strategy                                              | shipped |
 | 3-code-research         | Code research agent (merged H-researcher + 3-support)                | shipped |
 | 4-paths                 | Path translation cleanup                                             | shipped |
