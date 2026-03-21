@@ -100,7 +100,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 
 | Spec                  | Topic                              | Status   |
 | --------------------- | ---------------------------------- | -------- |
-| K-versioning-personas | Composable personas via templates  | spec     |
+| K-versioning-personas | Composable personas via templates  | shipped  |
 | R-evangelist          | Community engagement agent         | →arizuko |
 | W-detached-containers | File-based container IPC, reclaim  | →arizuko |
 | X-onboarding          | Unrouted JID → approve → world     | shipped  |
