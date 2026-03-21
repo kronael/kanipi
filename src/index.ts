@@ -573,9 +573,12 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
         }
 
         if (result.status === 'success') {
-          if (result.result === null) {
-            startTyping(channel, chatJid);
+          if (result.result?.startsWith('⏳')) {
+            // Interim status update — keep typing, don't signal idle yet.
+            // Calling notifyIdle here would prematurely preempt the container
+            // if IPC tasks are pending.
           } else {
+            // Final result (text or empty) — stop typing and signal idle.
             stopTypingFor(chatJid);
             queue.notifyIdle(chatJid);
           }
@@ -612,6 +615,13 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
         logger.warn({ chatJid, err }, 'Failed to send error notification'),
       );
     return true;
+  }
+
+  if (!outputSentToUser) {
+    logger.warn(
+      { group: group.name, traceId, dur },
+      'Agent completed with no output sent to user (empty final result)',
+    );
   }
 
   logger.info({ group: group.name, traceId, dur }, 'Messages processed');
