@@ -98,8 +98,8 @@ Canonical latest skills always at `/workspace/self/templates/default/.claude/ski
 ## Web scaffold
 
 `/workspace/web/` is seeded at instance creation from
-`/workspace/self/container/skills/web/template/`. If missing, the agent can
-re-scaffold it (see `/web` skill).
+`/workspace/self/container/skills/web/template/`. For the WEB_DIR convention
+and how to deploy pages, see `/web` skill.
 
 ## Sync / migrate
 
@@ -182,7 +182,7 @@ ls /workspace/web/
 cat ~/.claude/skills/self/MIGRATION_VERSION 2>/dev/null || echo 0
 ```
 
-Latest migration version: **44**. If version < 44: migrations pending.
+Latest migration version: **45**. If version < 45: migrations pending.
 
 ## MCP tools
 

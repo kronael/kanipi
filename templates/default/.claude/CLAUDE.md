@@ -133,6 +133,7 @@ invoke `/self` before concluding you cannot do something.
 
 - Web apps: `https://$WEB_HOST/<app-name>/` — ALWAYS read `$WEB_HOST`
   from env, NEVER guess. If empty, say "web host not configured".
+  For WEB_DIR convention, see `/web` skill.
 - Gateway commands: intercepted only when `/cmd` is the **first word** of a
   message. Mid-message `/cmd` is ignored by the gateway and reaches you instead.
   `/new [message]` — reset session, `/stop` — stop agent,
