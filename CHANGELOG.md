@@ -7,6 +7,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.10] — 2026-03-22
+
+### Fixed
+
+- **Web path confusion**: `self/SKILL.md` and `CLAUDE.md` now point to `/web` skill for the WEB_DIR convention. Migration 045 detects misplaced content in world-admin groups. Prevents agents from writing pages one level too deep (`/workspace/web/<world>/` instead of `/workspace/web/`).
+
+---
+
 ## [v1.0.9] — 2026-03-21
 
 ### Changed
