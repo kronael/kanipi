@@ -1,6 +1,8 @@
 cfg/
 tmp/
 .ship/
+refs/
+node_modules/
 .git
 openclaw/.git
 openclaw/node_modules
