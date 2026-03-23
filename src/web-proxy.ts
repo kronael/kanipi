@@ -207,14 +207,75 @@ function matchesDenyGlob(filePath: string): boolean {
   return false;
 }
 
+function proxyWebdav(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  group: string,
+  rest: string,
+): void {
+  const method = (req.method || 'GET').toUpperCase();
+  const isWrite = WEBDAV_WRITE_METHODS.has(method);
+
+  if (isWrite && rest.replace(/^\/+/, '').startsWith('logs/')) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  if (isWrite && matchesDenyGlob(rest)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  const targetPath = `/${group}${rest}`;
+  const upstream = new URL(WEBDAV_URL);
+  const upstreamHeaders = { ...req.headers };
+  delete upstreamHeaders['authorization'];
+  upstreamHeaders['host'] = upstream.host;
+
+  const proxyReq = http.request(
+    {
+      host: upstream.hostname,
+      port: parseInt(upstream.port || '80', 10),
+      path: targetPath,
+      method: req.method,
+      headers: upstreamHeaders,
+    },
+    (proxyRes) => {
+      res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+      proxyRes.pipe(res);
+    },
+  );
+  proxyReq.on('error', (err) => {
+    logger.warn({ err, group }, 'webdav proxy error');
+    res.writeHead(502);
+    res.end('Bad Gateway');
+  });
+  req.pipe(proxyReq);
+}
+
 function handleWebdavRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   group: string,
   rest: string,
 ): void {
+  // Session cookie (GitHub/Google/password OAuth) grants full access
+  if (checkSessionCookie(req.headers.cookie || '')) {
+    return proxyWebdav(req, res, group, rest);
+  }
+
+  // Basic Auth token flow
   const authHeader = req.headers['authorization'] || '';
   if (!authHeader.toLowerCase().startsWith('basic ')) {
+    // Browser GET with no auth → redirect to login
+    const method = (req.method || 'GET').toUpperCase();
+    if (method === 'GET' || method === 'HEAD') {
+      res.writeHead(302, { Location: '/auth/login' });
+      res.end();
+      return;
+    }
     res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="kanipi"' });
     res.end('Unauthorized');
     return;
@@ -262,46 +323,7 @@ function handleWebdavRequest(
     return;
   }
 
-  const method = (req.method || 'GET').toUpperCase();
-  const isWrite = WEBDAV_WRITE_METHODS.has(method);
-
-  if (isWrite && rest.replace(/^\/+/, '').startsWith('logs/')) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
-  }
-
-  if (isWrite && matchesDenyGlob(rest)) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
-  }
-
-  const targetPath = `/${group}${rest}`;
-  const upstream = new URL(WEBDAV_URL);
-  const upstreamHeaders = { ...req.headers };
-  delete upstreamHeaders['authorization'];
-  upstreamHeaders['host'] = upstream.host;
-
-  const proxyReq = http.request(
-    {
-      host: upstream.hostname,
-      port: parseInt(upstream.port || '80', 10),
-      path: targetPath,
-      method: req.method,
-      headers: upstreamHeaders,
-    },
-    (proxyRes) => {
-      res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
-      proxyRes.pipe(res);
-    },
-  );
-  proxyReq.on('error', (err) => {
-    logger.warn({ err, group }, 'webdav proxy error');
-    res.writeHead(502);
-    res.end('Bad Gateway');
-  });
-  req.pipe(proxyReq);
+  return proxyWebdav(req, res, group, rest);
 }
 
 export function startWebProxy(opts: {
@@ -524,6 +546,17 @@ export function startWebProxy(opts: {
 
     if (dashCtx && url.startsWith('/dash')) {
       handleDashRequest(req, res, dashCtx);
+      return;
+    }
+
+    if (url === '/dav' || url === '/dav/') {
+      if (!WEBDAV_ENABLED) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      res.writeHead(302, { Location: '/dav/root/' });
+      res.end();
       return;
     }
 

@@ -7,7 +7,14 @@ import { addSseListener, removeSseListener } from './channels/web.js';
 
 vi.mock('./db.js', () => ({
   getGroupBySlink: vi.fn(),
+  getWebdavUser: vi.fn(),
+  getAuthSession: vi.fn(),
 }));
+
+vi.mock('./config.js', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('./config.js')>();
+  return { ...orig, WEBDAV_ENABLED: true, WEBDAV_URL: 'http://localhost:1' };
+});
 
 vi.mock('./slink.js', () => ({
   handleSlinkPost: vi.fn(),
@@ -22,7 +29,7 @@ vi.mock('./logger.js', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { getGroupBySlink } from './db.js';
+import { getGroupBySlink, getWebdavUser, getAuthSession } from './db.js';
 import { handleSlinkPost } from './slink.js';
 import { startWebProxy, _resetVhosts } from './web-proxy.js';
 import type { GroupConfig } from './db.js';
@@ -32,6 +39,8 @@ const mockGetGroup = vi.mocked(getGroupBySlink);
 const mockHandleSlink = vi.mocked(handleSlinkPost);
 const mockAddSse = vi.mocked(addSseListener);
 const mockRemoveSse = vi.mocked(removeSseListener);
+const mockGetWebdavUser = vi.mocked(getWebdavUser);
+const mockGetAuthSession = vi.mocked(getAuthSession);
 
 function makeGroup(token: string): GroupConfig & { jid: string } {
   return {
@@ -560,6 +569,168 @@ describe('vhost redirect', () => {
     try {
       const res = await get(port, '/', { Host: 'krons.fiu.wtf' });
       expect(res.status).not.toBe(301);
+    } finally {
+      await close();
+    }
+  });
+});
+
+// Helper: make a valid-looking AuthSession for checkSessionCookie
+function validSession() {
+  return {
+    token_hash: 'x',
+    user_sub: 'user1',
+    expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    created_at: new Date().toISOString(),
+  };
+}
+
+// Helper: raw HTTP request (supports arbitrary methods)
+function request(
+  port: number,
+  method: string,
+  path: string,
+  headers?: Record<string, string>,
+): Promise<{ status: number; body: string; location?: string }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      { host: 'localhost', port, path, method, headers },
+      (res) => {
+        let data = '';
+        res.on('data', (c) => (data += c));
+        res.on('end', () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            body: data,
+            location: res.headers['location'] as string | undefined,
+          }),
+        );
+      },
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+describe('/dav routing', () => {
+  it('GET /dav redirects to /dav/root/', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const res = await request(port, 'GET', '/dav');
+      expect(res.status).toBe(302);
+      expect(res.location).toBe('/dav/root/');
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/ redirects to /dav/root/', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const res = await request(port, 'GET', '/dav/');
+      expect(res.status).toBe(302);
+      expect(res.location).toBe('/dav/root/');
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/root/ without auth redirects to /auth/login', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const res = await request(port, 'GET', '/dav/root/');
+      expect(res.status).toBe(302);
+      expect(res.location).toBe('/auth/login');
+    } finally {
+      await close();
+    }
+  });
+
+  it('PROPFIND /dav/root/ without auth returns 401', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const res = await request(port, 'PROPFIND', '/dav/root/');
+      expect(res.status).toBe(401);
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/root/ with valid session bypasses basic auth', async () => {
+    mockGetAuthSession.mockReturnValue(validSession() as any);
+    const { port, close } = await startProxy();
+    try {
+      // No Basic Auth — session cookie grants access; dufs is offline so expect 502
+      const res = await request(port, 'GET', '/dav/root/', {
+        Cookie: 'refresh=sometoken',
+      });
+      expect(res.status).toBe(502);
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/root/ with bad Basic Auth token returns 401', async () => {
+    mockGetWebdavUser.mockReturnValue({
+      id: 1,
+      sub: 'u1',
+      username: 'alice',
+      webdav_token_hash: 'correcthash',
+      webdav_groups: '["root"]',
+    } as any);
+    const { port, close } = await startProxy();
+    try {
+      const creds = Buffer.from('alice:wrongtoken').toString('base64');
+      const res = await request(port, 'GET', '/dav/root/', {
+        Authorization: `Basic ${creds}`,
+      });
+      expect(res.status).toBe(401);
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/root/ with valid token but wrong group returns 403', async () => {
+    const crypto = await import('crypto');
+    const token = 'mytoken';
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    mockGetWebdavUser.mockReturnValue({
+      id: 1,
+      sub: 'u1',
+      username: 'alice',
+      webdav_token_hash: hash,
+      webdav_groups: '["other"]',
+    } as any);
+    const { port, close } = await startProxy();
+    try {
+      const creds = Buffer.from(`alice:${token}`).toString('base64');
+      const res = await request(port, 'GET', '/dav/root/', {
+        Authorization: `Basic ${creds}`,
+      });
+      expect(res.status).toBe(403);
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/root/ with valid token and correct group proxies to dufs (502 when offline)', async () => {
+    const crypto = await import('crypto');
+    const token = 'goodtoken';
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    mockGetWebdavUser.mockReturnValue({
+      id: 1,
+      sub: 'u1',
+      username: 'alice',
+      webdav_token_hash: hash,
+      webdav_groups: '["root"]',
+    } as any);
+    const { port, close } = await startProxy();
+    try {
+      const creds = Buffer.from(`alice:${token}`).toString('base64');
+      const res = await request(port, 'GET', '/dav/root/', {
+        Authorization: `Basic ${creds}`,
+      });
+      expect(res.status).toBe(502);
     } finally {
       await close();
     }
