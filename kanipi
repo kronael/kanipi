@@ -455,9 +455,17 @@ if [ -n "$WEB_PORT" ] && [ -d "$DATA_DIR/web" ]; then
     sleep 1
   done) &
   VITE=$!
-  trap 'kill $GATEWAY $VITE 2>/dev/null; wait' INT TERM
+  trap 'kill $GATEWAY $VITE ${DUFS:-} 2>/dev/null; wait' INT TERM
 else
-  trap 'kill $GATEWAY 2>/dev/null; wait' INT TERM
+  trap 'kill $GATEWAY ${DUFS:-} 2>/dev/null; wait' INT TERM
+fi
+
+# start dufs for WebDAV if enabled
+WEBDAV_ENABLED_VAL=$(grep -s '^WEBDAV_ENABLED=' "$DATA_DIR/.env" | cut -d= -f2- || true)
+if [ "$WEBDAV_ENABLED_VAL" = "true" ]; then
+  dufs --bind 127.0.0.1 --port 8179 --allow-upload --allow-delete \
+    --allow-create-dir --allow-move "$DATA_DIR/groups" &
+  DUFS=$!
 fi
 
 wait $GATEWAY

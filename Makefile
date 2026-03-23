@@ -15,10 +15,10 @@ smoke:
 	bunx vitest run
 
 image:
-	sudo docker build -t kanipi .
+	sudo docker build --network=host -t kanipi .
 
 agent-image:
-	sudo docker build -t kanipi-agent -f container/Dockerfile .
+	sudo docker build --network=host -t kanipi-agent -f container/Dockerfile .
 
 integration: agent-image
 	bunx vitest run tests/integration --testTimeout=120000
