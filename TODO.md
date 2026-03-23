@@ -36,36 +36,36 @@ python-pptx, openpyxl, weasyprint.
 
 ### Code hosting / VCS
 
-- [ ] `gh` — GitHub CLI: issues, PRs, releases, gists, Actions
+- [x] `gh` — GitHub CLI: issues, PRs, releases, gists, Actions
 
 ### Data / query
 
-- [ ] `sqlite3` — explicit CLI (query local DBs, not just via Python)
-- [ ] `duckdb` — in-process analytics on CSV/JSON/parquet, no server needed
-- [ ] `psql` — Postgres client (pg_dump, query remote DBs)
-- [ ] `redis-cli` — query Redis instances
+- [x] `sqlite3` — explicit CLI (query local DBs, not just via Python)
+- [x] `duckdb` — in-process analytics on CSV/JSON/parquet, no server needed
+- [x] `psql` — Postgres client (pg_dump, query remote DBs)
+- [x] `redis-cli` — query Redis instances
 - [ ] `xsv` — fast CSV slicing/sorting/joining (Rust, single binary)
-- [ ] `yq` — YAML processor (jq for YAML; configs, k8s, CI files)
-- [ ] `miller` — stream CSV/JSON/TSV like awk (complements xsv)
+- [x] `yq` — YAML processor (jq for YAML; configs, k8s, CI files)
+- [x] `miller` — stream CSV/JSON/TSV like awk (complements xsv)
 
 ### HTTP / API / network
 
 - [ ] `xh` — modern curl alternative (Rust httpie; cleaner API testing output)
 - [ ] `websocat` — WebSocket client/server for testing WS endpoints
-- [ ] `grpcurl` — gRPC reflection + call testing
+- [x] `grpcurl` — gRPC reflection + call testing
 - [ ] `hurl` — file-based HTTP test sequences (CI-friendly)
-- [ ] `socat` — bidirectional data relay; Unix socket debugging
+- [x] `socat` — bidirectional data relay; Unix socket debugging
 
 ### Git / diff
 
-- [ ] `delta` — syntax-highlighted git diffs (agent-readable output)
-- [ ] `shfmt` — shell script formatter (pair with shellcheck)
+- [x] `delta` — syntax-highlighted git diffs (agent-readable output)
+- [x] `shfmt` — shell script formatter (pair with shellcheck)
 
 ### Linting / static analysis
 
-- [ ] `hadolint` — Dockerfile linter
-- [ ] `sqlfluff` — SQL formatter and linter
-- [ ] `semgrep` — multi-language static analysis / secret scanning
+- [x] `hadolint` — Dockerfile linter
+- [x] `sqlfluff` — SQL formatter and linter
+- [x] `semgrep` — multi-language static analysis / secret scanning
 - [ ] `yamllint` — YAML strict linter (catches tab issues, duplicates)
 - [ ] `vale` — prose linter (docs, changelogs, READMEs)
 
@@ -81,17 +81,17 @@ python-pptx, openpyxl, weasyprint.
 
 ### Diagrams / visualization
 
-- [ ] `graphviz` — dot → SVG/PNG (architecture, dependency graphs)
+- [x] `graphviz` — dot → SVG/PNG (architecture, dependency graphs)
 - [ ] `gnuplot` — terminal/file plotting from data
 - [ ] `typst` — modern typesetting (PDF reports, whitepapers; lighter than LaTeX)
 
 ### Media / documents
 
-- [ ] `ghostscript` — PDF merge/split/compress
-- [ ] `exiftool` — read/write media metadata
-- [ ] `sox` — audio format conversion and processing
-- [ ] `mediainfo` — detailed media file inspection
-- [ ] `qrencode` — generate QR codes from CLI
+- [x] `ghostscript` — PDF merge/split/compress
+- [x] `exiftool` — read/write media metadata
+- [x] `sox` — audio format conversion and processing
+- [x] `mediainfo` — detailed media file inspection
+- [x] `qrencode` — generate QR codes from CLI
 
 ### Security / secrets
 
@@ -119,11 +119,11 @@ Install on-demand with `uv pip install` or `bun add`.
 
 ### Misc CLI
 
-- [ ] `parallel` — GNU parallel; fan-out batch operations
+- [x] `parallel` — GNU parallel; fan-out batch operations
 - [ ] `hexyl` — hex dump with ASCII sidebar (binary file inspection)
-- [ ] `rsync` — efficient file sync (local and remote)
+- [x] `rsync` — efficient file sync (local and remote)
 - [ ] `mkcert` — locally-trusted dev HTTPS certs
-- [ ] `ps`/`free` extras — `sysstat` package for `sar`, `iostat`, `mpstat` (scriptable, not TUI)
+- [x] `ps`/`free` extras — `sysstat` package for `sar`, `iostat`, `mpstat` (scriptable, not TUI)
 
 ## On-demand
 
