@@ -57,9 +57,7 @@ After vite start, before `wait $GATEWAY`:
 # start dufs for WebDAV if enabled
 WEBDAV_ENABLED=$(grep -s '^WEBDAV_ENABLED=' "$DATA_DIR/.env" | cut -d= -f2- || true)
 if [ "$WEBDAV_ENABLED" = "true" ]; then
-  dufs --bind 127.0.0.1 --port 8179 --allow-upload --allow-delete \
-    --allow-create-dir --allow-move --allow-symlink-dir \
-    "$DATA_DIR/groups" &
+  dufs --bind 127.0.0.1 --port 8179 --allow-all "$DATA_DIR/groups" &
   DUFS=$!
   trap 'kill $GATEWAY ${VITE:-} $DUFS 2>/dev/null; wait' INT TERM
 fi
