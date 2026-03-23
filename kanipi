@@ -433,6 +433,9 @@ if [ -n "$WEB_PORT" ]; then
   _suffix=$(( WEB_PORT % 1000 ))
   VITE_PORT_INTERNAL=$(( 48000 + _suffix ))
   export VITE_PORT_INTERNAL
+  # dufs port: same suffix in 47xxx range; exported so gateway picks up WEBDAV_URL
+  DUFS_PORT=$(( 47000 + _suffix ))
+  export DUFS_PORT WEBDAV_URL="http://127.0.0.1:${DUFS_PORT}"
 fi
 
 # install web deps if missing
@@ -462,8 +465,8 @@ fi
 
 # start dufs for WebDAV if enabled
 WEBDAV_ENABLED_VAL=$(grep -s '^WEBDAV_ENABLED=' "$DATA_DIR/.env" | cut -d= -f2- || true)
-if [ "$WEBDAV_ENABLED_VAL" = "true" ]; then
-  dufs --bind 127.0.0.1 --port 8179 --allow-all "$DATA_DIR/groups" &
+if [ "$WEBDAV_ENABLED_VAL" = "true" ] && [ -n "${DUFS_PORT:-}" ]; then
+  dufs --bind 127.0.0.1 --port "$DUFS_PORT" --allow-all "$DATA_DIR/groups" &
   DUFS=$!
 fi
 
