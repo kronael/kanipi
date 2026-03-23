@@ -433,8 +433,10 @@ if [ -n "$WEB_PORT" ]; then
   _suffix=$(( WEB_PORT % 1000 ))
   VITE_PORT_INTERNAL=$(( 48000 + _suffix ))
   export VITE_PORT_INTERNAL
-  # dufs port: 8200 + last two digits of suffix; exported so gateway picks up WEBDAV_URL
-  DUFS_PORT=$(( 8200 + _suffix % 100 ))
+fi
+
+DUFS_PORT=$(grep -s '^DUFS_PORT=' "$DATA_DIR/.env" | cut -d= -f2- || true)
+if [ -n "$DUFS_PORT" ]; then
   export DUFS_PORT WEBDAV_URL="http://127.0.0.1:${DUFS_PORT}"
 fi
 
