@@ -8,6 +8,7 @@ import { addSseListener, removeSseListener } from './channels/web.js';
 vi.mock('./db.js', () => ({
   getGroupBySlink: vi.fn(),
   getWebdavUser: vi.fn(),
+  getWebdavUserBySub: vi.fn(),
   getAuthSession: vi.fn(),
 }));
 
@@ -29,7 +30,12 @@ vi.mock('./logger.js', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { getGroupBySlink, getWebdavUser, getAuthSession } from './db.js';
+import {
+  getGroupBySlink,
+  getWebdavUser,
+  getWebdavUserBySub,
+  getAuthSession,
+} from './db.js';
 import { handleSlinkPost } from './slink.js';
 import { startWebProxy, _resetVhosts } from './web-proxy.js';
 import type { GroupConfig } from './db.js';
@@ -40,6 +46,7 @@ const mockHandleSlink = vi.mocked(handleSlinkPost);
 const mockAddSse = vi.mocked(addSseListener);
 const mockRemoveSse = vi.mocked(removeSseListener);
 const mockGetWebdavUser = vi.mocked(getWebdavUser);
+const mockGetWebdavUserBySub = vi.mocked(getWebdavUserBySub);
 const mockGetAuthSession = vi.mocked(getAuthSession);
 
 function makeGroup(token: string): GroupConfig & { jid: string } {
@@ -613,21 +620,31 @@ function request(
 }
 
 describe('/dav routing', () => {
-  it('GET /dav redirects to /dav/root/', async () => {
+  it('GET /dav without session redirects to /auth/login', async () => {
     const { port, close } = await startProxy();
     try {
       const res = await request(port, 'GET', '/dav');
       expect(res.status).toBe(302);
-      expect(res.location).toBe('/dav/root/');
+      expect(res.location).toBe('/auth/login');
     } finally {
       await close();
     }
   });
 
-  it('GET /dav/ redirects to /dav/root/', async () => {
+  it('GET /dav with session and no groups redirects to /dav/root/', async () => {
+    mockGetAuthSession.mockReturnValue(validSession() as any);
+    mockGetWebdavUserBySub.mockReturnValue({
+      id: 1,
+      sub: 'user1',
+      username: 'alice',
+      webdav_token_hash: null,
+      webdav_groups: '[]',
+    } as any);
     const { port, close } = await startProxy();
     try {
-      const res = await request(port, 'GET', '/dav/');
+      const res = await request(port, 'GET', '/dav', {
+        Cookie: 'refresh=sometoken',
+      });
       expect(res.status).toBe(302);
       expect(res.location).toBe('/dav/root/');
     } finally {
@@ -656,15 +673,73 @@ describe('/dav routing', () => {
     }
   });
 
-  it('GET /dav/root/ with valid session bypasses basic auth', async () => {
+  it('GET /dav/root/ with valid session and no group restriction proxies (502 when dufs offline)', async () => {
     mockGetAuthSession.mockReturnValue(validSession() as any);
+    mockGetWebdavUserBySub.mockReturnValue({
+      id: 1,
+      sub: 'user1',
+      username: 'alice',
+      webdav_token_hash: null,
+      webdav_groups: '[]',
+    } as any);
     const { port, close } = await startProxy();
     try {
-      // No Basic Auth — session cookie grants access; dufs is offline so expect 502
       const res = await request(port, 'GET', '/dav/root/', {
         Cookie: 'refresh=sometoken',
       });
       expect(res.status).toBe(502);
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/ with session redirects to first allowed group', async () => {
+    mockGetAuthSession.mockReturnValue(validSession() as any);
+    mockGetWebdavUserBySub.mockReturnValue({
+      id: 1,
+      sub: 'user1',
+      username: 'alice',
+      webdav_token_hash: null,
+      webdav_groups: '["mygroup"]',
+    } as any);
+    const { port, close } = await startProxy();
+    try {
+      const res = await request(port, 'GET', '/dav/', {
+        Cookie: 'refresh=sometoken',
+      });
+      expect(res.status).toBe(302);
+      expect(res.location).toBe('/dav/mygroup/');
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/ without session redirects to /auth/login', async () => {
+    const { port, close } = await startProxy();
+    try {
+      const res = await request(port, 'GET', '/dav/');
+      expect(res.status).toBe(302);
+      expect(res.location).toBe('/auth/login');
+    } finally {
+      await close();
+    }
+  });
+
+  it('GET /dav/other/ with session restricted to [root] returns 403', async () => {
+    mockGetAuthSession.mockReturnValue(validSession() as any);
+    mockGetWebdavUserBySub.mockReturnValue({
+      id: 1,
+      sub: 'user1',
+      username: 'alice',
+      webdav_token_hash: null,
+      webdav_groups: '["root"]',
+    } as any);
+    const { port, close } = await startProxy();
+    try {
+      const res = await request(port, 'GET', '/dav/other/', {
+        Cookie: 'refresh=sometoken',
+      });
+      expect(res.status).toBe(403);
     } finally {
       await close();
     }

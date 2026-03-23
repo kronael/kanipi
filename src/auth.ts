@@ -10,7 +10,9 @@ import {
   getAuthSession,
   getAuthUserBySub,
   getAuthUserByUsername,
+  getWebdavUserBySub,
 } from './db.js';
+import type { WebdavUser } from './db.js';
 import {
   AUTH_SECRET,
   DISCORD_CLIENT_ID,
@@ -227,6 +229,14 @@ export function checkSessionCookie(cookie: string): boolean {
   if (!token) return false;
   const session = getAuthSession(sha256(token));
   return !!session && new Date(session.expires_at) > new Date();
+}
+
+export function getSessionWebdavUser(cookie: string): WebdavUser | null {
+  const token = parseCookies(cookie)['refresh'];
+  if (!token) return null;
+  const session = getAuthSession(sha256(token));
+  if (!session || new Date(session.expires_at) <= new Date()) return null;
+  return getWebdavUserBySub(session.user_sub);
 }
 
 // --- OAuth ---

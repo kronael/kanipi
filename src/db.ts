@@ -1174,6 +1174,17 @@ export function getWebdavUser(username: string): WebdavUser | null {
   );
 }
 
+export function getWebdavUserBySub(sub: string): WebdavUser | null {
+  return (
+    db
+      .prepare<[string], WebdavUser>(
+        `SELECT id, sub, username, webdav_token_hash, webdav_groups
+         FROM auth_users WHERE sub = ?`,
+      )
+      .get(sub) ?? null
+  );
+}
+
 export function setWebdavToken(username: string, tokenHash: string): void {
   db.prepare(
     `UPDATE auth_users SET webdav_token_hash = ? WHERE username = ?`,

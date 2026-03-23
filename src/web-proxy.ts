@@ -6,6 +6,7 @@ import path from 'path';
 import { WEB_DIR, WEBDAV_ENABLED, WEBDAV_URL } from './config.js';
 import {
   checkSessionCookie,
+  getSessionWebdavUser,
   handleDiscordAuth,
   handleDiscordCallback,
   handleGitHubAuth,
@@ -255,14 +256,34 @@ function proxyWebdav(
   req.pipe(proxyReq);
 }
 
+function sessionWebdavGroups(cookie: string): string[] | null {
+  const user = getSessionWebdavUser(cookie);
+  if (!user) return null;
+  try {
+    const g = JSON.parse(user.webdav_groups) as string[];
+    return g.length > 0 ? g : null; // null = no restriction (all groups)
+  } catch {
+    return null;
+  }
+}
+
 function handleWebdavRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   group: string,
   rest: string,
 ): void {
-  // Session cookie (GitHub/Google/password OAuth) grants full access
-  if (checkSessionCookie(req.headers.cookie || '')) {
+  // Session cookie auth: check if user has a valid session
+  const cookie = req.headers.cookie || '';
+  const sessionUser = getSessionWebdavUser(cookie);
+  if (sessionUser) {
+    // If webdav_groups set, restrict to those groups; otherwise allow all
+    const groups = sessionWebdavGroups(cookie);
+    if (groups !== null && !groups.includes(group)) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
     return proxyWebdav(req, res, group, rest);
   }
 
@@ -555,7 +576,20 @@ export function startWebProxy(opts: {
         res.end();
         return;
       }
-      res.writeHead(302, { Location: '/dav/root/' });
+      const cookie = req.headers.cookie || '';
+      const sessionUser = getSessionWebdavUser(cookie);
+      if (sessionUser) {
+        let groups: string[] = [];
+        try {
+          groups = JSON.parse(sessionUser.webdav_groups) as string[];
+        } catch {
+          /* */
+        }
+        const group = groups.length > 0 ? groups[0] : 'root';
+        res.writeHead(302, { Location: `/dav/${group}/` });
+      } else {
+        res.writeHead(302, { Location: '/auth/login' });
+      }
       res.end();
       return;
     }
