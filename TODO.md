@@ -109,6 +109,10 @@ python-pptx, openpyxl, weasyprint.
 - [ ] `solana` CLI — keypairs, airdrop, deploy, account queries (Atlas/Marinade)
 - [ ] `cast` (Foundry) — EVM: call contracts, send txs, decode data
 
+No binary tools needed for: Hyperliquid (`hyperliquid-python-sdk` / REST+WS),
+Ethereum (`web3` py / `viem` js), Polymarket (`py-clob-client` / REST).
+Install on-demand with `uv pip install` or `bun add`.
+
 ### Runtime (one new language)
 
 - [ ] `ruby` — scripting, Jekyll, occasional gem tooling
