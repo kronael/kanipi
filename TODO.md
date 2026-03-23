@@ -46,7 +46,6 @@ python-pptx, openpyxl, weasyprint.
 - [ ] `redis-cli` — query Redis instances
 - [ ] `xsv` — fast CSV slicing/sorting/joining (Rust, single binary)
 - [ ] `yq` — YAML processor (jq for YAML; configs, k8s, CI files)
-- [ ] `jless` — interactive JSON browser in terminal
 - [ ] `miller` — stream CSV/JSON/TSV like awk (complements xsv)
 
 ### HTTP / API / network
@@ -60,7 +59,6 @@ python-pptx, openpyxl, weasyprint.
 ### Git / diff
 
 - [ ] `delta` — syntax-highlighted git diffs (agent-readable output)
-- [ ] `glow` — render markdown in terminal (for reading docs/READMEs)
 - [ ] `shfmt` — shell script formatter (pair with shellcheck)
 
 ### Linting / static analysis
@@ -117,12 +115,11 @@ python-pptx, openpyxl, weasyprint.
 
 ### Misc CLI
 
-- [ ] `pv` — pipe viewer; progress on long pipes
 - [ ] `parallel` — GNU parallel; fan-out batch operations
 - [ ] `hexyl` — hex dump with ASCII sidebar (binary file inspection)
 - [ ] `rsync` — efficient file sync (local and remote)
 - [ ] `mkcert` — locally-trusted dev HTTPS certs
-- [ ] `btm` (bottom) — resource monitor (CPU/mem/net per process)
+- [ ] `ps`/`free` extras — `sysstat` package for `sar`, `iostat`, `mpstat` (scriptable, not TUI)
 
 ## On-demand
 
