@@ -256,29 +256,20 @@ function proxyWebdav(
   req.pipe(proxyReq);
 }
 
-function sessionWebdavGroups(cookie: string): string[] | null {
-  const user = getSessionWebdavUser(cookie);
-  if (!user) return null;
-  try {
-    const g = JSON.parse(user.webdav_groups) as string[];
-    return g.length > 0 ? g : null; // null = no restriction (all groups)
-  } catch {
-    return null;
-  }
-}
-
 function handleWebdavRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   group: string,
   rest: string,
 ): void {
-  // Session cookie auth: check if user has a valid session
   const cookie = req.headers.cookie || '';
   const sessionUser = getSessionWebdavUser(cookie);
   if (sessionUser) {
-    // If webdav_groups set, restrict to those groups; otherwise allow all
-    const groups = sessionWebdavGroups(cookie);
+    let groups: string[] | null = null;
+    try {
+      const g = JSON.parse(sessionUser.webdav_groups) as string[];
+      if (g.length > 0) groups = g;
+    } catch {}
     if (groups !== null && !groups.includes(group)) {
       res.writeHead(403);
       res.end('Forbidden');

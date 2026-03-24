@@ -40,6 +40,7 @@ vi.mock('./logger.js', () => ({
 
 vi.mock('./auth.js', () => ({
   checkSessionCookie: vi.fn(() => false),
+  getSessionWebdavUser: vi.fn(() => null),
   handleDiscordAuth: vi.fn(),
   handleDiscordCallback: vi.fn(),
   handleGitHubAuth: vi.fn(),

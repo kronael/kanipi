@@ -22,8 +22,6 @@ const PLATFORM_SHORT: Record<string, string> = {
   linkedin: 'li',
 };
 
-// Derive a valid group folder segment from a JID.
-// Replaces non-alphanumeric chars with _, collapses consecutive _, trims.
 // e.g. "tg:-100123456" → "tg_100123456"
 export function spawnFolderName(jid: string): string {
   return jid
@@ -106,9 +104,6 @@ export function findChannel(
   return channels.find((c) => c.ownsJid(jid));
 }
 
-// First match wins. Routes ordered by seq from DB.
-// RFC 6570 Level 1 template expansion for route targets.
-// Only {sender} is supported — expands to senderToUserFileId(msg.sender).
 function expandTarget(target: string, msg: InboundEvent): string | null {
   if (!target.includes('{')) return target;
   const id = senderToUserFileId(msg.sender);
@@ -173,20 +168,16 @@ export function resolveRoute(
   return null;
 }
 
-// Returns true if source group may delegate/route to target:
-// root can delegate to any folder; otherwise same world + descendant.
 export function isAuthorizedRoutingTarget(
   sourceFolder: string,
   targetFolder: string,
 ): boolean {
-  if (sourceFolder.split('/')[0] === 'root') return true;
-  const sourceRoot = sourceFolder.split('/')[0];
-  const targetRoot = targetFolder.split('/')[0];
-  if (sourceRoot !== targetRoot) return false;
+  const sourceWorld = sourceFolder.split('/')[0];
+  if (sourceWorld === 'root') return true;
+  if (targetFolder.split('/')[0] !== sourceWorld) return false;
   return targetFolder.startsWith(sourceFolder + '/');
 }
 
-// Convert platform:id sender to short filename form (e.g., tg-123456)
 export function senderToUserFileId(sender: string): string {
   const [platform, ...rest] = sender.split(':');
   const id = rest.join(':'); // Handle email with : in address
@@ -194,7 +185,6 @@ export function senderToUserFileId(sender: string): string {
   return `${short}-${id}`;
 }
 
-// Parse YAML frontmatter from markdown file to extract name
 function parseUserName(content: string): string | undefined {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return undefined;
@@ -211,8 +201,6 @@ function parseUserName(content: string): string | undefined {
   return raw;
 }
 
-// Generate <user> tag for the given sender
-// Returns XML tag with id, optional name, optional memory path
 export function userContextXml(
   sender: string,
   groupDir: string,

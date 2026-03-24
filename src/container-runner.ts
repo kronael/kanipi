@@ -168,7 +168,6 @@ function buildVolumeMounts(
     readonly: tier === 3,
   });
 
-  // Tier 2+3: setup files ro via more-specific mount overrides
   if (tier >= 2) {
     for (const f of ['CLAUDE.md', 'SOUL.md']) {
       const p = path.join(groupDir, f);
@@ -192,7 +191,6 @@ function buildVolumeMounts(
     }
   }
 
-  // Tier 3: RO home with RW overlays for writable data
   if (tier === 3) {
     for (const d of ['.claude/projects', 'media', 'tmp']) {
       const dir = path.join(groupDir, d);
@@ -205,7 +203,6 @@ function buildVolumeMounts(
     }
   }
 
-  // Spawned groups: mount parent's skills/ read-only
   if (group.parent) {
     try {
       const protoSkillsDir = path.join(
@@ -299,7 +296,6 @@ function buildVolumeMounts(
     fs.copyFileSync(claudeMdSrc, claudeMdDst);
   }
 
-  // Seed .claude.json if missing — SDK silently returns 0 messages without it
   const claudeJsonPath = path.join(groupDir, '.claude.json');
   if (!fs.existsSync(claudeJsonPath)) {
     const userID = crypto

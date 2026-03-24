@@ -34,14 +34,12 @@ export class GroupQueue {
     null;
   private shuttingDown = false;
 
-  /** Get all JIDs with active containers */
   getActiveJids(): string[] {
     return [...this.groups.entries()]
       .filter(([_, s]) => s.active)
       .map(([jid]) => jid);
   }
 
-  /** Snapshot of all tracked groups for dashboard */
   getStatus(): {
     jid: string;
     active: boolean;
@@ -175,10 +173,6 @@ export class GroupQueue {
     }
   }
 
-  /**
-   * Mark the container as idle-waiting (finished work, waiting for IPC input).
-   * If tasks are pending, preempt the idle container immediately.
-   */
   notifyIdle(groupJid: string): void {
     const state = this.getGroup(groupJid);
     state.idleWaiting = true;
@@ -195,15 +189,11 @@ export class GroupQueue {
     } catch {}
   }
 
-  /**
-   * Send a follow-up message to the active container via IPC file.
-   * Returns true if the message was written, false if no active container.
-   */
   sendMessage(groupJid: string, text: string): boolean {
     const state = this.getGroup(groupJid);
     if (!state.active || !state.groupFolder || state.isTaskContainer)
       return false;
-    state.idleWaiting = false; // Agent is about to receive work, no longer idle
+    state.idleWaiting = false;
 
     const inputDir = path.join(DATA_DIR, 'ipc', state.groupFolder, 'input');
     try {
@@ -223,7 +213,6 @@ export class GroupQueue {
     }
   }
 
-  /** Preempt idle container if another JID needs the same folder (cross-channel). */
   preemptFolderIfNeeded(folder: string, newJid: string): void {
     const currentJid = this.folderToActiveJid.get(folder);
     if (!currentJid || currentJid === newJid) return;
@@ -235,9 +224,6 @@ export class GroupQueue {
     this.closeStdin(currentJid);
   }
 
-  /**
-   * Signal the active container to wind down by writing a close sentinel.
-   */
   closeStdin(groupJid: string): void {
     const state = this.getGroup(groupJid);
     if (!state.active || !state.groupFolder) return;
@@ -247,9 +233,7 @@ export class GroupQueue {
       fs.mkdirSync(inputDir, { recursive: true });
       fs.writeFileSync(path.join(inputDir, '_close'), '');
       if (state.containerName) this.signalContainer(state.containerName);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   private async runForGroup(
@@ -350,7 +334,6 @@ export class GroupQueue {
 
     const state = this.getGroup(groupJid);
 
-    // Tasks first (they won't be re-discovered from SQLite like messages)
     if (state.pendingTasks.length > 0) {
       const task = state.pendingTasks.shift()!;
       this.runTask(groupJid, task).catch((err) =>
@@ -362,7 +345,6 @@ export class GroupQueue {
       return;
     }
 
-    // Then pending messages
     if (state.pendingMessages) {
       this.runForGroup(groupJid, 'drain').catch((err) =>
         logger.error(
@@ -373,7 +355,6 @@ export class GroupQueue {
       return;
     }
 
-    // Nothing pending for this group; check if other groups are waiting for a slot
     this.drainWaiting();
   }
 
@@ -385,7 +366,6 @@ export class GroupQueue {
       const nextJid = this.waitingGroups.shift()!;
       const state = this.getGroup(nextJid);
 
-      // Prioritize tasks over messages
       if (state.pendingTasks.length > 0) {
         const task = state.pendingTasks.shift()!;
         this.runTask(nextJid, task).catch((err) =>
@@ -402,7 +382,6 @@ export class GroupQueue {
           ),
         );
       }
-      // If neither pending, skip this group
     }
   }
 

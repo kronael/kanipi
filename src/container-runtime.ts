@@ -1,15 +1,9 @@
-/**
- * Container runtime abstraction for NanoClaw.
- * All runtime-specific logic lives here so swapping runtimes means changing one file.
- */
 import { execFileSync } from 'child_process';
 
 import { logger } from './logger.js';
 
-/** The container runtime binary name. */
 export const CONTAINER_RUNTIME_BIN = 'docker';
 
-/** Returns CLI args for a readonly bind mount. */
 export function readonlyMountArgs(
   hostPath: string,
   containerPath: string,
@@ -17,12 +11,10 @@ export function readonlyMountArgs(
   return ['-v', `${hostPath}:${containerPath}:ro`];
 }
 
-/** Returns args to stop a container by name (no shell). */
 export function stopContainerArgs(name: string): string[] {
   return ['stop', name];
 }
 
-/** Ensure the container runtime is running, starting it if needed. */
 export function ensureContainerRuntimeRunning(): void {
   try {
     execFileSync(CONTAINER_RUNTIME_BIN, ['info'], {
@@ -60,42 +52,29 @@ export function ensureContainerRuntimeRunning(): void {
   }
 }
 
-/** Kill orphaned NanoClaw containers from previous runs.
- * When containerImage is provided, only kills containers from that image
- * to avoid cross-instance collateral damage in multi-instance deployments. */
 export function cleanupOrphans(containerImage?: string): void {
-  const filters: string[] = [];
-  if (containerImage) {
-    // Multi-instance safe: only kill containers from our own image
-    filters.push(`ancestor=${containerImage}`);
-  } else {
-    // Fallback: kill all nanoclaw containers (single-instance only)
-    filters.push('name=nanoclaw-');
-  }
-
+  const filter = containerImage
+    ? `ancestor=${containerImage}`
+    : 'name=nanoclaw-';
   const orphans: string[] = [];
-  for (const filter of filters) {
-    try {
-      const out = execFileSync(
-        CONTAINER_RUNTIME_BIN,
-        ['ps', `--filter=${filter}`, '--format', '{{.Names}}'],
-        { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
-      );
-      for (const name of out.trim().split('\n').filter(Boolean)) {
-        orphans.push(name);
-      }
-    } catch (err) {
-      logger.warn({ err }, 'Failed to list containers for cleanup');
+  try {
+    const out = execFileSync(
+      CONTAINER_RUNTIME_BIN,
+      ['ps', `--filter=${filter}`, '--format', '{{.Names}}'],
+      { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
+    );
+    for (const name of out.trim().split('\n').filter(Boolean)) {
+      orphans.push(name);
     }
+  } catch (err) {
+    logger.warn({ err }, 'Failed to list containers for cleanup');
   }
   for (const name of orphans) {
     try {
       execFileSync(CONTAINER_RUNTIME_BIN, stopContainerArgs(name), {
         stdio: 'pipe',
       });
-    } catch {
-      /* already stopped */
-    }
+    } catch {}
   }
   if (orphans.length > 0) {
     logger.info(
