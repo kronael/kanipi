@@ -143,6 +143,12 @@ Requires architectural changes or new instance setup. Do not ship to marinade.
 - [ ] workflows: multi-step workflow primitives (5/N)
 - [ ] plugins: dynamic channel/feature loading (5/E)
 
+## Licensing
+
+- [ ] adopt AGPL v3 — arizuko has switched; port LICENSE file and README
+      philosophy section. AGPL closes the SaaS loophole: modify + run as a
+      service = share source. Channel adapters / API consumers unaffected.
+
 ## Dropped
 
 - agent-routing (4/1): superseded by nested groups + routing rules (already shipped)
