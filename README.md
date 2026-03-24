@@ -357,30 +357,33 @@ through the same channels humans use.
 
 If you build on kanipi — say so. Attribution is a social contract.
 
-## Acknowledgements
+## Thanks
 
 Built on the shoulders of people doing serious work in this space.
-If you use kanipi, acknowledge the chain.
 
-| Project                                                  | Author        | License     | What it contributed                                                              |
-| -------------------------------------------------------- | ------------- | ----------- | -------------------------------------------------------------------------------- |
-| [nanoclaw](https://github.com/qwibitai/nanoclaw)         | qwibitai      | MIT         | Direct ancestor — container-per-session model, the original shape of this system |
-| [ElizaOS](https://github.com/elizaOS/eliza)              | elizaOS       | MIT         | character.json agent persona model, plugin ecosystem thinking                    |
-| [Claude Code](https://github.com/anthropics/claude-code) | Anthropic     | Proprietary | The agent runtime everything runs on — tools, subagents, MCP, skills             |
-| [smolagents](https://github.com/huggingface/smolagents)  | Hugging Face  | Apache-2.0  | Code-as-action framing; thinking about what the minimal agent loop looks like    |
-| [OpenClaw](https://github.com/openclaw/openclaw)         | openclaw      | MIT         | Multi-channel binding architecture, single-process gateway design                |
-| [NemoClaw](https://github.com/NVIDIA/NemoClaw)           | NVIDIA        | Apache-2.0  | Landlock + seccomp + netns sandboxing model for agent containers                 |
-| [Muaddib](https://github.com/pasky/muaddib)              | Petr Baudis   | MIT         | QEMU micro-VM isolation, 3-tier chronicle memory design                          |
-| [Hermes](https://github.com/NousResearch/hermes-agent)   | Nous Research | MIT         | Self-improving skill learning across sessions                                    |
-| [takopi](https://github.com/banteg/takopi)               | banteg        | MIT         | Telegram→agent dispatch, live progress streaming                                 |
-| [arizuko](https://github.com/onvos/arizuko)              | onvos         | GPL v3      | Go rewrite of kanipi — orthogonal components, MCP IPC, production hardening      |
+| Project                                                  | Author            | License     | Copyright                                    | What it contributed                                                              |
+| -------------------------------------------------------- | ----------------- | ----------- | -------------------------------------------- | -------------------------------------------------------------------------------- |
+| [nanoclaw](https://github.com/qwibitai/nanoclaw)         | qwibitai          | MIT         | © 2026 Gavriel                               | Direct ancestor — container-per-session model, the original shape of this system |
+| [ElizaOS](https://github.com/elizaOS/eliza)              | elizaOS           | MIT         | © 2026 Shaw Walters and elizaOS Contributors | character.json agent persona model, plugin ecosystem thinking                    |
+| [Claude Code](https://github.com/anthropics/claude-code) | Anthropic         | Proprietary | © Anthropic PBC                              | The agent runtime everything runs on — tools, subagents, MCP, skills             |
+| [smolagents](https://github.com/huggingface/smolagents)  | Hugging Face      | Apache-2.0  | © Hugging Face                               | Code-as-action framing; thinking about what the minimal agent loop looks like    |
+| [OpenClaw](https://github.com/openclaw/openclaw)         | Peter Steinberger | MIT         | © 2025 Peter Steinberger                     | Multi-channel binding architecture, single-process gateway design                |
+| [NemoClaw](https://github.com/NVIDIA/NemoClaw)           | NVIDIA            | Apache-2.0  | © NVIDIA Corporation                         | Landlock + seccomp + netns sandboxing model for agent containers                 |
+| [Muaddib](https://github.com/pasky/muaddib)              | Petr Baudis       | MIT         | © 2025 Muaddib contributors                  | QEMU micro-VM isolation, 3-tier chronicle memory design                          |
+| [Hermes](https://github.com/NousResearch/hermes-agent)   | Nous Research     | MIT         | © 2025 Nous Research                         | Self-improving skill learning across sessions                                    |
+| [takopi](https://github.com/banteg/takopi)               | banteg            | MIT         | © 2025 banteg                                | Telegram→agent dispatch, live progress streaming                                 |
+| [arizuko](https://github.com/onvos/arizuko)              | onvos             | MIT         | © 2026 onvos                                 | Go rewrite of kanipi — orthogonal components, MCP IPC, production hardening      |
+
+If you build on kanipi, this is all we ask:
+
+> Built on [kanipi](https://github.com/onvos/kanipi) by onvos.
+
+We think this is what attribution should look like: author, license, copyright, and
+what the work actually contributed — machine-readable, human-meaningful.
 
 ## License
 
-[Unlicense](LICENSE) — public domain. Do whatever you want with it.
-
-If you build on kanipi — say so. Not because you have to.
-Because that's how good work compounds.
+[MIT](LICENSE) — do whatever you want, keep the copyright notice.
 
 ## Development
 
