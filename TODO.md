@@ -145,9 +145,9 @@ Requires architectural changes or new instance setup. Do not ship to marinade.
 
 ## Licensing
 
-- [ ] adopt AGPL v3 — arizuko has switched; port LICENSE file and README
-      philosophy section. AGPL closes the SaaS loophole: modify + run as a
-      service = share source. Channel adapters / API consumers unaffected.
+- [x] adopt GPL v3 — LICENSE, NOTICE, README philosophy + acknowledgements added.
+      (switched from AGPL — user doesn't care about SaaS loophole; GPL v3 gives
+      share-alike on modifications + attribution without network-use clause)
 
 ## Dropped
 

@@ -343,6 +343,46 @@ Common issues:
 - **voice not transcribed**: set `VOICE_TRANSCRIPTION_ENABLED=true`,
   ensure whisper service is running
 
+## Philosophy
+
+Kanipi is infrastructure, not a product. The goal is a hard, tested,
+boring core that you build on top of without surprises. Channel adapters,
+skills, routing rules, and personas are yours to write, fork, and share.
+
+Every boundary is a seam where you can cut in and replace a part without
+touching the rest. This is the bazaar model — the core holds, everything
+around it is yours. Agents running on kanipi are first-class participants:
+they can read their own skills, propose modifications, and ship changes
+through the same channels humans use.
+
+If you build on kanipi — say so. Attribution is a social contract.
+
+## Acknowledgements
+
+Built on the shoulders of people doing serious work in this space.
+If you use kanipi, acknowledge the chain.
+
+| Project                                                  | Author        | License     | What it contributed                                                              |
+| -------------------------------------------------------- | ------------- | ----------- | -------------------------------------------------------------------------------- |
+| [nanoclaw](https://github.com/qwibitai/nanoclaw)         | qwibitai      | MIT         | Direct ancestor — container-per-session model, the original shape of this system |
+| [ElizaOS](https://github.com/elizaOS/eliza)              | elizaOS       | MIT         | character.json agent persona model, plugin ecosystem thinking                    |
+| [Claude Code](https://github.com/anthropics/claude-code) | Anthropic     | Proprietary | The agent runtime everything runs on — tools, subagents, MCP, skills             |
+| [smolagents](https://github.com/huggingface/smolagents)  | Hugging Face  | Apache-2.0  | Code-as-action framing; thinking about what the minimal agent loop looks like    |
+| [OpenClaw](https://github.com/openclaw/openclaw)         | openclaw      | MIT         | Multi-channel binding architecture, single-process gateway design                |
+| [NemoClaw](https://github.com/NVIDIA/NemoClaw)           | NVIDIA        | Apache-2.0  | Landlock + seccomp + netns sandboxing model for agent containers                 |
+| [Muaddib](https://github.com/pasky/muaddib)              | Petr Baudis   | MIT         | QEMU micro-VM isolation, 3-tier chronicle memory design                          |
+| [Hermes](https://github.com/NousResearch/hermes-agent)   | Nous Research | MIT         | Self-improving skill learning across sessions                                    |
+| [takopi](https://github.com/banteg/takopi)               | banteg        | MIT         | Telegram→agent dispatch, live progress streaming                                 |
+| [arizuko](https://github.com/onvos/arizuko)              | onvos         | GPL v3      | Go rewrite of kanipi — orthogonal components, MCP IPC, production hardening      |
+
+## License
+
+[GPL v3](LICENSE). If you modify kanipi and ship it, share your source.
+If you build on it — say so.
+
+Channel adapters and agents calling kanipi's HTTP/MCP API are unaffected —
+copyleft does not cross network API boundaries.
+
 ## Development
 
 ```bash
