@@ -377,11 +377,10 @@ If you use kanipi, acknowledge the chain.
 
 ## License
 
-[GPL v3](LICENSE). If you modify kanipi and ship it, share your source.
-If you build on it — say so.
+[Unlicense](LICENSE) — public domain. Do whatever you want with it.
 
-Channel adapters and agents calling kanipi's HTTP/MCP API are unaffected —
-copyleft does not cross network API boundaries.
+If you build on kanipi — say so. Not because you have to.
+Because that's how good work compounds.
 
 ## Development
 
