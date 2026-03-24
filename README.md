@@ -378,8 +378,8 @@ If you build on kanipi, this is all we ask:
 
 > Built on [kanipi](https://github.com/onvos/kanipi) by onvos.
 
-We think this is what attribution should look like: author, license, copyright, and
-what the work actually contributed — machine-readable, human-meaningful.
+We think this is what attribution should look like: author, license, copyright,
+and what the work actually contributed.
 
 ## License
 
