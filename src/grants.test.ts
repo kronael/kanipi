@@ -493,6 +493,61 @@ describe('narrowRules', () => {
   });
 });
 
+// ── Discord deny tests ─────────────────────────────────────────────────────────
+
+describe('deny for Discord send_message', () => {
+  it('!send_message(jid=discord:*) denies jid=discord:123456', () => {
+    expect(
+      checkAction(['!send_message(jid=discord:*)'], 'send_message', {
+        jid: 'discord:123456',
+      }),
+    ).toBe(false);
+  });
+
+  it('!send_message(jid=discord:*) denies jid=discord:channel-abc', () => {
+    expect(
+      checkAction(['!send_message(jid=discord:*)'], 'send_message', {
+        jid: 'discord:channel-abc',
+      }),
+    ).toBe(false);
+  });
+
+  it('!send_message(jid=discord:*) does NOT deny jid=telegram:123', () => {
+    expect(
+      checkAction(['!send_message(jid=discord:*)'], 'send_message', {
+        jid: 'telegram:123',
+      }),
+    ).toBe(false);
+  });
+
+  it('!send_reply(jid=discord:*) denies jid=discord:123456', () => {
+    expect(
+      checkAction(['!send_reply(jid=discord:*)'], 'send_reply', {
+        jid: 'discord:123456',
+      }),
+    ).toBe(false);
+  });
+
+  it('!send_reply(jid=discord:*) does NOT deny jid=telegram:123', () => {
+    expect(
+      checkAction(['!send_reply(jid=discord:*)'], 'send_reply', {
+        jid: 'telegram:123',
+      }),
+    ).toBe(false);
+  });
+
+  it('star allows everything but discord send_message deny overrides', () => {
+    const rules = ['*', '!send_message(jid=discord:*)'];
+    expect(checkAction(rules, 'send_message', { jid: 'discord:999' })).toBe(
+      false,
+    );
+    expect(checkAction(rules, 'send_message', { jid: 'telegram:999' })).toBe(
+      true,
+    );
+    expect(checkAction(rules, 'send_reply', { jid: 'discord:999' })).toBe(true);
+  });
+});
+
 describe('share_mount grant override', () => {
   it('tier-1 group has share_mount RW by default', () => {
     const rules = deriveRules('world', 1);

@@ -67,7 +67,10 @@ import {
   updateSessionEnd,
   updateTask,
   updateTaskAfterRun,
+  getImpulseConfigForJid,
+  getDatabase,
 } from './db.js';
+import { defaultConfig } from './impulse.js';
 
 beforeEach(() => {
   _initTestDatabase();
@@ -1479,5 +1482,77 @@ describe('getRecentMessages', () => {
       });
     }
     expect(getRecentMessages(3)).toHaveLength(3);
+  });
+});
+
+// --- getImpulseConfigForJid ---
+
+describe('getImpulseConfigForJid', () => {
+  it('JID with no route returns defaultConfig()', () => {
+    const cfg = getImpulseConfigForJid('discord:999');
+    expect(cfg).toEqual(defaultConfig());
+  });
+
+  it('JID with route that has impulse_config=null returns defaultConfig()', () => {
+    addRoute('tg:ic1', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'atlas',
+    });
+    const cfg = getImpulseConfigForJid('tg:ic1');
+    expect(cfg).toEqual(defaultConfig());
+  });
+
+  it('exact-match route with custom config returns merged config', () => {
+    addRoute('tg:ic2', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'atlas',
+    });
+    getDatabase()
+      .prepare('UPDATE routes SET impulse_config = ? WHERE jid = ?')
+      .run(JSON.stringify({ threshold: 50 }), 'tg:ic2');
+    const cfg = getImpulseConfigForJid('tg:ic2');
+    expect(cfg.threshold).toBe(50);
+    expect(cfg.max_hold_ms).toBe(defaultConfig().max_hold_ms);
+  });
+
+  it('platform wildcard discord: route — jid discord:123 inherits config', () => {
+    addRoute('discord:', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'atlas',
+    });
+    getDatabase()
+      .prepare('UPDATE routes SET impulse_config = ? WHERE jid = ?')
+      .run(JSON.stringify({ threshold: 200 }), 'discord:');
+    const cfg = getImpulseConfigForJid('discord:123');
+    expect(cfg.threshold).toBe(200);
+  });
+
+  it('exact JID config takes priority over platform wildcard', () => {
+    addRoute('discord:', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'platform',
+    });
+    getDatabase()
+      .prepare('UPDATE routes SET impulse_config = ? WHERE jid = ?')
+      .run(JSON.stringify({ threshold: 200 }), 'discord:');
+    addRoute('discord:456', {
+      seq: 0,
+      type: 'default',
+      match: null,
+      target: 'specific',
+    });
+    getDatabase()
+      .prepare('UPDATE routes SET impulse_config = ? WHERE jid = ?')
+      .run(JSON.stringify({ threshold: 75 }), 'discord:456');
+    const cfg = getImpulseConfigForJid('discord:456');
+    expect(cfg.threshold).toBe(75);
   });
 });

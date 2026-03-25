@@ -45,7 +45,7 @@ const NOW = new Date('2024-01-01T03:00:00.000Z').getTime();
 
 describe('formatMessages', () => {
   it('formats a single message with all attributes', () => {
-    const result = formatMessages([makeMsg()], NOW);
+    const result = formatMessages([makeMsg()], [], NOW);
     expect(result).toBe(
       '<messages>\n' +
         '<message sender="Alice" sender_id="whatsapp:123@s.whatsapp.net"' +
@@ -70,7 +70,7 @@ describe('formatMessages', () => {
         timestamp: '2024-01-01T02:30:00.000Z',
       }),
     ];
-    const result = formatMessages(msgs, NOW);
+    const result = formatMessages(msgs, [], NOW);
     expect(result).toContain('sender="Alice"');
     expect(result).toContain('sender="Bob"');
     expect(result).toContain('>hi</message>');
@@ -80,18 +80,23 @@ describe('formatMessages', () => {
   });
 
   it('includes chat attribute when group_name is set', () => {
-    const result = formatMessages([makeMsg({ group_name: 'Support' })], NOW);
+    const result = formatMessages(
+      [makeMsg({ group_name: 'Support' })],
+      [],
+      NOW,
+    );
     expect(result).toContain('chat="Support"');
   });
 
   it('omits chat attribute when not a group', () => {
-    const result = formatMessages([makeMsg()], NOW);
+    const result = formatMessages([makeMsg()], [], NOW);
     expect(result).not.toContain('chat=');
   });
 
   it('escapes special characters in sender names', () => {
     const result = formatMessages(
       [makeMsg({ sender_name: 'A & B <Co>' })],
+      [],
       NOW,
     );
     expect(result).toContain('sender="A &amp; B &lt;Co&gt;"');
@@ -100,6 +105,7 @@ describe('formatMessages', () => {
   it('escapes special characters in content', () => {
     const result = formatMessages(
       [makeMsg({ content: '<script>alert("xss")</script>' })],
+      [],
       NOW,
     );
     expect(result).toContain(
@@ -115,6 +121,7 @@ describe('formatMessages', () => {
   it('includes platform and verb when set', () => {
     const result = formatMessages(
       [makeMsg({ platform: 'telegram', verb: 'message' })],
+      [],
       NOW,
     );
     expect(result).toContain('platform="telegram"');
@@ -122,19 +129,20 @@ describe('formatMessages', () => {
   });
 
   it('includes mentions_me only when true', () => {
-    const with_ = formatMessages([makeMsg({ mentions_me: true })], NOW);
+    const with_ = formatMessages([makeMsg({ mentions_me: true })], [], NOW);
     expect(with_).toContain('mentions_me="true"');
 
-    const without = formatMessages([makeMsg({ mentions_me: false })], NOW);
+    const without = formatMessages([makeMsg({ mentions_me: false })], [], NOW);
     expect(without).not.toContain('mentions_me');
 
-    const undef = formatMessages([makeMsg()], NOW);
+    const undef = formatMessages([makeMsg()], [], NOW);
     expect(undef).not.toContain('mentions_me');
   });
 
   it('includes thread and target when set', () => {
     const result = formatMessages(
       [makeMsg({ thread: '999', target: '456' })],
+      [],
       NOW,
     );
     expect(result).toContain('thread="999"');
@@ -151,6 +159,7 @@ describe('formatMessages', () => {
           content: 'forwarded text',
         }),
       ],
+      [],
       NOW,
     );
     expect(result).toContain('<forwarded_from sender="Fwd User"');
@@ -162,6 +171,7 @@ describe('formatMessages', () => {
   it('formats forwarded_from with only sender', () => {
     const result = formatMessages(
       [makeMsg({ forwarded_from: 'Fwd User', content: 'text' })],
+      [],
       NOW,
     );
     expect(result).toContain('<forwarded_from sender="Fwd User"/>');
@@ -178,6 +188,7 @@ describe('formatMessages', () => {
           content: 'reply text',
         }),
       ],
+      [],
       NOW,
     );
     expect(result).toContain('<reply_to sender="Bob" id="msg-orig">');
@@ -189,13 +200,18 @@ describe('formatMessages', () => {
   it('formats reply_to_text without sender defaults to (unknown)', () => {
     const result = formatMessages(
       [makeMsg({ reply_to_text: 'quoted', content: 'response' })],
+      [],
       NOW,
     );
     expect(result).toContain('sender="(unknown)"');
   });
 
   it('falls back to sender JID when sender_name is missing', () => {
-    const result = formatMessages([makeMsg({ sender_name: undefined })], NOW);
+    const result = formatMessages(
+      [makeMsg({ sender_name: undefined })],
+      [],
+      NOW,
+    );
     expect(result).toContain('sender="whatsapp:123@s.whatsapp.net"');
     expect(result).toContain('sender_id="whatsapp:123@s.whatsapp.net"');
   });
@@ -203,10 +219,58 @@ describe('formatMessages', () => {
   it('sender_id contains platform prefix', () => {
     const tg = formatMessages(
       [makeMsg({ sender: 'telegram:99', chat_jid: 'telegram:-100123' })],
+      [],
       NOW,
     );
     expect(tg).toContain('sender_id="telegram:99"');
     expect(tg).toContain('chat_id="telegram:-100123"');
+  });
+});
+
+// --- formatMessages with observed ---
+
+describe('formatMessages — observed messages', () => {
+  const T1 = '2024-01-01T01:00:00.000Z';
+  const T2 = '2024-01-01T02:00:00.000Z';
+  const T3 = '2024-01-01T03:00:00.000Z';
+
+  it('trigger only: contains <message> tags, no <observed>', () => {
+    const result = formatMessages([makeMsg({ timestamp: T1 })], [], NOW);
+    expect(result).toContain('<message ');
+    expect(result).not.toContain('<observed ');
+  });
+
+  it('observed only: contains <observed> tags, no <message>', () => {
+    const result = formatMessages([], [makeMsg({ timestamp: T1 })], NOW);
+    expect(result).toContain('<observed ');
+    expect(result).not.toContain('<message ');
+  });
+
+  it('mixed: both <message> and <observed> in one <messages> block', () => {
+    const trigger = [makeMsg({ id: 't1', content: 'trigger', timestamp: T2 })];
+    const observed = [
+      makeMsg({ id: 'o1', content: 'observed', timestamp: T1 }),
+    ];
+    const result = formatMessages(trigger, observed, NOW);
+    expect(result).toContain('<message ');
+    expect(result).toContain('<observed ');
+    expect(result.indexOf('<messages>')).not.toBe(-1);
+    expect(result.split('<messages>').length).toBe(2);
+  });
+
+  it('mixed: sorted by timestamp — observed before trigger', () => {
+    const trigger = [makeMsg({ id: 't1', content: 'later', timestamp: T3 })];
+    const observed = [makeMsg({ id: 'o1', content: 'earlier', timestamp: T1 })];
+    const result = formatMessages(trigger, observed, NOW);
+    expect(result.indexOf('earlier')).toBeLessThan(result.indexOf('later'));
+  });
+
+  it('<messages> wrapper appears exactly once', () => {
+    const trigger = [makeMsg({ id: 't1', timestamp: T2 })];
+    const observed = [makeMsg({ id: 'o1', timestamp: T1 })];
+    const result = formatMessages(trigger, observed, NOW);
+    expect((result.match(/<messages>/g) ?? []).length).toBe(1);
+    expect((result.match(/<\/messages>/g) ?? []).length).toBe(1);
   });
 });
 
