@@ -9,7 +9,7 @@ const envConfig = readEnvFile([
   'ASSISTANT_NAME',
   'ASSISTANT_HAS_OWN_NUMBER',
   'TELEGRAM_BOT_TOKEN',
-  'DISCORD_BOT_TOKEN',
+  'DISCORD_USER_TOKEN',
   'CONTAINER_IMAGE',
   'WEB_PORT',
   'VITE_PORT',
@@ -120,8 +120,6 @@ export const TIMEZONE = resolveTimezone();
 
 export const TELEGRAM_BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
-export const DISCORD_BOT_TOKEN =
-  process.env.DISCORD_BOT_TOKEN || envConfig.DISCORD_BOT_TOKEN || '';
 export const DISCORD_USER_TOKEN =
   process.env.DISCORD_USER_TOKEN || envConfig.DISCORD_USER_TOKEN || '';
 

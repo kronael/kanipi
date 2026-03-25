@@ -5,7 +5,6 @@ import { execFileSync } from 'child_process';
 import {
   ASSISTANT_NAME,
   CONTAINER_IMAGE,
-  DISCORD_BOT_TOKEN,
   DISCORD_USER_TOKEN,
   EMAIL_IMAP_HOST,
   POLL_INTERVAL,
@@ -1420,12 +1419,8 @@ async function main(): Promise<void> {
     await whatsapp.connect();
   }
 
-  if (DISCORD_USER_TOKEN || DISCORD_BOT_TOKEN) {
-    const discord = new DiscordChannel(
-      DISCORD_USER_TOKEN || DISCORD_BOT_TOKEN,
-      channelOpts,
-      !!DISCORD_USER_TOKEN,
-    );
+  if (DISCORD_USER_TOKEN) {
+    const discord = new DiscordChannel(DISCORD_USER_TOKEN, channelOpts);
     channels.push(discord);
     await discord.connect();
   }

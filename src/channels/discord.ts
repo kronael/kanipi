@@ -2,13 +2,11 @@ import fs from 'fs';
 import path from 'path';
 
 import {
-  AttachmentBuilder,
   Client,
-  GatewayIntentBits,
   Message,
-  MessageReferenceType,
+  MessageAttachment,
   TextChannel,
-} from 'discord.js';
+} from 'discord.js-selfbot-v13';
 
 import {
   AttachmentDownloader,
@@ -23,63 +21,46 @@ export class DiscordChannel implements Channel {
 
   private client: Client | null = null;
   private opts: ChannelOpts;
-  private token: string;
-  private isUserAccount: boolean;
+  private userToken: string;
 
-  constructor(token: string, opts: ChannelOpts, isUserAccount = false) {
-    this.token = token;
+  constructor(userToken: string, opts: ChannelOpts) {
+    this.userToken = userToken;
     this.opts = opts;
-    this.isUserAccount = isUserAccount;
   }
 
   async connect(): Promise<void> {
-    this.client = this.isUserAccount
-      ? new Client({ intents: [] })
-      : new Client({
-          intents: [
-            GatewayIntentBits.Guilds,
-            GatewayIntentBits.GuildMessages,
-            GatewayIntentBits.MessageContent,
-            GatewayIntentBits.DirectMessages,
-          ],
-        });
+    this.client = new Client({});
 
     return new Promise<void>((resolve, reject) => {
       this.client!.once('ready', (c) => {
-        const mode = this.isUserAccount ? 'user' : 'bot';
         logger.info(
-          { username: c.user.tag, id: c.user.id, mode },
-          'Discord connected',
+          { username: c.user.tag, id: c.user.id },
+          'Discord user connected',
         );
-        console.log(`\n  Discord ${mode}: ${c.user.tag}`);
+        console.log(`\n  Discord user: ${c.user.tag}`);
         console.log(`  Send !chatid in a channel to get registration ID\n`);
         resolve();
       });
 
-      this.client!.on('error', (err) => {
-        logger.error({ err: err.message }, 'Discord client error');
+      this.client!.on('error', (err: Error) => {
+        logger.fatal({ err: err.message }, 'Discord client error, exiting');
+        process.exit(1);
       });
 
-      this.client!.on('messageCreate', (msg) => this.handleMessage(msg));
+      this.client!.on('messageCreate', (msg: Message) =>
+        this.handleMessage(msg),
+      );
 
-      this.client!.login(this.token).catch((err) => {
-        logger.error({ err: err.message }, 'Discord login failed');
-        resolve(); // non-fatal: let other channels continue
-      });
+      this.client!.login(this.userToken).catch(reject);
     });
   }
 
   private async handleMessage(msg: Message): Promise<void> {
-    if (
-      this.isUserAccount
-        ? msg.author.id === this.client?.user?.id
-        : msg.author.bot
-    )
-      return;
+    if (msg.author.id === this.client?.user?.id) return;
 
     const chatJid = `discord:${msg.channelId}`;
     const timestamp = msg.createdAt.toISOString();
-    const senderName = msg.member?.displayName || msg.author.displayName;
+    const senderName = msg.member?.displayName || msg.author.username;
     const sender = `discord:${msg.author.id}`;
     const isGroup = msg.guild !== null;
     const chatName = isGroup
@@ -94,13 +75,10 @@ export class DiscordChannel implements Channel {
     this.opts.onChatMetadata(chatJid, timestamp, chatName, 'discord', isGroup);
 
     let content = msg.content;
-    const botId = this.client?.user?.id;
-    const mentionsBot = !!(botId && content.includes(`<@${botId}>`));
-    if (mentionsBot) {
-      content = content.replace(`<@${botId!}>`, '').trim();
-    }
+    const userId = this.client?.user?.id;
+    const mentionsMe = !!(userId && content.includes(`<@${userId}>`));
+    if (mentionsMe) content = content.replace(`<@${userId!}>`, '').trim();
 
-    // Build raw attachment list from discord message attachments
     const attachments: RawAttachment[] = [];
     for (const att of msg.attachments.values()) {
       let type: AttachmentType = 'document';
@@ -124,29 +102,22 @@ export class DiscordChannel implements Channel {
         res.headers.get('content-length') || '0',
         10,
       );
-      if (contentLength > maxBytes) {
+      if (contentLength > maxBytes)
         throw new Error(`file too large: ${contentLength} > ${maxBytes}`);
-      }
       return Buffer.from(await res.arrayBuffer());
     };
 
-    // Extract forward/reply metadata
-    let forwarded_from: string | undefined;
     let reply_to_text: string | undefined;
     let reply_to_sender: string | undefined;
     let reply_to_id: string | undefined;
-    if (msg.reference) {
-      if (msg.reference.type === MessageReferenceType.Forward) {
-        forwarded_from = '(forwarded)';
-      } else {
-        reply_to_id = msg.reference.messageId ?? undefined;
-        try {
-          const ref = await msg.fetchReference();
-          reply_to_sender = ref.member?.displayName || ref.author.displayName;
-          if (ref.content) reply_to_text = ref.content.slice(0, 100);
-        } catch {
-          /* referenced message may be deleted */
-        }
+    if (msg.reference?.messageId) {
+      reply_to_id = msg.reference.messageId;
+      try {
+        const ref = await msg.fetchReference();
+        reply_to_sender = ref.member?.displayName || ref.author.username;
+        if (ref.content) reply_to_text = ref.content.slice(0, 100);
+      } catch {
+        /* referenced message may be deleted */
       }
     }
 
@@ -160,13 +131,12 @@ export class DiscordChannel implements Channel {
         content,
         timestamp,
         is_from_me: false,
-        forwarded_from,
         reply_to_text,
         reply_to_sender,
         reply_to_id,
         verb: Verb.Message,
         platform: Platform.Discord,
-        mentions_me: mentionsBot || undefined,
+        mentions_me: mentionsMe || undefined,
       },
       attachments.length > 0 ? attachments : undefined,
       attachments.length > 0 ? discordDownload : undefined,
@@ -187,10 +157,9 @@ export class DiscordChannel implements Channel {
       logger.warn('Discord client not initialized');
       return undefined;
     }
-
     try {
       const ch = await this.client.channels.fetch(jid.replace(/^discord:/, ''));
-      if (!ch?.isTextBased()) {
+      if (!ch?.isText()) {
         logger.warn({ jid }, 'Discord channel not text-based');
         return undefined;
       }
@@ -198,16 +167,12 @@ export class DiscordChannel implements Channel {
       let lastId: string | undefined;
       for (let i = 0; i < text.length; i += MAX) {
         const chunk = text.slice(i, i + MAX);
-        if (opts?.replyTo && i === 0) {
-          const sent = await (ch as TextChannel).send({
-            content: chunk,
-            reply: { messageReference: opts.replyTo },
-          });
-          lastId = sent.id;
-        } else {
-          const sent = await (ch as TextChannel).send(chunk);
-          lastId = sent.id;
-        }
+        const sent = await (ch as TextChannel).send(
+          opts?.replyTo && i === 0
+            ? { content: chunk, reply: { messageReference: opts.replyTo } }
+            : chunk,
+        );
+        lastId = sent.id;
       }
       logger.info({ jid, length: text.length }, 'Discord message sent');
       return lastId;
@@ -228,14 +193,15 @@ export class DiscordChannel implements Channel {
     }
     try {
       const ch = await this.client.channels.fetch(jid.replace(/^discord:/, ''));
-      if (!ch?.isTextBased()) {
+      if (!ch?.isText()) {
         logger.warn({ jid }, 'Discord channel not text-based');
         return;
       }
       const name = filename ?? path.basename(filePath);
-      const attachment = new AttachmentBuilder(fs.createReadStream(filePath), {
+      const attachment = new MessageAttachment(
+        fs.createReadStream(filePath),
         name,
-      });
+      );
       await (ch as TextChannel).send({ files: [attachment] });
       logger.info({ jid, filePath, name }, 'Discord document sent');
     } catch (err) {
@@ -255,7 +221,7 @@ export class DiscordChannel implements Channel {
     if (this.client) {
       this.client.destroy();
       this.client = null;
-      logger.info('Discord bot stopped');
+      logger.info('Discord user disconnected');
     }
   }
 
@@ -263,9 +229,7 @@ export class DiscordChannel implements Channel {
     if (!this.client || !isTyping) return;
     try {
       const ch = await this.client.channels.fetch(jid.replace(/^discord:/, ''));
-      if (ch?.isTextBased()) {
-        await (ch as TextChannel).sendTyping();
-      }
+      if (ch?.isText()) await (ch as TextChannel).sendTyping();
     } catch (err) {
       logger.debug({ jid, err }, 'Failed to send Discord typing indicator');
     }
