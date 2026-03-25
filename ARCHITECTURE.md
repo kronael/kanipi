@@ -44,8 +44,8 @@ SQLite database. Stores messages, groups, routing table, chat
 metadata, sessions, and scheduled tasks. All access is
 synchronous (better-sqlite3). Key functions: `storeMessage`,
 `getNewMessages`, `getGroupByFolder`, `setSession`,
-`setMessageTopic`, `getWebdavUser`, `setWebdavToken`,
-`setWebdavGroups`.
+`setMessageTopic`, `getWebdavUser`, `getWebdavUserBySub`,
+`setWebdavToken`, `setWebdavGroups`.
 
 Tables: `messages`, `groups`, `routes`, `chats`, `session_history`,
 `system_messages`, `scheduled_tasks`, `task_run_logs`,
@@ -105,9 +105,13 @@ HTTP server in front of Vite. Routes slink endpoints (`/pub/s/:token`,
 WebDAV proxy (`/dav/:group/*`, gated by `WEBDAV_ENABLED`),
 Google OAuth routes (`/auth/google`, `/auth/google/callback`),
 and proxies everything else to Vite. Auth boundary: `/pub/` and
-`/_sloth/` bypass basic auth; `/dash/` requires auth. WebDAV
-access uses a per-user token hash + group ACL stored in DB;
-JSON parse errors on group ACL fail closed.
+`/_sloth/` bypass basic auth; `/dash/` requires auth.
+
+WebDAV auth has two paths: session cookie (`getSessionWebdavUser`) and
+per-user token hash (`getWebdavUser`). Both gate on a `webdav_groups`
+ACL stored in DB; JSON parse errors fail closed. `GET /dav` redirects to
+`/dav/<first-group>/` for session users, or `/auth/login` if no session.
+`parseWebdavGroups()` centralises the JSON.parse + error handling.
 
 ### dashboards/index.ts
 
@@ -196,10 +200,12 @@ Action-level permission system. Rules use glob syntax with param
 matching (`send_message(platform=telegram)`). `parseRule` parses,
 `checkAction` evaluates, `matchingRules`/`narrowRules` filter.
 DB-backed overrides in `grants` table. Tier defaults: 0=`*`,
-1=world-scoped social+messaging, 2=own-platform social+messaging,
-3=`send_reply` only. Parent rules narrow child grants via
-`deriveRules` delegation in `start.json`. Enforced in
-container-runner (manifest filtering) and IPC (action dispatch).
+1=world-scoped social+messaging + `share_mount(readonly=false)`,
+2=own-platform social+messaging + `share_mount(readonly=true)`,
+3=`send_reply` only (no share mount). Parent rules narrow child
+grants via `deriveRules` delegation in `start.json`. Enforced in
+container-runner (manifest filtering, share mount decision) and
+IPC (action dispatch).
 
 ### action-registry.ts + actions/
 
@@ -246,7 +252,7 @@ docker run
   -v groups/<folder>/tmp:rw              # tier 3: RW overlay
   -v GROUPS_DIR:/home/node/groups        # tier 0 only: cross-group access
   -v kanipi/:/workspace/self             # kanipi source (ro, tier 0 only)
-  -v share/:/workspace/share             # cross-group shared state (ro tier 2+3)
+  -v share/:/workspace/share             # cross-group shared state (rw tier 1, ro tier 2; grant-controlled)
   -v web/<world>/:/workspace/web         # web output (rw, tier 0/1/2; world subdir for tier 1+2)
   -v data/ipc/<folder>:/workspace/ipc    # IPC directory (rw)
   -v <additional>:/workspace/extra/...   # allowlisted mounts (ro)
@@ -260,12 +266,17 @@ live inside it. Workspace mounts (`self`, `share`, `web`, `ipc`,
 
 **Tier-based mount permissions**: tier 0 (root) gets full RW
 everywhere plus `~/groups` for cross-group sync. Tier 1 (world
-admin) gets RW home, share, and web. Tier 2 gets RW home and
+admin) gets RW home, share (rw), and web. Tier 2 gets RW home and
 web (world subdir `web/<world>/`) but setup files (CLAUDE.md,
 SOUL.md, `.claude/skills`, `settings.json`, `output-styles`) are
-locked RO via more-specific overlays. Tier 3 gets RO home with
-explicit RW overlays for `.claude/projects`, `media`, and `tmp`
-only; web is not mounted.
+locked RO via more-specific overlays; share is mounted RO. Tier 3
+gets RO home with explicit RW overlays for `.claude/projects`,
+`media`, and `tmp` only; web and share are not mounted.
+
+The share mount is controlled by the `share_mount` grant rule
+(`share_mount(readonly=false)` for tier 1, `share_mount(readonly=true)`
+for tier 2, absent for tier 3). Grant overrides in the `grants` table
+can override these defaults per group.
 
 **Agent I/O**: gateway writes `start.json` to the IPC directory
 before spawn (contains prompt, session ID, secrets). Container

@@ -1,11 +1,26 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   parseRule,
   checkAction,
   matchingRules,
   narrowRules,
+  deriveRules,
 } from './grants.js';
+
+vi.mock('./db.js', () => ({
+  getAllRoutes: vi.fn(() => []),
+  getDatabase: vi.fn(),
+}));
+
+vi.mock('./config.js', () => ({
+  permissionTier: (folder: string) =>
+    folder.includes('/') ? Math.min(folder.split('/').length, 3) : 0,
+}));
+
+vi.mock('./permissions.js', () => ({
+  worldOf: (folder: string) => folder.split('/')[0],
+}));
 
 // ── parseRule ──────────────────────────────────────────────────────────────────
 
@@ -475,5 +490,43 @@ describe('narrowRules', () => {
     expect(checkAction(level2, 'delete_post', {})).toBe(false);
     expect(checkAction(level2, 'ban', {})).toBe(false);
     expect(checkAction(level2, 'react', {})).toBe(true);
+  });
+});
+
+describe('share_mount grant override', () => {
+  it('tier-1 group has share_mount RW by default', () => {
+    const rules = deriveRules('world', 1);
+    expect(checkAction(rules, 'share_mount', { readonly: 'false' })).toBe(true);
+    expect(checkAction(rules, 'share_mount', { readonly: 'true' })).toBe(false);
+  });
+
+  it('tier-2 group has share_mount RO by default', () => {
+    const rules = deriveRules('world/child', 2);
+    expect(checkAction(rules, 'share_mount', { readonly: 'true' })).toBe(true);
+    expect(checkAction(rules, 'share_mount', { readonly: 'false' })).toBe(
+      false,
+    );
+  });
+
+  it('!share_mount override blocks share mount RW for tier-1', () => {
+    const base = deriveRules('world', 1);
+    const allRules = [...base, '!share_mount'];
+    expect(checkAction(allRules, 'share_mount', { readonly: 'false' })).toBe(
+      false,
+    );
+  });
+
+  it('!share_mount override blocks share mount RO for tier-2', () => {
+    const base = deriveRules('world/child', 2);
+    const allRules = [...base, '!share_mount'];
+    expect(checkAction(allRules, 'share_mount', { readonly: 'true' })).toBe(
+      false,
+    );
+  });
+
+  it('root tier-0 has share_mount via wildcard', () => {
+    const rules = deriveRules('root', 0);
+    expect(checkAction(rules, 'share_mount', { readonly: 'false' })).toBe(true);
+    expect(checkAction(rules, 'share_mount', { readonly: 'true' })).toBe(true);
   });
 });

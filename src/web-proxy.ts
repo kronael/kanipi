@@ -175,6 +175,14 @@ function checkAuth(req: http.IncomingMessage, authSecret?: string): boolean {
 
 // --- WebDAV proxy ---
 
+function parseWebdavGroups(raw: string): string[] {
+  try {
+    return JSON.parse(raw) as string[];
+  } catch {
+    return [];
+  }
+}
+
 const WEBDAV_WRITE_METHODS = new Set([
   'PUT',
   'POST',
@@ -265,12 +273,8 @@ function handleWebdavRequest(
   const cookie = req.headers.cookie || '';
   const sessionUser = getSessionWebdavUser(cookie);
   if (sessionUser) {
-    let groups: string[] | null = null;
-    try {
-      const g = JSON.parse(sessionUser.webdav_groups) as string[];
-      if (g.length > 0) groups = g;
-    } catch {}
-    if (groups !== null && !groups.includes(group)) {
+    const groups = parseWebdavGroups(sessionUser.webdav_groups);
+    if (groups.length > 0 && !groups.includes(group)) {
       res.writeHead(403);
       res.end('Forbidden');
       return;
@@ -323,12 +327,7 @@ function handleWebdavRequest(
     return;
   }
 
-  let allowedGroups: string[];
-  try {
-    allowedGroups = JSON.parse(user.webdav_groups) as string[];
-  } catch {
-    allowedGroups = [];
-  }
+  const allowedGroups = parseWebdavGroups(user.webdav_groups);
   if (!allowedGroups.includes(group)) {
     res.writeHead(403);
     res.end('Forbidden');
@@ -570,12 +569,7 @@ export function startWebProxy(opts: {
       const cookie = req.headers.cookie || '';
       const sessionUser = getSessionWebdavUser(cookie);
       if (sessionUser) {
-        let groups: string[] = [];
-        try {
-          groups = JSON.parse(sessionUser.webdav_groups) as string[];
-        } catch {
-          /* */
-        }
+        const groups = parseWebdavGroups(sessionUser.webdav_groups);
         const group = groups.length > 0 ? groups[0] : 'root';
         res.writeHead(302, { Location: `/dav/${group}/` });
       } else {

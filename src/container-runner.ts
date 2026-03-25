@@ -42,7 +42,12 @@ import {
 import { validateAdditionalMounts } from './mount-security.js';
 import { GroupConfig } from './db.js';
 import { worldOf } from './permissions.js';
-import { checkAction, deriveRules, getGrantOverrides } from './grants.js';
+import {
+  checkAction,
+  deriveRules,
+  getGrantOverrides,
+  type Rule,
+} from './grants.js';
 
 export let _spawnProcess: (
   cmd: string,
@@ -148,6 +153,7 @@ function updateSettings(
 
 function buildVolumeMounts(
   group: GroupConfig,
+  grantOverrides: Rule[] | null,
   delegateDepth?: number,
 ): VolumeMount[] {
   const root = isRoot(group.folder);
@@ -237,11 +243,13 @@ function buildVolumeMounts(
     });
   }
 
-  const allRules = [...groupRules, ...(getGrantOverrides(group.folder) ?? [])];
-  if (checkAction(allRules, 'share_mount', {})) {
+  const allRules = [...groupRules, ...(grantOverrides ?? [])];
+  const shareRw = checkAction(allRules, 'share_mount', { readonly: 'false' });
+  const shareRo =
+    !shareRw && checkAction(allRules, 'share_mount', { readonly: 'true' });
+  if (shareRw || shareRo) {
     const shareDir = path.join(GROUPS_DIR, worldOf(group.folder), 'share');
     fs.mkdirSync(shareDir, { recursive: true });
-    const shareRw = checkAction(allRules, 'share_mount', { readonly: 'false' });
     mounts.push({
       hostPath: path.join(HOST_GROUPS_DIR, worldOf(group.folder), 'share'),
       containerPath: '/workspace/share',
@@ -493,7 +501,7 @@ async function runRawCommand(
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
 
-  const mounts = buildVolumeMounts(group);
+  const mounts = buildVolumeMounts(group, getGrantOverrides(group.folder));
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   const containerArgs = buildContainerArgs(mounts, containerName, command);
@@ -624,7 +632,8 @@ async function runAgentMode(
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
 
-  const mounts = buildVolumeMounts(group, input.delegateDepth);
+  const grantOverrides: Rule[] | null = getGrantOverrides(group.folder);
+  const mounts = buildVolumeMounts(group, grantOverrides, input.delegateDepth);
 
   updateSettings(path.join(groupDir, '.claude'), (settings) => {
     if (input.channelName) {
@@ -707,7 +716,6 @@ async function runAgentMode(
     fs.mkdirSync(inputDir, { recursive: true });
 
     const grants = deriveRules(group.folder);
-    const overrides = getGrantOverrides(group.folder);
     const startJson = {
       sessionId: input.sessionId,
       groupFolder: input.groupFolder,
@@ -720,7 +728,7 @@ async function runAgentMode(
       messageCount: input.messageCount,
       delegateDepth: input.delegateDepth,
       messageId: input.messageId,
-      grants: overrides ? [...grants, ...overrides] : grants,
+      grants: grantOverrides ? [...grants, ...grantOverrides] : grants,
     };
     const startPath = path.join(groupIpcDir, 'start.json');
     const startTmp = `${startPath}.tmp`;
