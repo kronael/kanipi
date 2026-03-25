@@ -278,6 +278,32 @@ export function getMessagesSince(
   return rows.reverse();
 }
 
+// Returns recent messages from JIDs scoped to `groupFolder` but NOT `excludeJid`
+// (i.e. watch-only/observed sources). Used to build <observed> context.
+export function getObservedMessagesSince(
+  groupFolder: string,
+  excludeJid: string,
+  since: string,
+): InboundEvent[] {
+  const sql = `
+    SELECT DISTINCT m.id, m.chat_jid, m.sender, m.sender_name, m.content,
+           m.timestamp, m.forwarded_from, m.reply_to_text, m.reply_to_sender,
+           m.reply_to_id, m.forwarded_from_id, m.forwarded_msgid,
+           CASE WHEN c.is_group = 1 THEN c.name ELSE NULL END AS group_name
+    FROM messages m
+    JOIN routes r ON r.jid = m.chat_jid OR r.jid = (substr(m.chat_jid, 1, instr(m.chat_jid, ':')) )
+    LEFT JOIN chats c ON c.jid = m.chat_jid
+    WHERE r.target = ? AND m.chat_jid != ? AND m.timestamp > ?
+      AND m.is_bot_message = 0 AND m.content != '' AND m.content IS NOT NULL
+    ORDER BY m.timestamp DESC
+    LIMIT 100
+  `;
+  const rows = db
+    .prepare(sql)
+    .all(groupFolder, excludeJid, since || '') as InboundEvent[];
+  return rows.reverse();
+}
+
 export function createTask(
   task: Omit<ScheduledTask, 'last_run' | 'last_result'>,
 ): void {

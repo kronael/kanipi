@@ -68,6 +68,7 @@ import {
   getAllTasks,
   getHubForJid,
   getImpulseConfigForJid,
+  getObservedMessagesSince,
   getDirectChildGroupCount,
   getGroupByFolder,
   getJidsForFolder,
@@ -1278,9 +1279,18 @@ async function startMessageLoop(): Promise<void> {
             lastAgentTimestamp[chatJid] || '',
             ASSISTANT_NAME,
           );
-          const formatted = formatMessages(
-            enriched.length > 0 ? enriched : messagesToSend,
+          const triggerMsgs = enriched.length > 0 ? enriched : messagesToSend;
+          const observedMsgs = getObservedMessagesSince(
+            group.folder,
+            chatJid,
+            lastAgentTimestamp[chatJid] || '',
           );
+          const formatted =
+            observedMsgs.length > 0
+              ? formatMessages(triggerMsgs) +
+                '\n' +
+                formatMessages(observedMsgs, undefined, 'observed')
+              : formatMessages(triggerMsgs);
 
           if (queue.sendMessage(chatJid, formatted)) {
             logger.info(

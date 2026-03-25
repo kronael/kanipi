@@ -58,7 +58,11 @@ export function clockXml(tz: string): string {
   return `<clock time="${new Date().toISOString()}" tz="${escapeXml(tz)}" />`;
 }
 
-export function formatMessages(messages: InboundEvent[], now?: number): string {
+export function formatMessages(
+  messages: InboundEvent[],
+  now?: number,
+  tag = 'message',
+): string {
   const t = now ?? Date.now();
   const lines = messages.map((m) => {
     const parts: string[] = [];
@@ -90,9 +94,9 @@ export function formatMessages(messages: InboundEvent[], now?: number): string {
       m.thread && `thread="${escapeXml(m.thread)}"`,
       m.target && `target="${escapeXml(m.target)}"`,
     ];
-    const tag = `<message ${a.filter(Boolean).join(' ')}>`;
-    if (parts.length === 1) return `${tag}${inner}</message>`;
-    return `${tag}\n${inner}\n</message>`;
+    const open = `<${tag} ${a.filter(Boolean).join(' ')}>`;
+    if (parts.length === 1) return `${open}${inner}</${tag}>`;
+    return `${open}\n${inner}\n</${tag}>`;
   });
   return `<messages>\n${lines.join('\n')}\n</messages>`;
 }
