@@ -67,6 +67,21 @@ add_route({
 
 Platform wildcards use `<platform>:` (no channel ID). They apply to all JIDs of that platform when no per-channel route matches.
 
+## Observed messages
+
+When a group has multiple JIDs routed to it, messages from non-trigger JIDs are
+fetched as observed context and passed alongside the triggering messages.
+
+- Messages from the triggering JID → `<message>` tags
+- Messages from other JIDs routed to the same group → `<observed>` tags
+- Both are merged in one `<messages>` block, sorted by timestamp
+
+`getObservedMessagesSince(groupFolder, excludeJid, since)` fetches up to 100
+recent messages from all other JIDs routed to the same group.
+
+See your `CLAUDE.md` for rules on how to handle observed messages — they are
+silent context, not triggers.
+
 ## Routing symbols
 
 Built-in symbols handled before route table evaluation:
@@ -100,6 +115,32 @@ To store without triggering (e.g. for social monitoring):
 ```
 
 Per-route `impulse_config` overrides the default for that JID. Platform wildcard routes provide the fallback config when no per-channel config exists.
+
+## Grant deny rules
+
+Grant rules prefixed with `!` are deny rules. They block a specific action
+even when an allow rule would otherwise permit it.
+
+```
+send_message(jid=discord:*)    # allow send_message to any discord JID
+!send_message(jid=discord:*)   # deny send_message to any discord JID
+```
+
+Params use glob matching (`*` matches any substring within the same
+path segment). A deny rule wins over an allow rule when evaluated in
+order — the last matching rule determines the outcome.
+
+Example: block all Discord sends but allow everything else:
+
+```
+*
+!send_message(jid=discord:*)
+!send_reply(jid=discord:*)
+```
+
+Grant rules are stored in the `grants` DB table. Tier defaults apply
+per group; per-group overrides narrow them. See `grants.ts` for tier
+defaults.
 
 ## {sender} template routing
 

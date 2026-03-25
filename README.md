@@ -225,9 +225,21 @@ default); first match within each tier wins. Delegation is authorized
 only for direct parent-to-child relationships within the same world
 (same root folder segment), capped at depth 3.
 
-Set via `set_routing_rules` action; delegate via `delegate_group` action.
-Routing is parent-to-child by registered group folder. Glob-based JID routing
-is not currently implemented.
+**Platform wildcard routes**: a JID like `discord:` (platform prefix, no
+channel ID) matches all Discord channels as a fallback when no per-channel
+route exists. Works for routing and impulse config lookups.
+
+**Per-JID impulse config**: each route row can carry an `impulse_config`
+JSON column (migration 0017). `getImpulseConfigForJid` does exact-JID
+lookup first, then falls back to the platform wildcard. Zero-weight config
+`{"threshold":100,"weights":{"*":0},"max_hold_ms":0}` makes a JID
+watch-only — messages are stored but never trigger the agent.
+
+**Observed messages**: when a group has multiple JIDs routed to it, the
+non-triggering JIDs are fetched as context. Messages from the trigger JID
+appear as `<message>` tags; messages from other routed JIDs appear as
+`<observed>` tags. Both are merged in one `<messages>` block sorted by
+timestamp. See agent `CLAUDE.md` for handling rules.
 
 ## Instance Layout
 
@@ -255,33 +267,34 @@ verification, and Google OAuth (`/auth/google`).
 
 All via `.env` (seeded from `template/env.example`):
 
-| Key                       | Purpose                                                   |
-| ------------------------- | --------------------------------------------------------- |
-| ASSISTANT_NAME            | instance name                                             |
-| TELEGRAM_BOT_TOKEN        | enables telegram channel                                  |
-| DISCORD_BOT_TOKEN         | enables discord channel                                   |
-| CONTAINER_IMAGE           | agent docker image                                        |
-| CLAUDE_CODE_OAUTH_TOKEN   | passed to agent containers                                |
-| CONTAINER_TIMEOUT         | container idle shutdown (ms, default 3600000)             |
-| MAX_CONCURRENT_CONTAINERS | concurrent agent limit                                    |
-| VITE_PORT                 | enables vite web serving                                  |
-| WEB_HOST                  | vite host binding                                         |
-| AUTH_SECRET               | JWT secret for session auth (required for non-public web) |
-| GITHUB_CLIENT_ID          | GitHub OAuth app client ID                                |
-| GITHUB_CLIENT_SECRET      | GitHub OAuth app client secret                            |
-| GOOGLE_CLIENT_ID          | Google OAuth app client ID                                |
-| GOOGLE_CLIENT_SECRET      | Google OAuth app client secret                            |
-| DISCORD_CLIENT_ID         | Discord OAuth app client ID                               |
-| DISCORD_CLIENT_SECRET     | Discord OAuth app client secret                           |
-| WEBDAV_ENABLED            | enable WebDAV proxy (default false)                       |
-| WEBDAV_URL                | upstream WebDAV server URL                                |
-| WHISPER_BASE_URL          | whisper service URL for transcription                     |
-| EMAIL_IMAP_HOST           | enables email channel (IMAP IDLE)                         |
-| EMAIL_SMTP_HOST           | SMTP for reply threading (defaults from IMAP)             |
-| EMAIL_ACCOUNT             | email account address                                     |
-| EMAIL_PASSWORD            | email account password                                    |
-| MEDIA_ENABLED             | enable attachment pipeline (default false)                |
-| TIMEZONE                  | cron timezone (validated, fallback UTC)                   |
+| Key                       | Purpose                                                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| ASSISTANT_NAME            | instance name                                                                                                                       |
+| TELEGRAM_BOT_TOKEN        | enables telegram channel                                                                                                            |
+| DISCORD_USER_TOKEN        | enables discord channel (userbot)                                                                                                   |
+| CONTAINER_IMAGE           | agent docker image                                                                                                                  |
+| CLAUDE_CODE_OAUTH_TOKEN   | passed to agent containers                                                                                                          |
+| CONTAINER_TIMEOUT         | container idle shutdown (ms, default 3600000)                                                                                       |
+| MAX_CONCURRENT_CONTAINERS | concurrent agent limit                                                                                                              |
+| VITE_PORT                 | enables vite web serving                                                                                                            |
+| WEB_HOST                  | vite host binding                                                                                                                   |
+| AUTH_SECRET               | JWT secret for session auth (required for non-public web)                                                                           |
+| GITHUB_CLIENT_ID          | GitHub OAuth app client ID                                                                                                          |
+| GITHUB_CLIENT_SECRET      | GitHub OAuth app client secret                                                                                                      |
+| GOOGLE_CLIENT_ID          | Google OAuth app client ID                                                                                                          |
+| GOOGLE_CLIENT_SECRET      | Google OAuth app client secret                                                                                                      |
+| DISCORD_CLIENT_ID         | Discord OAuth app client ID                                                                                                         |
+| DISCORD_CLIENT_SECRET     | Discord OAuth app client secret                                                                                                     |
+| WEBDAV_ENABLED            | enable WebDAV proxy (default false)                                                                                                 |
+| WEBDAV_URL                | upstream WebDAV server URL                                                                                                          |
+| WHISPER_BASE_URL          | whisper service URL for transcription                                                                                               |
+| EMAIL_IMAP_HOST           | enables email channel (IMAP IDLE)                                                                                                   |
+| EMAIL_SMTP_HOST           | SMTP for reply threading (defaults from IMAP)                                                                                       |
+| EMAIL_ACCOUNT             | email account address                                                                                                               |
+| EMAIL_PASSWORD            | email account password                                                                                                              |
+| MEDIA_ENABLED             | enable attachment pipeline (default false)                                                                                          |
+| TIMEZONE                  | cron timezone (validated, fallback UTC)                                                                                             |
+| ONBOARDING_PLATFORMS      | comma-separated platforms for onboarding (e.g. `telegram,whatsapp,email`); `ONBOARDING_ENABLED=1` maps to `telegram,whatsapp,email` |
 
 Channels enabled by token presence (telegram/discord),
 auth dir existence (whatsapp: `store/auth/creds.json`),

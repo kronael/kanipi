@@ -49,6 +49,26 @@ After starting, send `!chatid` in any channel to get the JID for registration:
 kanipi config <name> group add discord:1234567890 <folder>
 ```
 
+Discord channels are typically configured as **watch-only**: messages are stored
+and appear as `<observed>` context in other groups, but do not trigger the agent
+directly. This is done via a platform wildcard route with zero-weight impulse config:
+
+```javascript
+add_route({
+  jid: 'discord:',
+  type: 'default',
+  seq: 9999,
+  target: 'root',
+  impulse_config: JSON.stringify({
+    threshold: 100,
+    weights: { '*': 0 },
+    max_hold_ms: 0,
+  }),
+});
+```
+
+See `routing.md` for impulse config details and observed messages.
+
 ### WhatsApp
 
 No env var. Start gateway without WhatsApp credentials — a QR code prints to terminal. Scan with WhatsApp mobile app. Credentials saved to `store/auth/creds.json` and reused on restart.

@@ -12,11 +12,13 @@ TypeScript (ESM, NodeNext), SQLite (better-sqlite3), Docker.
 
 ```
 Channel (telegram/whatsapp/discord/email/web)
-  -> [Impulse Gate] (social channels only; chat channels bypass)
+  -> [Impulse Gate] (all channels; per-JID config from routes.impulse_config)
   -> DB (store message + chat metadata)
   -> message loop (poll getNewMessages)
   -> routing rules (resolveRoute: delegate to child group if matched)
   -> GroupQueue (per-group serialization)
+  -> getObservedMessagesSince (fetch <observed> context from other routed JIDs)
+  -> formatMessages (merge trigger + observed, sorted by timestamp)
   -> runContainerAgent (docker run)
   -> stream output back to channel
 ```
@@ -45,7 +47,8 @@ metadata, sessions, and scheduled tasks. All access is
 synchronous (better-sqlite3). Key functions: `storeMessage`,
 `getNewMessages`, `getGroupByFolder`, `setSession`,
 `setMessageTopic`, `getWebdavUser`, `getWebdavUserBySub`,
-`setWebdavToken`, `setWebdavGroups`.
+`setWebdavToken`, `setWebdavGroups`, `getObservedMessagesSince`,
+`getImpulseConfigForJid`.
 
 Tables: `messages`, `groups`, `routes`, `chats`, `session_history`,
 `system_messages`, `scheduled_tasks`, `task_run_logs`,
@@ -54,8 +57,13 @@ outbound records carry a `topic` column. `auth_users` has
 `webdav_token_hash` and `webdav_groups` columns (migration 0015).
 
 `routes` is a flat JID→target routing table. Targets may contain
-`{sender}` templates (expanded at routing time). `system_messages`
-stores pending events per group; flushed as XML before agent stdin.
+`{sender}` templates (expanded at routing time). `routes.impulse_config`
+(migration 0017) stores per-JID impulse config JSON; `getImpulseConfigForJid`
+does exact-JID lookup then falls back to the platform wildcard JID (e.g.
+`discord:`). `getObservedMessagesSince` returns up to 100 recent messages
+from other JIDs routed to the same group folder (for `<observed>` context).
+`system_messages` stores pending events per group; flushed as XML before
+agent stdin.
 
 ### slink.ts
 
@@ -71,7 +79,10 @@ Built-in: `/new` (clear session), `/ping`, `/chatid`.
 ### onboarding.ts
 
 Gateway-level onboarding state machine (no LLM). Enabled via
-`ONBOARDING_ENABLED=1`. States: new → pending → approved → rejected.
+`ONBOARDING_PLATFORMS` (comma-separated list of platforms, e.g.
+`telegram,whatsapp,email`). Legacy `ONBOARDING_ENABLED=1` maps to
+`telegram,whatsapp,email`. Discord is excluded from onboarding by
+default. States: new → pending → approved → rejected.
 User command: `/request <name>`. Root commands: `/approve <jid>`,
 `/reject <jid>`. On approve, copies root group's `prototype/` to a
 new world folder and registers the group. Rejected users receive a
@@ -86,11 +97,14 @@ One file per channel. Each implements `Channel` interface:
 - `discord.ts` — discord.js client, event-driven
 - `email.ts` — IMAP IDLE + SMTP reply threading
 
-Social channels (Twitter, Mastodon, Bluesky, Reddit, Facebook) pass
-through an impulse gate (`impulse.ts`) before storage: per-JID event
-weights accumulate until a threshold (default 100) or hold timer
-(default 5 min) triggers a flush. Chat channels (Telegram, WhatsApp,
-Discord, Email, Web) bypass the gate and pass through immediately.
+All channels pass through the impulse gate (`impulse.ts`). Per-JID
+`impulse_config` is fetched from the routes table (exact JID match, then
+platform wildcard fallback). Default config fires on every message
+(threshold 100, weight 100). Zero-weight config (`weights: {"*":0}`)
+makes a JID watch-only — events are stored but never trigger the agent.
+Chat channels (Telegram, WhatsApp, Discord, Email, Web) default to
+immediate-fire; social channels (Twitter, Mastodon, Bluesky, Reddit)
+accumulate events until threshold or hold timer (5 min default).
 
 Each channel stores incoming messages via `storeMessage` and
 provides `sendMessage(jid, text)` for outbound delivery.
@@ -424,14 +438,14 @@ stores: filesystem (`facts/`, `diary/`, `users/`, `episodes/`).
 
 ## External Systems
 
-| System   | Library       | Role                                       |
-| -------- | ------------- | ------------------------------------------ |
-| Telegram | grammy        | message channel                            |
-| WhatsApp | baileys       | message channel                            |
-| Discord  | discord.js    | message channel                            |
-| Email    | IMAP/SMTP     | message channel (IDLE + reply threading)   |
-| Docker   | child_process | agent container runtime                    |
-| Claude   | claude-code   | agent (runs in container)                  |
-| Whisper  | fetch (HTTP)  | voice/video transcription (kanipi-whisper) |
-| Google   | OAuth 2.0     | web auth (`GOOGLE_CLIENT_ID/SECRET`)       |
-| WebDAV   | HTTP proxy    | file access per group (`WEBDAV_URL`)       |
+| System   | Library                | Role                                       |
+| -------- | ---------------------- | ------------------------------------------ |
+| Telegram | grammy                 | message channel                            |
+| WhatsApp | baileys                | message channel                            |
+| Discord  | discord.js-selfbot-v13 | message channel (userbot)                  |
+| Email    | IMAP/SMTP              | message channel (IDLE + reply threading)   |
+| Docker   | child_process          | agent container runtime                    |
+| Claude   | claude-code            | agent (runs in container)                  |
+| Whisper  | fetch (HTTP)           | voice/video transcription (kanipi-whisper) |
+| Google   | OAuth 2.0              | web auth (`GOOGLE_CLIENT_ID/SECRET`)       |
+| WebDAV   | HTTP proxy             | file access per group (`WEBDAV_URL`)       |
