@@ -7,6 +7,16 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.12] — 2026-03-25
+
+### Added
+
+- **Observed messages** — non-trigger JID messages in a group are fetched and passed as `<observed>` tags in the agent prompt alongside `<message>` tags, merged and sorted by timestamp. Agents can see activity across all scoped channels as passive context without being triggered by it.
+- **Grant deny rules** — prefix a grant with `!` to create a deny rule: `!send_message(jid=discord:*)` blocks send actions to all Discord channels. Glob matching on params. Evaluated after allow rules; deny wins on overlap.
+- **Discord watch-only mode** — platform wildcard route `discord:` + zero-weight impulse config + deny grants = Discord messages stored as `<observed>` context, agent never triggered or allowed to reply.
+
+---
+
 ## [v1.0.11] — 2026-03-25
 
 ### Added
