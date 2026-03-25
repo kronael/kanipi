@@ -35,7 +35,8 @@ export class TwitterClient implements PlatformClient {
         const raw = fs.readFileSync(COOKIES_FILE, 'utf-8');
         const cookies = JSON.parse(raw);
         await this.scraper.setCookies(cookies);
-        if (await this.scraper.isLoggedIn()) {
+        const me = await this.scraper.me();
+        if (me) {
           log.info('logged in via cached cookies');
           return;
         }
