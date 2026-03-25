@@ -7,7 +7,7 @@ Seven layers split into push (gateway-injected each session) and pull (agent-sea
 | Layer        | Storage                 | How injected                                  |
 | ------------ | ----------------------- | --------------------------------------------- |
 | Messages     | SQLite                  | recent N as `<messages>` XML                  |
-| Session      | `.jl` transcript        | `--resume <id>` (Claude Code native)          |
+| Session      | `.jsonl` transcript     | `--resume <id>` (Claude Code native)          |
 | Managed      | `CLAUDE.md`/`MEMORY.md` | Claude Code reads natively                    |
 | Diary        | `~/diary/*.md`          | 14 most recent as `<diary>` XML               |
 | User context | `~/users/*.md`          | `<user memory="~/users/tg-xxx.md" />` pointer |
@@ -91,7 +91,7 @@ Progressive summaries of session transcripts. Gateway injects as `<episodes>` XM
 Created by `/compact-memories` skill (run via scheduled tasks):
 
 ```
-sessions (.jl) → episodes/YYYYMMDD.md   (daily,  cron: 0 2 * * *)
+sessions (.jsonl) → episodes/YYYYMMDD.md   (daily,  cron: 0 2 * * *)
 daily          → episodes/YYYY-Wnn.md    (weekly, cron: 0 3 * * 1)
 weekly         → episodes/YYYY-MM.md     (monthly, cron: 0 4 1 * *)
 ```
@@ -103,7 +103,7 @@ Diary also gets compressed: `diary/week/` and `diary/month/` for `/recall` searc
 On new session, gateway injects `<previous_session id="abc123">`. Read the transcript:
 
 ```bash
-ls -t ~/.claude/projects/-home-node/*.jl | head -5
+ls -t ~/.claude/projects/-home-node/*.jsonl | head -5
 # then Read the matching file
 ```
 

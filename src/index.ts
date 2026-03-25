@@ -162,6 +162,7 @@ function ensureGroupGitRepo(groupDir: string): void {
       'media/',
       'tmp/',
       '*.jl',
+      '.claude/projects/',
     ];
     try {
       for (const entry of fs.readdirSync(groupDir, { withFileTypes: true })) {

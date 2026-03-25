@@ -88,12 +88,12 @@ MEMORY.md is for stable knowledge: user preferences, long-term projects, recurri
 On every NEW session, you MUST recover context before responding:
 
 1. Check `diary/*.md` for recent entries (last 3-7 days)
-2. Read the previous session transcript at `~/.claude/projects/-home-node/<id>.jl`
+2. Read the previous session transcript at `~/.claude/projects/-home-node/<id>.jsonl`
    when the gateway injects `<previous_session id="...">` in a system message
 3. Use what you learn to inform your response
 
 CRITICAL: NEVER claim "I don't have access to previous session history"
-or similar excuses. The `.jl` files ARE your session history and you CAN
+or similar excuses. The `.jsonl` files ARE your session history and you CAN
 read them. If a user asks about prior conversations, use Glob + Read to
 find and inspect the transcript files.
 

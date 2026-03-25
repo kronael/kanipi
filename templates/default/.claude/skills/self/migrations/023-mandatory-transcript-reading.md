@@ -16,7 +16,7 @@ Updated files:
 ## Goal
 
 Prevent agents from claiming "I don't have access to session history"
-when the `.jl` transcript files are readable via the Read tool.
+when the `.jsonl` transcript files are readable via the Read tool.
 
 ## What to do
 
@@ -24,7 +24,7 @@ No action required — this is a prompt-level change. The migration
 version bump signals that the container image includes these updates.
 
 Next time you start a session and see `<previous_session id="xyz">`,
-you MUST read `~/.claude/projects/-home-node/xyz.jl` before responding.
+you MUST read `~/.claude/projects/-home-node/xyz.jsonl` before responding.
 
 ## Verification
 
