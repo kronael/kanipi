@@ -296,11 +296,11 @@ export function getObservedMessagesSince(
     WHERE r.target = ? AND m.chat_jid != ? AND m.timestamp > ?
       AND m.is_bot_message = 0 AND m.content != '' AND m.content IS NOT NULL
     ORDER BY m.timestamp DESC
-    LIMIT 100
+    LIMIT ?
   `;
   const rows = db
     .prepare(sql)
-    .all(groupFolder, excludeJid, since || '') as InboundEvent[];
+    .all(groupFolder, excludeJid, since || '', MSG_LIMIT) as InboundEvent[];
   return rows.reverse();
 }
 

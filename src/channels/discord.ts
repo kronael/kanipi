@@ -37,8 +37,6 @@ export class DiscordChannel implements Channel {
           { username: c.user.tag, id: c.user.id },
           'Discord user connected',
         );
-        console.log(`\n  Discord user: ${c.user.tag}`);
-        console.log(`  Send !chatid in a channel to get registration ID\n`);
         resolve();
       });
 
