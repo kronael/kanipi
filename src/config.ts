@@ -122,6 +122,8 @@ export const TELEGRAM_BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || envConfig.TELEGRAM_BOT_TOKEN || '';
 export const DISCORD_BOT_TOKEN =
   process.env.DISCORD_BOT_TOKEN || envConfig.DISCORD_BOT_TOKEN || '';
+export const DISCORD_USER_TOKEN =
+  process.env.DISCORD_USER_TOKEN || envConfig.DISCORD_USER_TOKEN || '';
 
 export const MASTODON_INSTANCE_URL =
   process.env.MASTODON_INSTANCE_URL || envConfig.MASTODON_INSTANCE_URL || '';
