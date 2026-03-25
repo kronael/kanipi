@@ -67,6 +67,7 @@ import {
   getAllSessions,
   getAllTasks,
   getHubForJid,
+  getImpulseConfigForJid,
   getDirectChildGroupCount,
   getGroupByFolder,
   getJidsForFolder,
@@ -181,27 +182,8 @@ let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 const lastMessageDate: Record<string, string> = {};
 
-const SOCIAL_PLATFORMS = new Set([
-  'twitter',
-  'mastodon',
-  'bluesky',
-  'reddit',
-  'facebook',
-  'instagram',
-  'threads',
-  'linkedin',
-  'twitch',
-  'youtube',
-]);
-
-function isSocialJid(jid: string): boolean {
-  const prefix = jid.split(':')[0];
-  return SOCIAL_PLATFORMS.has(prefix);
-}
-
 const channels: Channel[] = [];
 const impulseStates = new Map<string, ImpulseState>();
-const impulseConfig = defaultConfig();
 const queue = new GroupQueue();
 
 const typingState: Record<
@@ -1056,12 +1038,13 @@ async function startMessageLoop(): Promise<void> {
             continue;
           }
 
-          // impulse gate: social platforms accumulate; messaging passes through
-          if (isSocialJid(chatJid)) {
+          // impulse gate: all JIDs pass through impulse with per-JID config
+          {
+            const cfg = getImpulseConfigForJid(chatJid);
             let iState = impulseStates.get(chatJid) ?? emptyState();
             let shouldFlush = false;
             for (const m of groupMessages) {
-              const r = accumulate(iState, m, impulseConfig);
+              const r = accumulate(iState, m, cfg);
               iState = r.state;
               if (r.flush) shouldFlush = true;
             }
@@ -1319,7 +1302,7 @@ async function startMessageLoop(): Promise<void> {
       logger.error({ err, chatJid: 'loop' }, 'Error in message loop');
     }
     for (const [jid, state] of impulseStates) {
-      if (checkTimeout(state, impulseConfig)) {
+      if (checkTimeout(state, getImpulseConfigForJid(jid))) {
         impulseStates.delete(jid);
         queue.enqueueMessageCheck(jid);
       }

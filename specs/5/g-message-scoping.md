@@ -1,56 +1,79 @@
 ---
-status: planned
+status: in-progress
 ---
 
-# Message Scoping
+# Message Scoping + Impulse Gate
 
 ## Problem
 
-All messages are saved unconditionally. But access and triggering
-are conflated — routing a JID causes the agent to fire. There is
-no way to say "save these messages to a group's scope without
-triggering an agent run."
+1. Routing and triggering are conflated — a route fires the agent.
+   There is no way to store messages in a group's scope without
+   triggering an agent run.
+2. Impulse is applied only to social JIDs (`isSocialJid()`),
+   not universally. Channel type controls trigger timing.
+3. Non-routed messages are inaccessible except to root.
 
-## Route types: store vs default
+## Design
 
-Add `store` as a route type:
+### Impulse is the universal trigger gate
 
-| Route type | Saved | Scoped to group | Triggers agent |
-| ---------- | ----- | --------------- | -------------- |
-| none       | ✓     | root only       | ✗              |
-| `store`    | ✓     | group           | ✗              |
-| `default`  | ✓     | group           | ✓              |
+All messages — every JID, every platform — go through impulse
+before reaching the agent dispatch loop. Impulse owns all trigger
+decisions. Routing owns scope/destination only.
 
-`store` routes are evaluated like `default` for message scoping
-but excluded from the poll loop that drives agent invocation.
+```
+Channel → DB (store, always)
+        → impulse (per-JID config) → if fires → routing → agent
+```
 
-## Implementation
+`isSocialJid()` is deleted. No channel-type logic in the trigger path.
 
-`getRoutedJids()` returns JIDs with any route. Split into:
+### Per-route impulse config
 
-- `getTriggerJids()` — JIDs with at least one `default` route
-- `getStoreJids()` — JIDs with only `store` routes
+Each route row carries an optional impulse config (JSON blob).
+If null, the default config applies (threshold=100, message=100 →
+fires on every message, current behavior).
 
-The message loop polls `getTriggerJids()` for agent dispatch.
-`getStoreJids()` are polled only for metadata updates (chat name,
-last seen) — never for agent triggering.
+```sql
+ALTER TABLE routes ADD COLUMN impulse_config TEXT; -- JSON or null
+```
 
-`routeMatches` gains a `store` case: always matches, never
-delegates to agent. Evaluation order: store has lowest priority
-(seq 9999 by convention, like platform wildcards).
+Config shape (same as `ImpulseConfig`):
 
-## Access control: DENY not filter
+```json
+{ "threshold": 100, "weights": { "message": 100 }, "max_hold_ms": 300000 }
+```
+
+To suppress triggering on a route, set all weights to 0:
+
+```json
+{ "threshold": 100, "weights": { "*": 0 }, "max_hold_ms": 0 }
+```
+
+### JID impulse resolution
+
+`getImpulseConfigForJid(jid)` merges configs across all routes for
+a JID: if any route has a non-null config, use it; otherwise default.
+Platform wildcard routes (e.g. `discord:`) provide the fallback config
+when no per-channel config exists.
+
+### Access tiers
+
+| Route     | Saved | Scoped to group | Triggers agent     |
+| --------- | ----- | --------------- | ------------------ |
+| none      | ✓     | root only       | ✗                  |
+| any route | ✓     | group           | per impulse config |
+
+No separate `store` route type. Impulse config with zero weights IS
+a store-only route.
+
+### Access control: DENY not filter
 
 When an agent queries messages via MCP/IPC, scope is enforced
-strictly — not by silently filtering results, but by denying
-the request outright if the requested JID is outside the agent's
-group scope.
+strictly — not by silently filtering results but by denying outright
+if the requested JID is outside the agent's group scope.
 
-**Scope**: a group can access messages where `routes.target`
-includes the group's folder or any ancestor folder the group
-inherits from.
-
-**Violation response** (not an empty result):
+**Violation response** (tool error, not empty list):
 
 ```json
 {
@@ -59,38 +82,59 @@ inherits from.
 }
 ```
 
-The denial is returned to the agent as a tool error, not a silent
-empty list. This makes authorization failures visible rather than
-producing subtly wrong behavior.
+Root (tier 0) bypasses scope check — sees all JIDs.
 
-## Platform wildcard routes
+## Implementation
 
-`discord:` (no channel ID) as a `store` route sends all Discord
-messages to a group's scope without triggering any agent. Specific
-channel JIDs can have `default` routes that do trigger.
+### Migration
 
 ```sql
--- Store all Discord messages in atlas/content scope, no trigger
-INSERT INTO routes (jid, type, seq, target)
-VALUES ('discord:', 'store', 9999, 'atlas/content');
-
--- Trigger agent for a specific Discord channel
-INSERT INTO routes (jid, type, seq, target)
-VALUES ('discord:1234567890', 'default', 0, 'atlas/content');
+-- 0NNN-impulse-config.sql
+ALTER TABLE routes ADD COLUMN impulse_config TEXT;
 ```
 
-## Schema
+### DB
 
-No schema change. `routes.type` already accepts arbitrary strings.
-`store` is a new valid value handled in code.
+```typescript
+export function getImpulseConfigForJid(jid: string): ImpulseConfig {
+  const platform = jid.split(':')[0] + ':';
+  const rows = db
+    .prepare(
+      'SELECT impulse_config FROM routes WHERE jid IN (?, ?) AND impulse_config IS NOT NULL LIMIT 1',
+    )
+    .all(jid, platform) as { impulse_config: string }[];
+  if (rows.length === 0) return defaultConfig();
+  return { ...defaultConfig(), ...JSON.parse(rows[0].impulse_config) };
+}
+```
+
+### index.ts
+
+Remove `isSocialJid()` check and global `impulseConfig`. Apply
+per-JID config to every message batch:
+
+```typescript
+// before: if (isSocialJid(chatJid)) { accumulate with global config }
+// after: always accumulate with per-JID config
+const cfg = getImpulseConfigForJid(chatJid);
+let iState = impulseStates.get(chatJid) ?? emptyState();
+// ... accumulate, check flush
+```
+
+### Platform wildcard example
+
+```sql
+-- Store all Discord in atlas/content scope, never trigger
+INSERT INTO routes (jid, type, seq, target, impulse_config)
+VALUES ('discord:', 'default', 9999, 'atlas/content',
+        '{"threshold":100,"weights":{"*":0},"max_hold_ms":0}');
+```
 
 ## MCP enforcement location
 
-Message query actions (IPC `get_messages`, MCP `read_messages`):
+Message query actions (`get_messages`, `read_messages`):
 
-1. Resolve caller's group folder from container context
-2. Look up routes for requested JID — check `target` includes caller's folder
-3. If not: return `access_denied` error (above)
-4. If yes: return messages
-
-Root group (`folder = 'root'`, tier 0) bypasses scope check — sees all.
+1. Resolve caller folder from container context
+2. Check `routes.target` includes caller folder for requested JID
+3. If not: return `access_denied` error
+4. Root: bypass check

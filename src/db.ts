@@ -3,6 +3,8 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
+import { ImpulseConfig, defaultConfig } from './impulse.js';
+
 import { DATA_DIR, STORE_DIR } from './config.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
@@ -939,6 +941,21 @@ export function getHubForJid(jid: string): string | null {
     return slash > 0 ? row.target.slice(0, slash) : null;
   }
   return row.target;
+}
+
+export function getImpulseConfigForJid(jid: string): ImpulseConfig {
+  const platform = jid.split(':')[0] + ':';
+  const row = db
+    .prepare(
+      `SELECT impulse_config FROM routes WHERE jid IN (?, ?) AND impulse_config IS NOT NULL ORDER BY CASE jid WHEN ? THEN 0 ELSE 1 END LIMIT 1`,
+    )
+    .get(jid, platform, jid) as { impulse_config: string } | undefined;
+  if (!row) return defaultConfig();
+  try {
+    return { ...defaultConfig(), ...JSON.parse(row.impulse_config) };
+  } catch {
+    return defaultConfig();
+  }
 }
 
 export function getRouteTargetsForJid(jid: string): string[] {
