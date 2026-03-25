@@ -925,11 +925,13 @@ export function getJidsForFolder(folder: string): string[] {
 }
 
 export function getHubForJid(jid: string): string | null {
+  // Exact match first, then platform-level wildcard (e.g. "discord:")
+  const platform = jid.split(':')[0] + ':';
   const row = db
     .prepare(
-      `SELECT target FROM routes WHERE jid = ? AND type = 'default' ORDER BY seq LIMIT 1`,
+      `SELECT target FROM routes WHERE jid IN (?, ?) AND type = 'default' ORDER BY CASE jid WHEN ? THEN 0 ELSE 1 END, seq LIMIT 1`,
     )
-    .get(jid) as { target: string } | undefined;
+    .get(jid, platform, jid) as { target: string } | undefined;
   if (!row) return null;
   // Template targets like "atlas/{sender}" — return base folder (hub)
   if (row.target.includes('{')) {
