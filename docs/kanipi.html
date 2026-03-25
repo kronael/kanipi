@@ -11,7 +11,7 @@
   <button class="theme-toggle" aria-label="Toggle theme"></button>
 
   <div class="hub-container">
-    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.0.0</span></h1>
+    <h1>Kanipi <span style="color: var(--green, #4caf50); font-size: 0.5em; vertical-align: middle;">v1.0.11</span></h1>
     <p class="hub-subtitle">multi-channel agent gateway</p>
 
     <div class="tldr-box">
@@ -159,9 +159,9 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
             <td>long-poll, markdown-to-HTML, 4096-char chunking, typing indicator</td>
           </tr>
           <tr>
-            <td>Discord</td><td>discord.js</td>
-            <td><code>DISCORD_BOT_TOKEN</code></td><td><code>discord:</code></td>
-            <td>gateway mode, 2000-char split</td>
+            <td>Discord</td><td>discord.js-selfbot-v13</td>
+            <td><code>DISCORD_USER_TOKEN</code></td><td><code>discord:</code></td>
+            <td>userbot (user account token, not bot); 2000-char split. Get token from browser Network tab &rarr; Authorization header. No bot application needed.</td>
           </tr>
           <tr>
             <td>WhatsApp</td><td>baileys</td>
@@ -232,12 +232,13 @@ Channel (tg/discord/wa/email/web/twitter/reddit/mastodon/bluesky/facebook)
 
       <h3>Impulse gate</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
-        Social channels (Twitter, Mastodon, Bluesky, Reddit, Facebook) produce high-volume events (joins, edits,
-        deletes) that shouldn't each trigger an agent. The impulse gate accumulates event weights per JID and
-        flushes to the agent when the threshold is reached (default 100) or a max hold timer expires (default 5 min).
-        Configurable per-verb weights &mdash; joins, edits, and deletes default to weight 0 (dropped).
-        Direct messages default to weight 100 (immediate flush).
-        Chat channels (Telegram, WhatsApp, Discord, Email, Web) always pass through immediately &mdash; no accumulation.
+        All inbound messages pass through the impulse gate with per-JID config from the <code>routes.impulse_config</code>
+        column (JSON). The gate accumulates event weights per JID and flushes to the agent when the threshold is reached
+        (default 100) or a max hold timer expires (default 5 min). Configurable per-verb weights &mdash; joins, edits,
+        and deletes default to weight 0 (dropped). Direct messages default to weight 100 (immediate flush).
+        Chat channels (Telegram, WhatsApp, Discord, Email, Web) always pass through immediately by default.
+        Set <code>{"weights":{"*":0}}</code> on a route to store messages without ever triggering the agent
+        (watch-only mode). Replaces the old hardcoded social-platform gating.
       </p>
 
       <p style="font-size: 0.9em; color: var(--dim);">
@@ -525,6 +526,14 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
         patterns where each person gets their own agent context, diary, and memory.
       </p>
 
+      <h3>Platform wildcard routes</h3>
+      <p style="font-size: 0.9em; color: var(--dim);">
+        A JID with only a platform prefix and no channel ID (e.g. <code>discord:</code>) matches all channels
+        on that platform. Exact JID matches are preferred; the wildcard is a fallback. Useful for routing all
+        Discord activity to a single group without listing individual channel IDs, or for watch-only setups
+        combined with <code>impulse_config</code> weight suppression.
+      </p>
+
       <h3>Topic routing and child delegation</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
         Two built-in prefix route types inserted at seq 9998/9999 (user routes are evaluated first and can override):
@@ -562,13 +571,16 @@ diary weekly   &rarr;  diary/month/2026-03.md        &mdash; 0 4 1 * *</pre>
 
       <h3>Onboarding</h3>
       <p style="font-size: 0.9em; color: var(--dim);">
-        Gateway-level onboarding flow (no LLM, enabled via <code>ONBOARDING_ENABLED=1</code>).
+        Gateway-level onboarding flow (no LLM). Enable per platform via
+        <code>ONBOARDING_PLATFORMS=telegram,whatsapp</code> (replaces <code>ONBOARDING_ENABLED=1</code>).
+        Discord is excluded by default &mdash; useful when Discord is used for watch-only monitoring.
+        Legacy <code>ONBOARDING_ENABLED=1</code> maps to <code>telegram,whatsapp,email</code>.
         New users issue <code>/request &lt;name&gt;</code> to enter the pending state.
         Root operators run <code>/approve &lt;jid&gt;</code> or <code>/reject &lt;jid&gt;</code>.
         On approval, the root group's <code>prototype/</code> folder is copied to a new world folder for the user.
         States: new &rarr; pending &rarr; approved / rejected.
         The 5 standard <code>/compact-memories</code> cron tasks (episodes day/week/month, diary week/month) are seeded
-        automatically into DB on approval — isolated containers, no session history.
+        automatically into DB on approval &mdash; isolated containers, no session history.
       </p>
 
       <h3>CLI</h3>
@@ -799,7 +811,7 @@ npm run dev</pre>
           <tr><th>Key</th><th>Purpose</th></tr>
           <tr><td><code>ASSISTANT_NAME</code></td><td>instance name</td></tr>
           <tr><td><code>TELEGRAM_BOT_TOKEN</code></td><td>enables telegram</td></tr>
-          <tr><td><code>DISCORD_BOT_TOKEN</code></td><td>enables discord</td></tr>
+          <tr><td><code>DISCORD_USER_TOKEN</code></td><td>enables discord (user account token, not bot)</td></tr>
           <tr><td><code>EMAIL_IMAP_HOST</code></td><td>enables email (IMAP IDLE)</td></tr>
           <tr><td><code>TWITTER_USERNAME</code></td><td>enables twitter/x (+ _PASSWORD, _EMAIL)</td></tr>
           <tr><td><code>REDDIT_CLIENT_ID</code></td><td>enables reddit (+ _CLIENT_SECRET, _USERNAME, _PASSWORD)</td></tr>
@@ -815,6 +827,7 @@ npm run dev</pre>
           <tr><td><code>AUTH_SECRET</code></td><td>JWT secret for sessions and dashboard</td></tr>
           <tr><td><code>WHISPER_BASE_URL</code></td><td>whisper service URL</td></tr>
           <tr><td><code>TIMEZONE</code></td><td>cron timezone (validated, fallback UTC)</td></tr>
+          <tr><td><code>ONBOARDING_PLATFORMS</code></td><td>comma-separated platforms with onboarding enabled (e.g. <code>telegram,whatsapp</code>); legacy <code>ONBOARDING_ENABLED=1</code> maps to <code>telegram,whatsapp,email</code></td></tr>
         </table>
       </div>
 
@@ -867,6 +880,11 @@ sudo systemctl enable --now kanipi_foo</pre>
             dash-memory editors (MEMORY.md + CLAUDE.md editable inline), topic routing redesign (topic attr on message, separate view per topic)</td>
           </tr>
           <tr>
+            <td>v1.0.11</td>
+            <td><span style="color: var(--green, #4caf50);">shipped</span></td>
+            <td>Discord userbot (user account token, no bot app), platform wildcard routes (<code>discord:</code> matches all channels), per-JID impulse config (<code>routes.impulse_config</code>), per-platform onboarding (<code>ONBOARDING_PLATFORMS</code>), Twitter cookie login fix</td>
+          </tr>
+          <tr>
             <td>Phase 4</td>
             <td>deferred</td>
             <td>Gmail API, instance repos, memory viewer, evangelist product</td>
@@ -906,7 +924,7 @@ sudo systemctl enable --now kanipi_foo</pre>
           <tr><td>Config</td><td><code>.env</code> + env vars, SQLite-backed group state</td></tr>
           <tr><td>Deploy</td><td>systemd per instance, <code>kanipi create</code> CLI</td></tr>
           <tr><td>Base</td><td>NanoClaw fork (upstream v1.1.3)</td></tr>
-          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.0.0)</span></td></tr>
+          <tr><td>Runtime tested</td><td><span class="metric metric-good">yes (v1.0.11)</span></td></tr>
         </table>
       </div>
     </section>
@@ -916,23 +934,24 @@ sudo systemctl enable --now kanipi_foo</pre>
       <a href="https://github.com/kronael/kanipi">github.com/kronael/kanipi</a> &middot;
       <a href="https://github.com/kronael">kronael</a>
       <br>
-      <span style="color: var(--green, #4caf50);">v1.0.0 &middot; 10 channels &middot; 952 tests &middot; 102 specs</span>
+      <span style="color: var(--green, #4caf50);">v1.0.11 &middot; 10 channels &middot; 952 tests &middot; 102 specs</span>
 
       <details class="llm-info">
         <summary>Agent context</summary>
         <p>
-          Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.0.0.
+          Kanipi is a NanoClaw fork &mdash; a multi-tenant, multi-channel Claude agent gateway. v1.0.11.
           TypeScript (ESM, NodeNext). Routes messages from 10 channels to containerized Claude Code agents.
           78 source files, 18,833 LOC + 62 test files, 15,602 LOC. 952 tests. 102 spec files.
-          Chat channels: Telegram (grammy), Discord (discord.js), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
+          Chat channels: Telegram (grammy), Discord (discord.js-selfbot-v13, userbot via DISCORD_USER_TOKEN), WhatsApp (baileys), Email (imapflow + nodemailer IMAP IDLE + SMTP),
           Web/Slink (HMAC JWT, SSE streaming, rate limiting, sloth.js widget).
           Social channels: Twitter/X (agent-twitter-client), Reddit (snoowrap), Mastodon (masto.js), Bluesky (@atproto/api), Facebook (Graph API).
           Social inbound: unified InboundEvent model with verb types (message, reply, post, react, repost, follow, join, edit, delete, close).
           Social outbound: 22 actions (post, reply, react, repost, follow, unfollow, set_profile, delete_post, edit_post,
           ban, unban, timeout, mute, block, pin, unpin, lock, unlock, hide, approve, set_flair, kick).
           Dynamic action registration: channels register PlatformClient at connect time; actions available only while channel is connected.
-          Impulse gate: social channels only (Twitter, Mastodon, Bluesky, Reddit, Facebook); per-JID event weight accumulation (configurable per-verb weights, threshold 100, max hold 5min) before agent flush. Chat channels (Telegram, WhatsApp, Discord, Email, Web) bypass gate entirely.
-          Onboarding: gateway-level state machine (ONBOARDING_ENABLED=1). States: new -> pending -> approved/rejected. Commands: /request <name> (user), /approve <jid> /reject <jid> (root). On approve, copies root prototype/ to new world folder; seeds 5 compact-memories cron tasks (episodes day/week/month, diary week/month) automatically.
+          Impulse gate: all inbound JIDs pass through; per-JID config from routes.impulse_config column (JSON). Social channels accumulate weights (threshold 100, max-hold 5min, configurable per-verb). Chat channels pass through immediately by default. {"weights":{"*":0}} on a route = watch-only (store, never trigger). Replaces hardcoded social-platform gating.
+          Platform wildcard routes: JID with only platform prefix (e.g. discord:) matches all channels on that platform; exact match preferred, wildcard as fallback.
+          Onboarding: gateway-level state machine enabled per platform via ONBOARDING_PLATFORMS=telegram,whatsapp. Discord excluded by default. Legacy ONBOARDING_ENABLED=1 maps to telegram,whatsapp,email. States: new -> pending -> approved/rejected. Commands: /request <name> (user), /approve <jid> /reject <jid> (root). On approve, copies root prototype/ to new world folder; seeds 5 compact-memories cron tasks (episodes day/week/month, diary week/month) automatically.
           WhatsApp reconnect: exponential backoff scheduleReconnect() replaces process.exit() on reconnect failure.
           Architecture: Channel &rarr; Impulse Gate &rarr; SQLite DB &rarr; GroupQueue (per-group FIFO) &rarr; Router (JID &rarr; group, prompt assembly, {sender} template expansion)
           &rarr; Container (docker run, IPC file pipe, unified home mount at /home/node) &rarr; Claude Code SDK (tools, subagents, skills, MCP)
@@ -994,15 +1013,16 @@ type: product
 name: kanipi
 repo: github.com/kronael/kanipi
 base: nanoclaw (v1.1.3)
-status: v1.0.0
+status: v1.0.11
 lang: typescript (esm, nodenext)
-chat-channels: telegram (grammy), discord (discord.js), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
+chat-channels: telegram (grammy), discord (discord.js-selfbot-v13 userbot DISCORD_USER_TOKEN), whatsapp (baileys), email (imapflow+nodemailer), web/slink (hmac jwt, sse)
 social-channels: twitter (agent-twitter-client), reddit (snoowrap), mastodon (masto.js), bluesky (@atproto/api), facebook (graph api)
 social-events: unified InboundEvent with verbs (message, reply, post, react, repost, follow, join, edit, delete, close)
 social-actions: 22 actions (post, reply, react, repost, follow, unfollow, set_profile, delete_post, edit_post, ban, unban, timeout, mute, block, pin, unpin, lock, unlock, hide, approve, set_flair, kick)
 dynamic-registration: channels register PlatformClient at connect, actions available only while connected
-impulse-gate: social channels only (twitter, mastodon, bluesky, reddit, facebook); per-jid weight accumulation (threshold 100, max-hold 5min, configurable per-verb weights, 0=drop); chat channels (telegram, whatsapp, discord, email, web) bypass gate entirely
-onboarding: gateway-level state machine (ONBOARDING_ENABLED=1); states: new->pending->approved/rejected; /request <name> (user), /approve <jid> /reject <jid> (root); on approve copies root prototype/ to new world folder; seeds 5 compact-memories cron tasks automatically (v1.0.8)
+impulse-gate: all inbound jids pass through; per-jid config from routes.impulse_config (json); social channels accumulate weights (threshold 100, max-hold 5min, configurable per-verb, 0=drop); chat channels pass through immediately by default; {"weights":{"*":0}} = watch-only (store, never trigger)
+platform-wildcard-routes: jid with only platform prefix (e.g. discord:) matches all channels on that platform; exact match preferred, wildcard fallback
+onboarding: gateway-level state machine enabled per platform via ONBOARDING_PLATFORMS=telegram,whatsapp; discord excluded by default; legacy ONBOARDING_ENABLED=1 maps to telegram,whatsapp,email; states: new->pending->approved/rejected; /request <name> (user), /approve <jid> /reject <jid> (root); on approve copies root prototype/ to new world folder; seeds 5 compact-memories cron tasks automatically
 whatsapp-reconnect: exponential backoff scheduleReconnect() replaces process.exit() on reconnect failure or LoggedOut
 config: .env + env vars, sqlite group state
 source: 78 files 18833 LOC, 62 test files 15602 LOC, 952 tests, 102 specs
@@ -1038,9 +1058,9 @@ products: atlas (code support, shipped), yonder (research, shipped)
 topic-routing: #topic prefix runs named session (isolated, persistent context) within same group; @agent prefix delegates to matching child group (unknown child falls through to self); prefix route type at seq 9998/9999
 product-templates: templates/default/ (dev+research+assistant+SOUL.md), templates/support/ (tier-2 user-facing: disabled web skill, custom hello/howto, SYSTEM.md), templates/researcher/; kanipi create --template
 support-template: tier-2 deployment as &lt;world&gt;/support/; skill disable (disabled:true in SKILL.md); managed:local pins customized skills
-roadmap: phase-1 shipped (5 chat channels), phase-2 shipped (5 social channels), phase-3 shipped (permissions, grants, recall-v2, episodes, system.md, auto-threading, dashboard), v1.10.x shipped (onboarding state machine, whatsapp crash-loop fix, impulse-gate social-only, 5-dashboard portal, product templates, topic routing, @agent delegation, platform permissions), v1.0.0 shipped (google oauth, webdav /dav/:group/*, dash-memory editors, topic routing redesign), phase-4 deferred (gmail, instance-repos, memory-viewer), phase-5 future (agent-messaging, ipc-mcp-proxy, identities, workflows), go-rewrite planned
+roadmap: phase-1 shipped (5 chat channels), phase-2 shipped (5 social channels), phase-3 shipped (permissions, grants, recall-v2, episodes, system.md, auto-threading, dashboard), v1.10.x shipped (onboarding state machine, whatsapp crash-loop fix, impulse-gate social-only, 5-dashboard portal, product templates, topic routing, @agent delegation, platform permissions), v1.0.0 shipped (google oauth, webdav /dav/:group/*, dash-memory editors, topic routing redesign), v1.0.11 shipped (discord userbot DISCORD_USER_TOKEN, platform wildcard routes discord:, per-jid impulse_config, ONBOARDING_PLATFORMS, twitter cookie login fix), phase-4 deferred (gmail, instance-repos, memory-viewer), phase-5 future (agent-messaging, ipc-mcp-proxy, identities, workflows), go-rewrite planned
 deploy: systemd per instance, multi-instance independent image tags
-updated: 2026-03-19
+updated: 2026-03-25
 -->
 
   <script src="/assets/hub.js"></script>

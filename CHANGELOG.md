@@ -7,6 +7,23 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.0.11] — 2026-03-25
+
+### Added
+
+- **Discord userbot** — dropped bot mode entirely. Uses `discord.js-selfbot-v13` (user account token). Set `DISCORD_USER_TOKEN` in `.env`. Get token from browser Network tab → Authorization header. No bot application or intents needed.
+- **Platform-level wildcard routes** — `discord:` (no channel ID) as a route JID matches all channels on that platform. Falls back to wildcard when no exact JID match. Enables routing all Discord activity to a group without listing channels explicitly.
+- **Universal impulse gate** — all JIDs go through impulse with per-JID config from `routes.impulse_config` column (JSON). Replaces hardcoded social-platform gating. Set `{"weights":{"*":0}}` on a route for watch-only storage (messages saved, agent never triggered).
+- **Per-platform onboarding** — `ONBOARDING_PLATFORMS=telegram,whatsapp` replaces global `ONBOARDING_ENABLED=1`. Discord excluded from onboarding by default. Legacy `ONBOARDING_ENABLED=1` maps to `telegram,whatsapp,email`.
+- **Self skill how-to docs** — `templates/default/.claude/skills/self/docs/` with channels, routing, groups, scheduling, and memory-system guides. Agent uses Explore on these when asked setup questions.
+
+### Fixed
+
+- **Twitter cookie login** — uses `me()` instead of `isLoggedIn()` to avoid the v1.1 REST API (which may be blocked on cloud IPs). Cookies loaded from `store/twitter-cookies.json` are validated via GraphQL.
+- **Share mount grants** — `share_mount` param check now correctly evaluates `readonly: 'false'` and `readonly: 'true'` explicitly. Previously empty params never matched parameterized grant rules.
+
+---
+
 ## [v1.0.10] — 2026-03-22
 
 ### Fixed
