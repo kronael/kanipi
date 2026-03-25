@@ -227,6 +227,7 @@ export function deriveRules(folder: string, tier?: number): Rule[] {
     rules.push('refresh_groups');
     rules.push('reset_session');
     rules.push('inject_message');
+    rules.push('share_mount(readonly=false)');
   } else {
     // Tier 2: messaging + social on own platforms
     rules.push('send_reply');
@@ -242,6 +243,7 @@ export function deriveRules(folder: string, tier?: number): Rule[] {
     rules.push('escalate_group');
     rules.push('reset_session');
     rules.push('inject_message');
+    rules.push('share_mount(readonly=true)');
   }
 
   return rules;

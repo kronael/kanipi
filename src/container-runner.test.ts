@@ -75,10 +75,11 @@ vi.mock('./mount-security.js', () => ({
   validateAdditionalMounts: vi.fn(() => []),
 }));
 
-// Mock grants (container-runner calls deriveRules + getGrantOverrides)
+// Mock grants (container-runner calls deriveRules + getGrantOverrides + checkAction)
 vi.mock('./grants.js', () => ({
   deriveRules: vi.fn(() => ['*']),
   getGrantOverrides: vi.fn(() => null),
+  checkAction: vi.fn(() => true),
 }));
 
 // Create a controllable fake ChildProcess

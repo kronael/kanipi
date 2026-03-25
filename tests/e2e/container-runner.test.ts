@@ -81,6 +81,7 @@ vi.mock('../../src/db.js', () => ({
 vi.mock('../../src/grants.js', () => ({
   deriveRules: vi.fn(() => ['*']),
   getGrantOverrides: vi.fn(() => null),
+  checkAction: vi.fn(() => true),
 }));
 
 vi.mock('fs', async () => {

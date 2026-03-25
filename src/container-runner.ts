@@ -42,7 +42,7 @@ import {
 import { validateAdditionalMounts } from './mount-security.js';
 import { GroupConfig } from './db.js';
 import { worldOf } from './permissions.js';
-import { deriveRules, getGrantOverrides } from './grants.js';
+import { checkAction, deriveRules, getGrantOverrides } from './grants.js';
 
 export let _spawnProcess: (
   cmd: string,
@@ -152,6 +152,7 @@ function buildVolumeMounts(
 ): VolumeMount[] {
   const root = isRoot(group.folder);
   const tier = permissionTier(group.folder);
+  const groupRules = deriveRules(group.folder, tier);
   const mounts: VolumeMount[] = [];
   const groupDir = resolveGroupFolderPath(group.folder);
   const hostGroupDir = path.join(HOST_GROUPS_DIR, group.folder);
@@ -236,13 +237,17 @@ function buildVolumeMounts(
     });
   }
 
-  const shareDir = path.join(GROUPS_DIR, worldOf(group.folder), 'share');
-  fs.mkdirSync(shareDir, { recursive: true });
-  mounts.push({
-    hostPath: path.join(HOST_GROUPS_DIR, worldOf(group.folder), 'share'),
-    containerPath: '/workspace/share',
-    readonly: tier >= 2,
-  });
+  const allRules = [...groupRules, ...(getGrantOverrides(group.folder) ?? [])];
+  if (checkAction(allRules, 'share_mount', {})) {
+    const shareDir = path.join(GROUPS_DIR, worldOf(group.folder), 'share');
+    fs.mkdirSync(shareDir, { recursive: true });
+    const shareRw = checkAction(allRules, 'share_mount', { readonly: 'false' });
+    mounts.push({
+      hostPath: path.join(HOST_GROUPS_DIR, worldOf(group.folder), 'share'),
+      containerPath: '/workspace/share',
+      readonly: !shareRw,
+    });
+  }
 
   const claudeStateDir = path.join(groupDir, '.claude');
   fs.mkdirSync(claudeStateDir, { recursive: true });
