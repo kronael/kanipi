@@ -1285,12 +1285,7 @@ async function startMessageLoop(): Promise<void> {
             chatJid,
             lastAgentTimestamp[chatJid] || '',
           );
-          const formatted =
-            observedMsgs.length > 0
-              ? formatMessages(triggerMsgs) +
-                '\n' +
-                formatMessages(observedMsgs, undefined, 'observed')
-              : formatMessages(triggerMsgs);
+          const formatted = formatMessages(triggerMsgs, observedMsgs);
 
           if (queue.sendMessage(chatJid, formatted)) {
             logger.info(

@@ -58,46 +58,53 @@ export function clockXml(tz: string): string {
   return `<clock time="${new Date().toISOString()}" tz="${escapeXml(tz)}" />`;
 }
 
+function formatEvent(m: InboundEvent, tag: string, t: number): string {
+  const parts: string[] = [];
+  if (m.forwarded_from) {
+    const attrs = [`sender="${escapeXml(m.forwarded_from)}"`];
+    if (m.forwarded_from_id)
+      attrs.push(`chat="${escapeXml(m.forwarded_from_id)}"`);
+    if (m.forwarded_msgid) attrs.push(`id="${escapeXml(m.forwarded_msgid)}"`);
+    parts.push(`<forwarded_from ${attrs.join(' ')}/>`);
+  }
+  if (m.reply_to_text) {
+    const rSender = m.reply_to_sender || '(unknown)';
+    const idAttr = m.reply_to_id ? ` id="${escapeXml(m.reply_to_id)}"` : '';
+    parts.push(
+      `<reply_to sender="${escapeXml(rSender)}"${idAttr}>${escapeXml(m.reply_to_text)}</reply_to>`,
+    );
+  }
+  parts.push(escapeXml(m.content));
+  const inner = parts.join('\n');
+  const a = [
+    `sender="${escapeXml(m.sender_name ?? m.sender)}"`,
+    `sender_id="${escapeXml(m.sender)}"`,
+    `chat_id="${escapeXml(m.chat_jid)}"`,
+    m.group_name && `chat="${escapeXml(m.group_name)}"`,
+    m.platform && `platform="${escapeXml(m.platform)}"`,
+    `time="${m.timestamp}" ago="${timeAgo(m.timestamp, t)}"`,
+    m.verb && `verb="${escapeXml(m.verb)}"`,
+    m.mentions_me === true && `mentions_me="true"`,
+    m.thread && `thread="${escapeXml(m.thread)}"`,
+    m.target && `target="${escapeXml(m.target)}"`,
+  ];
+  const open = `<${tag} ${a.filter(Boolean).join(' ')}>`;
+  if (parts.length === 1) return `${open}${inner}</${tag}>`;
+  return `${open}\n${inner}\n</${tag}>`;
+}
+
 export function formatMessages(
-  messages: InboundEvent[],
+  trigger: InboundEvent[],
+  observed: InboundEvent[] = [],
   now?: number,
-  tag = 'message',
 ): string {
   const t = now ?? Date.now();
-  const lines = messages.map((m) => {
-    const parts: string[] = [];
-    if (m.forwarded_from) {
-      const attrs = [`sender="${escapeXml(m.forwarded_from)}"`];
-      if (m.forwarded_from_id)
-        attrs.push(`chat="${escapeXml(m.forwarded_from_id)}"`);
-      if (m.forwarded_msgid) attrs.push(`id="${escapeXml(m.forwarded_msgid)}"`);
-      parts.push(`<forwarded_from ${attrs.join(' ')}/>`);
-    }
-    if (m.reply_to_text) {
-      const rSender = m.reply_to_sender || '(unknown)';
-      const idAttr = m.reply_to_id ? ` id="${escapeXml(m.reply_to_id)}"` : '';
-      parts.push(
-        `<reply_to sender="${escapeXml(rSender)}"${idAttr}>${escapeXml(m.reply_to_text)}</reply_to>`,
-      );
-    }
-    parts.push(escapeXml(m.content));
-    const inner = parts.join('\n');
-    const a = [
-      `sender="${escapeXml(m.sender_name ?? m.sender)}"`,
-      `sender_id="${escapeXml(m.sender)}"`,
-      `chat_id="${escapeXml(m.chat_jid)}"`,
-      m.group_name && `chat="${escapeXml(m.group_name)}"`,
-      m.platform && `platform="${escapeXml(m.platform)}"`,
-      `time="${m.timestamp}" ago="${timeAgo(m.timestamp, t)}"`,
-      m.verb && `verb="${escapeXml(m.verb)}"`,
-      m.mentions_me === true && `mentions_me="true"`,
-      m.thread && `thread="${escapeXml(m.thread)}"`,
-      m.target && `target="${escapeXml(m.target)}"`,
-    ];
-    const open = `<${tag} ${a.filter(Boolean).join(' ')}>`;
-    if (parts.length === 1) return `${open}${inner}</${tag}>`;
-    return `${open}\n${inner}\n</${tag}>`;
-  });
+  const tagged: { m: InboundEvent; tag: string }[] = [
+    ...trigger.map((m) => ({ m, tag: 'message' })),
+    ...observed.map((m) => ({ m, tag: 'observed' })),
+  ];
+  tagged.sort((a, b) => (a.m.timestamp < b.m.timestamp ? -1 : 1));
+  const lines = tagged.map(({ m, tag }) => formatEvent(m, tag, t));
   return `<messages>\n${lines.join('\n')}\n</messages>`;
 }
 
