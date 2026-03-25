@@ -35,7 +35,6 @@ import {
 } from './config.js';
 import { BlueskyChannel } from './channels/bluesky/index.js';
 import { DiscordChannel } from './channels/discord.js';
-import { DiscordUserChannel } from './channels/discord-user.js';
 import { EmailChannel } from './channels/email.js';
 import { LocalChannel } from './channels/local.js';
 import { FacebookChannel } from './channels/facebook/index.js';
@@ -1421,12 +1420,12 @@ async function main(): Promise<void> {
     await whatsapp.connect();
   }
 
-  if (DISCORD_USER_TOKEN) {
-    const discord = new DiscordUserChannel(DISCORD_USER_TOKEN, channelOpts);
-    channels.push(discord);
-    await discord.connect();
-  } else if (DISCORD_BOT_TOKEN) {
-    const discord = new DiscordChannel(DISCORD_BOT_TOKEN, channelOpts);
+  if (DISCORD_USER_TOKEN || DISCORD_BOT_TOKEN) {
+    const discord = new DiscordChannel(
+      DISCORD_USER_TOKEN || DISCORD_BOT_TOKEN,
+      channelOpts,
+      !!DISCORD_USER_TOKEN,
+    );
     channels.push(discord);
     await discord.connect();
   }

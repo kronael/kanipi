@@ -23,30 +23,35 @@ export class DiscordChannel implements Channel {
 
   private client: Client | null = null;
   private opts: ChannelOpts;
-  private botToken: string;
+  private token: string;
+  private isUserAccount: boolean;
 
-  constructor(botToken: string, opts: ChannelOpts) {
-    this.botToken = botToken;
+  constructor(token: string, opts: ChannelOpts, isUserAccount = false) {
+    this.token = token;
     this.opts = opts;
+    this.isUserAccount = isUserAccount;
   }
 
   async connect(): Promise<void> {
-    this.client = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.DirectMessages,
-      ],
-    });
+    this.client = this.isUserAccount
+      ? new Client({ intents: [] })
+      : new Client({
+          intents: [
+            GatewayIntentBits.Guilds,
+            GatewayIntentBits.GuildMessages,
+            GatewayIntentBits.MessageContent,
+            GatewayIntentBits.DirectMessages,
+          ],
+        });
 
     return new Promise<void>((resolve, reject) => {
       this.client!.once('ready', (c) => {
+        const mode = this.isUserAccount ? 'user' : 'bot';
         logger.info(
-          { username: c.user.tag, id: c.user.id },
-          'Discord bot connected',
+          { username: c.user.tag, id: c.user.id, mode },
+          'Discord connected',
         );
-        console.log(`\n  Discord bot: ${c.user.tag}`);
+        console.log(`\n  Discord ${mode}: ${c.user.tag}`);
         console.log(`  Send !chatid in a channel to get registration ID\n`);
         resolve();
       });
@@ -58,12 +63,17 @@ export class DiscordChannel implements Channel {
 
       this.client!.on('messageCreate', (msg) => this.handleMessage(msg));
 
-      this.client!.login(this.botToken).catch(reject);
+      this.client!.login(this.token).catch(reject);
     });
   }
 
   private async handleMessage(msg: Message): Promise<void> {
-    if (msg.author.bot) return;
+    if (
+      this.isUserAccount
+        ? msg.author.id === this.client?.user?.id
+        : msg.author.bot
+    )
+      return;
 
     const chatJid = `discord:${msg.channelId}`;
     const timestamp = msg.createdAt.toISOString();
