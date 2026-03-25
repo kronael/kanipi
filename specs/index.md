@@ -98,13 +98,14 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 
 ## Phase 4 — Active specs
 
-| Spec                  | Topic                              | Status   |
-| --------------------- | ---------------------------------- | -------- |
-| K-versioning-personas | Composable personas via templates  | shipped  |
-| R-evangelist          | Community engagement agent         | →arizuko |
-| W-detached-containers | File-based container IPC, reclaim  | →arizuko |
-| X-onboarding          | Unrouted JID → approve → world     | shipped  |
-| Y-control-chat        | Gateway ↔ operator command channel | shipped  |
+| Spec                  | Topic                                             | Status   |
+| --------------------- | ------------------------------------------------- | -------- |
+| K-versioning-personas | Composable personas via templates                 | shipped  |
+| R-evangelist          | Community engagement agent                        | →arizuko |
+| W-detached-containers | File-based container IPC, reclaim                 | →arizuko |
+| X-onboarding          | Unrouted JID → approve → world                    | shipped  |
+| Y-control-chat        | Gateway ↔ operator command channel                | shipped  |
+| g-message-scoping     | store route type, access DENY, platform wildcards | planned  |
 
 ## Phase 5 — End state
 
