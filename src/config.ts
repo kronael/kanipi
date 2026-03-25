@@ -32,21 +32,9 @@ const envConfig = readEnvFile([
   'EMAIL_ACCOUNT',
   'EMAIL_PASSWORD',
   'WEB_PUBLIC',
-  'MASTODON_INSTANCE_URL',
-  'MASTODON_ACCESS_TOKEN',
-  'BLUESKY_IDENTIFIER',
-  'BLUESKY_PASSWORD',
-  'BLUESKY_SERVICE_URL',
-  'REDDIT_CLIENT_ID',
-  'REDDIT_CLIENT_SECRET',
-  'REDDIT_USERNAME',
-  'REDDIT_PASSWORD',
-  'REDDIT_SUBREDDITS',
   'TWITTER_USERNAME',
   'TWITTER_PASSWORD',
   'TWITTER_EMAIL',
-  'FACEBOOK_PAGE_ID',
-  'FACEBOOK_PAGE_ACCESS_TOKEN',
   'WEBDAV_ENABLED',
   'WEBDAV_URL',
 ]);
@@ -123,43 +111,12 @@ export const TELEGRAM_BOT_TOKEN =
 export const DISCORD_USER_TOKEN =
   process.env.DISCORD_USER_TOKEN || envConfig.DISCORD_USER_TOKEN || '';
 
-export const MASTODON_INSTANCE_URL =
-  process.env.MASTODON_INSTANCE_URL || envConfig.MASTODON_INSTANCE_URL || '';
-export const MASTODON_ACCESS_TOKEN =
-  process.env.MASTODON_ACCESS_TOKEN || envConfig.MASTODON_ACCESS_TOKEN || '';
-export const BLUESKY_IDENTIFIER =
-  process.env.BLUESKY_IDENTIFIER || envConfig.BLUESKY_IDENTIFIER || '';
-export const BLUESKY_PASSWORD =
-  process.env.BLUESKY_PASSWORD || envConfig.BLUESKY_PASSWORD || '';
-export const BLUESKY_SERVICE_URL =
-  process.env.BLUESKY_SERVICE_URL || envConfig.BLUESKY_SERVICE_URL || '';
-export const REDDIT_CLIENT_ID =
-  process.env.REDDIT_CLIENT_ID || envConfig.REDDIT_CLIENT_ID || '';
-export const REDDIT_CLIENT_SECRET =
-  process.env.REDDIT_CLIENT_SECRET || envConfig.REDDIT_CLIENT_SECRET || '';
-export const REDDIT_USERNAME =
-  process.env.REDDIT_USERNAME || envConfig.REDDIT_USERNAME || '';
-export const REDDIT_PASSWORD =
-  process.env.REDDIT_PASSWORD || envConfig.REDDIT_PASSWORD || '';
-export const REDDIT_SUBREDDITS = (
-  process.env.REDDIT_SUBREDDITS ||
-  envConfig.REDDIT_SUBREDDITS ||
-  ''
-)
-  .split(',')
-  .filter(Boolean);
 export const TWITTER_USERNAME =
   process.env.TWITTER_USERNAME || envConfig.TWITTER_USERNAME || '';
 export const TWITTER_PASSWORD =
   process.env.TWITTER_PASSWORD || envConfig.TWITTER_PASSWORD || '';
 export const TWITTER_EMAIL =
   process.env.TWITTER_EMAIL || envConfig.TWITTER_EMAIL || '';
-export const FACEBOOK_PAGE_ID =
-  process.env.FACEBOOK_PAGE_ID || envConfig.FACEBOOK_PAGE_ID || '';
-export const FACEBOOK_PAGE_ACCESS_TOKEN =
-  process.env.FACEBOOK_PAGE_ACCESS_TOKEN ||
-  envConfig.FACEBOOK_PAGE_ACCESS_TOKEN ||
-  '';
 
 export const WEB_DIR = path.resolve(PROJECT_ROOT, 'web');
 export const HOST_WEB_DIR = path.resolve(HOST_PROJECT_ROOT, 'web');

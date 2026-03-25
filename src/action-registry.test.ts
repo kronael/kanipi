@@ -87,15 +87,15 @@ describe('getManifest', () => {
 describe('platform filtering', () => {
   it('action with matching platform appears', () => {
     const name = uid();
-    registerAction(makeAction(name, { platforms: ['reddit'] }));
-    const manifest = getManifest('root', { tier: 0, platforms: ['reddit'] });
+    registerAction(makeAction(name, { platforms: ['discord'] }));
+    const manifest = getManifest('root', { tier: 0, platforms: ['discord'] });
     expect(manifest.find((m) => m.name === name)).toBeDefined();
   });
 
   it('action with non-matching platform is excluded', () => {
     const name = uid();
-    registerAction(makeAction(name, { platforms: ['reddit'] }));
-    const manifest = getManifest('root', { tier: 0, platforms: ['mastodon'] });
+    registerAction(makeAction(name, { platforms: ['discord'] }));
+    const manifest = getManifest('root', { tier: 0, platforms: ['twitter'] });
     expect(manifest.find((m) => m.name === name)).toBeUndefined();
   });
 
@@ -104,14 +104,14 @@ describe('platform filtering', () => {
     registerAction(makeAction(name));
     const manifest = getManifest('root', {
       tier: 0,
-      platforms: ['mastodon'],
+      platforms: ['telegram'],
     });
     expect(manifest.find((m) => m.name === name)).toBeDefined();
   });
 
   it('multi-platform action matches any platform in list', () => {
     const name = uid();
-    registerAction(makeAction(name, { platforms: ['reddit', 'twitter'] }));
+    registerAction(makeAction(name, { platforms: ['discord', 'twitter'] }));
     const manifest = getManifest('root', { tier: 0, platforms: ['twitter'] });
     expect(manifest.find((m) => m.name === name)).toBeDefined();
   });
@@ -223,19 +223,19 @@ describe('grants filtering in manifest', () => {
     const manifest = getManifest('root', {
       tier: 0,
       platforms: [],
-      grants: [`${name}(jid=twitter:*)`, `${name}(jid=reddit:*)`],
+      grants: [`${name}(jid=twitter:*)`, `${name}(jid=discord:*)`],
     });
     const entry = manifest.find((m) => m.name === name);
     expect(entry).toBeDefined();
     expect(entry!.grants).toEqual([
       `${name}(jid=twitter:*)`,
-      `${name}(jid=reddit:*)`,
+      `${name}(jid=discord:*)`,
     ]);
   });
 
   it('grants interact correctly with platform filter', () => {
     const name = uid();
-    registerAction(makeAction(name, { platforms: ['reddit'] }));
+    registerAction(makeAction(name, { platforms: ['discord'] }));
     // platforms don't match → excluded before grants check
     const manifest = getManifest('root', {
       tier: 0,
@@ -262,11 +262,11 @@ describe('grants filtering in manifest', () => {
     const manifest = getManifest('root', {
       tier: 0,
       platforms: [],
-      grants: ['*', `!${name}`, `${name}(jid=reddit:*)`],
+      grants: ['*', `!${name}`, `${name}(jid=discord:*)`],
     });
     const entry = manifest.find((m) => m.name === name);
     expect(entry).toBeDefined();
     // matchingRules collects allow rules: '*' and the specific one
-    expect(entry!.grants).toEqual(['*', `${name}(jid=reddit:*)`]);
+    expect(entry!.grants).toEqual(['*', `${name}(jid=discord:*)`]);
   });
 });

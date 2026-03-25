@@ -12,34 +12,18 @@ import {
   VITE_PORT_INTERNAL,
   WEB_PORT,
   WEB_PUBLIC,
-  MASTODON_INSTANCE_URL,
-  MASTODON_ACCESS_TOKEN,
-  BLUESKY_IDENTIFIER,
-  BLUESKY_PASSWORD,
-  BLUESKY_SERVICE_URL,
-  REDDIT_CLIENT_ID,
-  REDDIT_CLIENT_SECRET,
-  REDDIT_USERNAME,
-  REDDIT_PASSWORD,
-  REDDIT_SUBREDDITS,
   TWITTER_USERNAME,
   TWITTER_PASSWORD,
   TWITTER_EMAIL,
-  FACEBOOK_PAGE_ID,
-  FACEBOOK_PAGE_ACCESS_TOKEN,
   ONBOARDING_ENABLED,
   ONBOARDING_PLATFORMS,
   TIMEZONE,
   whatsappEnabled,
   permissionTier,
 } from './config.js';
-import { BlueskyChannel } from './channels/bluesky/index.js';
 import { DiscordChannel } from './channels/discord.js';
 import { EmailChannel } from './channels/email.js';
 import { LocalChannel } from './channels/local.js';
-import { FacebookChannel } from './channels/facebook/index.js';
-import { MastodonChannel } from './channels/mastodon/index.js';
-import { RedditChannel } from './channels/reddit/index.js';
 import { TelegramChannel } from './channels/telegram.js';
 import { TwitterChannel } from './channels/twitter/index.js';
 import { WebChannel } from './channels/web.js';
@@ -1428,47 +1412,6 @@ async function main(): Promise<void> {
     await email.connect();
   }
 
-  if (MASTODON_ACCESS_TOKEN) {
-    const masto = new MastodonChannel(
-      {
-        instanceUrl: MASTODON_INSTANCE_URL,
-        accessToken: MASTODON_ACCESS_TOKEN,
-      },
-      channelOpts,
-    );
-    channels.push(masto);
-    await masto.connect();
-  }
-
-  if (BLUESKY_IDENTIFIER && BLUESKY_PASSWORD) {
-    const bsky = new BlueskyChannel(
-      {
-        identifier: BLUESKY_IDENTIFIER,
-        password: BLUESKY_PASSWORD,
-        serviceUrl: BLUESKY_SERVICE_URL || undefined,
-      },
-      channelOpts,
-    );
-    channels.push(bsky);
-    await bsky.connect();
-  }
-
-  if (REDDIT_CLIENT_ID) {
-    const reddit = new RedditChannel(
-      {
-        clientId: REDDIT_CLIENT_ID,
-        clientSecret: REDDIT_CLIENT_SECRET,
-        username: REDDIT_USERNAME,
-        password: REDDIT_PASSWORD,
-        userAgent: `kanipi:1.0 (by /u/${REDDIT_USERNAME})`,
-      },
-      channelOpts,
-      REDDIT_SUBREDDITS,
-    );
-    channels.push(reddit);
-    await reddit.connect();
-  }
-
   if (TWITTER_USERNAME) {
     const twitter = new TwitterChannel(
       {
@@ -1480,15 +1423,6 @@ async function main(): Promise<void> {
     );
     channels.push(twitter);
     await twitter.connect();
-  }
-
-  if (FACEBOOK_PAGE_ID) {
-    const fb = new FacebookChannel(
-      { pageId: FACEBOOK_PAGE_ID, pageAccessToken: FACEBOOK_PAGE_ACCESS_TOKEN },
-      channelOpts,
-    );
-    channels.push(fb);
-    await fb.connect();
   }
 
   if (WEB_PORT) {

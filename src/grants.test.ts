@@ -187,8 +187,8 @@ describe('checkAction', () => {
     });
 
     it('wildcard then deny then re-allow specific', () => {
-      const rules = ['*', '!post', 'post(jid=reddit:*)'];
-      expect(checkAction(rules, 'post', { jid: 'reddit:1' })).toBe(true);
+      const rules = ['*', '!post', 'post(jid=discord:*)'];
+      expect(checkAction(rules, 'post', { jid: 'discord:1' })).toBe(true);
       expect(checkAction(rules, 'post', { jid: 'twitter:1' })).toBe(false);
       expect(checkAction(rules, 'post', {})).toBe(false);
     });
@@ -203,7 +203,7 @@ describe('checkAction', () => {
 
     it('param constraint rejects non-matching', () => {
       expect(
-        checkAction(['post(jid=twitter:*)'], 'post', { jid: 'reddit:abc' }),
+        checkAction(['post(jid=twitter:*)'], 'post', { jid: 'discord:abc' }),
       ).toBe(false);
     });
 
@@ -256,7 +256,7 @@ describe('checkAction', () => {
     it('deny with param constraint', () => {
       const rules = ['*', '!post(jid=twitter:*)'];
       expect(checkAction(rules, 'post', { jid: 'twitter:1' })).toBe(false);
-      expect(checkAction(rules, 'post', { jid: 'reddit:1' })).toBe(true);
+      expect(checkAction(rules, 'post', { jid: 'discord:1' })).toBe(true);
       expect(checkAction(rules, 'reply', { jid: 'twitter:1' })).toBe(true);
     });
 
@@ -328,7 +328,7 @@ describe('checkAction', () => {
     it('allow all then deny specific platform', () => {
       const rules = ['*', '!post(jid=twitter:*)'];
       expect(checkAction(rules, 'reply', { jid: 'twitter:1' })).toBe(true);
-      expect(checkAction(rules, 'post', { jid: 'reddit:1' })).toBe(true);
+      expect(checkAction(rules, 'post', { jid: 'discord:1' })).toBe(true);
       expect(checkAction(rules, 'post', { jid: 'twitter:1' })).toBe(false);
     });
 
@@ -357,7 +357,7 @@ describe('checkAction', () => {
         false,
       );
       expect(checkAction(rules, 'post', { jid: 'telegram:1' })).toBe(true);
-      expect(checkAction(rules, 'post', { jid: 'reddit:1' })).toBe(false);
+      expect(checkAction(rules, 'post', { jid: 'discord:1' })).toBe(false);
       expect(checkAction(rules, 'delegate_group', {})).toBe(false);
     });
 
@@ -372,7 +372,7 @@ describe('checkAction', () => {
       // wait, the deny !post(jid=twitter:nsfw) doesn't match twitter:safe
       expect(checkAction(rules, 'post', { jid: 'twitter:safe' })).toBe(true);
       expect(checkAction(rules, 'post', { jid: 'twitter:nsfw' })).toBe(false);
-      expect(checkAction(rules, 'post', { jid: 'reddit:1' })).toBe(false);
+      expect(checkAction(rules, 'post', { jid: 'discord:1' })).toBe(false);
     });
   });
 });
@@ -389,7 +389,7 @@ describe('matchingRules', () => {
   });
 
   it('returns matching allow rules', () => {
-    const rules = ['post(jid=twitter:*)', 'post(jid=reddit:*)'];
+    const rules = ['post(jid=twitter:*)', 'post(jid=discord:*)'];
     const result = matchingRules(rules, 'post');
     expect(result).toEqual(rules);
   });
@@ -405,9 +405,9 @@ describe('matchingRules', () => {
   });
 
   it('collects only allow rules for action', () => {
-    const rules = ['*', '!post', 'post(jid=reddit:*)'];
+    const rules = ['*', '!post', 'post(jid=discord:*)'];
     const result = matchingRules(rules, 'post');
-    expect(result).toEqual(['*', 'post(jid=reddit:*)']);
+    expect(result).toEqual(['*', 'post(jid=discord:*)']);
   });
 
   it('glob action in rules matches', () => {
@@ -429,8 +429,8 @@ describe('matchingRules', () => {
   it('multiple allow rules all collected', () => {
     const rules = [
       'post(jid=twitter:*)',
-      'post(jid=reddit:*)',
-      'post(jid=mastodon:*)',
+      'post(jid=discord:*)',
+      'post(jid=telegram:*)',
     ];
     expect(matchingRules(rules, 'post')).toEqual(rules);
   });
@@ -462,9 +462,9 @@ describe('narrowRules', () => {
 
   it('child can restrict platform scope', () => {
     const parent = ['*'];
-    const child = ['!post', 'post(jid=reddit:*)'];
+    const child = ['!post', 'post(jid=discord:*)'];
     const result = narrowRules(parent, child);
-    expect(checkAction(result, 'post', { jid: 'reddit:1' })).toBe(true);
+    expect(checkAction(result, 'post', { jid: 'discord:1' })).toBe(true);
     expect(checkAction(result, 'post', { jid: 'twitter:1' })).toBe(false);
   });
 

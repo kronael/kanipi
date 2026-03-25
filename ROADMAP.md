@@ -25,6 +25,11 @@ Functional multi-channel agent gateway.
 
 Partial work, close to done. `specs/2/`
 
+Social channels (Reddit, Facebook, Bluesky, Mastodon) were implemented in phase 2
+but have been dropped from kanipi. They move to arizuko (Go rewrite). Twitter/X
+stays — it is retained in kanipi as the sole social inbound channel.
+kanipi is now 6 channels: Telegram, WhatsApp, Discord, Email, Web, Twitter/X.
+
 - memory-facts: gateway injection + MCP tools
 - autotesting: IPC drain + voice roundtrip gaps
 - sse: per-sender scoping

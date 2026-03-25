@@ -59,7 +59,7 @@ describe('platformFromJid', () => {
   });
 
   it('multiple colons returns first segment', () => {
-    expect(platformFromJid('mastodon:instance:id')).toBe('mastodon');
+    expect(platformFromJid('twitter:instance:id')).toBe('twitter');
   });
 
   it('no colon returns full string', () => {

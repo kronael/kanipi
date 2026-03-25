@@ -53,11 +53,7 @@ function getClient(jid: string): ClientResult {
 const JidTarget = z.object({ jid: z.string(), target: z.string() });
 
 const ALL_CONTENT: Platform[] = [
-  Platform.Reddit,
   Platform.Twitter,
-  Platform.Mastodon,
-  Platform.Bluesky,
-  Platform.Facebook,
   Platform.Threads,
   Platform.Discord,
   Platform.Twitch,
@@ -95,14 +91,7 @@ const PostInput = z.object({
 export const post: Action = {
   name: 'post',
   description: 'Create new content on a social platform',
-  platforms: [
-    Platform.Reddit,
-    Platform.Twitter,
-    Platform.Mastodon,
-    Platform.Bluesky,
-    Platform.Facebook,
-    Platform.Threads,
-  ],
+  platforms: [Platform.Twitter, Platform.Threads],
   input: PostInput,
   async handler(raw) {
     const { jid, content, media } = PostInput.parse(raw);
@@ -153,19 +142,19 @@ export const react: Action = {
 export const repost = targetAction(
   'repost',
   'Share, boost, or retweet content',
-  [Platform.Twitter, Platform.Mastodon, Platform.Bluesky, Platform.Reddit],
+  [Platform.Twitter],
 );
 
 export const follow = targetAction(
   'follow',
   'Follow a user or community on a social platform',
-  [Platform.Reddit, Platform.Twitter, Platform.Mastodon, Platform.Bluesky],
+  [Platform.Twitter],
 );
 
 export const unfollow = targetAction(
   'unfollow',
   'Unfollow a user or community on a social platform',
-  [Platform.Reddit, Platform.Mastodon, Platform.Bluesky],
+  [Platform.Twitter],
 );
 
 const ProfileInput = z.object({
@@ -178,7 +167,7 @@ const ProfileInput = z.object({
 export const set_profile: Action = {
   name: 'set_profile',
   description: 'Update display name, bio, or avatar on a social platform',
-  platforms: [Platform.Mastodon, Platform.Bluesky, Platform.Reddit],
+  platforms: [Platform.Twitter],
   input: ProfileInput,
   async handler(raw) {
     const { jid, name, bio, avatar } = ProfileInput.parse(raw);
@@ -204,7 +193,7 @@ const EditInput = z.object({
 export const edit_post: Action = {
   name: 'edit_post',
   description: 'Edit existing content on a social platform',
-  platforms: [Platform.Reddit, Platform.Mastodon, Platform.Facebook],
+  platforms: [Platform.Twitter],
   input: EditInput,
   async handler(raw) {
     const { jid, target, content } = EditInput.parse(raw);
@@ -246,14 +235,7 @@ const BanInput = z.object({
 export const ban: Action = {
   name: 'ban',
   description: 'Ban a user from a community',
-  platforms: [
-    Platform.Reddit,
-    Platform.Discord,
-    Platform.Twitch,
-    Platform.YouTube,
-    Platform.Mastodon,
-    Platform.Facebook,
-  ],
+  platforms: [Platform.Discord, Platform.Twitch, Platform.YouTube],
   input: BanInput,
   async handler(raw) {
     const { jid, target, duration, reason } = BanInput.parse(raw);
@@ -264,11 +246,8 @@ export const ban: Action = {
 };
 
 export const unban = targetAction('unban', 'Unban a user from a community', [
-  Platform.Reddit,
   Platform.Discord,
   Platform.Twitch,
-  Platform.Mastodon,
-  Platform.Facebook,
 ]);
 
 const TimeoutInput = z.object({
@@ -293,70 +272,45 @@ export const timeout: Action = {
 export const mute = targetAction(
   'mute',
   'Mute an account at the account level',
-  [Platform.Reddit, Platform.Twitter, Platform.Mastodon, Platform.Bluesky],
+  [Platform.Twitter],
 );
 
 export const block = targetAction('block', 'Block an account', [
   Platform.Twitter,
-  Platform.Mastodon,
-  Platform.Bluesky,
   Platform.Twitch,
-  Platform.Facebook,
 ]);
 
 export const pin = targetAction(
   'pin',
   'Pin content to the top of a feed or channel',
-  [Platform.Reddit, Platform.Mastodon, Platform.Discord],
+  [Platform.Discord],
 );
 
 export const unpin = targetAction('unpin', 'Unpin previously pinned content', [
-  Platform.Reddit,
-  Platform.Mastodon,
   Platform.Discord,
 ]);
 
 export const lock = targetAction('lock', 'Lock a post to prevent new replies', [
-  Platform.Reddit,
   Platform.Discord,
 ]);
 
 export const unlock = targetAction(
   'unlock',
   'Unlock a previously locked post',
-  [Platform.Reddit, Platform.Discord],
+  [Platform.Discord],
 );
 
 export const hide = targetAction(
   'hide',
   'Suppress content without deleting it',
-  [Platform.YouTube, Platform.Facebook, Platform.Instagram],
+  [Platform.YouTube, Platform.Instagram],
 );
 
 export const approve = targetAction(
   'approve',
   'Release content from moderation queue',
-  [Platform.Reddit, Platform.YouTube, Platform.Mastodon],
+  [Platform.YouTube],
 );
-
-const FlairInput = z.object({
-  jid: z.string(),
-  target: z.string(),
-  flair: z.string(),
-});
-
-export const set_flair: Action = {
-  name: 'set_flair',
-  description: 'Tag content or user with a flair',
-  platforms: [Platform.Reddit],
-  input: FlairInput,
-  async handler(raw) {
-    const { jid, target, flair } = FlairInput.parse(raw);
-    const r = getClient(jid);
-    if ('error' in r) return r;
-    return r.client.setFlair(target, flair);
-  },
-};
 
 export const kick = targetAction('kick', 'Kick a user from a Discord server', [
   Platform.Discord,
@@ -385,6 +339,5 @@ export const allSocialActions: Action[] = [
   unlock,
   hide,
   approve,
-  set_flair,
   kick,
 ];

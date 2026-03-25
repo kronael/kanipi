@@ -369,17 +369,17 @@ describe('list_actions platform filtering', () => {
 
   it('derives platforms from group JIDs', async () => {
     const groups = {
-      'reddit:user': groupEntry('r'),
+      'discord:channel': groupEntry('r'),
       'twitter:123': groupEntry('t'),
     };
     const reply = await listActions(listActionsDeps(groups), folder);
     expect(reply.ok).toBe(true);
     const actions = reply.result as Array<{ name: string }>;
     const names = actions.map((a) => a.name);
-    // post is available on reddit+twitter
+    // post is available on discord+twitter
     expect(names).toContain('post');
-    // timeout is discord/twitch/youtube only — should be excluded
-    expect(names).not.toContain('timeout');
+    // set_flair was reddit-only and is removed
+    expect(names).not.toContain('set_flair');
   });
 
   it('filters out email-style JIDs', async () => {
@@ -397,8 +397,8 @@ describe('list_actions platform filtering', () => {
 
   it('deduplicates platforms', async () => {
     const groups = {
-      'reddit:a': groupEntry('sub-a'),
-      'reddit:b': groupEntry('sub-b'),
+      'twitter:a': groupEntry('sub-a'),
+      'twitter:b': groupEntry('sub-b'),
     };
     const reply = await listActions(listActionsDeps(groups), folder);
     expect(reply.ok).toBe(true);
@@ -409,7 +409,7 @@ describe('list_actions platform filtering', () => {
 
   it('excludes social actions when no JIDs match folder', async () => {
     const groups = {
-      'reddit:x': { name: 'x', folder: 'other', added_at: '' },
+      'discord:x': { name: 'x', folder: 'other', added_at: '' },
     };
     const reply = await listActions(listActionsDeps(groups), folder);
     expect(reply.ok).toBe(true);

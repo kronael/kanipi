@@ -10,7 +10,6 @@ import {
   react,
   repost,
   follow,
-  delete_post,
 } from './social.js';
 
 function mockClient(): PlatformClient {
@@ -48,7 +47,6 @@ describe('registerClient / unregisterClient lifecycle', () => {
   });
   afterEach(() => {
     unregisterClient(Platform.Twitter);
-    unregisterClient(Platform.Reddit);
   });
 
   it('registered client is reachable via action', async () => {
@@ -77,29 +75,18 @@ describe('registerClient / unregisterClient lifecycle', () => {
 
 describe('getClient routing via platformFromJid', () => {
   let tw: PlatformClient;
-  let rd: PlatformClient;
 
   beforeEach(() => {
     tw = mockClient();
-    rd = mockClient();
     registerClient(Platform.Twitter, tw);
-    registerClient(Platform.Reddit, rd);
   });
   afterEach(() => {
     unregisterClient(Platform.Twitter);
-    unregisterClient(Platform.Reddit);
   });
 
   it('twitter:123 routes to twitter client', async () => {
     await react.handler({ jid: 'twitter:123', target: 't1' });
     expect(tw.react).toHaveBeenCalledWith('t1', undefined);
-    expect(rd.react).not.toHaveBeenCalled();
-  });
-
-  it('reddit:user routes to reddit client', async () => {
-    await react.handler({ jid: 'reddit:user', target: 't2' });
-    expect(rd.react).toHaveBeenCalledWith('t2', undefined);
-    expect(tw.react).not.toHaveBeenCalled();
   });
 
   it('unknown platform returns not_implemented', async () => {

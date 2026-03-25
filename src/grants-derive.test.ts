@@ -74,7 +74,7 @@ describe('deriveRules — tier 1 (world root)', () => {
     expect(checkAction(rules, 'post', {})).toBe(false);
 
     // Should NOT allow unknown platform
-    expect(checkAction(rules, 'post', { jid: 'mastodon:1' })).toBe(false);
+    expect(checkAction(rules, 'post', { jid: 'linkedin:1' })).toBe(false);
 
     // Non-platform actions
     expect(checkAction(rules, 'schedule_task', {})).toBe(true);
@@ -105,10 +105,6 @@ describe('deriveRules — tier 1 (world root)', () => {
   });
 
   it('routes to children of world are included for tier 1', () => {
-    _setTestGroupRoute('reddit:main', {
-      name: 'Atlas',
-      folder: 'atlas',
-    });
     addRoute('discord:gaming', {
       seq: 0,
       type: 'default',
@@ -119,7 +115,6 @@ describe('deriveRules — tier 1 (world root)', () => {
     const rules = deriveRules('atlas', 1);
     // discord routes to atlas/gaming, which is in atlas world
     expect(checkAction(rules, 'post', { jid: 'discord:1' })).toBe(true);
-    expect(checkAction(rules, 'post', { jid: 'reddit:1' })).toBe(true);
   });
 });
 
@@ -129,7 +124,7 @@ describe('deriveRules — tier 2', () => {
       name: 'Atlas',
       folder: 'atlas',
     });
-    addRoute('reddit:support', {
+    addRoute('discord:support', {
       seq: 0,
       type: 'default',
       match: null,
@@ -138,11 +133,11 @@ describe('deriveRules — tier 2', () => {
 
     const rules = deriveRules('atlas/support', 2);
 
-    // reddit is routed to atlas/support → should be allowed
-    expect(checkAction(rules, 'post', { jid: 'reddit:1' })).toBe(true);
-    expect(checkAction(rules, 'send_message', { jid: 'reddit:1' })).toBe(true);
-    expect(checkAction(rules, 'send_file', { jid: 'reddit:1' })).toBe(true);
-    expect(checkAction(rules, 'react', { jid: 'reddit:1' })).toBe(true);
+    // discord is routed to atlas/support → should be allowed
+    expect(checkAction(rules, 'post', { jid: 'discord:1' })).toBe(true);
+    expect(checkAction(rules, 'send_message', { jid: 'discord:1' })).toBe(true);
+    expect(checkAction(rules, 'send_file', { jid: 'discord:1' })).toBe(true);
+    expect(checkAction(rules, 'react', { jid: 'discord:1' })).toBe(true);
 
     // telegram is routed to atlas (parent), NOT atlas/support → not allowed
     expect(checkAction(rules, 'post', { jid: 'telegram:1' })).toBe(false);

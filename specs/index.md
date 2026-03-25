@@ -49,7 +49,7 @@ Social channels continue in arizuko.
 | ----------------- | --------------------------- | --------------- |
 | f-facebook        | Facebook Page channel       | dropped→arizuko |
 | g-reddit          | Reddit channel              | dropped→arizuko |
-| h-twitter         | Twitter/X channel           | dropped→arizuko |
+| h-twitter         | Twitter/X channel           | shipped         |
 | i-social-events   | Unified inbound model       | dropped→arizuko |
 | j-social-actions  | Outbound action catalog     | dropped→arizuko |
 | k-channel-actions | Dynamic action registration | dropped→arizuko |
@@ -111,7 +111,7 @@ Focus: access control, partial implementations, cleanup, and selected phase 4 it
 
 | Spec              | Topic                                | Status |
 | ----------------- | ------------------------------------ | ------ |
-| K-social-rollback | Remove social channels, declare done | next   |
+| K-social-rollback | Remove social channels, declare done | done   |
 
 ## Resources
 

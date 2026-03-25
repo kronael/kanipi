@@ -7,6 +7,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [Unreleased]
+
+### Removed
+
+- **Social channel rollback** — removed Reddit, Facebook, Bluesky, Mastodon inbound channels and their actions. Twitter/X retained. Social inbound for other platforms moves to arizuko (Go rewrite). kanipi is now 6 channels: Telegram, WhatsApp, Discord, Email, Web, Twitter/X.
+
+---
+
 ## [v1.0.12] — 2026-03-25
 
 ### Added
