@@ -234,9 +234,21 @@ export function whatsappEnabled(): boolean {
   return fs.existsSync(path.join(WHATSAPP_AUTH_DIR, 'creds.json'));
 }
 
-export const ONBOARDING_ENABLED =
-  (process.env.ONBOARDING_ENABLED || envConfig.ONBOARDING_ENABLED || '0') ===
-  '1';
+// ONBOARDING_PLATFORMS: comma-separated platforms, e.g. "telegram,whatsapp"
+// ONBOARDING_ENABLED=1 is legacy shorthand for all platforms
+const _onboardingRaw =
+  process.env.ONBOARDING_PLATFORMS ||
+  envConfig.ONBOARDING_PLATFORMS ||
+  ((process.env.ONBOARDING_ENABLED || envConfig.ONBOARDING_ENABLED) === '1'
+    ? 'telegram,whatsapp,email'
+    : '');
+export const ONBOARDING_PLATFORMS: Set<string> = new Set(
+  _onboardingRaw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+export const ONBOARDING_ENABLED = ONBOARDING_PLATFORMS.size > 0;
 export let MEDIA_ENABLED =
   (process.env.MEDIA_ENABLED || envConfig.MEDIA_ENABLED || 'false') === 'true';
 export let MEDIA_MAX_FILE_BYTES = parseInt(

@@ -28,6 +28,7 @@ import {
   FACEBOOK_PAGE_ID,
   FACEBOOK_PAGE_ACCESS_TOKEN,
   ONBOARDING_ENABLED,
+  ONBOARDING_PLATFORMS,
   TIMEZONE,
   whatsappEnabled,
   permissionTier,
@@ -1001,7 +1002,11 @@ async function startMessageLoop(): Promise<void> {
 
       const jids = getRoutedJids();
       if (ONBOARDING_ENABLED) {
-        jids.push(...getUnroutedChatJids(lastTimestamp));
+        jids.push(
+          ...getUnroutedChatJids(lastTimestamp).filter((jid) =>
+            ONBOARDING_PLATFORMS.has(jid.split(':')[0]),
+          ),
+        );
       }
       const { messages, newTimestamp } = getNewMessages(
         jids,
@@ -1031,7 +1036,10 @@ async function startMessageLoop(): Promise<void> {
             : getHubForJid(chatJid);
           const group = folder ? groups[folder] : undefined;
           if (!group) {
-            if (ONBOARDING_ENABLED) {
+            if (
+              ONBOARDING_ENABLED &&
+              ONBOARDING_PLATFORMS.has(chatJid.split(':')[0])
+            ) {
               const channel = findChannel(channels, chatJid);
               if (channel) {
                 await handleOnboarding(chatJid, groupMessages, channel);
