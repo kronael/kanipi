@@ -1421,8 +1421,12 @@ async function main(): Promise<void> {
       },
       channelOpts,
     );
-    channels.push(twitter);
-    await twitter.connect();
+    try {
+      await twitter.connect();
+      channels.push(twitter);
+    } catch (err) {
+      logger.error({ err }, 'Twitter channel failed to connect — skipping');
+    }
   }
 
   if (WEB_PORT) {
