@@ -29,31 +29,37 @@ export class TwitterClient implements PlatformClient {
   }
 
   async login(): Promise<void> {
-    // Try loading cached cookies first
     if (fs.existsSync(COOKIES_FILE)) {
-      try {
-        const raw = fs.readFileSync(COOKIES_FILE, 'utf-8');
-        const cookies = JSON.parse(raw);
-        await this.scraper.setCookies(cookies);
-        const me = await this.scraper.me();
-        if (me) {
-          log.info('logged in via cached cookies');
-          return;
-        }
-        log.info('cached cookies stale, re-authenticating');
-      } catch (err) {
-        log.warn({ err }, 'failed to load cached cookies');
+      const raw = fs.readFileSync(COOKIES_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      // setCookies expects strings or Cookie instances — convert plain objects
+      const cookieStrings = (parsed as unknown[]).map((c) => {
+        if (typeof c === 'string') return c;
+        const o = c as Record<string, unknown>;
+        let s = `${o['key']}=${o['value']}`;
+        if (o['domain']) s += `; Domain=${o['domain']}`;
+        if (o['path']) s += `; Path=${o['path']}`;
+        if (o['secure']) s += `; Secure`;
+        if (o['httpOnly']) s += `; HttpOnly`;
+        if (o['sameSite']) s += `; SameSite=${o['sameSite']}`;
+        return s;
+      });
+      await this.scraper.setCookies(cookieStrings);
+      const me = await this.scraper.me();
+      if (me) {
+        log.info('logged in via cached cookies');
+        return;
       }
+      // Cookies stale — do not fall through to fresh login (may be blocked)
+      throw new Error('twitter cookies stale — update twitter-cookies.json');
     }
 
-    // Fresh login
+    // Fresh login (no cookie file)
     await this.scraper.login(
       this.config.username,
       this.config.password,
       this.config.email,
     );
-
-    // Save cookies for future runs
     const cookies = await this.scraper.getCookies();
     fs.mkdirSync(path.dirname(COOKIES_FILE), { recursive: true });
     fs.writeFileSync(COOKIES_FILE, JSON.stringify(cookies));
