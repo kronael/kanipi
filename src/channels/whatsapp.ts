@@ -58,6 +58,7 @@ export class WhatsAppChannel implements Channel {
   private flushing = false;
   private groupSyncTimerStarted = false;
   private connectResolver?: () => void;
+  private reconnectAttempt = 0;
 
   private opts: ChannelOpts;
 
@@ -78,13 +79,21 @@ export class WhatsAppChannel implements Channel {
     });
   }
 
-  private scheduleReconnect(attempt: number): void {
-    const delay = Math.min(30000, 2000 * attempt);
-    logger.info({ attempt, delay }, 'Reconnecting to WhatsApp...');
+  private scheduleReconnect(minDelay = 0): void {
+    this.reconnectAttempt++;
+    const backoff = Math.min(30000, 2000 * this.reconnectAttempt);
+    const delay = Math.max(backoff, minDelay);
+    logger.info(
+      { attempt: this.reconnectAttempt, delay },
+      'Reconnecting to WhatsApp...',
+    );
     setTimeout(() => {
       this.connectInternal().catch((err) => {
-        logger.error({ err, attempt }, 'WhatsApp reconnect failed');
-        this.scheduleReconnect(attempt + 1);
+        logger.error(
+          { err, attempt: this.reconnectAttempt },
+          'WhatsApp reconnect failed',
+        );
+        this.scheduleReconnect();
       });
     }, delay);
   }
@@ -143,15 +152,18 @@ export class WhatsAppChannel implements Channel {
         );
 
         if (shouldReconnect) {
-          this.scheduleReconnect(1);
+          // 503 = server-side transient error — back off 20s minimum
+          const minDelay = reason === 503 ? 20000 : 0;
+          this.scheduleReconnect(minDelay);
         } else {
           logger.error(
             'WhatsApp logged out — creds invalid. Retrying in 60s (re-pair to fix permanently).',
           );
-          this.scheduleReconnect(30);
+          this.scheduleReconnect(60000);
         }
       } else if (connection === 'open') {
         this.connected = true;
+        this.reconnectAttempt = 0;
         logger.info('Connected to WhatsApp');
 
         // Set unavailable so WhatsApp doesn't suppress phone notifications
