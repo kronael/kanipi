@@ -45,13 +45,15 @@ export class TwitterClient implements PlatformClient {
         return s;
       });
       await this.scraper.setCookies(cookieStrings);
-      const me = await this.scraper.me();
-      if (me) {
-        log.info('logged in via cached cookies');
+      // me() uses v1.1 API which may be blocked — use GraphQL getProfile instead
+      const profile = await this.scraper.getProfile(this.config.username);
+      if (profile && profile.userId) {
+        this.userId = profile.userId;
+        this.username = profile.username ?? this.config.username;
+        log.info({ user: this.username }, 'logged in via cached cookies');
         return;
       }
-      // Cookies stale — do not fall through to fresh login (may be blocked)
-      throw new Error('twitter cookies stale — update twitter-cookies.json');
+      throw new Error('twitter cookies invalid — update twitter-cookies.json');
     }
 
     // Fresh login (no cookie file)
@@ -68,10 +70,8 @@ export class TwitterClient implements PlatformClient {
 
   async verifyCredentials(): Promise<{ id: string; username: string }> {
     await this.login();
-    const me = await this.scraper.me();
-    if (!me) throw new Error('failed to get current user');
-    this.userId = me.userId ?? '';
-    this.username = me.username ?? '';
+    // me() uses blocked v1.1 API — read from login() which sets userId/username
+    if (!this.userId) throw new Error('failed to get current user');
     return { id: this.userId, username: this.username };
   }
 
