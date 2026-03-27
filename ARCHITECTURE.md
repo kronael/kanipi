@@ -34,6 +34,11 @@ Main loop. Initializes channels, starts IPC watcher, scheduler,
 and message poll loop. Routes incoming messages to GroupQueue.
 Handles group registration and discovery across channels.
 
+Bare `@name` messages are intercepted before the agent queue
+(`isStickyCommand`): sets `sticky_group` in DB for the chat JID,
+confirms to the user. Bare `@` resets sticky. Subsequent messages
+in that chat route to the sticky subgroup until reset.
+
 ### config.ts
 
 All config from `.env` + env vars. Exports typed constants.
@@ -55,6 +60,8 @@ Tables: `messages`, `groups`, `routes`, `chats`, `session_history`,
 `email_threads`, `auth_users`, `auth_sessions`. `messages` and
 outbound records carry a `topic` column. `auth_users` has
 `webdav_token_hash` and `webdav_groups` columns (migration 0015).
+`chats` carries `sticky_group TEXT` (migration 0018) — the active
+subgroup routing override per chat JID.
 
 `routes` is a flat JID→target routing table. Targets may contain
 `{sender}` templates (expanded at routing time). `routes.impulse_config`
@@ -95,6 +102,8 @@ One file per channel. Each implements `Channel` interface:
 - `telegram.ts` — grammy bot, polls via webhook or long-poll
 - `discord.ts` — discord.js client, event-driven
 - `email.ts` — IMAP IDLE + SMTP reply threading
+- `utils.ts` — shared helpers: `sendChunked` (chunked delivery up to
+  maxLen per send call), `stripMention` (removes `<@userId>` from text)
 
 All channels pass through the impulse gate (`impulse.ts`). Per-JID
 `impulse_config` is fetched from the routes table (exact JID match, then

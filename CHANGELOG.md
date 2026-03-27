@@ -15,7 +15,12 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ### Added
 
-- **Sticky @subgroup routing** — typing `@name` in a chat switches routing to `hub/name` (a direct child of the hub group). `@` alone resets to default routing. State persisted per chat JID in DB.
+- **Sticky @subgroup routing** — typing `@name` in a chat switches routing to `hub/name` (a direct child of the hub group). `@` alone resets to default routing. State persisted per chat JID in DB (`sticky_group` column, migration 0018).
+- **Shared channel utils** — `sendChunked` and `stripMention` extracted to `src/channels/utils.ts`; all channel files (telegram, discord, slack, slack-user) use the shared helpers.
+
+### Changed
+
+- **Telegram output style** — strengthened NEVER rules: tables and underscores are now explicitly forbidden (not just discouraged).
 
 ---
 

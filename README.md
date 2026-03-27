@@ -225,6 +225,12 @@ default); first match within each tier wins. Delegation is authorized
 only for direct parent-to-child relationships within the same world
 (same root folder segment), capped at depth 3.
 
+**Sticky @subgroup routing**: in a hub group, sending `@name` (bare, no
+other text) switches that chat's routing to the `hub/name` child group.
+Sending `@` alone resets to default routing. State is stored per chat JID
+and persists across restarts. This lets users switch which subagent handles
+their messages without admin intervention.
+
 **Platform wildcard routes**: a JID like `discord:` (platform prefix, no
 channel ID) matches all Discord channels as a fallback when no per-channel
 route exists. Works for routing and impulse config lookups.

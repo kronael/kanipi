@@ -935,10 +935,12 @@ export function getJidsForFolder(folder: string): string[] {
 }
 
 export function getStickyGroup(jid: string): string | null {
-  const row = db
-    .prepare('SELECT sticky_group FROM chats WHERE jid = ?')
-    .get(jid) as { sticky_group: string | null } | undefined;
-  return row?.sticky_group ?? null;
+  return (
+    one<{ sticky_group: string | null }>(
+      'SELECT sticky_group FROM chats WHERE jid = ?',
+      jid,
+    )?.sticky_group ?? null
+  );
 }
 
 export function setStickyGroup(jid: string, folder: string | null): void {
