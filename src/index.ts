@@ -10,6 +10,8 @@ import {
   SLACK_APP_TOKEN,
   SLACK_USER_TOKEN,
   SLACK_USER_COOKIE,
+  SEND_DISABLED_CHANNELS,
+  SEND_DISABLED_GROUPS,
   EMAIL_IMAP_HOST,
   POLL_INTERVAL,
   TELEGRAM_BOT_TOKEN,
@@ -123,6 +125,12 @@ import { handleOnboarding } from './onboarding.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import { Channel, InboundEvent } from './types.js';
 import { logger } from './logger.js';
+
+function canSend(channel: Channel, groupFolder?: string): boolean {
+  if (SEND_DISABLED_CHANNELS.has(channel.name)) return false;
+  if (groupFolder && SEND_DISABLED_GROUPS.has(groupFolder)) return false;
+  return true;
+}
 
 const GITIGNORE_RUNTIME_DIRS = new Set([
   'diary',
@@ -527,11 +535,13 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
             `Agent output: ${raw.slice(0, 200)}`,
           );
           if (text) {
-            const sentId = await channel.sendMessage(
-              chatJid,
-              text,
-              lastSentId ? { replyTo: lastSentId } : undefined,
-            );
+            const sentId = canSend(channel, group.folder)
+              ? await channel.sendMessage(
+                  chatJid,
+                  text,
+                  lastSentId ? { replyTo: lastSentId } : undefined,
+                )
+              : undefined;
             storeOutbound({
               chatJid,
               content: text,
@@ -582,11 +592,13 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       { group: group.name, traceId, dur },
       'Agent error, rolled back cursor (awaiting user retry)',
     );
-    channel
-      .sendMessage(chatJid, 'Something went wrong. Please try again.')
-      .catch((err) =>
-        logger.warn({ chatJid, err }, 'Failed to send error notification'),
-      );
+    if (canSend(channel, group.folder)) {
+      channel
+        .sendMessage(chatJid, 'Something went wrong. Please try again.')
+        .catch((err) =>
+          logger.warn({ chatJid, err }, 'Failed to send error notification'),
+        );
+    }
     return true;
   }
 
@@ -700,11 +712,13 @@ async function delegateToGroup(
                 `<escalation_response origin_jid="${escapeXml(escalationOrigin.jid)}"${msgAttr}>\n` +
                 `${text}\n</escalation_response>`;
             }
-            const sentId = await channel.sendMessage(
-              originJid,
-              text,
-              lastSentId ? { replyTo: lastSentId } : undefined,
-            );
+            const sentId = canSend(channel, targetFolder)
+              ? await channel.sendMessage(
+                  originJid,
+                  text,
+                  lastSentId ? { replyTo: lastSentId } : undefined,
+                )
+              : undefined;
             storeOutbound({
               chatJid: originJid,
               content: text,
@@ -1183,11 +1197,15 @@ async function startMessageLoop(): Promise<void> {
                               : JSON.stringify(result.result);
                           const text = raw.trim();
                           if (text && channel) {
-                            const sentId = await channel.sendMessage(
-                              chatJid,
-                              text,
-                              lastSentId ? { replyTo: lastSentId } : undefined,
-                            );
+                            const sentId = canSend(channel, group.folder)
+                              ? await channel.sendMessage(
+                                  chatJid,
+                                  text,
+                                  lastSentId
+                                    ? { replyTo: lastSentId }
+                                    : undefined,
+                                )
+                              : undefined;
                             storeOutbound({
                               chatJid,
                               content: text,
@@ -1477,7 +1495,9 @@ async function main(): Promise<void> {
       }
       const text = rawText.trim();
       if (text) {
-        const sentId = await channel.sendMessage(jid, text);
+        const sentId = canSend(channel)
+          ? await channel.sendMessage(jid, text)
+          : undefined;
         storeOutbound({
           chatJid: jid,
           content: text,
@@ -1492,7 +1512,9 @@ async function main(): Promise<void> {
     sendMessage: async (jid, text, opts) => {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
-      const sentId = await channel.sendMessage(jid, text, opts);
+      const sentId = canSend(channel)
+        ? await channel.sendMessage(jid, text, opts)
+        : undefined;
       storeOutbound({
         chatJid: jid,
         content: text,
@@ -1505,10 +1527,12 @@ async function main(): Promise<void> {
     sendDocument: async (jid, filePath, filename) => {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
-      if (!channel.sendDocument) {
+      if (!channel.sendDocument || !canSend(channel)) {
         logger.warn(
           { jid, channel: channel.name },
-          'sendDocument not supported by channel, skipping',
+          !channel.sendDocument
+            ? 'sendDocument not supported by channel, skipping'
+            : 'send disabled for channel, skipping',
         );
         return;
       }

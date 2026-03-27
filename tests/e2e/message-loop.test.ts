@@ -33,6 +33,8 @@ vi.mock('../../src/config.js', () => ({
   TIMEZONE: 'UTC',
   IPC_POLL_INTERVAL: 1000,
   WEB_DIR: '/tmp/kanipi-e2e-web',
+  SEND_DISABLED_CHANNELS: new Set<string>(),
+  SEND_DISABLED_GROUPS: new Set<string>(),
 }));
 
 vi.mock('../../src/logger.js', () => ({
