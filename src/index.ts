@@ -58,6 +58,7 @@ import {
   getAllTasks,
   getStickyGroup,
   setStickyGroup,
+  getOutboundGroupFolder,
   getHubForJid,
   getImpulseConfigForJid,
   getObservedMessagesSince,
@@ -427,6 +428,12 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   const lastMsg = nonCmdMessages[nonCmdMessages.length - 1];
 
+  // Reply-to routing: route replies back to the group that sent the quoted message
+  const replyFolder =
+    lastMsg.reply_to_id && !chatJid.startsWith('local:')
+      ? getOutboundGroupFolder(chatJid, lastMsg.reply_to_id)
+      : null;
+
   if (isStickyCommand(lastMsg.content)) {
     const name = lastMsg.content.trim().slice(1);
     if (name === '') {
@@ -434,7 +441,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       if (canSend(channel)) await channel.sendMessage(chatJid, 'routing reset');
     } else {
       const childFolder = `${group.folder}/${name}`;
-      if (groups[childFolder]) {
+      const targetGroup = groups[childFolder] ?? getGroupByFolder(childFolder);
+      if (targetGroup) {
+        groups[childFolder] ??= targetGroup; // sync runtime map
         setStickyGroup(chatJid, childFolder);
         if (canSend(channel))
           await channel.sendMessage(chatJid, `routing → ${childFolder}`);
@@ -451,7 +460,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   const routes = getRoutesForJid(chatJid);
   const resolved = resolveRoute(lastMsg, routes);
   const stickyFolder = getStickyGroup(chatJid);
-  const delegateTarget = resolved?.target ?? stickyFolder ?? null;
+  // Reply-to takes precedence over routes and sticky; sticky over explicit routes
+  const delegateTarget =
+    replyFolder ?? stickyFolder ?? resolved?.target ?? null;
   if (delegateTarget && delegateTarget !== group.folder) {
     logger.info(
       {

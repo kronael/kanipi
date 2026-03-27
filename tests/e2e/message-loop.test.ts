@@ -914,7 +914,7 @@ describe('processGroupMessages — sticky routing', () => {
     expect(calledGroup.folder).toBe(SUB_FOLDER);
   });
 
-  it('resolved route takes precedence over sticky', async () => {
+  it('sticky takes precedence over resolved route', async () => {
     // Hub has two children: code and research. Sticky = code, but /research command routes to research.
     const RESEARCH_FOLDER = 'hub/research';
     storeChatMetadata(HUB_JID, '2024-05-01T00:00:00.000Z', 'Hub', 'test', true);
@@ -945,7 +945,7 @@ describe('processGroupMessages — sticky routing', () => {
     stickyMsg('sr2-cmd', '@code', '2024-05-01T00:07:00.000Z');
     await _processGroupMessages(HUB_JID);
 
-    // Send /research — resolved route should win over sticky
+    // Send /research — sticky wins over resolved route (arizuko semantics)
     stickyMsg('sr2-msg', '/research findings', '2024-05-01T00:08:00.000Z');
     mockRunContainerAgent.mockResolvedValue({
       status: 'success',
@@ -959,7 +959,7 @@ describe('processGroupMessages — sticky routing', () => {
       GroupConfig,
       ...unknown[],
     ];
-    expect(calledGroup.folder).toBe(RESEARCH_FOLDER);
+    expect(calledGroup.folder).toBe(SUB_FOLDER); // sticky (code) wins over pattern route (research)
   });
 
   it('no delegation when sticky equals group folder (hub set as its own sticky)', async () => {

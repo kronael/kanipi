@@ -1056,6 +1056,21 @@ function rowToGroupConfig(row: GroupsRow): GroupConfig {
   };
 }
 
+export function getOutboundGroupFolder(
+  chatJid: string,
+  platformMsgId: string,
+): string | null {
+  const row = db
+    .prepare(
+      `SELECT group_folder FROM messages
+       WHERE chat_jid = ? AND id = ? AND is_bot_message = 1 AND group_folder IS NOT NULL`,
+    )
+    .get(chatJid, `out-${platformMsgId}`) as
+    | { group_folder: string }
+    | undefined;
+  return row?.group_folder ?? null;
+}
+
 export function getGroupByFolder(folder: string): GroupConfig | undefined {
   const row = db
     .prepare('SELECT * FROM groups WHERE folder = ?')
