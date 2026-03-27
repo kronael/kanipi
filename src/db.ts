@@ -938,6 +938,20 @@ export function getJidsForFolder(folder: string): string[] {
   return rows.map((r) => r.jid);
 }
 
+export function getStickyGroup(jid: string): string | null {
+  const row = db
+    .prepare('SELECT sticky_group FROM chats WHERE jid = ?')
+    .get(jid) as { sticky_group: string | null } | undefined;
+  return row?.sticky_group ?? null;
+}
+
+export function setStickyGroup(jid: string, folder: string | null): void {
+  db.prepare(
+    `INSERT INTO chats (jid, sticky_group) VALUES (?, ?)
+     ON CONFLICT(jid) DO UPDATE SET sticky_group = excluded.sticky_group`,
+  ).run(jid, folder);
+}
+
 export function getHubForJid(jid: string): string | null {
   // Exact match first, then platform-level wildcard (e.g. "discord:")
   const platform = jid.split(':')[0] + ':';

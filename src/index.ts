@@ -56,6 +56,8 @@ import {
   getAllGroupConfigs,
   getAllSessions,
   getAllTasks,
+  getStickyGroup,
+  setStickyGroup,
   getHubForJid,
   getImpulseConfigForJid,
   getObservedMessagesSince,
@@ -130,6 +132,11 @@ function canSend(channel: Channel, groupFolder?: string): boolean {
   if (SEND_DISABLED_CHANNELS.has(channel.name)) return false;
   if (groupFolder && SEND_DISABLED_GROUPS.has(groupFolder)) return false;
   return true;
+}
+
+function isStickyCommand(content: string): boolean {
+  const t = content.trim();
+  return t.startsWith('@') && !t.includes(' ');
 }
 
 const GITIGNORE_RUNTIME_DIRS = new Set([
@@ -418,13 +425,37 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   }
 
   const lastMsg = nonCmdMessages[nonCmdMessages.length - 1];
+
+  if (isStickyCommand(lastMsg.content)) {
+    const name = lastMsg.content.trim().slice(1);
+    if (name === '') {
+      setStickyGroup(chatJid, null);
+      if (canSend(channel)) await channel.sendMessage(chatJid, 'routing reset');
+    } else {
+      const childFolder = `${group.folder}/${name}`;
+      if (groups[childFolder]) {
+        setStickyGroup(chatJid, childFolder);
+        if (canSend(channel))
+          await channel.sendMessage(chatJid, `routing → ${childFolder}`);
+      } else {
+        if (canSend(channel))
+          await channel.sendMessage(chatJid, `Unknown group: ${name}`);
+      }
+    }
+    lastAgentTimestamp[chatJid] = lastMsg.timestamp;
+    saveState();
+    return true;
+  }
+
   const routes = getRoutesForJid(chatJid);
   const resolved = resolveRoute(lastMsg, routes);
-  if (resolved && resolved.target !== group.folder) {
+  const stickyFolder = getStickyGroup(chatJid);
+  const delegateTarget = resolved?.target ?? stickyFolder ?? null;
+  if (delegateTarget && delegateTarget !== group.folder) {
     logger.info(
       {
         group: group.name,
-        target: resolved.target,
+        target: delegateTarget,
         count: missedMessages.length,
       },
       'Delegating messages',
@@ -433,9 +464,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     saveState();
     delegatePerSender(
       nonCmdMessages,
-      resolved.target,
+      delegateTarget,
       chatJid,
-      resolved.command,
+      resolved?.command ?? null,
     );
     return true;
   }
