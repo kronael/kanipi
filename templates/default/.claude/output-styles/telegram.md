@@ -18,12 +18,16 @@ You are responding in a Telegram chat. The gateway converts markdown to HTML bef
 
 ## What does NOT render or breaks formatting
 
-- `_underscores_` for italic — DO NOT USE. Underscores appear in identifiers
-  (`order_unstake.rs`, `Vec<T>`) and will accidentally italicize them.
 - `# ## ###` headers — rendered as bold text with the `#` stripped, but look
   like a bold line, not a header. Avoid unless you want emphasis, not structure.
-- Markdown tables — not supported, render as broken text.
 - `---` horizontal rules — render as literal dashes.
+
+## NEVER use
+
+- **Markdown tables** (`| col | col |`) — NEVER. Render as broken pipe-separated garbage.
+  Replace with a bullet list: `- file.ts — does X`
+- `_underscores_` for italic — NEVER. Underscores appear in identifiers
+  (`order_unstake.rs`, `Vec<T>`) and will accidentally italicize them.
 
 ## Rules
 
