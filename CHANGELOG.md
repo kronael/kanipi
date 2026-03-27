@@ -9,6 +9,10 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Fixed
+
+- **WhatsApp reconnect backoff** — attempt counter now accumulates across reconnect cycles instead of resetting to 1 on each attempt. 503 errors get a 20s minimum backoff. `loggedOut` event resets the counter intentionally (fresh auth cycle).
+
 ---
 
 ## [v1.0.13] — 2026-03-25

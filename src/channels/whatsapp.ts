@@ -48,6 +48,8 @@ function markdownToWhatsApp(text: string): string {
   );
 }
 
+export type WhatsAppChannelOpts = ChannelOpts;
+
 export class WhatsAppChannel implements Channel {
   name = 'whatsapp';
 
@@ -159,6 +161,7 @@ export class WhatsAppChannel implements Channel {
           logger.error(
             'WhatsApp logged out — creds invalid. Retrying in 60s (re-pair to fix permanently).',
           );
+          this.reconnectAttempt = 0;
           this.scheduleReconnect(60000);
         }
       } else if (connection === 'open') {
@@ -232,11 +235,10 @@ export class WhatsAppChannel implements Channel {
           isGroup,
         );
 
+        const m = msg.message;
+
         // /chatid works from any chat (before group check)
-        const msgText =
-          msg.message?.conversation ||
-          msg.message?.extendedTextMessage?.text ||
-          '';
+        const msgText = m?.conversation || m?.extendedTextMessage?.text || '';
         if (msgText.trim() === '/chatid') {
           await this.sock?.sendMessage(rawJid, {
             text: `Chat JID: ${chatJid}`,
@@ -244,152 +246,149 @@ export class WhatsAppChannel implements Channel {
           continue;
         }
 
-        const m = msg.message;
-        {
-          const content =
-            m?.conversation ||
-            m?.extendedTextMessage?.text ||
-            m?.imageMessage?.caption ||
-            m?.videoMessage?.caption ||
-            '';
+        const content =
+          m?.conversation ||
+          m?.extendedTextMessage?.text ||
+          m?.imageMessage?.caption ||
+          m?.videoMessage?.caption ||
+          '';
 
-          // Build raw attachment list from media message types
-          const attachments: RawAttachment[] = [];
-          const source: WhatsAppSource = {
-            kind: 'whatsapp',
-            message: msg as unknown as Record<string, unknown>,
-          };
-          if (m?.imageMessage) {
-            attachments.push({
-              type: 'image' as AttachmentType,
-              mimeType: m.imageMessage.mimetype || 'image/jpeg',
-              sizeBytes: m.imageMessage.fileLength
-                ? Number(m.imageMessage.fileLength)
-                : undefined,
-              source,
-            });
-          } else if (m?.videoMessage) {
-            attachments.push({
-              type: 'video' as AttachmentType,
-              mimeType: m.videoMessage.mimetype || 'video/mp4',
-              sizeBytes: m.videoMessage.fileLength
-                ? Number(m.videoMessage.fileLength)
-                : undefined,
-              durationSeconds: m.videoMessage.seconds ?? undefined,
-              source,
-            });
-          } else if (m?.audioMessage) {
-            const isPtt = m.audioMessage.ptt;
-            attachments.push({
-              type: isPtt
-                ? ('voice' as AttachmentType)
-                : ('audio' as AttachmentType),
-              mimeType: m.audioMessage.mimetype || 'audio/ogg',
-              sizeBytes: m.audioMessage.fileLength
-                ? Number(m.audioMessage.fileLength)
-                : undefined,
-              durationSeconds: m.audioMessage.seconds ?? undefined,
-              source,
-            });
-          } else if (m?.documentMessage) {
-            attachments.push({
-              type: 'document' as AttachmentType,
-              mimeType: m.documentMessage.mimetype ?? undefined,
-              filename: m.documentMessage.fileName ?? undefined,
-              sizeBytes: m.documentMessage.fileLength
-                ? Number(m.documentMessage.fileLength)
-                : undefined,
-              source,
-            });
-          } else if (m?.stickerMessage) {
-            attachments.push({
-              type: 'sticker' as AttachmentType,
-              mimeType: m.stickerMessage.mimetype || 'image/webp',
-              source,
-            });
+        // Build raw attachment list from media message types
+        const attachments: RawAttachment[] = [];
+        const source: WhatsAppSource = {
+          kind: 'whatsapp',
+          message: msg as unknown as Record<string, unknown>,
+        };
+        if (m?.imageMessage) {
+          attachments.push({
+            type: 'image' as AttachmentType,
+            mimeType: m.imageMessage.mimetype || 'image/jpeg',
+            sizeBytes: m.imageMessage.fileLength
+              ? Number(m.imageMessage.fileLength)
+              : undefined,
+            source,
+          });
+        } else if (m?.videoMessage) {
+          attachments.push({
+            type: 'video' as AttachmentType,
+            mimeType: m.videoMessage.mimetype || 'video/mp4',
+            sizeBytes: m.videoMessage.fileLength
+              ? Number(m.videoMessage.fileLength)
+              : undefined,
+            durationSeconds: m.videoMessage.seconds ?? undefined,
+            source,
+          });
+        } else if (m?.audioMessage) {
+          const isPtt = m.audioMessage.ptt;
+          attachments.push({
+            type: isPtt
+              ? ('voice' as AttachmentType)
+              : ('audio' as AttachmentType),
+            mimeType: m.audioMessage.mimetype || 'audio/ogg',
+            sizeBytes: m.audioMessage.fileLength
+              ? Number(m.audioMessage.fileLength)
+              : undefined,
+            durationSeconds: m.audioMessage.seconds ?? undefined,
+            source,
+          });
+        } else if (m?.documentMessage) {
+          attachments.push({
+            type: 'document' as AttachmentType,
+            mimeType: m.documentMessage.mimetype ?? undefined,
+            filename: m.documentMessage.fileName ?? undefined,
+            sizeBytes: m.documentMessage.fileLength
+              ? Number(m.documentMessage.fileLength)
+              : undefined,
+            source,
+          });
+        } else if (m?.stickerMessage) {
+          attachments.push({
+            type: 'sticker' as AttachmentType,
+            mimeType: m.stickerMessage.mimetype || 'image/webp',
+            source,
+          });
+        }
+
+        // Skip protocol messages with no text and no media
+        if (!content && attachments.length === 0) continue;
+
+        const rawSender = msg.key.participant || msg.key.remoteJid || '';
+        const senderName = msg.pushName || rawSender.split('@')[0];
+        const sender = `whatsapp:${rawSender}`;
+
+        const fromMe = msg.key.fromMe || false;
+        // Detect bot messages: with own number, fromMe is reliable
+        // since only the bot sends from that number.
+        // With shared number, bot messages carry the assistant name prefix
+        // (even in DMs/self-chat) so we check for that.
+        const isBotMessage = ASSISTANT_HAS_OWN_NUMBER
+          ? fromMe
+          : content.startsWith(`${ASSISTANT_NAME}:`);
+
+        // Build a downloader that uses baileys downloadMediaMessage.
+        const waDownload: AttachmentDownloader = async (a, maxBytes) => {
+          if (a.source.kind !== 'whatsapp') {
+            throw new Error('wrong source kind');
           }
-
-          // Skip protocol messages with no text and no media
-          if (!content && attachments.length === 0) continue;
-
-          const rawSender = msg.key.participant || msg.key.remoteJid || '';
-          const senderName = msg.pushName || rawSender.split('@')[0];
-          const sender = `whatsapp:${rawSender}`;
-
-          const fromMe = msg.key.fromMe || false;
-          // Detect bot messages: with own number, fromMe is reliable
-          // since only the bot sends from that number.
-          // With shared number, bot messages carry the assistant name prefix
-          // (even in DMs/self-chat) so we check for that.
-          const isBotMessage = ASSISTANT_HAS_OWN_NUMBER
-            ? fromMe
-            : content.startsWith(`${ASSISTANT_NAME}:`);
-
-          // Build a downloader that uses baileys downloadMediaMessage.
-          const waDownload: AttachmentDownloader = async (a, maxBytes) => {
-            if (a.source.kind !== 'whatsapp') {
-              throw new Error('wrong source kind');
-            }
-            const waMsg = a.source.message as unknown as WAMessage;
-            const stream = await downloadMediaMessage(waMsg, 'buffer', {});
-            const buf = stream as Buffer;
-            if (buf.length > maxBytes) {
-              throw new Error(`file too large: ${buf.length} > ${maxBytes}`);
-            }
-            return buf;
-          };
-
-          // Extract forward/reply metadata from contextInfo
-          const ctxInfo =
-            m.extendedTextMessage?.contextInfo ||
-            m.imageMessage?.contextInfo ||
-            m.videoMessage?.contextInfo ||
-            m.audioMessage?.contextInfo ||
-            m.documentMessage?.contextInfo;
-          let forwarded_from: string | undefined;
-          let reply_to_text: string | undefined;
-          let reply_to_sender: string | undefined;
-          const reply_to_id = ctxInfo?.stanzaId ?? undefined;
-          if (ctxInfo?.isForwarded) {
-            forwarded_from = '(forwarded)';
+          const waMsg = a.source.message as unknown as WAMessage;
+          const stream = await downloadMediaMessage(waMsg, 'buffer', {});
+          const buf = stream as Buffer;
+          if (buf.length > maxBytes) {
+            throw new Error(`file too large: ${buf.length} > ${maxBytes}`);
           }
-          if (ctxInfo?.quotedMessage) {
-            const qText =
-              ctxInfo.quotedMessage.conversation ||
-              ctxInfo.quotedMessage.extendedTextMessage?.text;
-            if (qText) reply_to_text = qText.slice(0, 100);
-            if (ctxInfo.participant)
-              reply_to_sender = ctxInfo.participant.split('@')[0];
-          }
+          return buf;
+        };
 
-          this.opts.onMessage(
-            chatJid,
-            {
-              id: msg.key.id || '',
-              chat_jid: chatJid,
-              sender,
-              sender_name: senderName,
-              content: content || `[${attachments[0]?.type || 'media'}]`,
-              timestamp,
-              is_from_me: fromMe,
-              is_bot_message: isBotMessage,
-              forwarded_from,
-              reply_to_text,
-              reply_to_sender,
-              reply_to_id,
-              verb: Verb.Message,
-              platform: Platform.WhatsApp,
-            },
-            attachments.length > 0 ? attachments : undefined,
-            attachments.length > 0 ? waDownload : undefined,
-          );
+        // Extract forward/reply metadata from contextInfo
+        const ctxInfo =
+          m.extendedTextMessage?.contextInfo ||
+          m.imageMessage?.contextInfo ||
+          m.videoMessage?.contextInfo ||
+          m.audioMessage?.contextInfo ||
+          m.documentMessage?.contextInfo;
+        let forwarded_from: string | undefined;
+        let reply_to_text: string | undefined;
+        let reply_to_sender: string | undefined;
+        const reply_to_id = ctxInfo?.stanzaId ?? undefined;
+        if (ctxInfo?.isForwarded) {
+          forwarded_from = '(forwarded)';
+        }
+        if (ctxInfo?.quotedMessage) {
+          const qText =
+            ctxInfo.quotedMessage.conversation ||
+            ctxInfo.quotedMessage.extendedTextMessage?.text;
+          if (qText) reply_to_text = qText.slice(0, 100);
+          if (ctxInfo.participant)
+            reply_to_sender = ctxInfo.participant.split('@')[0];
+        }
 
-          // Mark message as read (blue ticks)
-          if (!fromMe && msg.key) {
-            this.sock.readMessages([msg.key]).catch((err) => {
-              logger.debug({ err, msgId: msg.key.id }, 'read receipt failed');
-            });
-          }
+        this.opts.onMessage(
+          chatJid,
+          {
+            id: msg.key.id || '',
+            chat_jid: chatJid,
+            sender,
+            sender_name: senderName,
+            content: content || `[${attachments[0]?.type || 'media'}]`,
+            timestamp,
+            is_from_me: fromMe,
+            is_bot_message: isBotMessage,
+            forwarded_from,
+            reply_to_text,
+            reply_to_sender,
+            reply_to_id,
+            verb: Verb.Message,
+            platform: Platform.WhatsApp,
+          },
+          attachments.length > 0 ? attachments : undefined,
+          attachments.length > 0 ? waDownload : undefined,
+        );
+
+        // Mark message as read (blue ticks)
+        if (!fromMe && msg.key) {
+          this.sock.readMessages([msg.key]).catch((err) => {
+            logger.debug({ err, msgId: msg.key.id }, 'read receipt failed');
+          });
         }
       }
     });
