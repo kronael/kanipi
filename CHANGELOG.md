@@ -11,6 +11,16 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.2.2] — 2026-03-27
+
+### Fixed
+
+- **Sticky routing reliability** — bare `@name` in `startMessageLoop` now correctly hands off to the sticky handler (instead of trying to pipe to an agent); sticky takes precedence over routes; sticky commands rejected if message contains any other content.
+- **Reply-to routing** — replies to agent messages now route to the originating subgroup; sticky resolved from DB when not in runtime map.
+- **Chaining regression** — route delegation restored in `startMessageLoop` so route-matched messages still pipe to the correct active container.
+
+---
+
 ## [v1.2.1] — 2026-03-27
 
 ### Added
