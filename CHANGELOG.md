@@ -9,9 +9,25 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+---
+
+## [v1.1.0] — 2026-03-27
+
 ### Removed
 
 - **WhatsApp channel** — removed entirely. Deleted `src/channels/whatsapp.ts`, `src/whatsapp-auth.ts`. Removed `@whiskeysockets/baileys`, `qrcode`, `qrcode-terminal` dependencies. Removed `ASSISTANT_HAS_OWN_NUMBER`, `whatsappEnabled`, `WHATSAPP_AUTH_DIR` from config. Gateway is now 5 channels: Telegram, Discord, Email, Web, Twitter/X.
+
+### Fixed
+
+- **WhatsApp reconnect backoff** — `scheduleReconnect` was always called with attempt=1, so backoff never accumulated across disconnects. Now tracked as class state, reset on successful open. 503 errors use a 20s minimum delay. `loggedOut` cycle resets attempt counter.
+- **Twitter login** — switched from blocked v1.1 `me()` API to GraphQL `getProfile()`. Cookie deserialisation fixed for object-type cookie values.
+
+### Refactored
+
+- Extracted `copyDirRecursive` to `group-folder.ts` (was duplicated in `index.ts` and `approve.ts`)
+- Removed unused `MESSAGING_ACTIONS` constant from `grants.ts`
+- Deduplicated inline zod schemas in `grants-actions.ts`
+- Eliminated near-identical branches in `ipc.ts` via `effectiveRules()`
 
 ---
 
