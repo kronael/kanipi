@@ -76,14 +76,14 @@ export class SlackChannel implements Channel {
         /* best-effort */
       }
 
-      const mentionsMe = !!(
-        this.botUserId && (msg.text || '').includes(`<@${this.botUserId}>`)
-      );
+      const mentionsMe = this.botUserId
+        ? (msg.text || '').includes(`<@${this.botUserId}>`)
+        : false;
       // Only strip the bot's own mention — preserve other user mentions
-      let content = msg.text || '';
-      if (mentionsMe && this.botUserId) {
-        content = content.replaceAll(`<@${this.botUserId}>`, '').trim();
-      }
+      const content =
+        mentionsMe && this.botUserId
+          ? (msg.text || '').replaceAll(`<@${this.botUserId}>`, '').trim()
+          : msg.text || '';
 
       // Thread reply: thread_ts points to parent; absent or equal to ts = top-level
       const reply_to_id =
