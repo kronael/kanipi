@@ -67,6 +67,8 @@ import {
   updateTaskAfterRun,
   getImpulseConfigForJid,
   getDatabase,
+  getStickyGroup,
+  setStickyGroup,
 } from './db.js';
 import { defaultConfig } from './impulse.js';
 
@@ -1541,5 +1543,47 @@ describe('getImpulseConfigForJid', () => {
       .run(JSON.stringify({ threshold: 75 }), 'discord:456');
     const cfg = getImpulseConfigForJid('discord:456');
     expect(cfg.threshold).toBe(75);
+  });
+});
+
+// --- getStickyGroup / setStickyGroup ---
+
+describe('getStickyGroup / setStickyGroup', () => {
+  it('returns null when not set', () => {
+    storeChatMetadata('sticky@g.us', '2024-01-01T00:00:00.000Z');
+    expect(getStickyGroup('sticky@g.us')).toBeNull();
+  });
+
+  it('returns null for unknown jid', () => {
+    expect(getStickyGroup('unknown@g.us')).toBeNull();
+  });
+
+  it('sets and retrieves sticky folder', () => {
+    storeChatMetadata('sticky@g.us', '2024-01-01T00:00:00.000Z');
+    setStickyGroup('sticky@g.us', 'root/code');
+    expect(getStickyGroup('sticky@g.us')).toBe('root/code');
+  });
+
+  it('clears sticky folder when set to null', () => {
+    storeChatMetadata('sticky@g.us', '2024-01-01T00:00:00.000Z');
+    setStickyGroup('sticky@g.us', 'root/code');
+    setStickyGroup('sticky@g.us', null);
+    expect(getStickyGroup('sticky@g.us')).toBeNull();
+  });
+
+  it('upserts: second setStickyGroup replaces first', () => {
+    storeChatMetadata('sticky@g.us', '2024-01-01T00:00:00.000Z');
+    setStickyGroup('sticky@g.us', 'root/a');
+    setStickyGroup('sticky@g.us', 'root/b');
+    expect(getStickyGroup('sticky@g.us')).toBe('root/b');
+  });
+
+  it('independent per jid', () => {
+    storeChatMetadata('s1@g.us', '2024-01-01T00:00:00.000Z');
+    storeChatMetadata('s2@g.us', '2024-01-01T00:00:00.000Z');
+    setStickyGroup('s1@g.us', 'root/a');
+    setStickyGroup('s2@g.us', 'root/b');
+    expect(getStickyGroup('s1@g.us')).toBe('root/a');
+    expect(getStickyGroup('s2@g.us')).toBe('root/b');
   });
 });

@@ -359,6 +359,7 @@ export function _getLastAgentTimestamp(jid: string): string {
 
 export const _delegateToChild = delegateToChild;
 export const _delegateToParent = delegateToParent;
+export const _isStickyCommand = isStickyCommand;
 
 export function _clearTestState(): void {
   sessions = {};

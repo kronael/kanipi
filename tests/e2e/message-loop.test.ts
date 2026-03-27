@@ -165,7 +165,9 @@ import {
   _getLastAgentTimestamp,
   _clearTestState,
   _delegateToChild,
+  _isStickyCommand,
 } from '../../src/index.js';
+import { getStickyGroup, setStickyGroup } from '../../src/db.js';
 import type { GroupConfig } from '../../src/db.js';
 import type { Channel } from '../../src/types.js';
 import type { ContainerInput } from '../../src/container-runner.js';
@@ -729,5 +731,255 @@ describe('onboarding — unrouted JID message fetching', () => {
     ]);
     const jids = getUnroutedChatJids(SINCE);
     expect(jids).not.toContain(NEW_USER_JID);
+  });
+});
+
+// ── isStickyCommand ───────────────────────────────────────────────────────────
+
+describe('isStickyCommand', () => {
+  it('matches bare @', () => expect(_isStickyCommand('@')).toBe(true));
+  it('matches @name', () => expect(_isStickyCommand('@code')).toBe(true));
+  it('matches @name/sub', () =>
+    expect(_isStickyCommand('@code/py')).toBe(true));
+  it('rejects @name with trailing space and text', () =>
+    expect(_isStickyCommand('@name hello')).toBe(false));
+  it('rejects plain text', () => expect(_isStickyCommand('hello')).toBe(false));
+  it('rejects empty string', () => expect(_isStickyCommand('')).toBe(false));
+  it('rejects whitespace only', () =>
+    expect(_isStickyCommand('  ')).toBe(false));
+});
+
+// ── sticky command handling ───────────────────────────────────────────────────
+
+const HUB_JID = 'hub@g.us';
+const HUB_FOLDER = 'hub';
+const SUB_FOLDER = 'hub/code';
+
+function setupHub(): Channel & { sendMessage: ReturnType<typeof vi.fn> } {
+  storeChatMetadata(HUB_JID, '2024-05-01T00:00:00.000Z', 'Hub', 'test', true);
+  _setGroups({
+    [HUB_FOLDER]: {
+      name: 'Hub',
+      folder: HUB_FOLDER,
+      added_at: '2024-05-01T00:00:00.000Z',
+    },
+    [SUB_FOLDER]: {
+      name: 'Code',
+      folder: SUB_FOLDER,
+      added_at: '2024-05-01T00:00:00.000Z',
+    },
+  });
+  setRoutesForJid(HUB_JID, [
+    { seq: 0, type: 'default', match: null, target: HUB_FOLDER },
+  ]);
+  const ch = makeChannel(HUB_JID);
+  _pushChannel(ch);
+  return ch;
+}
+
+function stickyMsg(id: string, content: string, ts: string): void {
+  storeMessage({
+    id,
+    chat_jid: HUB_JID,
+    sender: 'user@s.us',
+    sender_name: 'Alice',
+    content,
+    timestamp: ts,
+  });
+}
+
+describe('processGroupMessages — sticky command', () => {
+  it('@name where child exists: sets sticky, sends confirm, returns true', async () => {
+    const ch = setupHub();
+    stickyMsg('s1', '@code', '2024-05-01T00:01:00.000Z');
+
+    const result = await _processGroupMessages(HUB_JID);
+
+    expect(result).toBe(true);
+    expect(getStickyGroup(HUB_JID)).toBe(SUB_FOLDER);
+    expect(_getLastAgentTimestamp(HUB_JID)).toBe('2024-05-01T00:01:00.000Z');
+    const calls = (ch.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+    expect(
+      calls.some(([, text]: [string, string]) => text.includes(SUB_FOLDER)),
+    ).toBe(true);
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+  });
+
+  it('@name where child does NOT exist: sends Unknown group, returns true, no sticky set', async () => {
+    const ch = setupHub();
+    stickyMsg('s2', '@missing', '2024-05-01T00:02:00.000Z');
+
+    const result = await _processGroupMessages(HUB_JID);
+
+    expect(result).toBe(true);
+    expect(getStickyGroup(HUB_JID)).toBeNull();
+    expect(_getLastAgentTimestamp(HUB_JID)).toBe('2024-05-01T00:02:00.000Z');
+    const calls = (ch.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+    expect(
+      calls.some(([, text]: [string, string]) =>
+        text.includes('Unknown group'),
+      ),
+    ).toBe(true);
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+  });
+
+  it('@ alone: clears sticky, sends routing reset, returns true', async () => {
+    const ch = setupHub();
+    // Pre-set sticky then clear it
+    stickyMsg('s3a', '@code', '2024-05-01T00:03:00.000Z');
+    await _processGroupMessages(HUB_JID);
+    vi.resetAllMocks();
+
+    stickyMsg('s3b', '@', '2024-05-01T00:04:00.000Z');
+    const result = await _processGroupMessages(HUB_JID);
+
+    expect(result).toBe(true);
+    expect(getStickyGroup(HUB_JID)).toBeNull();
+    expect(_getLastAgentTimestamp(HUB_JID)).toBe('2024-05-01T00:04:00.000Z');
+    const calls = (ch.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+    expect(
+      calls.some(([, text]: [string, string]) =>
+        text.includes('routing reset'),
+      ),
+    ).toBe(true);
+    expect(mockRunContainerAgent).not.toHaveBeenCalled();
+  });
+});
+
+// ── sticky routing ────────────────────────────────────────────────────────────
+
+describe('processGroupMessages — sticky routing', () => {
+  it('routes via sticky when no resolved route', async () => {
+    // Use local: JID — group resolved by folder name, no routes needed.
+    // With no routes for this JID, resolveRoute returns null and sticky fires.
+    const LOCAL_JID = `local:${HUB_FOLDER}`;
+    storeChatMetadata(
+      LOCAL_JID,
+      '2024-05-01T00:00:00.000Z',
+      'Hub',
+      'test',
+      true,
+    );
+    _setGroups({
+      [HUB_FOLDER]: {
+        name: 'Hub',
+        folder: HUB_FOLDER,
+        added_at: '2024-05-01T00:00:00.000Z',
+      },
+      [SUB_FOLDER]: {
+        name: 'Code',
+        folder: SUB_FOLDER,
+        added_at: '2024-05-01T00:00:00.000Z',
+      },
+    });
+    const ch = makeChannel(LOCAL_JID);
+    _pushChannel(ch);
+
+    // Set sticky via @code command
+    storeMessage({
+      id: 'sr1-cmd',
+      chat_jid: LOCAL_JID,
+      sender: 'user@s.us',
+      sender_name: 'Alice',
+      content: '@code',
+      timestamp: '2024-05-01T00:05:00.000Z',
+    });
+    await _processGroupMessages(LOCAL_JID);
+
+    // Send a plain message — no routes, sticky should fire
+    storeMessage({
+      id: 'sr1-msg',
+      chat_jid: LOCAL_JID,
+      sender: 'user@s.us',
+      sender_name: 'Alice',
+      content: 'hello',
+      timestamp: '2024-05-01T00:06:00.000Z',
+    });
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+    });
+
+    const result = await _processGroupMessages(LOCAL_JID);
+
+    expect(result).toBe(true);
+    expect(_getLastAgentTimestamp(LOCAL_JID)).toBe('2024-05-01T00:06:00.000Z');
+    expect(mockRunContainerAgent).toHaveBeenCalled();
+    const [calledGroup] = mockRunContainerAgent.mock.calls[0] as [
+      GroupConfig,
+      ...unknown[],
+    ];
+    expect(calledGroup.folder).toBe(SUB_FOLDER);
+  });
+
+  it('resolved route takes precedence over sticky', async () => {
+    // Hub has two children: code and research. Sticky = code, but /research command routes to research.
+    const RESEARCH_FOLDER = 'hub/research';
+    storeChatMetadata(HUB_JID, '2024-05-01T00:00:00.000Z', 'Hub', 'test', true);
+    _setGroups({
+      [HUB_FOLDER]: {
+        name: 'Hub',
+        folder: HUB_FOLDER,
+        added_at: '2024-05-01T00:00:00.000Z',
+      },
+      [SUB_FOLDER]: {
+        name: 'Code',
+        folder: SUB_FOLDER,
+        added_at: '2024-05-01T00:00:00.000Z',
+      },
+      [RESEARCH_FOLDER]: {
+        name: 'Research',
+        folder: RESEARCH_FOLDER,
+        added_at: '2024-05-01T00:00:00.000Z',
+      },
+    });
+    setRoutesForJid(HUB_JID, [
+      { seq: 0, type: 'command', match: '/research', target: RESEARCH_FOLDER },
+      { seq: 1, type: 'default', match: null, target: HUB_FOLDER },
+    ]);
+    _pushChannel(makeChannel(HUB_JID));
+
+    // Set sticky to code
+    stickyMsg('sr2-cmd', '@code', '2024-05-01T00:07:00.000Z');
+    await _processGroupMessages(HUB_JID);
+
+    // Send /research — resolved route should win over sticky
+    stickyMsg('sr2-msg', '/research findings', '2024-05-01T00:08:00.000Z');
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+    });
+
+    await _processGroupMessages(HUB_JID);
+
+    expect(mockRunContainerAgent).toHaveBeenCalled();
+    const [calledGroup] = mockRunContainerAgent.mock.calls[0] as [
+      GroupConfig,
+      ...unknown[],
+    ];
+    expect(calledGroup.folder).toBe(RESEARCH_FOLDER);
+  });
+
+  it('no delegation when sticky equals group folder (hub set as its own sticky)', async () => {
+    setupHub();
+    mockRunContainerAgent.mockResolvedValue({
+      status: 'success',
+      result: null,
+      newSessionId: 'sess-hub',
+    });
+
+    // Manually set sticky to the hub itself (edge case — @hub from within hub)
+    setStickyGroup(HUB_JID, HUB_FOLDER);
+
+    stickyMsg('sr3-msg', 'hello', '2024-05-01T00:09:00.000Z');
+    await _processGroupMessages(HUB_JID);
+
+    // Agent runs for hub itself, not delegated
+    expect(mockRunContainerAgent).toHaveBeenCalled();
+    const [calledGroup] = mockRunContainerAgent.mock.calls[0] as [
+      GroupConfig,
+      ...unknown[],
+    ];
+    expect(calledGroup.folder).toBe(HUB_FOLDER);
   });
 });
