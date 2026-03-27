@@ -1178,24 +1178,32 @@ async function startMessageLoop(): Promise<void> {
                   const stripped = lastMsg.content
                     .replace(/@\w[\w-]*/, '')
                     .trim();
-                  lastAgentTimestamp[chatJid] = lastMsg.timestamp;
-                  saveState();
-                  await waitForEnrichments(
-                    nonCommandMessages.map((msg) => msg.id),
-                  );
-                  delegateToChild(
-                    childFolder,
-                    stripped,
-                    chatJid,
-                    0,
-                    lastMsg.id,
-                  ).catch((err) => {
-                    logger.error(
-                      { chatJid, childFolder, err: String(err) },
-                      '@agent routing failed',
+                  if (stripped === '') {
+                    // Bare @name — fall through, let processGroupMessages handle as sticky command
+                    logger.debug(
+                      { group: group.name, childFolder },
+                      '@name without content, deferring to sticky handler',
                     );
-                  });
-                  continue;
+                  } else {
+                    lastAgentTimestamp[chatJid] = lastMsg.timestamp;
+                    saveState();
+                    await waitForEnrichments(
+                      nonCommandMessages.map((msg) => msg.id),
+                    );
+                    delegateToChild(
+                      childFolder,
+                      stripped,
+                      chatJid,
+                      0,
+                      lastMsg.id,
+                    ).catch((err) => {
+                      logger.error(
+                        { chatJid, childFolder, err: String(err) },
+                        '@agent routing failed',
+                      );
+                    });
+                    continue;
+                  }
                 }
                 // child not found — fall through to normal self-processing
                 logger.debug(
@@ -1275,35 +1283,6 @@ async function startMessageLoop(): Promise<void> {
                 { group: group.name, content: lastMsg.content.slice(0, 40) },
                 '#topic prefix not parseable, routing to self',
               );
-            }
-
-            if (resolved && resolved.target !== group.folder) {
-              logger.info(
-                {
-                  group: group.name,
-                  target: resolved.target,
-                  count: nonCommandMessages.length,
-                },
-                'Delegating messages',
-              );
-              await waitForEnrichments(nonCommandMessages.map((m) => m.id));
-              const allForRoute = getMessagesSince(
-                chatJid,
-                lastAgentTimestamp[chatJid] || '',
-                ASSISTANT_NAME,
-              );
-              const toDelegate =
-                allForRoute.length > 0 ? allForRoute : nonCommandMessages;
-              lastAgentTimestamp[chatJid] =
-                toDelegate[toDelegate.length - 1].timestamp;
-              saveState();
-              delegatePerSender(
-                toDelegate,
-                resolved.target,
-                chatJid,
-                resolved.command,
-              );
-              continue;
             }
           }
 
