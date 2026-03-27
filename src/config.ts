@@ -34,6 +34,8 @@ const envConfig = readEnvFile([
   'TWITTER_USERNAME',
   'TWITTER_PASSWORD',
   'TWITTER_EMAIL',
+  'SLACK_BOT_TOKEN',
+  'SLACK_APP_TOKEN',
   'WEBDAV_ENABLED',
   'WEBDAV_URL',
 ]);
@@ -113,6 +115,11 @@ export const TWITTER_PASSWORD =
   process.env.TWITTER_PASSWORD || envConfig.TWITTER_PASSWORD || '';
 export const TWITTER_EMAIL =
   process.env.TWITTER_EMAIL || envConfig.TWITTER_EMAIL || '';
+
+export const SLACK_BOT_TOKEN =
+  process.env.SLACK_BOT_TOKEN || envConfig.SLACK_BOT_TOKEN || '';
+export const SLACK_APP_TOKEN =
+  process.env.SLACK_APP_TOKEN || envConfig.SLACK_APP_TOKEN || '';
 
 export const WEB_DIR = path.resolve(PROJECT_ROOT, 'web');
 export const HOST_WEB_DIR = path.resolve(HOST_PROJECT_ROOT, 'web');

@@ -6,6 +6,8 @@ import {
   ASSISTANT_NAME,
   CONTAINER_IMAGE,
   DISCORD_USER_TOKEN,
+  SLACK_BOT_TOKEN,
+  SLACK_APP_TOKEN,
   EMAIL_IMAP_HOST,
   POLL_INTERVAL,
   TELEGRAM_BOT_TOKEN,
@@ -21,6 +23,7 @@ import {
   permissionTier,
 } from './config.js';
 import { DiscordChannel } from './channels/discord.js';
+import { SlackChannel } from './channels/slack.js';
 import { EmailChannel } from './channels/email.js';
 import { LocalChannel } from './channels/local.js';
 import { TelegramChannel } from './channels/telegram.js';
@@ -1387,6 +1390,20 @@ async function main(): Promise<void> {
     const discord = new DiscordChannel(DISCORD_USER_TOKEN, channelOpts);
     channels.push(discord);
     await discord.connect();
+  }
+
+  if (SLACK_BOT_TOKEN && SLACK_APP_TOKEN) {
+    const slack = new SlackChannel(
+      SLACK_BOT_TOKEN,
+      SLACK_APP_TOKEN,
+      channelOpts,
+    );
+    try {
+      await slack.connect();
+      channels.push(slack);
+    } catch (err) {
+      logger.error({ err }, 'Slack channel failed to connect — skipping');
+    }
   }
 
   if (EMAIL_IMAP_HOST) {

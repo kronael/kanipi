@@ -15,6 +15,7 @@
   "dependencies": {
     "@atproto/api": "^0.19.3",
     "@node-rs/argon2": "^2.0.2",
+    "@slack/bolt": "^4.6.0",
     "agent-twitter-client": "^0.0.18",
     "arctic": "^3.7.0",
     "better-sqlite3": "^11.8.1",
