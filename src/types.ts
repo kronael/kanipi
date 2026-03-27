@@ -185,8 +185,7 @@ export type OnInboundMessage = (
 ) => void;
 
 // Callback for chat metadata discovery.
-// name is optional — channels that deliver names inline (Telegram) pass it here;
-// channels that sync names separately (WhatsApp syncGroupMetadata) omit it.
+// name is optional — channels that deliver names inline pass it here; others omit it.
 export type OnChatMetadata = (
   chatJid: string,
   timestamp: string,

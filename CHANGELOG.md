@@ -15,7 +15,7 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ### Removed
 
-- **WhatsApp channel** — removed entirely. Deleted `src/channels/whatsapp.ts`, `src/whatsapp-auth.ts`. Removed `@whiskeysockets/baileys`, `qrcode`, `qrcode-terminal` dependencies. Removed `ASSISTANT_HAS_OWN_NUMBER`, `whatsappEnabled`, `WHATSAPP_AUTH_DIR` from config. Gateway is now 5 channels: Telegram, Discord, Email, Web, Twitter/X.
+- **WhatsApp channel** — removed entirely. Deleted `src/channels/whatsapp.ts`, `src/whatsapp-auth.ts`, `src/channel-auth.ts`. Removed `@whiskeysockets/baileys`, `qrcode`, `qrcode-terminal` dependencies. Removed `ASSISTANT_HAS_OWN_NUMBER`, `whatsappEnabled`, `WHATSAPP_AUTH_DIR` from config. Removed `kanipi config <instance> channel auth <name>` CLI subcommand (was WA-only). Gateway is now 5 channels: Telegram, Discord, Email, Web, Twitter/X.
 
 ### Fixed
 
