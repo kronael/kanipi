@@ -21,6 +21,16 @@ let db: Database.Database;
 export function setDatabase(d: Database.Database): void {
   db = d;
 }
+
+function one<T>(sql: string, ...params: unknown[]): T | null {
+  return (db.prepare(sql).get(...params) as T | undefined) ?? null;
+}
+
+const INSERT_ROUTE_SQL =
+  'INSERT INTO routes (jid, seq, type, match, target, command) VALUES (?, ?, ?, ?, ?, ?)';
+
+const USER_MSG_FILTER = `AND is_bot_message = 0 AND content NOT LIKE ? AND content != '' AND content IS NOT NULL`;
+const M_USER_MSG_FILTER = `AND m.is_bot_message = 0 AND m.content NOT LIKE ? AND m.content != '' AND m.content IS NOT NULL`;
 export function getDatabase(): Database.Database {
   return db;
 }
@@ -219,8 +229,7 @@ export function getNewMessages(
            reply_to_id, forwarded_from_id, forwarded_msgid
     FROM messages
     WHERE timestamp > ? AND chat_jid IN (${placeholders})
-      AND is_bot_message = 0 AND content NOT LIKE ?
-      AND content != '' AND content IS NOT NULL
+      ${USER_MSG_FILTER}
     ORDER BY timestamp
   `;
 
@@ -253,8 +262,7 @@ export function getMessagesSince(
     FROM messages m
     LEFT JOIN chats c ON c.jid = m.chat_jid
     WHERE m.chat_jid = ? AND m.timestamp > ? AND m.topic = ?
-      AND m.is_bot_message = 0 AND m.content NOT LIKE ?
-      AND m.content != '' AND m.content IS NOT NULL
+      ${M_USER_MSG_FILTER}
     ORDER BY m.timestamp DESC
     LIMIT ?
   `;
@@ -743,20 +751,14 @@ export function createAuthUser(
 
 export function getAuthUserBySub(sub: string): AuthUser | undefined {
   return (
-    db
-      .prepare<[string], AuthUser>(`SELECT * FROM auth_users WHERE sub = ?`)
-      .get(sub) ?? undefined
+    one<AuthUser>(`SELECT * FROM auth_users WHERE sub = ?`, sub) ?? undefined
   );
 }
 
 export function getAuthUserByUsername(username: string): AuthUser | undefined {
   return (
-    db
-      .prepare<
-        [string],
-        AuthUser
-      >(`SELECT * FROM auth_users WHERE username = ?`)
-      .get(username) ?? undefined
+    one<AuthUser>(`SELECT * FROM auth_users WHERE username = ?`, username) ??
+    undefined
   );
 }
 
@@ -774,12 +776,10 @@ export function createAuthSession(
 
 export function getAuthSession(tokenHash: string): AuthSession | undefined {
   return (
-    db
-      .prepare<
-        [string],
-        AuthSession
-      >(`SELECT * FROM auth_sessions WHERE token_hash = ?`)
-      .get(tokenHash) ?? undefined
+    one<AuthSession>(
+      `SELECT * FROM auth_sessions WHERE token_hash = ?`,
+      tokenHash,
+    ) ?? undefined
   );
 }
 
@@ -893,9 +893,7 @@ export function setRoutesForJid(
   })[],
 ): void {
   db.prepare('DELETE FROM routes WHERE jid = ?').run(jid);
-  const insert = db.prepare(
-    'INSERT INTO routes (jid, seq, type, match, target, command) VALUES (?, ?, ?, ?, ?, ?)',
-  );
+  const insert = db.prepare(INSERT_ROUTE_SQL);
   for (const r of routes) {
     insert.run(jid, r.seq, r.type, r.match, r.target, r.command ?? null);
   }
@@ -906,9 +904,7 @@ export function addRoute(
   route: Omit<Route, 'id' | 'jid' | 'command'> & { command?: string | null },
 ): number {
   const result = db
-    .prepare(
-      'INSERT INTO routes (jid, seq, type, match, target, command) VALUES (?, ?, ?, ?, ?, ?)',
-    )
+    .prepare(INSERT_ROUTE_SQL)
     .run(
       jid,
       route.seq,
@@ -1224,24 +1220,16 @@ export interface WebdavUser {
 }
 
 export function getWebdavUser(username: string): WebdavUser | null {
-  return (
-    db
-      .prepare<[string], WebdavUser>(
-        `SELECT id, sub, username, webdav_token_hash, webdav_groups
-         FROM auth_users WHERE username = ?`,
-      )
-      .get(username) ?? null
+  return one<WebdavUser>(
+    `SELECT id, sub, username, webdav_token_hash, webdav_groups FROM auth_users WHERE username = ?`,
+    username,
   );
 }
 
 export function getWebdavUserBySub(sub: string): WebdavUser | null {
-  return (
-    db
-      .prepare<[string], WebdavUser>(
-        `SELECT id, sub, username, webdav_token_hash, webdav_groups
-         FROM auth_users WHERE sub = ?`,
-      )
-      .get(sub) ?? null
+  return one<WebdavUser>(
+    `SELECT id, sub, username, webdav_token_hash, webdav_groups FROM auth_users WHERE sub = ?`,
+    sub,
   );
 }
 

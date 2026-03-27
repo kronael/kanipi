@@ -13,6 +13,7 @@ import {
   AttachmentType,
   RawAttachment,
 } from '../mime.js';
+import { sendChunked } from './utils.js';
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
 
@@ -161,17 +162,16 @@ export class DiscordChannel implements Channel {
         logger.warn({ jid }, 'Discord channel not text-based');
         return undefined;
       }
-      const MAX = 2000;
-      let lastId: string | undefined;
-      for (let i = 0; i < text.length; i += MAX) {
-        const chunk = text.slice(i, i + MAX);
+      let first = true;
+      const lastId = await sendChunked(text, 2000, async (chunk) => {
         const sent = await (ch as TextChannel).send(
-          opts?.replyTo && i === 0
+          opts?.replyTo && first
             ? { content: chunk, reply: { messageReference: opts.replyTo } }
             : chunk,
         );
-        lastId = sent.id;
-      }
+        first = false;
+        return sent.id;
+      });
       logger.info({ jid, length: text.length }, 'Discord message sent');
       return lastId;
     } catch (err) {

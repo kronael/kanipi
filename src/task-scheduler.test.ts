@@ -354,6 +354,10 @@ describe('task scheduler', () => {
 
     await vi.advanceTimersByTimeAsync(50);
 
-    expect(sendMessage).toHaveBeenCalledWith('group@g.us', 'task output');
+    expect(sendMessage).toHaveBeenCalledWith(
+      'group@g.us',
+      'task output',
+      'root',
+    );
   });
 });

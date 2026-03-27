@@ -5,6 +5,7 @@ import WebSocket from 'ws';
 
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
+import { sendChunked, stripMention } from './utils.js';
 
 const MAX_MESSAGE_LEN = 4000;
 const RECONNECT_BASE_MS = 2000;
@@ -159,10 +160,10 @@ export class SlackUserChannel implements Channel {
     const mentionsMe = !!(
       this.userId && (event.text || '').includes(`<@${this.userId}>`)
     );
-    let content = event.text || '';
-    if (mentionsMe && this.userId) {
-      content = content.replaceAll(`<@${this.userId}>`, '').trim();
-    }
+    const content =
+      mentionsMe && this.userId
+        ? stripMention(event.text || '', this.userId)
+        : event.text || '';
 
     const reply_to_id =
       event.thread_ts && event.thread_ts !== event.ts
@@ -197,14 +198,14 @@ export class SlackUserChannel implements Channel {
   ): Promise<string | undefined> {
     const channel = jid.replace(/^slack:/, '');
     try {
-      let lastTs: string | undefined;
-      for (let i = 0; i < text.length; i += MAX_MESSAGE_LEN) {
-        const chunk = text.slice(i, i + MAX_MESSAGE_LEN);
+      let first = true;
+      const lastTs = await sendChunked(text, MAX_MESSAGE_LEN, async (chunk) => {
         const params: Record<string, string> = { channel, text: chunk };
-        if (opts?.replyTo && i === 0) params.thread_ts = opts.replyTo;
+        if (opts?.replyTo && first) params.thread_ts = opts.replyTo;
+        first = false;
         const res = await this.api('chat.postMessage', params);
-        lastTs = res.ts as string | undefined;
-      }
+        return res.ts as string | undefined;
+      });
       logger.info({ jid, length: text.length }, 'Slack message sent');
       return lastTs;
     } catch (err) {

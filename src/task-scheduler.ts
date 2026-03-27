@@ -32,7 +32,11 @@ export interface SchedulerDependencies {
     containerName: string,
     groupFolder: string,
   ) => void;
-  sendMessage: (jid: string, text: string) => Promise<string | undefined>;
+  sendMessage: (
+    jid: string,
+    text: string,
+    groupFolder: string,
+  ) => Promise<string | undefined>;
 }
 
 async function runTask(
@@ -118,7 +122,7 @@ async function runTask(
         error = output.error || 'Unknown error';
       } else if (output.result) {
         result = output.result;
-        await deps.sendMessage(task.chat_jid, output.result);
+        await deps.sendMessage(task.chat_jid, output.result, task.group_folder);
       }
 
       logger.info(
@@ -164,7 +168,11 @@ async function runTask(
         async (streamedOutput: ContainerOutput) => {
           if (streamedOutput.result) {
             result = streamedOutput.result;
-            await deps.sendMessage(task.chat_jid, streamedOutput.result);
+            await deps.sendMessage(
+              task.chat_jid,
+              streamedOutput.result,
+              task.group_folder,
+            );
             scheduleClose();
           }
           if (streamedOutput.status === 'success') {

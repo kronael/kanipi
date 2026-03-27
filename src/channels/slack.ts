@@ -5,6 +5,7 @@ import { App, LogLevel } from '@slack/bolt';
 
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
+import { sendChunked, stripMention } from './utils.js';
 
 const MAX_MESSAGE_LEN = 4000;
 
@@ -82,7 +83,7 @@ export class SlackChannel implements Channel {
       // Only strip the bot's own mention — preserve other user mentions
       const content =
         mentionsMe && this.botUserId
-          ? (msg.text || '').replaceAll(`<@${this.botUserId}>`, '').trim()
+          ? stripMention(msg.text || '', this.botUserId)
           : msg.text || '';
 
       // Thread reply: thread_ts points to parent; absent or equal to ts = top-level
@@ -122,16 +123,16 @@ export class SlackChannel implements Channel {
     if (!this.app) return undefined;
     const channel = jid.replace(/^slack:/, '');
     try {
-      let lastTs: string | undefined;
-      for (let i = 0; i < text.length; i += MAX_MESSAGE_LEN) {
-        const chunk = text.slice(i, i + MAX_MESSAGE_LEN);
-        const res = await this.app.client.chat.postMessage({
+      let first = true;
+      const lastTs = await sendChunked(text, MAX_MESSAGE_LEN, async (chunk) => {
+        const res = await this.app!.client.chat.postMessage({
           channel,
           text: chunk,
-          ...(opts?.replyTo && i === 0 ? { thread_ts: opts.replyTo } : {}),
+          ...(opts?.replyTo && first ? { thread_ts: opts.replyTo } : {}),
         });
-        lastTs = res.ts as string | undefined;
-      }
+        first = false;
+        return res.ts as string | undefined;
+      });
       logger.info({ jid, length: text.length }, 'Slack message sent');
       return lastTs;
     } catch (err) {

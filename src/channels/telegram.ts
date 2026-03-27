@@ -3,6 +3,7 @@ import path from 'path';
 
 import { Bot, InputFile } from 'grammy';
 
+import { sendChunked } from './utils.js';
 import {
   AttachmentDownloader,
   AttachmentType,
@@ -433,34 +434,32 @@ export class TelegramChannel implements Channel {
       // Telegram has a 4096 character limit per message — split if needed
       const html = mdToHtml(text);
       const MAX_LENGTH = 4096;
-      let lastId: string | undefined;
-      for (let i = 0; i < html.length; i += MAX_LENGTH) {
-        const chunk = html.slice(i, i + MAX_LENGTH);
+      let offset = 0;
+      const lastId = await sendChunked(html, MAX_LENGTH, async (chunk) => {
+        const o = offset;
+        offset += MAX_LENGTH;
         try {
-          const sent = await this.bot.api.sendMessage(numericId, chunk, {
+          const sent = await this.bot!.api.sendMessage(numericId, chunk, {
             parse_mode: 'HTML',
             ...replyParams,
           });
-          lastId = String(sent.message_id);
+          return String(sent.message_id);
         } catch (htmlErr: any) {
           if (htmlErr?.error_code === 400) {
             logger.warn(
               { jid, error: htmlErr.description },
               'HTML parse failed, retrying as plain text',
             );
-            const sent = await this.bot.api.sendMessage(
+            const sent = await this.bot!.api.sendMessage(
               numericId,
-              text.slice(i, i + MAX_LENGTH),
-              {
-                ...replyParams,
-              },
+              text.slice(o, o + MAX_LENGTH),
+              { ...replyParams },
             );
-            lastId = String(sent.message_id);
-          } else {
-            throw htmlErr;
+            return String(sent.message_id);
           }
+          throw htmlErr;
         }
-      }
+      });
       logger.info({ jid, length: text.length }, 'Telegram message sent');
       return lastId;
     } catch (err) {

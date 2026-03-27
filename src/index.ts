@@ -135,6 +135,79 @@ function canSend(channel: Channel, groupFolder?: string): boolean {
   return true;
 }
 
+function makeAgentOutputHandler(
+  channel: Channel | null,
+  chatJid: string,
+  groupFolder: string,
+  opts?: {
+    topic?: string;
+    replyToId?: string;
+    transform?: (text: string) => string;
+  },
+): {
+  handler: (result: ContainerOutput) => Promise<void>;
+  getLastSentId: () => string | undefined;
+  outputSent: () => boolean;
+} {
+  let lastSentId: string | undefined = opts?.replyToId;
+  let sent = false;
+  return {
+    handler: async (result) => {
+      if (!result.result) return;
+      const raw =
+        typeof result.result === 'string'
+          ? result.result
+          : JSON.stringify(result.result);
+      let text = raw.trim();
+      if (!text) return;
+      if (opts?.transform) text = opts.transform(text);
+      const sentId =
+        channel && canSend(channel, groupFolder)
+          ? await channel.sendMessage(
+              chatJid,
+              text,
+              lastSentId ? { replyTo: lastSentId } : undefined,
+            )
+          : undefined;
+      storeOutbound({
+        chatJid,
+        content: text,
+        source: 'agent',
+        groupFolder,
+        replyToId: lastSentId,
+        platformMsgId: sentId,
+        topic: opts?.topic,
+      });
+      if (sentId) lastSentId = sentId;
+      sent = true;
+    },
+    getLastSentId: () => lastSentId,
+    outputSent: () => sent,
+  };
+}
+
+function splitCommands(messages: InboundEvent[]): {
+  cmds: InboundEvent[];
+  nonCmds: InboundEvent[];
+} {
+  const cmds: InboundEvent[] = [];
+  const nonCmds: InboundEvent[] = [];
+  for (const msg of messages) {
+    const m = msg.content.trim();
+    let cmdText = m.startsWith('[') ? m.replace(/^\[[^\]]*\]\s*/, '') : m;
+    cmdText = cmdText.replace(/^@\S+\s+/, '');
+    if (cmdText.startsWith('/')) {
+      const [word] = cmdText.slice(1).split(/\s+/);
+      if (findCommand(word.toLowerCase())) {
+        cmds.push(msg);
+        continue;
+      }
+    }
+    nonCmds.push(msg);
+  }
+  return { cmds, nonCmds };
+}
+
 function isStickyCommand(content: string): boolean {
   const t = content.trim();
   return t.startsWith('@') && !t.includes(' ') && !t.includes('\n');
@@ -407,14 +480,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   // Skip command messages — they are handled by the message loop.
   // Advance the cursor past any leading commands to avoid double-processing.
-  const nonCmdMessages = missedMessages.filter((msg) => {
-    const m = msg.content.trim();
-    let cmdText = m.startsWith('[') ? m.replace(/^\[[^\]]*\]\s*/, '') : m;
-    cmdText = cmdText.replace(/^@\S+\s+/, '');
-    if (!cmdText.startsWith('/')) return true;
-    const [word] = cmdText.slice(1).split(/\s+/);
-    return !findCommand(word.toLowerCase());
-  });
+  const { nonCmds: nonCmdMessages } = splitCommands(missedMessages);
   if (nonCmdMessages.length === 0) {
     // All pending messages are gateway commands; advance cursor.
     const last = missedMessages[missedMessages.length - 1];
@@ -554,9 +620,10 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   startTyping(channel, chatJid);
   let hadError = false;
-  let outputSentToUser = false;
   let output: 'success' | 'error';
-  let lastSentId: string | undefined = lastMsg.id;
+  const agentOut = makeAgentOutputHandler(channel, chatJid, group.folder, {
+    replyToId: lastMsg.id,
+  });
 
   try {
     output = await runAgent(
@@ -572,31 +639,12 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
             typeof result.result === 'string'
               ? result.result
               : JSON.stringify(result.result);
-          const text = raw.trim();
           logger.info(
             { group: group.name },
             `Agent output: ${raw.slice(0, 200)}`,
           );
-          if (text) {
-            const sentId = canSend(channel, group.folder)
-              ? await channel.sendMessage(
-                  chatJid,
-                  text,
-                  lastSentId ? { replyTo: lastSentId } : undefined,
-                )
-              : undefined;
-            storeOutbound({
-              chatJid,
-              content: text,
-              source: 'agent',
-              groupFolder: group.folder,
-              replyToId: lastSentId,
-              platformMsgId: sentId,
-            });
-            if (sentId) lastSentId = sentId;
-            outputSentToUser = true;
-          }
         }
+        await agentOut.handler(result);
 
         if (result.status === 'success') {
           if (result.result?.startsWith('⏳')) {
@@ -621,7 +669,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   const dur = Date.now() - t0;
   if (output === 'error' || hadError) {
-    if (outputSentToUser) {
+    if (agentOut.outputSent()) {
       logger.warn(
         { group: group.name, traceId, dur },
         'Agent error after output was sent, skipping cursor rollback to prevent duplicates',
@@ -645,7 +693,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     return true;
   }
 
-  if (!outputSentToUser) {
+  if (!agentOut.outputSent()) {
     logger.warn(
       { group: group.name, traceId, dur },
       'Agent completed with no output sent to user (empty final result)',
@@ -733,46 +781,27 @@ async function delegateToGroup(
   const rawCmd = command ? ['bash', '-c', command] : undefined;
 
   queue.enqueueTask(targetFolder, taskId, async () => {
-    let lastSentId = messageId;
+    const agentOut = makeAgentOutputHandler(channel, originJid, targetFolder, {
+      replyToId: messageId,
+      transform: escalationOrigin
+        ? (text) => {
+            const msgAttr = escalationOrigin.messageId
+              ? ` origin_msg_id="${escapeXml(escalationOrigin.messageId)}"`
+              : '';
+            return (
+              `<escalation_response origin_jid="${escapeXml(escalationOrigin.jid)}"${msgAttr}>\n` +
+              `${text}\n</escalation_response>`
+            );
+          }
+        : undefined,
+    });
     try {
       const onResult = async (result: ContainerOutput) => {
         if (result.newSessionId) {
           sessions[target.folder] = result.newSessionId;
           setSession(target.folder, result.newSessionId);
         }
-        if (result.result) {
-          const raw =
-            typeof result.result === 'string'
-              ? result.result
-              : JSON.stringify(result.result);
-          let text = raw.trim();
-          if (text) {
-            if (escalationOrigin) {
-              const msgAttr = escalationOrigin.messageId
-                ? ` origin_msg_id="${escapeXml(escalationOrigin.messageId)}"`
-                : '';
-              text =
-                `<escalation_response origin_jid="${escapeXml(escalationOrigin.jid)}"${msgAttr}>\n` +
-                `${text}\n</escalation_response>`;
-            }
-            const sentId = canSend(channel, targetFolder)
-              ? await channel.sendMessage(
-                  originJid,
-                  text,
-                  lastSentId ? { replyTo: lastSentId } : undefined,
-                )
-              : undefined;
-            storeOutbound({
-              chatJid: originJid,
-              content: text,
-              source: 'agent',
-              groupFolder: targetFolder,
-              replyToId: lastSentId,
-              platformMsgId: sentId,
-            });
-            if (sentId) lastSentId = sentId;
-          }
-        }
+        await agentOut.handler(result);
       };
 
       const output = await runContainerCommand(
@@ -1098,25 +1127,19 @@ async function startMessageLoop(): Promise<void> {
           }
 
           type DeferredCmd = { msg: InboundEvent; word: string; args: string };
-          const deferredCmds: DeferredCmd[] = [];
-          const nonCommandMessages: InboundEvent[] = [];
-          for (const msg of groupMessages) {
+          // Strip leading media placeholder (e.g. "[Document: file.txt] /put")
+          // then strip routing prefix (e.g. "@root /approve" → "/approve")
+          const { cmds: cmdMessages, nonCmds: nonCommandMessages } =
+            splitCommands(groupMessages);
+          const deferredCmds: DeferredCmd[] = cmdMessages.map((msg) => {
             const m = msg.content.trim();
-            // Strip leading media placeholder (e.g. "[Document: file.txt] /put")
-            // then strip routing prefix (e.g. "@root /approve" → "/approve")
             let cmdText = m.startsWith('[')
               ? m.replace(/^\[[^\]]*\]\s*/, '')
               : m;
             cmdText = cmdText.replace(/^@\S+\s+/, '');
-            if (cmdText.startsWith('/')) {
-              const [word, ...rest] = cmdText.slice(1).split(/\s+/);
-              if (findCommand(word.toLowerCase())) {
-                deferredCmds.push({ msg, word, args: rest.join(' ') });
-                continue;
-              }
-            }
-            nonCommandMessages.push(msg);
-          }
+            const [word, ...rest] = cmdText.slice(1).split(/\s+/);
+            return { msg, word, args: rest.join(' ') };
+          });
 
           {
             const candidateMsgs =
@@ -1179,11 +1202,11 @@ async function startMessageLoop(): Promise<void> {
                     .replace(/@\w[\w-]*/, '')
                     .trim();
                   if (stripped === '') {
-                    // Bare @name — fall through, let processGroupMessages handle as sticky command
-                    logger.debug(
-                      { group: group.name, childFolder },
-                      '@name without content, deferring to sticky handler',
-                    );
+                    // Bare @name = sticky command — advance cursor, let queue set sticky
+                    lastAgentTimestamp[chatJid] = lastMsg.timestamp;
+                    saveState();
+                    queue.enqueueMessageCheck(chatJid);
+                    continue;
                   } else {
                     lastAgentTimestamp[chatJid] = lastMsg.timestamp;
                     saveState();
@@ -1231,7 +1254,12 @@ async function startMessageLoop(): Promise<void> {
                 if (channel) startTyping(channel, chatJid);
                 const taskId = `topic-${topicName}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
                 queue.enqueueTask(group.folder, taskId, async () => {
-                  let lastSentId: string | undefined = lastMsg.id;
+                  const agentOut = makeAgentOutputHandler(
+                    channel,
+                    chatJid,
+                    group.folder,
+                    { replyToId: lastMsg.id, topic: topicName },
+                  );
                   try {
                     await runAgent(
                       group,
@@ -1240,36 +1268,7 @@ async function startMessageLoop(): Promise<void> {
                       1,
                       channel?.name,
                       lastMsg.id,
-                      async (result) => {
-                        if (result.result) {
-                          const raw =
-                            typeof result.result === 'string'
-                              ? result.result
-                              : JSON.stringify(result.result);
-                          const text = raw.trim();
-                          if (text && channel) {
-                            const sentId = canSend(channel, group.folder)
-                              ? await channel.sendMessage(
-                                  chatJid,
-                                  text,
-                                  lastSentId
-                                    ? { replyTo: lastSentId }
-                                    : undefined,
-                                )
-                              : undefined;
-                            storeOutbound({
-                              chatJid,
-                              content: text,
-                              source: 'agent',
-                              groupFolder: group.folder,
-                              replyToId: lastSentId,
-                              platformMsgId: sentId,
-                              topic: topicName,
-                            });
-                            if (sentId) lastSentId = sentId;
-                          }
-                        }
-                      },
+                      agentOut.handler,
                       topicName,
                     );
                   } finally {
@@ -1283,6 +1282,35 @@ async function startMessageLoop(): Promise<void> {
                 { group: group.name, content: lastMsg.content.slice(0, 40) },
                 '#topic prefix not parseable, routing to self',
               );
+            }
+
+            if (resolved && resolved.target !== group.folder) {
+              logger.info(
+                {
+                  group: group.name,
+                  target: resolved.target,
+                  count: nonCommandMessages.length,
+                },
+                'Delegating messages',
+              );
+              await waitForEnrichments(nonCommandMessages.map((m) => m.id));
+              const allForRoute = getMessagesSince(
+                chatJid,
+                lastAgentTimestamp[chatJid] || '',
+                ASSISTANT_NAME,
+              );
+              const toDelegate =
+                allForRoute.length > 0 ? allForRoute : nonCommandMessages;
+              lastAgentTimestamp[chatJid] =
+                toDelegate[toDelegate.length - 1].timestamp;
+              saveState();
+              delegatePerSender(
+                toDelegate,
+                resolved.target,
+                chatJid,
+                resolved.command,
+              );
+              continue;
             }
           }
 
@@ -1509,7 +1537,7 @@ async function main(): Promise<void> {
     queue,
     onProcess: (groupJid, proc, containerName, groupFolder) =>
       queue.registerProcess(groupJid, proc, containerName, groupFolder),
-    sendMessage: async (jid, rawText) => {
+    sendMessage: async (jid: string, rawText: string, groupFolder: string) => {
       const channel = findChannel(channels, jid);
       if (!channel) {
         logger.warn({ jid }, 'no channel owns JID, cannot send message');
@@ -1517,7 +1545,7 @@ async function main(): Promise<void> {
       }
       const text = rawText.trim();
       if (text) {
-        const sentId = canSend(channel)
+        const sentId = canSend(channel, groupFolder)
           ? await channel.sendMessage(jid, text)
           : undefined;
         storeOutbound({
@@ -1534,7 +1562,8 @@ async function main(): Promise<void> {
     sendMessage: async (jid, text, opts) => {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
-      const sentId = canSend(channel)
+      const groupFolder = getHubForJid(jid) ?? undefined;
+      const sentId = canSend(channel, groupFolder)
         ? await channel.sendMessage(jid, text, opts)
         : undefined;
       storeOutbound({
@@ -1549,7 +1578,8 @@ async function main(): Promise<void> {
     sendDocument: async (jid, filePath, filename) => {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
-      if (!channel.sendDocument || !canSend(channel)) {
+      const groupFolder = getHubForJid(jid) ?? undefined;
+      if (!channel.sendDocument || !canSend(channel, groupFolder)) {
         logger.warn(
           { jid, channel: channel.name },
           !channel.sendDocument
