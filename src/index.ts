@@ -105,7 +105,7 @@ import {
   ImpulseState,
 } from './impulse.js';
 import { GroupQueue } from './group-queue.js';
-import { resolveGroupFolderPath } from './group-folder.js';
+import { copyDirRecursive, resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
 import {
   clockXml,
@@ -595,15 +595,6 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   logger.info({ group: group.name, traceId, dur }, 'Messages processed');
   return true;
-}
-
-function copyDirRecursive(src: string, dst: string): void {
-  fs.mkdirSync(dst, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const s = path.join(src, entry.name);
-    const d = path.join(dst, entry.name);
-    entry.isDirectory() ? copyDirRecursive(s, d) : fs.copyFileSync(s, d);
-  }
 }
 
 function spawnGroupFromPrototype(

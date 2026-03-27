@@ -152,7 +152,6 @@ export class GroupQueue {
       return;
     }
 
-    // Run immediately
     this.runTask(groupJid, { id: taskId, groupJid, fn }).catch((err) =>
       logger.error({ groupJid, taskId, err }, 'Unhandled error in runTask'),
     );

@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 
 import { DATA_DIR, GROUPS_DIR } from './config.js';
@@ -27,6 +28,15 @@ export function resolveGroupFolderPath(folder: string): string {
   const groupPath = path.resolve(GROUPS_DIR, folder);
   ensureWithinBase(GROUPS_DIR, groupPath);
   return groupPath;
+}
+
+export function copyDirRecursive(src: string, dst: string): void {
+  fs.mkdirSync(dst, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, entry.name);
+    const d = path.join(dst, entry.name);
+    entry.isDirectory() ? copyDirRecursive(s, d) : fs.copyFileSync(s, d);
+  }
 }
 
 export function resolveGroupIpcPath(folder: string): string {

@@ -790,8 +790,7 @@ async function runAgentMode(
 
     container.stderr.on('data', (data) => {
       const chunk = data.toString();
-      const lines = chunk.trim().split('\n');
-      for (const line of lines) {
+      for (const line of chunk.trim().split('\n')) {
         if (line) logger.debug({ container: group.folder }, line);
       }
       const result = appendWithLimit(

@@ -170,6 +170,12 @@ export async function drainRequests(
 
       let reply: { id: string; ok: boolean; result?: unknown; error?: string };
 
+      const effectiveRules = () => {
+        const rules = deriveRules(sourceGroup);
+        const overrides = getGrantOverrides(sourceGroup);
+        return overrides ? [...rules, ...overrides] : rules;
+      };
+
       if (type === 'list_actions') {
         const tier = permissionTier(sourceGroup);
         const platforms = [
@@ -180,18 +186,13 @@ export async function drainRequests(
               .filter((p) => p.length > 0 && !p.includes('@')),
           ),
         ];
-        const listRules = deriveRules(sourceGroup);
-        const listOverrides = getGrantOverrides(sourceGroup);
-        const listGrants = listOverrides
-          ? [...listRules, ...listOverrides]
-          : listRules;
         reply = {
           id,
           ok: true,
           result: getManifest(sourceGroup, {
             tier,
             platforms,
-            grants: listGrants,
+            grants: effectiveRules(),
           }),
         };
       } else {
@@ -199,10 +200,7 @@ export async function drainRequests(
         if (!action) {
           reply = { id, ok: false, error: `unknown action: ${type}` };
         } else {
-          // Grants check: derive rules + overrides, check action
-          const rules = deriveRules(sourceGroup);
-          const overrides = getGrantOverrides(sourceGroup);
-          const allRules = overrides ? [...rules, ...overrides] : rules;
+          const allRules = effectiveRules();
           const grantParams: Record<string, string> = {};
           const jidVal = data.jid ?? data.chatJid;
           if (typeof jidVal === 'string') grantParams.jid = jidVal;

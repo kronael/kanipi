@@ -36,9 +36,6 @@ const SOCIAL_ACTIONS = [
   'kick',
 ];
 
-// Messaging actions for tier 2
-const MESSAGING_ACTIONS = ['send_message', 'send_file'];
-
 export function parseRule(r: string): ParsedRule {
   let s = r.trim();
   const deny = s.startsWith('!');
