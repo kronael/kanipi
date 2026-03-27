@@ -11,6 +11,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.2.1] — 2026-03-27
+
+### Added
+
+- **Sticky @subgroup routing** — typing `@name` in a chat switches routing to `hub/name` (a direct child of the hub group). `@` alone resets to default routing. State persisted per chat JID in DB.
+
+---
+
 ## [v1.2.0] — 2026-03-27
 
 ### Added
