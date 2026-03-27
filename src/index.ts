@@ -18,7 +18,6 @@ import {
   ONBOARDING_ENABLED,
   ONBOARDING_PLATFORMS,
   TIMEZONE,
-  whatsappEnabled,
   permissionTier,
 } from './config.js';
 import { DiscordChannel } from './channels/discord.js';
@@ -27,7 +26,6 @@ import { LocalChannel } from './channels/local.js';
 import { TelegramChannel } from './channels/telegram.js';
 import { TwitterChannel } from './channels/twitter/index.js';
 import { WebChannel } from './channels/web.js';
-import { WhatsAppChannel } from './channels/whatsapp.js';
 import { startWebProxy } from './web-proxy.js';
 import {
   ContainerOutput,
@@ -1385,12 +1383,6 @@ async function main(): Promise<void> {
     await telegram.connect();
   }
 
-  if (whatsappEnabled()) {
-    const whatsapp = new WhatsAppChannel(channelOpts);
-    channels.push(whatsapp);
-    await whatsapp.connect();
-  }
-
   if (DISCORD_USER_TOKEN) {
     const discord = new DiscordChannel(DISCORD_USER_TOKEN, channelOpts);
     channels.push(discord);
@@ -1503,12 +1495,7 @@ async function main(): Promise<void> {
       delete sessions[groupFolder];
       deleteSession(groupFolder);
     },
-    syncGroupMetadata: (force) => {
-      const wa = channels.find((c) => c.name === 'whatsapp') as
-        | WhatsAppChannel
-        | undefined;
-      return wa?.syncGroupMetadata(force) ?? Promise.resolve();
-    },
+    syncGroupMetadata: (_force) => Promise.resolve(),
     getAvailableGroups,
     writeGroupsSnapshot,
     delegateToChild,

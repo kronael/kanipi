@@ -9,9 +9,9 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
-### Fixed
+### Removed
 
-- **WhatsApp reconnect backoff** — attempt counter now accumulates across reconnect cycles instead of resetting to 1 on each attempt. 503 errors get a 20s minimum backoff. `loggedOut` event resets the counter intentionally (fresh auth cycle).
+- **WhatsApp channel** — removed entirely. Deleted `src/channels/whatsapp.ts`, `src/whatsapp-auth.ts`. Removed `@whiskeysockets/baileys`, `qrcode`, `qrcode-terminal` dependencies. Removed `ASSISTANT_HAS_OWN_NUMBER`, `whatsappEnabled`, `WHATSAPP_AUTH_DIR` from config. Gateway is now 5 channels: Telegram, Discord, Email, Web, Twitter/X.
 
 ---
 

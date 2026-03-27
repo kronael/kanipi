@@ -21,7 +21,7 @@ export async function mimeFromFile(filePath: string): Promise<string> {
   return 'application/octet-stream';
 }
 
-// --- Channel-facing types (used by telegram.ts, whatsapp.ts, discord.ts) ---
+// --- Channel-facing types (used by telegram.ts, discord.ts) ---
 
 export type AttachmentType =
   | 'image'
@@ -32,10 +32,6 @@ export type AttachmentType =
   | 'sticker';
 
 export type TelegramSource = { kind: 'telegram'; fileId: string };
-export type WhatsAppSource = {
-  kind: 'whatsapp';
-  message: Record<string, unknown>;
-};
 export type DiscordSource = { kind: 'discord'; url: string };
 
 export interface RawAttachment {
@@ -44,7 +40,7 @@ export interface RawAttachment {
   filename?: string;
   sizeBytes?: number;
   durationSeconds?: number;
-  source: TelegramSource | WhatsAppSource | DiscordSource;
+  source: TelegramSource | DiscordSource;
 }
 
 export type AttachmentDownloader = (

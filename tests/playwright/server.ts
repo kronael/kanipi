@@ -81,7 +81,7 @@ async function main() {
         },
       ],
     },
-    channels: [{ name: 'telegram' }, { name: 'whatsapp' }, { name: 'discord' }],
+    channels: [{ name: 'telegram' }, { name: 'discord' }],
   };
 
   const server = http.createServer((req, res) => {

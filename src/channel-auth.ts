@@ -17,7 +17,3 @@ export function getChannelAuth(name: string): ChannelAuth | undefined {
 export function listChannelAuths(): string[] {
   return [...registry.keys()];
 }
-
-// register built-in providers
-import { whatsappAuth } from './whatsapp-auth.js';
-registerChannelAuth(whatsappAuth);

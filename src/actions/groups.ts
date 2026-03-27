@@ -19,13 +19,6 @@ import { ContainerConfigSchema } from '../types.js';
 
 const MAX_DELEGATE_DEPTH = 1;
 
-function normalizeJid(jid: string): string {
-  if (jid.startsWith('whatsapp:') && !jid.includes('@')) {
-    return jid + '@s.whatsapp.net';
-  }
-  return jid;
-}
-
 export const refreshGroups: Action = {
   name: 'refresh_groups',
   description: 'Refresh group metadata from channels',
@@ -265,7 +258,7 @@ export const addRouteAction: Action = {
         `unauthorized: ${ctx.sourceGroup} cannot route to ${input.route.target}`,
       );
     }
-    const jid = normalizeJid(input.jid);
+    const jid = input.jid;
     logger.info({ jid, route: input.route }, 'add_route');
     const id = addRoute(jid, input.route);
     return { jid, id, route: input.route };

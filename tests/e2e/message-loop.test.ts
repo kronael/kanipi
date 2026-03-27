@@ -94,10 +94,6 @@ vi.mock('../../src/channels/telegram.js', () => ({
   })),
 }));
 
-vi.mock('../../src/channels/whatsapp.js', () => ({
-  WhatsAppChannel: vi.fn(),
-}));
-
 vi.mock('../../src/channels/discord.js', () => ({
   DiscordChannel: vi.fn().mockImplementation(() => ({
     name: 'discord',

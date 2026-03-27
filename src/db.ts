@@ -111,20 +111,6 @@ export function getChatIsGroup(jid: string): boolean {
   return row ? row.is_group === 1 : false;
 }
 
-export function getLastGroupSync(): string | null {
-  const row = db
-    .prepare(`SELECT last_message_time FROM chats WHERE jid = '__group_sync__'`)
-    .get() as { last_message_time: string } | undefined;
-  return row?.last_message_time || null;
-}
-
-export function setLastGroupSync(): void {
-  const now = new Date().toISOString();
-  db.prepare(
-    `INSERT OR REPLACE INTO chats (jid, name, last_message_time) VALUES ('__group_sync__', '__group_sync__', ?)`,
-  ).run(now);
-}
-
 export function markChatErrored(jid: string): void {
   db.prepare('UPDATE chats SET errored = 1 WHERE jid = ?').run(jid);
 }

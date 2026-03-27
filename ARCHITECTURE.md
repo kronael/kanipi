@@ -11,7 +11,7 @@ TypeScript (ESM, NodeNext), SQLite (better-sqlite3), Docker.
 ## Message Flow
 
 ```
-Channel (telegram/whatsapp/discord/email/web)
+Channel (telegram/discord/email/web)
   -> [Impulse Gate] (all channels; per-JID config from routes.impulse_config)
   -> DB (store message + chat metadata)
   -> message loop (poll getNewMessages)
@@ -37,8 +37,8 @@ Handles group registration and discovery across channels.
 ### config.ts
 
 All config from `.env` + env vars. Exports typed constants.
-Channels enabled by token presence (telegram/discord),
-auth dir (whatsapp), or `EMAIL_IMAP_HOST` (email).
+Channels enabled by token presence (telegram/discord)
+or `EMAIL_IMAP_HOST` (email).
 
 ### db.ts
 
@@ -80,8 +80,8 @@ Built-in: `/new` (clear session), `/ping`, `/chatid`.
 
 Gateway-level onboarding state machine (no LLM). Enabled via
 `ONBOARDING_PLATFORMS` (comma-separated list of platforms, e.g.
-`telegram,whatsapp,email`). Legacy `ONBOARDING_ENABLED=1` maps to
-`telegram,whatsapp,email`. Discord is excluded from onboarding by
+`telegram,email`). Legacy `ONBOARDING_ENABLED=1` maps to
+`telegram,email`. Discord is excluded from onboarding by
 default. States: new → pending → approved → rejected.
 User command: `/request <name>`. Root commands: `/approve <jid>`,
 `/reject <jid>`. On approve, copies root group's `prototype/` to a
@@ -93,7 +93,6 @@ notification message. State stored in DB.
 One file per channel. Each implements `Channel` interface:
 
 - `telegram.ts` — grammy bot, polls via webhook or long-poll
-- `whatsapp.ts` — baileys client, event-driven
 - `discord.ts` — discord.js client, event-driven
 - `email.ts` — IMAP IDLE + SMTP reply threading
 
@@ -102,7 +101,7 @@ All channels pass through the impulse gate (`impulse.ts`). Per-JID
 platform wildcard fallback). Default config fires on every message
 (threshold 100, weight 100). Zero-weight config (`weights: {"*":0}`)
 makes a JID watch-only — events are stored but never trigger the agent.
-Chat channels (Telegram, WhatsApp, Discord, Email, Web) default to
+Chat channels (Telegram, Discord, Email, Web) default to
 immediate-fire; social channels (Twitter, Mastodon, Bluesky, Reddit)
 accumulate events until threshold or hold timer (5 min default).
 
@@ -433,15 +432,13 @@ kanipi_foo.service              systemd unit
 All gateway state in SQLite: `messages`, `groups`, `routes`,
 `session_history`, `system_messages`, `scheduled_tasks`,
 `task_run_logs`, `email_threads`, `auth_users`, `auth_sessions`.
-WhatsApp auth: `store/auth/` (baileys format). Agent knowledge
-stores: filesystem (`facts/`, `diary/`, `users/`, `episodes/`).
+Agent knowledge stores: filesystem (`facts/`, `diary/`, `users/`, `episodes/`).
 
 ## External Systems
 
 | System   | Library                | Role                                       |
 | -------- | ---------------------- | ------------------------------------------ |
 | Telegram | grammy                 | message channel                            |
-| WhatsApp | baileys                | message channel                            |
 | Discord  | discord.js-selfbot-v13 | message channel (userbot)                  |
 | Email    | IMAP/SMTP              | message channel (IDLE + reply threading)   |
 | Docker   | child_process          | agent container runtime                    |

@@ -7,7 +7,6 @@ import { readEnvFile } from './env.js';
 
 const envConfig = readEnvFile([
   'ASSISTANT_NAME',
-  'ASSISTANT_HAS_OWN_NUMBER',
   'TELEGRAM_BOT_TOKEN',
   'DISCORD_USER_TOKEN',
   'CONTAINER_IMAGE',
@@ -41,9 +40,6 @@ const envConfig = readEnvFile([
 
 export const ASSISTANT_NAME =
   process.env.ASSISTANT_NAME || envConfig.ASSISTANT_NAME || 'Andy';
-export const ASSISTANT_HAS_OWN_NUMBER =
-  (process.env.ASSISTANT_HAS_OWN_NUMBER ||
-    envConfig.ASSISTANT_HAS_OWN_NUMBER) === 'true';
 export const POLL_INTERVAL = 2000;
 export const SCHEDULER_POLL_INTERVAL = 60000;
 
@@ -186,18 +182,13 @@ export function _overrideConfig(patch: {
     MEDIA_MAX_FILE_BYTES = patch.MEDIA_MAX_FILE_BYTES;
 }
 
-export const WHATSAPP_AUTH_DIR = path.join(STORE_DIR, 'auth');
-export function whatsappEnabled(): boolean {
-  return fs.existsSync(path.join(WHATSAPP_AUTH_DIR, 'creds.json'));
-}
-
-// ONBOARDING_PLATFORMS: comma-separated platforms, e.g. "telegram,whatsapp"
+// ONBOARDING_PLATFORMS: comma-separated platforms, e.g. "telegram,email"
 // ONBOARDING_ENABLED=1 is legacy shorthand for all platforms
 const _onboardingRaw =
   process.env.ONBOARDING_PLATFORMS ||
   envConfig.ONBOARDING_PLATFORMS ||
   ((process.env.ONBOARDING_ENABLED || envConfig.ONBOARDING_ENABLED) === '1'
-    ? 'telegram,whatsapp,email'
+    ? 'telegram,email'
     : '');
 export const ONBOARDING_PLATFORMS: Set<string> = new Set(
   _onboardingRaw

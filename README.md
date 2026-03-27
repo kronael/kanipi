@@ -1,7 +1,7 @@
 # kanipi
 
 Multitenant Claude agent gateway. Routes messages from any channel
-(Telegram, WhatsApp, Discord, Email, Web) to containerized Claude
+(Telegram, Discord, Email, Web) to containerized Claude
 Code agents. systemd-managed instances, MCP extensibility.
 
 ## Why
@@ -129,7 +129,7 @@ in `.env` — see `template/env.example` for all options.
 
 ## How It Works
 
-Gateway polls channels (Telegram, WhatsApp, Discord, Email) for
+Gateway polls channels (Telegram, Discord, Email) for
 messages, queues them per group, and spawns a docker container per
 agent invocation. The agent runs Claude Code (paid — each invocation
 uses API credits), reads the message from stdin, uses tools/skills/MCP,
@@ -247,7 +247,7 @@ timestamp. See agent `CLAUDE.md` for handling rules.
 
 ```
 .env                    config (tokens, ports)
-store/                  SQLite DB, whatsapp auth
+store/                  SQLite DB
 groups/main/logs/       conversation logs
 data/sessions/          per-session state dirs
 data/ipc/               agent IPC files
@@ -267,43 +267,37 @@ verification, and Google OAuth (`/auth/google`).
 
 All via `.env` (seeded from `template/env.example`):
 
-| Key                       | Purpose                                                                                                                             |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| ASSISTANT_NAME            | instance name                                                                                                                       |
-| TELEGRAM_BOT_TOKEN        | enables telegram channel                                                                                                            |
-| DISCORD_USER_TOKEN        | enables discord channel (userbot)                                                                                                   |
-| CONTAINER_IMAGE           | agent docker image                                                                                                                  |
-| CLAUDE_CODE_OAUTH_TOKEN   | passed to agent containers                                                                                                          |
-| CONTAINER_TIMEOUT         | container idle shutdown (ms, default 3600000)                                                                                       |
-| MAX_CONCURRENT_CONTAINERS | concurrent agent limit                                                                                                              |
-| VITE_PORT                 | enables vite web serving                                                                                                            |
-| WEB_HOST                  | vite host binding                                                                                                                   |
-| AUTH_SECRET               | JWT secret for session auth (required for non-public web)                                                                           |
-| GITHUB_CLIENT_ID          | GitHub OAuth app client ID                                                                                                          |
-| GITHUB_CLIENT_SECRET      | GitHub OAuth app client secret                                                                                                      |
-| GOOGLE_CLIENT_ID          | Google OAuth app client ID                                                                                                          |
-| GOOGLE_CLIENT_SECRET      | Google OAuth app client secret                                                                                                      |
-| DISCORD_CLIENT_ID         | Discord OAuth app client ID                                                                                                         |
-| DISCORD_CLIENT_SECRET     | Discord OAuth app client secret                                                                                                     |
-| WEBDAV_ENABLED            | enable WebDAV proxy (default false)                                                                                                 |
-| WEBDAV_URL                | upstream WebDAV server URL                                                                                                          |
-| WHISPER_BASE_URL          | whisper service URL for transcription                                                                                               |
-| EMAIL_IMAP_HOST           | enables email channel (IMAP IDLE)                                                                                                   |
-| EMAIL_SMTP_HOST           | SMTP for reply threading (defaults from IMAP)                                                                                       |
-| EMAIL_ACCOUNT             | email account address                                                                                                               |
-| EMAIL_PASSWORD            | email account password                                                                                                              |
-| MEDIA_ENABLED             | enable attachment pipeline (default false)                                                                                          |
-| TIMEZONE                  | cron timezone (validated, fallback UTC)                                                                                             |
-| ONBOARDING_PLATFORMS      | comma-separated platforms for onboarding (e.g. `telegram,whatsapp,email`); `ONBOARDING_ENABLED=1` maps to `telegram,whatsapp,email` |
+| Key                       | Purpose                                                                                                           |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| ASSISTANT_NAME            | instance name                                                                                                     |
+| TELEGRAM_BOT_TOKEN        | enables telegram channel                                                                                          |
+| DISCORD_USER_TOKEN        | enables discord channel (userbot)                                                                                 |
+| CONTAINER_IMAGE           | agent docker image                                                                                                |
+| CLAUDE_CODE_OAUTH_TOKEN   | passed to agent containers                                                                                        |
+| CONTAINER_TIMEOUT         | container idle shutdown (ms, default 3600000)                                                                     |
+| MAX_CONCURRENT_CONTAINERS | concurrent agent limit                                                                                            |
+| VITE_PORT                 | enables vite web serving                                                                                          |
+| WEB_HOST                  | vite host binding                                                                                                 |
+| AUTH_SECRET               | JWT secret for session auth (required for non-public web)                                                         |
+| GITHUB_CLIENT_ID          | GitHub OAuth app client ID                                                                                        |
+| GITHUB_CLIENT_SECRET      | GitHub OAuth app client secret                                                                                    |
+| GOOGLE_CLIENT_ID          | Google OAuth app client ID                                                                                        |
+| GOOGLE_CLIENT_SECRET      | Google OAuth app client secret                                                                                    |
+| DISCORD_CLIENT_ID         | Discord OAuth app client ID                                                                                       |
+| DISCORD_CLIENT_SECRET     | Discord OAuth app client secret                                                                                   |
+| WEBDAV_ENABLED            | enable WebDAV proxy (default false)                                                                               |
+| WEBDAV_URL                | upstream WebDAV server URL                                                                                        |
+| WHISPER_BASE_URL          | whisper service URL for transcription                                                                             |
+| EMAIL_IMAP_HOST           | enables email channel (IMAP IDLE)                                                                                 |
+| EMAIL_SMTP_HOST           | SMTP for reply threading (defaults from IMAP)                                                                     |
+| EMAIL_ACCOUNT             | email account address                                                                                             |
+| EMAIL_PASSWORD            | email account password                                                                                            |
+| MEDIA_ENABLED             | enable attachment pipeline (default false)                                                                        |
+| TIMEZONE                  | cron timezone (validated, fallback UTC)                                                                           |
+| ONBOARDING_PLATFORMS      | comma-separated platforms for onboarding (e.g. `telegram,email`); `ONBOARDING_ENABLED=1` maps to `telegram,email` |
 
-Channels enabled by token presence (telegram/discord),
-auth dir existence (whatsapp: `store/auth/creds.json`),
+Channels enabled by token presence (telegram/discord)
 or `EMAIL_IMAP_HOST` presence (email).
-
-**WhatsApp setup**: start the gateway without WhatsApp credentials.
-It will print a QR code to the terminal. Scan it with WhatsApp on
-your phone to pair. Credentials are saved to `store/auth/creds.json`
-and reused on subsequent starts.
 
 Per-group whisper language hints: create `.whisper-language` in the group
 folder with one BCP-47 language code per line (e.g. `cs`, `de`). The whisper

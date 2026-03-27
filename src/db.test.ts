@@ -33,7 +33,6 @@ import {
   getGroupBySlink,
   getHubForJid,
   getJidsForFolder,
-  getLastGroupSync,
   getMessageById,
   getMessagesSince,
   getNewMessages,
@@ -53,7 +52,6 @@ import {
   pruneExpiredSessions,
   recordSessionStart,
   setGroupConfig,
-  setLastGroupSync,
   setRoutesForJid,
   setRouterState,
   setSession,
@@ -712,17 +710,6 @@ describe('updateChatName', () => {
     expect(chats).toHaveLength(1);
     expect(chats[0].name).toBe('Renamed');
     expect(chats[0].last_message_time).toBe('2024-06-01T00:00:00.000Z');
-  });
-});
-
-// --- getLastGroupSync / setLastGroupSync ---
-
-describe('group sync tracking', () => {
-  it('setLastGroupSync stores a timestamp retrievable by getLastGroupSync', () => {
-    setLastGroupSync();
-    const ts = getLastGroupSync();
-    expect(ts).toBeTruthy();
-    expect(new Date(ts!).getTime()).toBeGreaterThan(0);
   });
 });
 

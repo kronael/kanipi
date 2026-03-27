@@ -58,12 +58,9 @@ test.describe('Status Dashboard - HTMX Fragments', () => {
 
   test('channels fragment shows channel names', async ({ page }) => {
     await page.goto('/dash/status/');
-    await expect(page.getByText('3 channels')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('2 channels')).toBeVisible({ timeout: 5000 });
     await expect(
       page.getByRole('cell', { name: 'telegram', exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('cell', { name: 'whatsapp', exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole('cell', { name: 'discord', exact: true }),

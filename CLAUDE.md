@@ -43,7 +43,7 @@ ALWAYS follow before answering:
 ## What is kanipi
 
 Nanoclaw fork — multitenant Claude agent gateway with
-multi-channel support (telegram, whatsapp, discord, email).
+multi-channel support (telegram, discord, email).
 systemd-managed instances, MCP extensibility.
 
 ## Build & Test
@@ -99,7 +99,7 @@ progress, 4-5 planned. Naming: `<phase>/<base58>-<topic>.md`.
 
 ## Data Dir
 
-`/srv/data/kanipi_<name>/`: `.env`, `store/` (SQLite, whatsapp auth),
+`/srv/data/kanipi_<name>/`: `.env`, `store/` (SQLite),
 `groups/` (per-group folders), `web/` (vite app), `data/` (IPC).
 
 ## Config
@@ -108,8 +108,8 @@ All config via `.env` in data dir or env vars. `env.ts` loads raw
 `.env`; `config.ts` exports typed constants (always import from
 `config.ts`). `CONTAINER_IMAGE` from `.env` or env var (env wins,
 default `nanoclaw-agent:latest`). Channels enabled by token
-presence (telegram/discord), auth dir (whatsapp), or
-`EMAIL_IMAP_HOST` (email). See `README.md` for full config table.
+presence (telegram/discord), or `EMAIL_IMAP_HOST` (email).
+See `README.md` for full config table.
 
 ## Entrypoint
 
