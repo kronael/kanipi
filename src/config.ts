@@ -38,6 +38,8 @@ const envConfig = readEnvFile([
   'SLACK_APP_TOKEN',
   'SLACK_USER_TOKEN',
   'SLACK_USER_COOKIE',
+  'SEND_DISABLED_CHANNELS',
+  'SEND_DISABLED_GROUPS',
   'WEBDAV_ENABLED',
   'WEBDAV_URL',
 ]);
@@ -276,6 +278,21 @@ export const FILE_MAX_UPLOAD_BYTES = parseInt(
 export const FILE_MAX_DOWNLOAD_BYTES = parseInt(
   process.env.FILE_MAX_DOWNLOAD_BYTES || '52428800',
   10,
+);
+
+function parseSet(raw: string | undefined): Set<string> {
+  return new Set(
+    (raw || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+}
+export const SEND_DISABLED_CHANNELS: Set<string> = parseSet(
+  process.env.SEND_DISABLED_CHANNELS || envConfig.SEND_DISABLED_CHANNELS,
+);
+export const SEND_DISABLED_GROUPS: Set<string> = parseSet(
+  process.env.SEND_DISABLED_GROUPS || envConfig.SEND_DISABLED_GROUPS,
 );
 
 export const WEBDAV_ENABLED =
