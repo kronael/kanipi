@@ -136,7 +136,7 @@ function canSend(channel: Channel, groupFolder?: string): boolean {
 
 function isStickyCommand(content: string): boolean {
   const t = content.trim();
-  return t.startsWith('@') && !t.includes(' ');
+  return t.startsWith('@') && !t.includes(' ') && !t.includes('\n');
 }
 
 const GITIGNORE_RUNTIME_DIRS = new Set([

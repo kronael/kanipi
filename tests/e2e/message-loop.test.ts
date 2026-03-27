@@ -747,6 +747,8 @@ describe('isStickyCommand', () => {
   it('rejects empty string', () => expect(_isStickyCommand('')).toBe(false));
   it('rejects whitespace only', () =>
     expect(_isStickyCommand('  ')).toBe(false));
+  it('rejects @name with newline (multiline message)', () =>
+    expect(_isStickyCommand('@code\nsome text')).toBe(false));
 });
 
 // ── sticky command handling ───────────────────────────────────────────────────
