@@ -11,7 +11,7 @@ const RECONNECT_BASE_MS = 2000;
 const RECONNECT_MAX_MS = 60000;
 
 export class SlackUserChannel implements Channel {
-  name = 'slack';
+  name = 'slack-user';
 
   private ws: WebSocket | null = null;
   private userId: string | null = null;
