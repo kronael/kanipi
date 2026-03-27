@@ -1,5 +1,10 @@
 # TODO
 
+## Ops / config
+
+- [ ] marinade: Twitter cookies expired (401) — extract fresh auth_token + ct0 from browser
+- [ ] marinade: Discord not connected — add DISCORD_BOT_TOKEN to .env if Discord observation needed
+
 ## Phase 3 — kanipi v1.x
 
 - [x] paths: hostPath() elimination (HOST\_\* exports done)
