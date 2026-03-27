@@ -11,6 +11,14 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ---
 
+## [v1.1.1] — 2026-03-27
+
+### Refactored
+
+- Removed dead `channel-auth.ts` module and `kanipi channel auth` CLI subcommand — both were WhatsApp-only and went undetected in the v1.1.0 removal pass.
+
+---
+
 ## [v1.1.0] — 2026-03-27
 
 ### Removed
