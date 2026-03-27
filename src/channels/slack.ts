@@ -6,6 +6,8 @@ import { App, LogLevel } from '@slack/bolt';
 import { logger } from '../logger.js';
 import { Channel, ChannelOpts, Platform, SendOpts, Verb } from '../types.js';
 
+const MAX_MESSAGE_LEN = 4000;
+
 export class SlackChannel implements Channel {
   name = 'slack';
 
@@ -34,13 +36,25 @@ export class SlackChannel implements Channel {
 
     this.app.message(async ({ message }) => {
       const msg = message as any;
-      // Skip bot/system messages
+      // Skip bot/system messages and own messages
       if (msg.subtype === 'bot_message' || msg.bot_id) return;
+      if (!msg.user || !msg.channel || !msg.ts) return;
       if (msg.user === this.botUserId) return;
 
       const chatJid = `slack:${msg.channel}`;
       const sender = `slack:${msg.user}`;
       const timestamp = new Date(parseFloat(msg.ts) * 1000).toISOString();
+      // channel_type: 'im' = DM, 'channel'/'group'/'mpim' = group
+      const isGroup = msg.channel_type !== 'im';
+
+      // !chatid debug command — lets users discover their channel JID
+      if (msg.text?.trim() === '!chatid') {
+        await this.app!.client.chat.postMessage({
+          channel: msg.channel,
+          text: `Chat ID: \`${chatJid}\``,
+        });
+        return;
+      }
 
       let senderName: string = msg.user;
       try {
@@ -65,9 +79,17 @@ export class SlackChannel implements Channel {
       const mentionsMe = !!(
         this.botUserId && (msg.text || '').includes(`<@${this.botUserId}>`)
       );
-      const content = (msg.text || '').replace(/<@[A-Z0-9]+>/g, '').trim();
+      // Only strip the bot's own mention — preserve other user mentions
+      let content = msg.text || '';
+      if (mentionsMe && this.botUserId) {
+        content = content.replaceAll(`<@${this.botUserId}>`, '').trim();
+      }
 
-      this.opts.onChatMetadata(chatJid, timestamp, chatName, 'slack', true);
+      // Thread reply: thread_ts points to parent; absent or equal to ts = top-level
+      const reply_to_id =
+        msg.thread_ts && msg.thread_ts !== msg.ts ? msg.thread_ts : undefined;
+
+      this.opts.onChatMetadata(chatJid, timestamp, chatName, 'slack', isGroup);
       this.opts.onMessage(chatJid, {
         id: msg.ts,
         chat_jid: chatJid,
@@ -79,6 +101,7 @@ export class SlackChannel implements Channel {
         verb: Verb.Message,
         platform: Platform.Slack,
         mentions_me: mentionsMe || undefined,
+        reply_to_id,
       });
 
       logger.info(
@@ -99,12 +122,18 @@ export class SlackChannel implements Channel {
     if (!this.app) return undefined;
     const channel = jid.replace(/^slack:/, '');
     try {
-      const res = await this.app.client.chat.postMessage({
-        channel,
-        text,
-        ...(opts?.replyTo ? { thread_ts: opts.replyTo } : {}),
-      });
-      return res.ts as string | undefined;
+      let lastTs: string | undefined;
+      for (let i = 0; i < text.length; i += MAX_MESSAGE_LEN) {
+        const chunk = text.slice(i, i + MAX_MESSAGE_LEN);
+        const res = await this.app.client.chat.postMessage({
+          channel,
+          text: chunk,
+          ...(opts?.replyTo && i === 0 ? { thread_ts: opts.replyTo } : {}),
+        });
+        lastTs = res.ts as string | undefined;
+      }
+      logger.info({ jid, length: text.length }, 'Slack message sent');
+      return lastTs;
     } catch (err) {
       logger.error({ jid, err }, 'Failed to send Slack message');
       return undefined;
@@ -146,7 +175,8 @@ export class SlackChannel implements Channel {
     }
   }
 
-  async setTyping(): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async setTyping(_jid: string, _isTyping: boolean): Promise<void> {
     // Slack bot API does not support typing indicators
   }
 }
