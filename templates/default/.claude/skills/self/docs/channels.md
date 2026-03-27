@@ -4,13 +4,14 @@ Channels are enabled by env var presence in the instance `.env`. Set them, resta
 
 ## Chat channels (no impulse gate)
 
-| Channel   | Trigger env var      | Notes                                       |
-| --------- | -------------------- | ------------------------------------------- |
-| Telegram  | `TELEGRAM_BOT_TOKEN` | grammy bot, long-poll or webhook            |
-| Discord   | `DISCORD_USER_TOKEN` | userbot (discord.js-selfbot-v13), NOT a bot |
-| WhatsApp  | (creds file)         | baileys; no token — QR pairing              |
-| Email     | `EMAIL_IMAP_HOST`    | IMAP IDLE + SMTP reply threading            |
-| Web/slink | slink token in DB    | HTTP POST; no gateway env var needed        |
+| Channel   | Trigger env var                       | Notes                                       |
+| --------- | ------------------------------------- | ------------------------------------------- |
+| Telegram  | `TELEGRAM_BOT_TOKEN`                  | grammy bot, long-poll or webhook            |
+| Discord   | `DISCORD_USER_TOKEN`                  | userbot (discord.js-selfbot-v13), NOT a bot |
+| WhatsApp  | (creds file)                          | baileys; no token — QR pairing              |
+| Email     | `EMAIL_IMAP_HOST`                     | IMAP IDLE + SMTP reply threading            |
+| Slack     | `SLACK_BOT_TOKEN` + `SLACK_APP_TOKEN` | @slack/bolt Socket Mode; no public URL      |
+| Web/slink | slink token in DB                     | HTTP POST; no gateway env var needed        |
 
 ## Social channels (through impulse gate)
 
@@ -84,6 +85,31 @@ EMAIL_PASSWORD=secret
 
 Reply threading via SMTP; IMAP IDLE for live delivery.
 
+### Slack
+
+```env
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_APP_TOKEN=xapp-...
+```
+
+Uses Socket Mode — no public URL needed. The bot connects outbound via WebSocket.
+
+**Required scopes** (OAuth & Permissions):
+
+- `chat:write` — post messages
+- `files:write` — upload files
+- `channels:history`, `groups:history`, `im:history`, `mpim:history` — read messages
+- `users:read` — resolve display names
+- `channels:read`, `groups:read` — resolve channel names
+
+**App-Level Token** (`xapp-...`) requires `connections:write` scope (Socket Mode).
+
+Enable Socket Mode in your Slack app settings, then add the bot to channels. Send `!chatid` in any channel to get the JID:
+
+```bash
+kanipi config <name> group add slack:C1234567890 <folder>
+```
+
 ### Twitter/X
 
 ```env
@@ -106,5 +132,6 @@ Limitations: scraper may break on Twitter UI changes. No native media upload. Ra
 | discord  | `discord:<channel_id>` | `discord:1234567890`  |
 | whatsapp | `whatsapp:<jid>`       | `whatsapp:12345@g.us` |
 | email    | `email:<thread_id>`    | `email:<Message-ID>`  |
+| slack    | `slack:<channel_id>`   | `slack:C1234567890`   |
 | twitter  | `twitter:<user_id>`    | `twitter:123456`      |
 | web      | `web:<name>`           | `web:main`            |

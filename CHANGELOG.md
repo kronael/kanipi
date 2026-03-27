@@ -9,6 +9,10 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+### Added
+
+- **Slack channel** — Socket Mode bot via `@slack/bolt`. Enabled by `SLACK_BOT_TOKEN` + `SLACK_APP_TOKEN`. JID format `slack:<channelId>`. Supports: DM vs group detection (`channel_type`), thread replies (`thread_ts`), mention detection (bot only), message chunking (4000 char limit), `!chatid` debug command, `sendDocument` via files.upload.
+
 ---
 
 ## [v1.1.1] — 2026-03-27
