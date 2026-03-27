@@ -36,6 +36,8 @@ const envConfig = readEnvFile([
   'TWITTER_EMAIL',
   'SLACK_BOT_TOKEN',
   'SLACK_APP_TOKEN',
+  'SLACK_USER_TOKEN',
+  'SLACK_USER_COOKIE',
   'WEBDAV_ENABLED',
   'WEBDAV_URL',
 ]);
@@ -120,6 +122,10 @@ export const SLACK_BOT_TOKEN =
   process.env.SLACK_BOT_TOKEN || envConfig.SLACK_BOT_TOKEN || '';
 export const SLACK_APP_TOKEN =
   process.env.SLACK_APP_TOKEN || envConfig.SLACK_APP_TOKEN || '';
+export const SLACK_USER_TOKEN =
+  process.env.SLACK_USER_TOKEN || envConfig.SLACK_USER_TOKEN || '';
+export const SLACK_USER_COOKIE =
+  process.env.SLACK_USER_COOKIE || envConfig.SLACK_USER_COOKIE || '';
 
 export const WEB_DIR = path.resolve(PROJECT_ROOT, 'web');
 export const HOST_WEB_DIR = path.resolve(HOST_PROJECT_ROOT, 'web');
