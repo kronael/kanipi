@@ -9,9 +9,15 @@ kanipi is a fork of [nanoclaw](https://github.com/nicholasgasior/nanoclaw)
 
 ## [Unreleased]
 
+---
+
+## [v1.2.0] — 2026-03-27
+
 ### Added
 
-- **Slack channel** — Socket Mode bot via `@slack/bolt`. Enabled by `SLACK_BOT_TOKEN` + `SLACK_APP_TOKEN`. JID format `slack:<channelId>`. Supports: DM vs group detection (`channel_type`), thread replies (`thread_ts`), mention detection (bot only), message chunking (4000 char limit), `!chatid` debug command, `sendDocument` via files.upload.
+- **Slack bot channel** — Socket Mode via `@slack/bolt`. Enabled by `SLACK_BOT_TOKEN` + `SLACK_APP_TOKEN`. JID `slack:<channelId>`. Supports DM vs group detection, thread replies, mention stripping, 4000-char chunking, `!chatid`, `sendDocument`.
+- **Slack userbot channel** — Connects as your own account via browser session tokens (`SLACK_USER_TOKEN=xoxc-...` + `SLACK_USER_COOKIE=xoxd-...`). RTM WebSocket with exponential reconnect backoff. No Slack app install required. Channel name `slack-user` for independent send-gating.
+- **Send gating** — `SEND_DISABLED_CHANNELS=discord,slack,twitter` prevents outbound sends to named channels. `SEND_DISABLED_GROUPS=atlas` suppresses agent output for named group folders. Both are comma-separated env vars, checked at every outbound callsite.
 
 ---
 
