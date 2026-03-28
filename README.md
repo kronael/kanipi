@@ -385,11 +385,11 @@ Built on the shoulders of people doing serious work in this space.
 | [Muaddib](https://github.com/pasky/muaddib)              | Petr Baudis       | MIT         | © 2025 Muaddib contributors                  | QEMU micro-VM isolation, 3-tier chronicle memory design                          |
 | [Hermes](https://github.com/NousResearch/hermes-agent)   | Nous Research     | MIT         | © 2025 Nous Research                         | Self-improving skill learning across sessions                                    |
 | [takopi](https://github.com/banteg/takopi)               | banteg            | MIT         | © 2025 banteg                                | Telegram→agent dispatch, live progress streaming                                 |
-| [arizuko](https://github.com/onvos/arizuko)              | onvos             | MIT         | © 2026 onvos                                 | Go rewrite of kanipi — orthogonal components, MCP IPC, production hardening      |
+| [arizuko](https://github.com/onvos/arizuko)              | onvos             | MIT         | © 2026 Ondrej Vostal                         | Go rewrite of kanipi — orthogonal components, MCP IPC, production hardening      |
 
 If you build on kanipi, this is all we ask:
 
-> Built on [kanipi](https://github.com/onvos/kanipi) by onvos.
+> Built on [kanipi](https://github.com/onvos/kanipi) by onvos. © 2026 Ondrej Vostal (MIT)
 
 We think this is what attribution should look like: author, license, copyright,
 and what the work actually contributed.
