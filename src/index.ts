@@ -648,9 +648,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
         if (result.status === 'success') {
           if (result.result?.startsWith('⏳')) {
-            // Interim status update — keep typing, don't signal idle yet.
-            // Calling notifyIdle here would prematurely preempt the container
-            // if IPC tasks are pending.
+            // Interim status update — restart typing (sending a message clears it)
+            // and don't signal idle yet to avoid preempting pending IPC tasks.
+            startTyping(channel, chatJid);
           } else {
             // Final result (text or empty) — stop typing and signal idle.
             stopTypingFor(chatJid);
